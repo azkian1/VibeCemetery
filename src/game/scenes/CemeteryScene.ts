@@ -1,0 +1,843 @@
+import * as Phaser from 'phaser';
+import { parseSlots, SlotData } from '../utils/slotManager';
+import { pickTileVariant, renderGrave } from '../utils/tileRegistry';
+import { cemeteryEvents, SlotEventData, RenderGraveData, MinimapClickData } from '../events';
+
+const TILESET_NAMES = [
+  'graveyard_ground',
+  'Graveyard_B',
+  'Graveyard_A2',
+  'Graveyard_C',
+  'non-rm-a1-square',
+  'Graveyard_D',
+  'Graveyard_A1',
+  'Crypt_D',
+  'Crypt_B',
+];
+
+// Fire torch animation frames (GIDs from Fire_Animation tileset)
+const FIRE_TORCHES = [
+  { x: 12, y: 1, offset: 0 },
+  { x: 16, y: 1, offset: 1 },
+];
+const FIRE_FRAMES = [
+  { top: 6173, bottom: 6176 },
+  { top: 6174, bottom: 6177 },
+  { top: 6175, bottom: 6178 },
+];
+
+// Crypt lamps near Mausoleum (GID 5713 top + 5729 bottom, each 1x2 tiles)
+const MAUSOLEUM_LAMPS = [
+  { x: 1248, y: 1656 }, // Left lamp
+  { x: 1440, y: 1656 }, // Right lamp
+];
+
+// Blue lamp positions (extracted from az.tmj)
+// Working lamps: GIDs 3698,3699,3700,3701,3702,3703,3704,3715,3956,3957,3960
+const BLUE_LAMPS_WORKING: Array<{ x: number; y: number; bright: boolean }> = [
+  // 3698 — Grass
+  {x:288,y:336,bright:false},{x:432,y:336,bright:false},{x:480,y:528,bright:false},
+  {x:576,y:624,bright:false},{x:672,y:720,bright:false},{x:768,y:768,bright:false},
+  {x:1152,y:336,bright:false},{x:1296,y:288,bright:false},{x:1344,y:480,bright:false},
+  {x:1440,y:240,bright:false},{x:1536,y:384,bright:false},{x:1632,y:192,bright:false},
+  {x:1728,y:384,bright:false},
+  // 3699 — Grass
+  {x:240,y:1536,bright:false},{x:288,y:864,bright:false},{x:384,y:816,bright:false},
+  {x:864,y:624,bright:false},
+  // 3700 — Grass + Forest1
+  {x:912,y:1632,bright:false},{x:960,y:144,bright:false},
+  // 3701 — Grass
+  {x:1248,y:1104,bright:false},{x:1296,y:1440,bright:false},
+  // 3702 — Grass
+  {x:1152,y:1488,bright:false},
+  // 3703 — Grass (BRIGHT)
+  {x:528,y:96,bright:true},{x:816,y:96,bright:true},
+  // 3704 — Grass
+  {x:96,y:672,bright:false},{x:192,y:672,bright:false},{x:1200,y:1632,bright:false},
+  {x:1488,y:1632,bright:false},
+  // 3715 — Grass + Forest1
+  {x:48,y:288,bright:false},{x:96,y:1536,bright:false},{x:192,y:912,bright:false},
+  {x:288,y:1056,bright:false},{x:432,y:1488,bright:false},{x:480,y:1152,bright:false},
+  {x:624,y:1488,bright:false},{x:720,y:1680,bright:false},{x:816,y:1152,bright:false},
+  {x:816,y:1392,bright:false},{x:1440,y:576,bright:false},{x:1440,y:1056,bright:false},
+  {x:1440,y:1200,bright:false},{x:1440,y:1344,bright:false},{x:1440,y:1440,bright:false},
+  {x:1488,y:816,bright:false},{x:1584,y:1536,bright:false},{x:1632,y:1344,bright:false},
+  {x:1680,y:1056,bright:false},{x:1728,y:1200,bright:false},{x:1776,y:912,bright:false},
+  {x:1776,y:1344,bright:false},{x:1872,y:1200,bright:false},
+  // 3956, 3957 — Forest2
+  {x:192,y:1872,bright:false},{x:240,y:1872,bright:false},
+  // 3960 — Grass
+  {x:144,y:480,bright:false},
+];
+
+// Broken lamps: GIDs 5333,5338,5339,5340,5366
+const BLUE_LAMPS_BROKEN = [
+  {x:1248,y:960},{x:1152,y:1200},{x:816,y:480},{x:912,y:384},
+  {x:864,y:768},{x:1584,y:1104},
+];
+
+const TILE_LAYER_NAMES = [
+  'Ground',
+  'Roads',
+  'Borders',
+  'Grass',
+  'Forest2',
+  'Tail3',
+  'Mid',
+  'graves_dynamic',
+  'Forest1',
+];
+
+export class CemeteryScene extends Phaser.Scene {
+  private map!: Phaser.Tilemaps.Tilemap;
+  private slots = new Map<number, SlotData>();
+  private gravesLayer: Phaser.Tilemaps.TilemapLayer | null = null;
+  private fireLayer: Phaser.Tilemaps.TilemapLayer | null = null;
+  private fireFrame = 0;
+  private lampGraphics: Phaser.GameObjects.Graphics[] = [];
+  private timers: Phaser.Time.TimerEvent[] = [];
+  private lastCamX = -1;
+  private lastCamY = -1;
+  private lastCamZoom = -1;
+  private modalOpen = false;
+  private isDragging = false;
+  private dragDistance = 0;
+  private dragStartX = 0;
+  private dragStartY = 0;
+  private dragStartScrollX = 0;
+  private dragStartScrollY = 0;
+
+  constructor() {
+    super({ key: 'CemeteryScene' });
+  }
+
+  preload() {
+    this.load.tilemapTiledJSON('cemetery-map', '/map/az.tmj');
+    for (const name of TILESET_NAMES) {
+      this.load.image(name, `/map/${name}.png`);
+    }
+    this.load.image('Fire_Animation', '/map/Fire_Animation.png');
+  }
+
+  create() {
+    this.renderedSlots.clear();
+
+    // Create tilemap
+    this.map = this.make.tilemap({ key: 'cemetery-map' });
+
+    // Add all tilesets
+    const tilesets: Phaser.Tilemaps.Tileset[] = [];
+    for (const name of TILESET_NAMES) {
+      const ts = this.map.addTilesetImage(name, name);
+      if (ts) tilesets.push(ts);
+    }
+    const fireTileset = this.map.addTilesetImage('Fire_Animation', 'Fire_Animation');
+    if (fireTileset) tilesets.push(fireTileset);
+
+    // Create tile layers in order
+    for (const layerName of TILE_LAYER_NAMES) {
+      const layer = this.map.createLayer(layerName, tilesets);
+      if (layer && layerName === 'graves_dynamic') {
+        this.gravesLayer = layer;
+      }
+      if (layer && layerName === 'Tail3') {
+        this.fireLayer = layer;
+      }
+      // Parallax: foreground trees move slightly faster
+      if (layer && layerName === 'Forest1') {
+        layer.setScrollFactor(1.03);
+      }
+      if (layer && layerName === 'Forest2') {
+        layer.setScrollFactor(1.015);
+      }
+    }
+
+    // Emit simplified tile raster for minimap
+    this.emitMinimapTiles();
+
+    // Parse object layer
+    this.slots = parseSlots(this.map);
+
+    // Emit slot positions for minimap (includes dimensions for building outlines)
+    const slotArr = Array.from(this.slots.values()).map(s => ({
+      id: s.id, x: s.x, y: s.y, width: s.width, height: s.height, type: s.type, name: s.name,
+    }));
+    cemeteryEvents.emit('slots_ready', { slots: slotArr });
+
+    // Camera setup — smooth intro (no hard bounds, elastic instead)
+    const cam = this.cameras.main;
+    cam.centerOn(960, 960);
+    const fitZoom = Math.max(this.scale.width / 1920, this.scale.height / 1920);
+    const minZoom = fitZoom;
+    cam.setZoom(fitZoom);
+    cam.zoomTo(1.0, 2000, 'Sine.easeInOut');
+
+    // Elastic bounds helpers
+    const ELASTIC = 0.3; // resistance when dragging past edge
+    const getBounds = () => {
+      const vw = cam.width / cam.zoom;
+      const vh = cam.height / cam.zoom;
+      return {
+        minX: 0,
+        minY: 0,
+        maxX: Math.max(0, 1920 - vw),
+        maxY: Math.max(0, 1920 - vh),
+      };
+    };
+
+    const clampWithElastic = (val: number, min: number, max: number) => {
+      if (val < min) return min + (val - min) * ELASTIC;
+      if (val > max) return max + (val - max) * ELASTIC;
+      return val;
+    };
+
+    const snapBack = () => {
+      const b = getBounds();
+      const targetX = Phaser.Math.Clamp(cam.scrollX, b.minX, b.maxX);
+      const targetY = Phaser.Math.Clamp(cam.scrollY, b.minY, b.maxY);
+      if (Math.abs(cam.scrollX - targetX) > 1 || Math.abs(cam.scrollY - targetY) > 1) {
+        this.tweens.add({
+          targets: cam,
+          scrollX: targetX,
+          scrollY: targetY,
+          duration: 300,
+          ease: 'Back.easeOut',
+        });
+      }
+    };
+
+    // Drag controls
+    this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+      this.isDragging = true;
+      this.dragDistance = 0;
+      this.dragStartX = pointer.x;
+      this.dragStartY = pointer.y;
+      this.dragStartScrollX = cam.scrollX;
+      this.dragStartScrollY = cam.scrollY;
+    });
+
+    this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
+      if (!this.isDragging) return;
+      const dx = pointer.x - this.dragStartX;
+      const dy = pointer.y - this.dragStartY;
+      this.dragDistance = Math.sqrt(dx * dx + dy * dy);
+      const rawX = this.dragStartScrollX - dx / cam.zoom;
+      const rawY = this.dragStartScrollY - dy / cam.zoom;
+      const b = getBounds();
+      cam.scrollX = clampWithElastic(rawX, b.minX, b.maxX);
+      cam.scrollY = clampWithElastic(rawY, b.minY, b.maxY);
+    });
+
+    this.input.on('pointerup', () => {
+      this.isDragging = false;
+      snapBack();
+    });
+
+    // Zoom controls
+    this.input.on('wheel', (_pointer: Phaser.Input.Pointer, _gameObjects: Phaser.GameObjects.GameObject[], _deltaX: number, deltaY: number) => {
+      const newZoom = Phaser.Math.Clamp(cam.zoom - deltaY * 0.001, minZoom, 2.0);
+      cam.setZoom(newZoom);
+      snapBack();
+    });
+
+    // Interactive zones for slots
+    this.setupInteractiveZones();
+
+    // Listen for graves data from React (single source of truth)
+    cemeteryEvents.on('render_graves', this.onRenderGraves);
+    cemeteryEvents.on('render_grave', this.onRenderGrave);
+
+    // Building labels
+    this.createBuildingLabels();
+
+    // Fog vignette around map edges
+    this.createFogVignette();
+
+    // Day/night cycle
+    this.createDayNightCycle();
+
+    // Ambient particles
+    this.createAmbientParticles();
+
+    // Fire animation — cycle frames every 350ms
+    this.timers.push(this.time.addEvent({
+      delay: 350,
+      loop: true,
+      callback: () => this.animateFire(),
+    }));
+
+    // Lamp glow near Mausoleum
+    this.createLampGlow();
+
+    // Minimap click → teleport camera
+    cemeteryEvents.on('minimap_click', this.onMinimapClick);
+
+    // Highlight a specific slot (from profile navigation)
+    cemeteryEvents.on('highlight_slot', this.onHighlightSlot);
+
+    // Modal state → block/unblock input
+    cemeteryEvents.on('modal_state', this.onModalState);
+
+
+    // Signal React that scene is ready to receive data
+    cemeteryEvents.emit('scene_ready', {} as Record<string, never>);
+  }
+
+  update() {
+    const cam = this.cameras.main;
+    const sx = cam.scrollX;
+    const sy = cam.scrollY;
+    const z = cam.zoom;
+    if (
+      Math.abs(sx - this.lastCamX) > 1 ||
+      Math.abs(sy - this.lastCamY) > 1 ||
+      Math.abs(z - this.lastCamZoom) > 0.01
+    ) {
+      this.lastCamX = sx;
+      this.lastCamY = sy;
+      this.lastCamZoom = z;
+      cemeteryEvents.emit('camera_move', {
+        scrollX: sx,
+        scrollY: sy,
+        viewWidth: cam.width / z,
+        viewHeight: cam.height / z,
+        zoom: z,
+      });
+    }
+  }
+
+  private emitMinimapTiles() {
+    const w = this.map.width;   // 40
+    const h = this.map.height;  // 40
+    const tiles = new Uint8Array(w * h);
+
+    // Priority: road > grass/border > ground
+    const layerPriority: Array<{ name: string; value: number }> = [
+      { name: 'Ground', value: 1 },
+      { name: 'Grass', value: 3 },
+      { name: 'Borders', value: 3 },
+      { name: 'Roads', value: 2 },
+    ];
+
+    for (const { name, value } of layerPriority) {
+      const layer = this.map.getLayer(name);
+      if (!layer) continue;
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          const tile = layer.data[y]?.[x];
+          if (tile && tile.index >= 0) {
+            tiles[y * w + x] = value;
+          }
+        }
+      }
+    }
+
+    cemeteryEvents.emit('minimap_tiles', { tiles, mapWidth: w, mapHeight: h });
+  }
+
+  private createAmbientParticles() {
+    // Generate leaf texture (6x4 pixels)
+    const leafGfx = this.add.graphics();
+    leafGfx.fillStyle(0x8B7355, 1);
+    leafGfx.fillRect(1, 0, 4, 1);
+    leafGfx.fillRect(0, 1, 6, 2);
+    leafGfx.fillRect(2, 3, 3, 1);
+    leafGfx.generateTexture('leaf', 6, 4);
+    leafGfx.destroy();
+
+    // Generate dust texture (2x2 pixels)
+    const dustGfx = this.add.graphics();
+    dustGfx.fillStyle(0xddccaa, 1);
+    dustGfx.fillRect(0, 0, 2, 2);
+    dustGfx.generateTexture('dust', 2, 2);
+    dustGfx.destroy();
+
+    const cam = this.cameras.main;
+
+    // Falling leaves
+    const leaves = this.add.particles(0, 0, 'leaf', {
+      lifespan: 10000,
+      speedY: { min: 12, max: 25 },
+      speedX: { min: -15, max: 15 },
+      scale: { start: 1.5, end: 0.8 },
+      alpha: { start: 0.7, end: 0 },
+      rotate: { min: 0, max: 360 },
+      frequency: -1, // manual emit
+    });
+    leaves.setDepth(850);
+
+    // Floating dust
+    const dust = this.add.particles(0, 0, 'dust', {
+      lifespan: 6000,
+      speedY: { min: -5, max: 5 },
+      speedX: { min: -5, max: 5 },
+      scale: { start: 1, end: 0.5 },
+      alpha: { start: 0, end: 0.5, ease: 'Sine.easeInOut' },
+      frequency: -1, // manual emit
+    });
+    dust.setDepth(850);
+
+    // Emit particles within camera viewport
+    this.timers.push(this.time.addEvent({
+      delay: 200,
+      loop: true,
+      callback: () => {
+        const vw = cam.width / cam.zoom;
+        const x = cam.scrollX + Math.random() * vw;
+        const y = cam.scrollY - 10;
+        leaves.emitParticleAt(x, y);
+      },
+    }));
+
+    this.timers.push(this.time.addEvent({
+      delay: 400,
+      loop: true,
+      callback: () => {
+        const vw = cam.width / cam.zoom;
+        const vh = cam.height / cam.zoom;
+        const x = cam.scrollX + Math.random() * vw;
+        const y = cam.scrollY + Math.random() * vh;
+        dust.emitParticleAt(x, y);
+      },
+    }));
+  }
+
+  private createDayNightCycle() {
+    const overlay = this.add.rectangle(960, 960, 1920, 1920);
+    overlay.setDepth(895);
+
+    // Phases: [color, alpha, duration in ms]
+    const phases: Array<{ color: number; alpha: number; hold: number }> = [
+      { color: 0x191035, alpha: 0.18, hold: 15000 },  // Dusk — short
+      { color: 0x0a0a20, alpha: 0.30, hold: 25000 },  // Night
+      { color: 0x2a1525, alpha: 0.12, hold: 30000 },   // Dawn — 2x dusk
+      { color: 0x000000, alpha: 0.0,  hold: 50000 },   // Day — 2x night
+    ];
+
+    const PHASE_NAMES = ['dusk', 'night', 'dawn', 'day'] as const;
+    let phase = 0;
+    cemeteryEvents.emit('day_phase', { phase: PHASE_NAMES[0] });
+    const colorObj = { r: 0x19, g: 0x10, b: 0x35, a: 0.18 };
+
+    const applyColor = () => {
+      const c = Phaser.Display.Color.GetColor(
+        Math.round(colorObj.r),
+        Math.round(colorObj.g),
+        Math.round(colorObj.b),
+      );
+      overlay.setFillStyle(c, colorObj.a);
+    };
+
+    applyColor();
+
+    const setLampsVisible = (visible: boolean) => {
+      for (const gfx of this.lampGraphics) gfx.setVisible(visible);
+    };
+
+    const transitionTo = (nextPhase: number) => {
+      const p = phases[nextPhase];
+      const r = (p.color >> 16) & 0xff;
+      const g = (p.color >> 8) & 0xff;
+      const b = p.color & 0xff;
+
+      // Lamps off during day (phase 3), on otherwise
+      setLampsVisible(nextPhase !== 3);
+      cemeteryEvents.emit('day_phase', { phase: PHASE_NAMES[nextPhase] });
+
+      this.tweens.add({
+        targets: colorObj,
+        r, g, b, a: p.alpha,
+        duration: 5000,
+        ease: 'Sine.easeInOut',
+        onUpdate: applyColor,
+        onComplete: () => {
+          this.time.delayedCall(p.hold, () => {
+            phase = (nextPhase + 1) % phases.length;
+            transitionTo(phase);
+          });
+        },
+      });
+    };
+
+    // Start cycle: hold first phase, then transition
+    this.time.delayedCall(phases[0].hold, () => {
+      phase = 1;
+      transitionTo(phase);
+    });
+  }
+
+  private createBuildingLabels() {
+    const style: Phaser.Types.GameObjects.Text.TextStyle = {
+      fontSize: '14px',
+      fontFamily: "'Cinzel', Georgia, serif",
+      color: '#ffffff',
+      stroke: '#000000',
+      strokeThickness: 3,
+      align: 'center',
+    };
+
+    // Wait for Cinzel to load before creating labels (canvas needs the font ready)
+    document.fonts.load("14px Cinzel").then(() => {
+      if (!this.scene.isActive()) return; // scene destroyed while font was loading
+      for (const slot of this.slots.values()) {
+        if (slot.type !== 'Building' || !slot.name) continue;
+        const cx = slot.x + slot.width / 2;
+        const ly = slot.name === 'Crematory' ? slot.y + 12 : slot.y - 8;
+        const displayName = slot.name === 'Mausoleum' ? 'The Crypt' : slot.name;
+        const label = this.add.text(cx, ly, displayName.toUpperCase(), style);
+        label.setOrigin(0.5, slot.name === 'Crematory' ? 0 : 1);
+        label.setDepth(800);
+      }
+    });
+  }
+
+  private createFogVignette() {
+    const MAP = 1920;
+    const DEPTH = 144; // 3 tiles of fog
+    const STEPS = 24;
+    const STEP_W = DEPTH / STEPS;
+    const color = 0x1a1a2e;
+
+    // Crematory light zone (torches at x:576 and x:768, building x:609-786)
+    const LIGHT_X1 = 500;
+    const LIGHT_X2 = 870;
+    const LIGHT_Y = 240; // light reaches ~5 tiles down
+
+    const fog = this.add.graphics();
+    fog.setDepth(900);
+
+    for (let i = 0; i < STEPS; i++) {
+      const t = i / STEPS;
+      const alpha = 0.8 * (1 - t) * (1 - t);
+      const offset = Math.round(DEPTH * t);
+
+      fog.fillStyle(color, alpha);
+
+      // Left edge
+      fog.fillRect(offset, 0, STEP_W, MAP);
+      // Right edge
+      fog.fillRect(MAP - offset - STEP_W, 0, STEP_W, MAP);
+
+      // Top edge — split around crematory light zone
+      if (offset < LIGHT_Y) {
+        // Fade out near the light: reduce alpha as we get closer to the light zone
+        const lightFade = Math.max(0, alpha * (1 - (LIGHT_Y - offset) / LIGHT_Y * 0.5));
+        fog.fillStyle(color, alpha);
+        fog.fillRect(0, offset, LIGHT_X1, STEP_W);
+        fog.fillRect(LIGHT_X2, offset, MAP - LIGHT_X2, STEP_W);
+        // Soft transition into light zone
+        fog.fillStyle(color, lightFade * 0.3);
+        fog.fillRect(LIGHT_X1, offset, LIGHT_X2 - LIGHT_X1, STEP_W);
+      } else {
+        fog.fillRect(0, offset, MAP, STEP_W);
+      }
+
+      // Bottom edge
+      fog.fillRect(0, MAP - offset - STEP_W, MAP, STEP_W);
+    }
+
+    // Warm glow around fire torches
+    const glow = this.add.graphics();
+    glow.setDepth(899);
+    const torchPixels = [
+      { x: 600, y: 72 },  // left torch (tile 12,1)
+      { x: 792, y: 72 },  // right torch (tile 16,1)
+    ];
+    const glowRadius = 120;
+    const GLOW_STEPS = 16;
+    for (const torch of torchPixels) {
+      for (let i = GLOW_STEPS; i >= 0; i--) {
+        const r = glowRadius * (i / GLOW_STEPS);
+        const a = 0.07 * (1 - i / GLOW_STEPS);
+        glow.fillStyle(0xff6600, a);
+        glow.fillCircle(torch.x, torch.y, r);
+      }
+    }
+  }
+
+  private createLampGlow() {
+    const GLOW_STEPS = 10;
+
+    // Helper: draw radial glow on a graphics object
+    const drawCircleGlow = (
+      gfx: Phaser.GameObjects.Graphics,
+      cx: number, cy: number,
+      radius: number, color: number, intensity: number,
+    ) => {
+      for (let i = GLOW_STEPS; i >= 0; i--) {
+        const r = radius * (i / GLOW_STEPS);
+        const a = intensity * (1 - i / GLOW_STEPS);
+        gfx.fillStyle(color, a);
+        gfx.fillCircle(cx, cy, r);
+      }
+    };
+
+    // --- Mausoleum lamps (warm orange, steady pulse, redrawn via timer) ---
+    const mausGfx = this.add.graphics();
+    mausGfx.setDepth(899);
+    const mausPulse = { alpha: 1.0 };
+    const drawMaus = () => {
+      mausGfx.clear();
+      for (const lamp of MAUSOLEUM_LAMPS) {
+        drawCircleGlow(mausGfx, lamp.x, lamp.y, 80, 0xffaa44, 0.06 * mausPulse.alpha);
+      }
+    };
+    drawMaus();
+    this.tweens.add({ targets: mausPulse, alpha: 0.75, duration: 2000, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+    this.timers.push(this.time.addEvent({ delay: 100, loop: true, callback: drawMaus }));
+
+    // --- Blue working lamps (steady with subtle pulse, redrawn via timer not per-frame) ---
+    const blueGfx = this.add.graphics();
+    blueGfx.setDepth(899);
+    const bluePulse = { alpha: 1.0 };
+    const COLOR_BLUE = 0x88aadd;
+    const drawAllBlue = () => {
+      blueGfx.clear();
+      for (const lamp of BLUE_LAMPS_WORKING) {
+        const intensity = lamp.bright ? 0.07 : 0.045;
+        const radius = lamp.bright ? 70 : 55;
+        drawCircleGlow(blueGfx, lamp.x + 24, lamp.y + 24, radius, COLOR_BLUE, intensity * bluePulse.alpha);
+      }
+    };
+    drawAllBlue();
+    this.tweens.add({ targets: bluePulse, alpha: 0.8, duration: 3000, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+    this.timers.push(this.time.addEvent({ delay: 100, loop: true, callback: drawAllBlue }));
+
+    // --- Blue broken lamps (each flickers independently) ---
+    const brokenGfx = this.add.graphics();
+    brokenGfx.setDepth(899);
+    const brokenAlphas = BLUE_LAMPS_BROKEN.map(() => 0.3);
+    const drawBroken = () => {
+      brokenGfx.clear();
+      for (let i = 0; i < BLUE_LAMPS_BROKEN.length; i++) {
+        const lamp = BLUE_LAMPS_BROKEN[i];
+        drawCircleGlow(brokenGfx, lamp.x + 24, lamp.y + 24, 45, COLOR_BLUE, 0.03 * brokenAlphas[i]);
+      }
+    };
+    drawBroken();
+    this.timers.push(this.time.addEvent({
+      delay: 120,
+      loop: true,
+      callback: () => {
+        for (let i = 0; i < brokenAlphas.length; i++) {
+          const roll = Math.random();
+          if (roll < 0.12) brokenAlphas[i] = 0;
+          else if (roll < 0.35) brokenAlphas[i] = 0.2 + Math.random() * 0.3;
+          else if (roll < 0.65) brokenAlphas[i] = 0.5 + Math.random() * 0.3;
+          else brokenAlphas[i] = 0.85 + Math.random() * 0.15;
+        }
+        drawBroken();
+      },
+    }));
+
+    // Store references for day/night visibility control
+    this.lampGraphics = [mausGfx, blueGfx, brokenGfx];
+  }
+
+  private animateFire() {
+    if (!this.fireLayer) return;
+    this.fireFrame = (this.fireFrame + 1) % FIRE_FRAMES.length;
+    for (const torch of FIRE_TORCHES) {
+      const frame = FIRE_FRAMES[(this.fireFrame + torch.offset) % FIRE_FRAMES.length];
+      this.fireLayer.putTileAt(frame.top, torch.x, torch.y);
+      this.fireLayer.putTileAt(frame.bottom, torch.x, torch.y + 1);
+    }
+  }
+
+  private hoverHighlight: Phaser.GameObjects.Graphics | null = null;
+
+  private setupInteractiveZones() {
+    this.hoverHighlight = this.add.graphics();
+    this.hoverHighlight.setDepth(1000);
+
+    for (const slot of this.slots.values()) {
+      const zone = this.add.zone(
+        slot.x + slot.width / 2,
+        slot.y + slot.height / 2,
+        slot.width,
+        slot.height,
+      ).setInteractive();
+
+      const getEventData = (): SlotEventData => {
+        const cam = this.cameras.main;
+        const centerX = slot.x + slot.width / 2;
+        const topY = slot.y;
+        return {
+          slotId: slot.id,
+          type: slot.type,
+          name: slot.name,
+          x: slot.x,
+          y: slot.y,
+          width: slot.width,
+          height: slot.height,
+          screenX: (centerX - cam.scrollX) * cam.zoom,
+          screenY: (topY - cam.scrollY) * cam.zoom,
+        };
+      };
+
+      const isInteractive = () =>
+        slot.type === 'Building' || slot.type === 'meta_grave' || this.renderedSlots.has(slot.id);
+
+      zone.on('pointerup', () => {
+        if (this.dragDistance > 5) return;
+
+        if (slot.type === 'Building') {
+          cemeteryEvents.emit('building_click', getEventData());
+        } else if (isInteractive()) {
+          cemeteryEvents.emit('grave_click', getEventData());
+        }
+      });
+
+      zone.on('pointerover', () => {
+        if (!isInteractive()) return;
+        this.drawSlotHighlight(slot.x, slot.y, slot.width, slot.height, slot.type);
+        cemeteryEvents.emit('grave_hover', getEventData());
+      });
+
+      zone.on('pointerout', () => {
+        this.hoverHighlight?.clear();
+        cemeteryEvents.emit('grave_hover_end', getEventData());
+      });
+    }
+  }
+
+  private drawSlotHighlight(x: number, y: number, w: number, h: number, type: string) {
+    if (!this.hoverHighlight) return;
+    this.hoverHighlight.clear();
+
+    const color = type === 'Building' ? 0xffcc00 : 0x44ff88;
+    // Fill
+    this.hoverHighlight.fillStyle(color, 0.15);
+    this.hoverHighlight.fillRect(x, y, w, h);
+    // Border
+    this.hoverHighlight.lineStyle(1, color, 0.6);
+    this.hoverHighlight.strokeRect(x, y, w, h);
+  }
+
+  private renderedSlots = new Set<number>();
+
+  // Named EventBus handlers (for proper cleanup in shutdown)
+  private onRenderGraves = (data: { graves: RenderGraveData[] }) => {
+    for (const g of data.graves) this.renderGraveOnMap(g);
+  };
+  private onRenderGrave = (data: RenderGraveData) => {
+    this.renderGraveOnMap(data);
+  };
+  private onMinimapClick = (data: MinimapClickData) => {
+    const cam = this.cameras?.main;
+    if (!cam) return;
+    const vw = cam.width / cam.zoom;
+    const vh = cam.height / cam.zoom;
+    const targetX = Phaser.Math.Clamp(data.worldX - vw / 2, 0, Math.max(0, 1920 - vw));
+    const targetY = Phaser.Math.Clamp(data.worldY - vh / 2, 0, Math.max(0, 1920 - vh));
+    this.tweens.add({
+      targets: cam,
+      scrollX: targetX,
+      scrollY: targetY,
+      duration: 300,
+      ease: 'Sine.easeOut',
+    });
+  };
+
+  private onModalState = (data: { open: boolean }) => {
+    this.modalOpen = data.open;
+    this.input.enabled = !data.open;
+  };
+
+  private slotHighlightGfx: Phaser.GameObjects.Graphics | null = null;
+  private slotHighlightTimer: Phaser.Time.TimerEvent | null = null;
+
+  private onHighlightSlot = (data: { slotId: number }) => {
+    const slot = this.slots.get(data.slotId);
+    if (!slot) return;
+
+    // Cancel previous highlight animation if still running
+    if (this.slotHighlightTimer) {
+      this.slotHighlightTimer.destroy();
+      this.slotHighlightTimer = null;
+    }
+
+    if (!this.slotHighlightGfx) {
+      this.slotHighlightGfx = this.add.graphics();
+      this.slotHighlightGfx.setDepth(999);
+    }
+
+    const gfx = this.slotHighlightGfx;
+    gfx.clear();
+    const color = 0x44ff88;
+    const { x, y, width: w, height: h } = slot;
+
+    // Pulse 6 times over ~5s then fade out
+    let elapsed = 0;
+    const duration = 5000;
+    const pulseFreq = 6;
+
+    const timer = this.time.addEvent({
+      delay: 30,
+      loop: true,
+      callback: () => {
+        elapsed += 30;
+        const t = elapsed / duration;
+        if (t >= 1) {
+          gfx.clear();
+          timer.destroy();
+          return;
+        }
+        // Pulse alpha: sin wave that fades out
+        const pulse = Math.sin(t * pulseFreq * Math.PI * 2) * 0.5 + 0.5;
+        const fadeOut = 1 - t;
+        const alpha = pulse * fadeOut;
+
+        gfx.clear();
+        gfx.fillStyle(color, alpha * 0.25);
+        gfx.fillRect(x, y, w, h);
+        gfx.lineStyle(2, color, alpha * 0.8);
+        gfx.strokeRect(x, y, w, h);
+      },
+    });
+    this.slotHighlightTimer = timer;
+  };
+
+
+  shutdown() {
+    // EventBus listeners
+    cemeteryEvents.off('render_graves', this.onRenderGraves);
+    cemeteryEvents.off('render_grave', this.onRenderGrave);
+    cemeteryEvents.off('minimap_click', this.onMinimapClick);
+    cemeteryEvents.off('highlight_slot', this.onHighlightSlot);
+    cemeteryEvents.off('modal_state', this.onModalState);
+
+    // All looping timers (fire, particles, lamp glow)
+    for (const t of this.timers) t.destroy();
+    this.timers = [];
+
+    // Slot highlight timer
+    if (this.slotHighlightTimer) {
+      this.slotHighlightTimer.destroy();
+      this.slotHighlightTimer = null;
+    }
+
+    // Stop all tweens (day/night, lamp pulses, camera snaps)
+    this.tweens.killAll();
+
+    // Phaser input listeners (pointerdown, pointermove, pointerup, wheel)
+    this.input.off('pointerdown');
+    this.input.off('pointermove');
+    this.input.off('pointerup');
+    this.input.off('wheel');
+
+    this.renderedSlots.clear();
+  }
+
+  private renderGraveOnMap(grave: RenderGraveData) {
+    if (this.renderedSlots.has(grave.slot_id)) return;
+    const slot = this.slots.get(grave.slot_id);
+    if (!slot || !this.gravesLayer) return;
+
+    const tileX = Math.floor(slot.x / 48);
+    const tileY = Math.floor(slot.y / 48);
+    const variant = pickTileVariant(slot.type, grave.slot_id);
+    renderGrave(this.gravesLayer, tileX, tileY, slot.type, variant);
+    this.renderedSlots.add(grave.slot_id);
+  }
+}

@@ -1,0 +1,92 @@
+@import "tailwindcss";
+
+/* ═══════════════════════════════════════════════
+   VibeCemetery Design Tokens
+   Palette extracted from KR Peaceful Rest tileset
+   ═══════════════════════════════════════════════ */
+:root {
+  /* Stone scale */
+  --vc-stone-100: #1a1918;
+  --vc-stone-200: #22211f;
+  --vc-stone-300: #2e2d2a;
+  --vc-stone-400: #3a3935;
+  --vc-stone-500: #4a4944;
+  --vc-stone-600: #6a6960;
+  --vc-stone-700: #8a8980;
+  --vc-stone-800: #aaa9a0;
+  --vc-stone-900: #d4d0c4;
+
+  /* Earth */
+  --vc-earth-dark: #2a2218;
+  --vc-earth: #3d3520;
+  --vc-earth-light: #6a6050;
+
+  /* Gold */
+  --vc-gold-dim: #8a7a50;
+  --vc-gold: #c8a050;
+  --vc-gold-bright: #e8d5a3;
+
+  /* Iron */
+  --vc-iron: #2a2a2e;
+  --vc-iron-rust: #5a4a30;
+  --vc-iron-light: #4a4a50;
+
+  /* Functional */
+  --vc-red: #b86858;
+  --vc-blue: #7898b8;
+  --vc-green: #68a060;
+  --vc-purple: #a0a0d0;
+
+  /* Overlay */
+  --vc-overlay: rgba(8, 6, 4, 0.80);
+
+  /* Fonts */
+  --vc-font: var(--font-cinzel), 'Cinzel', Georgia, serif;
+  --vc-font-mono: 'Consolas', 'Monaco', monospace;
+
+  --background: #1a1918;
+  --foreground: #d4d0c4;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-cinzel), 'Cinzel', Georgia, serif;
+}
+
+/* ═══ Scrollbar ═══ */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: #3a3935;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover { background: #4a4944; }
+
+/* ═══ Focus ═══ */
+:focus-visible {
+  outline: 2px solid var(--vc-gold);
+  outline-offset: 2px;
+}
+
+/* ═══ Reduced motion ═══ */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ═══ Keyframes ═══ */
+@keyframes chatSlideIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}

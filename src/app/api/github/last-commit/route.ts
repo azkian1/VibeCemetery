@@ -1,0 +1,54 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { checkRateLimit, getClientIp } from '@/lib/rate-limit';
+
+// 20 requests per minute per IP
+const COMMIT_RATE_LIMIT = 20;
+const COMMIT_WINDOW_MS = 60_000;
+
+export async function GET(request: NextRequest) {
+  const ip = getClientIp(request);
+  const rl = checkRateLimit(`commit:${ip}`, COMMIT_RATE_LIMIT, COMMIT_WINDOW_MS);
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: 'Too many requests. Please try again later.' },
+      { status: 429, headers: { 'Retry-After': String(Math.ceil(rl.retryAfterMs / 1000)) } },
+    );
+  }
+
+  const owner = request.nextUrl.searchParams.get('owner');
+  const repo = request.nextUrl.searchParams.get('repo');
+
+  if (!owner || !repo) {
+    return NextResponse.json(
+      { error: 'Missing required query parameters: owner, repo' },
+      { status: 400 },
+    );
+  }
+
+  const headers: Record<string, string> = {
+    'User-Agent': 'vibecemetery-app',
+    Accept: 'application/vnd.github.v3+json',
+  };
+
+  if (process.env.GITHUB_TOKEN) {
+    headers['Authorization'] = `Bearer ${process.env.GITHUB_TOKEN}`;
+  }
+
+  try {
+    const res = await fetch(
+      `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/commits?per_page=1`,
+      { headers, signal: AbortSignal.timeout(10_000) },
+    );
+
+    if (!res.ok) {
+      return NextResponse.json({ message: null });
+    }
+
+    const commits = await res.json();
+    const message = commits?.[0]?.commit?.message ?? null;
+
+    return NextResponse.json({ message });
+  } catch {
+    return NextResponse.json({ message: null });
+  }
+}
