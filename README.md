@@ -76,7 +76,6 @@ Every user starts with **1 grave slot** on the map. Cremate projects to earn **S
 | 30 Souls | +1 slot (2 total) |
 | 80 Souls | +1 slot (3 total) |
 | 150 Souls | +1 slot (4 total) |
-| 300 Souls | +1 slot (5 total) |
 
 **The loop:** install Skill → agent finds dead projects → cremations earn Souls → threshold → next project gets a grave instead of cremation → keep going.
 
@@ -158,42 +157,9 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
-## Assets Setup
+## Assets
 
-The map uses **paid pixel art tilesets** that are not included in this repository. To run the project locally with the full map, you need to purchase and place them manually.
-
-### 1. Purchase tilesets
-
-| Tileset | Price | Link |
-|---------|-------|------|
-| KR Peaceful Rest Graveyard v2 | $11.99 | [itch.io](https://kokororeflections.itch.io/kr-peaceful-rest-graveyard-tileset-for-rpgs) |
-| KR Burial Grounds | $14.99 | [itch.io](https://kokororeflections.itch.io/kr-burial-grounds-crypt-catacomb-and-mausoleum-tileset-for-rpgs) |
-
-### 2. Extract and place files
-
-From **KR Peaceful Rest Graveyard** (`48px+MVMZ/` folder), copy to `public/map/`:
-
-```
-Graveyard_A1.png
-Graveyard_A2.png
-Graveyard_B.png
-Graveyard_C.png
-Graveyard_D.png
-non-rm-a1-square.png
-graveyard_ground.png
-```
-
-From **KR Burial Grounds** (`48px+MVMZ/` folder), copy to `public/map/`:
-
-```
-Crypt_B.png
-Crypt_D.png
-Fire_Animation.png
-```
-
-### 3. Verify
-
-The map file `public/map/az.tmj` references these PNGs by filename. Once placed, the Phaser scene will render the full cemetery map.
+The map uses paid pixel art tilesets by [Kokoro Reflections](https://kokororeflections.itch.io) that are not included in this repository. The live site loads them from external storage at runtime.
 
 ## Contributing
 
