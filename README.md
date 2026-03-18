@@ -4,9 +4,15 @@
 
 **Where vibe-coded projects rest in peace — or get a second chance.**
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
+[![Next.js](https://img.shields.io/badge/Next.js-16-black.svg)](https://nextjs.org)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5-blue.svg)](https://www.typescriptlang.org)
+[![Phaser](https://img.shields.io/badge/Phaser-3-orange.svg)](https://phaser.io)
+
 [Live Site](https://vibecemeteryCOCOCOCOM) · [Install Skill](#skill-cli) · [Contributing](#contributing)
 
-<img src="public/og-image.png" alt="VibeCemetery — pixel art cemetery for dead projects" width="800" />
+<img src="screenshots/Screen.png" alt="VibeCemetery — pixel art cemetery for dead projects" width="800" />
 
 </div>
 
@@ -194,7 +200,7 @@ The map file `public/map/az.tmj` references these PNGs by filename. Once placed,
 Contributions welcome! This is an open source project built by one vibe coder with AI.
 
 Before submitting a PR:
-- Read the [Docs/CLAUDE.md](Docs/CLAUDE.md) for project structure and conventions
+- Read the [docs/CLAUDE.md](docs/CLAUDE.md) for project structure and conventions
 - All UI uses inline styles with the stone palette — no Tailwind, no CSS modules
 - Font is Cinzel everywhere
 - Test that `npm run build` passes

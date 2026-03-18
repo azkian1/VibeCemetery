@@ -56,18 +56,17 @@ next-env.d.ts
 
 # Dev tools & test artifacts
 test-ui.py
-/screenshots/
 
 # Internal docs (strategy, agent prompts, archives, map design)
-/Docs/PRDv3.md
-/Docs/PLANv3.md
-/Docs/forFACEBOOK.md
-/Docs/StyleAgent.md
-/Docs/AGENT-MODAL-UX.md
-/Docs/soundplan.md
-/Docs/sound-picker.html
-/Docs/og-preview.html
-/Docs/Archive/
+/docs/PRDv3.md
+/docs/PLANv3.md
+/docs/forFACEBOOK.md
+/docs/StyleAgent.md
+/docs/AGENT-MODAL-UX.md
+/docs/soundplan.md
+/docs/sound-picker.html
+/docs/og-preview.html
+/docs/Archive/
 /public/map/docs/PATCH.md
 /public/map/docs/LEVEL_DESIGN_RULES.md
 

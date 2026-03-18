@@ -49,7 +49,7 @@ The map uses paid tilesets not included in the repo. See [Assets Setup](README.m
 
 1. **Fork** the repository
 2. **Create a branch** from `master`: `git checkout -b feat/your-feature`
-3. **Read** `Docs/CLAUDE.md` for project structure and conventions
+3. **Read** `docs/CLAUDE.md` for project structure and conventions
 4. **Make your changes** — keep PRs focused and small
 5. **Test** that `npm run build` passes with no errors
 6. **Commit** with a clear message (see convention below)

@@ -88,7 +88,7 @@ vibecemetery/
 │   └── Tailes/                 — source tilesets (PNG, 48px)
 │       ├── graveyard/          — KR Peaceful Rest Graveyard
 │       └── crypt/              — KR Burial Grounds
-├── Docs/
+├── docs/
 │   ├── CLAUDE.md               — project overview (this file)
 │   ├── PRDv3.md                — product requirements
 │   ├── PLANv3.md               — master plan (phases 1-9)
@@ -158,7 +158,7 @@ NEXTAUTH_SECRET
 - Phase 4.4 (Audits) — PARTIALLY DONE (security audit done, rate-limit.ts, security headers in next.config)
 - **Phase 5 (Skill / CLI cremation) — MOSTLY DONE** (`/bury` skill tested, API working, auth via git config. TODO: production URL)
 - Phase 6 (NPC Gravedigger agent) — TODO — NO LAUNCH WITHOUT THIS
-- See `Docs/PLANv3.md` for full plan
+- See `docs/PLANv3.md` for full plan
 
 ## CLI Skill — /bury (Mogil'schik)
 - Location: `.claude/commands/bury/` (SKILL.md, character.md, cremated-registry.json)
