@@ -44,6 +44,9 @@ const ChatLog = dynamic(() => import('../components/hud/ChatLog'), {
 const Minimap = dynamic(() => import('../components/hud/Minimap'), {
   ssr: false,
 });
+const GateEpitaph = dynamic(() => import('../components/hud/GateEpitaph'), {
+  ssr: false,
+});
 const LeaderboardModal = dynamic(
   () => import('../components/modals/LeaderboardModal'),
   { ssr: false },
@@ -242,6 +245,7 @@ export default function Home() {
           {/* Map area — fills remaining height */}
           <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
             <PhaserCanvas />
+            <GateEpitaph />
             <HoverTooltip />
             <Minimap />
             <ChatLog />
