@@ -3,6 +3,10 @@ import { parseSlots, SlotData } from '../utils/slotManager';
 import { pickTileVariant, renderGrave } from '../utils/tileRegistry';
 import { cemeteryEvents, SlotEventData, RenderGraveData, MinimapClickData } from '../events';
 
+const TILESET_BASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL
+  ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/tilesets`
+  : '/map';
+
 const TILESET_NAMES = [
   'graveyard_ground',
   'Graveyard_B',
@@ -114,9 +118,9 @@ export class CemeteryScene extends Phaser.Scene {
   preload() {
     this.load.tilemapTiledJSON('cemetery-map', '/map/az.tmj');
     for (const name of TILESET_NAMES) {
-      this.load.image(name, `/map/${name}.png`);
+      this.load.image(name, `${TILESET_BASE_URL}/${name}.png`);
     }
-    this.load.image('Fire_Animation', '/map/Fire_Animation.png');
+    this.load.image('Fire_Animation', `${TILESET_BASE_URL}/Fire_Animation.png`);
   }
 
   create() {
