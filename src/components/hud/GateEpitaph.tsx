@@ -1,31 +1,46 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { cemeteryEvents } from '@/game/events';
 
 export default function GateEpitaph() {
   const [visible, setVisible] = useState(true);
   const [fading, setFading] = useState(false);
+  const fadingRef = useRef(false);
+
+  const dismiss = useCallback(() => {
+    if (fadingRef.current) return;
+    fadingRef.current = true;
+    setFading(true);
+    setTimeout(() => setVisible(false), 800);
+  }, []);
 
   useEffect(() => {
     const onReady = () => {
       // Scene is ready, zoom-in tween takes 2000ms — start fade near the end
-      setTimeout(() => setFading(true), 1600);
-      setTimeout(() => setVisible(false), 3200);
+      setTimeout(() => dismiss(), 1600);
     };
 
     cemeteryEvents.on('scene_ready', onReady);
     return () => cemeteryEvents.off('scene_ready', onReady);
-  }, []);
+  }, [dismiss]);
 
   // Fallback: if scene never fires ready (e.g. asset error), fade out after 6s
   useEffect(() => {
-    const fallback = setTimeout(() => {
-      setFading(true);
-      setTimeout(() => setVisible(false), 1600);
-    }, 6000);
+    const fallback = setTimeout(() => dismiss(), 6000);
     return () => clearTimeout(fallback);
-  }, []);
+  }, [dismiss]);
+
+  // Dismiss on any user interaction (click, tap, key)
+  useEffect(() => {
+    const handler = () => dismiss();
+    window.addEventListener('pointerdown', handler);
+    window.addEventListener('keydown', handler);
+    return () => {
+      window.removeEventListener('pointerdown', handler);
+      window.removeEventListener('keydown', handler);
+    };
+  }, [dismiss]);
 
   if (!visible) return null;
 
@@ -40,8 +55,9 @@ export default function GateEpitaph() {
         alignItems: 'center',
         justifyContent: 'center',
         background: '#1a1918',
+        cursor: 'pointer',
         opacity: fading ? 0 : 1,
-        transition: 'opacity 1.6s ease-in-out',
+        transition: 'opacity 0.8s ease-in-out',
         pointerEvents: fading ? 'none' : 'auto',
       }}
     >

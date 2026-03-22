@@ -292,26 +292,6 @@ export class CemeteryScene extends Phaser.Scene {
     // Signal React that scene is ready to receive data
     cemeteryEvents.emit('scene_ready', {} as Record<string, never>);
 
-    // ── DEBUG HOTKEYS (remove before production) ──
-    this.input.keyboard?.on('keydown-U', () => {
-      if (this.ceremonyInProgress) return;
-      const freeSlot = Array.from(this.slots.values()).find(
-        s => s.type !== 'Building' && s.type !== 'meta_grave' && !this.renderedSlots.has(s.id)
-      );
-      if (!freeSlot) { console.warn('[DEBUG] No free slots for ceremony'); return; }
-      console.log(`[DEBUG] Burial ceremony on slot ${freeSlot.id} (${freeSlot.name})`);
-      const data = { slot_id: freeSlot.id, id: `debug-${Date.now()}`, name: `dead-project-${freeSlot.id}` };
-      this.playBurialCeremony(data);
-    });
-
-    this.input.keyboard?.on('keydown-I', () => {
-      if (this.ceremonyInProgress) return;
-      const crematory = Array.from(this.slots.values()).find(s => s.name === 'Crematory');
-      if (!crematory) { console.warn('[DEBUG] Crematory not found'); return; }
-      console.log('[DEBUG] Cremation effect at Crematory');
-      this.playCremationEffect(crematory);
-    });
-    // ── END DEBUG HOTKEYS ──
   }
 
   update() {
