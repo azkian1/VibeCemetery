@@ -81,6 +81,8 @@ export interface CemeteryEventMap {
   burial_ceremony: { slot_id: number; id: string; name: string; chatText: string; gravediggerPhrase: string };
   // Phaser → React: ceremony finished
   burial_ceremony_done: { slot_id: number };
+  // React → Phaser: zoom buttons
+  zoom_change: { delta: number };
 }
 
 export type CemeteryEventType = keyof CemeteryEventMap;

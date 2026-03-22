@@ -114,6 +114,9 @@ export class CemeteryScene extends Phaser.Scene {
   private dragStartY = 0;
   private dragStartScrollX = 0;
   private dragStartScrollY = 0;
+  private prevPinchDist = 0;
+  private isMobile = false;
+  private minZoom = 0;
 
   constructor() {
     super({ key: 'CemeteryScene' });
@@ -174,10 +177,14 @@ export class CemeteryScene extends Phaser.Scene {
 
     // Camera setup — smooth intro (no hard bounds, elastic instead)
     const cam = this.cameras.main;
+    const isMobile = this.scale.width < 640;
+    this.isMobile = isMobile;
     cam.centerOn(960, 960);
     const fitZoom = Math.max(this.scale.width / 1920, this.scale.height / 1920);
     const minZoom = fitZoom;
-    cam.setZoom(fitZoom);
+    this.minZoom = minZoom;
+    const startZoom = isMobile ? Math.max(fitZoom, 0.85) : fitZoom;
+    cam.setZoom(startZoom);
     cam.zoomTo(1.0, 2000, 'Sine.easeInOut');
 
     // Elastic bounds helpers
@@ -216,6 +223,12 @@ export class CemeteryScene extends Phaser.Scene {
 
     // Drag controls
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+      // Second finger down → cancel drag, start pinch
+      if (this.input.pointer1.isDown && this.input.pointer2.isDown) {
+        this.isDragging = false;
+        this.prevPinchDist = 0;
+        return;
+      }
       this.isDragging = true;
       this.dragDistance = 0;
       this.dragStartX = pointer.x;
@@ -225,6 +238,22 @@ export class CemeteryScene extends Phaser.Scene {
     });
 
     this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
+      // Pinch-to-zoom (two fingers)
+      if (this.input.pointer1.isDown && this.input.pointer2.isDown) {
+        this.isDragging = false;
+        const p1 = this.input.pointer1;
+        const p2 = this.input.pointer2;
+        const dist = Phaser.Math.Distance.Between(p1.x, p1.y, p2.x, p2.y);
+        if (this.prevPinchDist > 0) {
+          const scale = dist / this.prevPinchDist;
+          const newZoom = Phaser.Math.Clamp(cam.zoom * scale, minZoom, 2.0);
+          cam.setZoom(newZoom);
+        }
+        this.prevPinchDist = dist;
+        return;
+      }
+
+      // Single-finger drag
       if (!this.isDragging) return;
       const dx = pointer.x - this.dragStartX;
       const dy = pointer.y - this.dragStartY;
@@ -236,7 +265,19 @@ export class CemeteryScene extends Phaser.Scene {
       cam.scrollY = clampWithElastic(rawY, b.minY, b.maxY);
     });
 
-    this.input.on('pointerup', () => {
+    this.input.on('pointerup', (pointer: Phaser.Input.Pointer) => {
+      this.prevPinchDist = 0;
+      // Transition from pinch to single-finger drag: re-anchor
+      if (this.input.pointer1.isDown || this.input.pointer2.isDown) {
+        const active = this.input.pointer1.isDown ? this.input.pointer1 : this.input.pointer2;
+        this.isDragging = true;
+        this.dragDistance = 0;
+        this.dragStartX = active.x;
+        this.dragStartY = active.y;
+        this.dragStartScrollX = cam.scrollX;
+        this.dragStartScrollY = cam.scrollY;
+        return;
+      }
       this.isDragging = false;
       snapBack();
     });
@@ -288,6 +329,9 @@ export class CemeteryScene extends Phaser.Scene {
 
     // Burial ceremony animation
     cemeteryEvents.on('burial_ceremony', this.onBurialCeremony);
+
+    // Zoom buttons (mobile)
+    cemeteryEvents.on('zoom_change', this.onZoomChange);
 
     // Signal React that scene is ready to receive data
     cemeteryEvents.emit('scene_ready', {} as Record<string, never>);
@@ -388,9 +432,12 @@ export class CemeteryScene extends Phaser.Scene {
     });
     dust.setDepth(850);
 
-    // Emit particles within camera viewport
+    // Emit particles within camera viewport (slower on mobile)
+    const leafDelay = this.isMobile ? 400 : 200;
+    const dustDelay = this.isMobile ? 800 : 400;
+
     this.timers.push(this.time.addEvent({
-      delay: 200,
+      delay: leafDelay,
       loop: true,
       callback: () => {
         const vw = cam.width / cam.zoom;
@@ -401,7 +448,7 @@ export class CemeteryScene extends Phaser.Scene {
     }));
 
     this.timers.push(this.time.addEvent({
-      delay: 400,
+      delay: dustDelay,
       loop: true,
       callback: () => {
         const vw = cam.width / cam.zoom;
@@ -595,7 +642,7 @@ export class CemeteryScene extends Phaser.Scene {
     };
     drawMaus();
     this.tweens.add({ targets: mausPulse, alpha: 0.75, duration: 2000, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
-    this.timers.push(this.time.addEvent({ delay: 100, loop: true, callback: drawMaus }));
+    this.timers.push(this.time.addEvent({ delay: this.isMobile ? 250 : 100, loop: true, callback: drawMaus }));
 
     // --- Blue working lamps (steady with subtle pulse, redrawn via timer not per-frame) ---
     const blueGfx = this.add.graphics();
@@ -612,7 +659,7 @@ export class CemeteryScene extends Phaser.Scene {
     };
     drawAllBlue();
     this.tweens.add({ targets: bluePulse, alpha: 0.8, duration: 3000, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
-    this.timers.push(this.time.addEvent({ delay: 100, loop: true, callback: drawAllBlue }));
+    this.timers.push(this.time.addEvent({ delay: this.isMobile ? 250 : 100, loop: true, callback: drawAllBlue }));
 
     // --- Blue broken lamps (each flickers independently) ---
     const brokenGfx = this.add.graphics();
@@ -627,7 +674,7 @@ export class CemeteryScene extends Phaser.Scene {
     };
     drawBroken();
     this.timers.push(this.time.addEvent({
-      delay: 120,
+      delay: this.isMobile ? 300 : 120,
       loop: true,
       callback: () => {
         for (let i = 0; i < brokenAlphas.length; i++) {
@@ -818,6 +865,18 @@ export class CemeteryScene extends Phaser.Scene {
     this.slotHighlightTimer = timer;
   };
 
+
+  private onZoomChange = (data: { delta: number }) => {
+    const cam = this.cameras.main;
+    if (!cam) return;
+    const newZoom = Phaser.Math.Clamp(cam.zoom + data.delta, this.minZoom, 2.0);
+    cam.setZoom(newZoom);
+    // Clamp scroll into valid range after zoom change
+    const vw = cam.width / newZoom;
+    const vh = cam.height / newZoom;
+    cam.scrollX = Phaser.Math.Clamp(cam.scrollX, 0, Math.max(0, 1920 - vw));
+    cam.scrollY = Phaser.Math.Clamp(cam.scrollY, 0, Math.max(0, 1920 - vh));
+  };
 
   private onBurialCeremony = (data: { slot_id: number; id: string; name: string }) => {
     this.pendingCeremony = data;
@@ -1239,6 +1298,7 @@ export class CemeteryScene extends Phaser.Scene {
     cemeteryEvents.off('highlight_slot', this.onHighlightSlot);
     cemeteryEvents.off('modal_state', this.onModalState);
     cemeteryEvents.off('burial_ceremony', this.onBurialCeremony);
+    cemeteryEvents.off('zoom_change', this.onZoomChange);
     this.pendingCeremony = null;
     this.buryModalOpen = false;
     // Destroy any ceremony game objects left mid-animation

@@ -145,7 +145,10 @@ export default function UrnModal() {
           <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
             {c.github_url && /^https:\/\/github\.com\//.test(c.github_url) && (
               <StoneButton
-                onClick={() => window.open(c.github_url ?? '', '_blank')}
+                onClick={() => {
+                  const url = c.github_url ?? '';
+                  if (/^https:\/\/github\.com\//.test(url)) window.open(url, '_blank');
+                }}
                 style={{ flex: 1 }}
               >
                 View Remains

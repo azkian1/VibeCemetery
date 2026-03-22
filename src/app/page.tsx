@@ -47,6 +47,9 @@ const Minimap = dynamic(() => import('../components/hud/Minimap'), {
 const GateEpitaph = dynamic(() => import('../components/hud/GateEpitaph'), {
   ssr: false,
 });
+const ZoomButtons = dynamic(() => import('../components/hud/ZoomButtons'), {
+  ssr: false,
+});
 const LeaderboardModal = dynamic(
   () => import('../components/modals/LeaderboardModal'),
   { ssr: false },
@@ -99,6 +102,8 @@ function DeepLinkOpener() {
 
     const timers: ReturnType<typeof setTimeout>[] = [];
     let cancelled = false;
+    const isMob = window.innerWidth < 640;
+    const d = (ms: number) => isMob ? Math.round(ms / 2) : ms;
 
     // Meta grave deep link: ?grave=meta → slot 105
     if (graveId === 'meta') {
@@ -111,15 +116,15 @@ function DeepLinkOpener() {
         timers.push(setTimeout(() => {
           if (cancelled) return;
           cemeteryEvents.emit('minimap_click', { worldX: wx, worldY: wy });
-        }, 2100));
+        }, d(2100)));
         timers.push(setTimeout(() => {
           if (cancelled) return;
           cemeteryEvents.emit('highlight_slot', { slotId: META_SLOT });
-        }, 2450));
+        }, d(2450)));
         timers.push(setTimeout(() => {
           if (cancelled || activeModalRef.current) return;
           dispatch({ type: 'OPEN_MODAL', modal: 'grave', data: { slotId: META_SLOT, slotType: 'meta_grave' } });
-        }, 4700));
+        }, d(4700)));
       } else {
         navigatedFor.current = graveId;
       }
@@ -141,17 +146,17 @@ function DeepLinkOpener() {
         timers.push(setTimeout(() => {
           if (cancelled) return;
           cemeteryEvents.emit('minimap_click', { worldX: wx, worldY: wy });
-        }, 2100));
+        }, d(2100)));
         // Highlight after camera pan (2100 + 300ms tween)
         timers.push(setTimeout(() => {
           if (cancelled) return;
           cemeteryEvents.emit('highlight_slot', { slotId });
-        }, 2450));
+        }, d(2450)));
         // Open grave modal — skip if user already interacted with something
         timers.push(setTimeout(() => {
           if (cancelled || activeModalRef.current) return;
           dispatch({ type: 'OPEN_MODAL', modal: 'grave', data: { slotId } });
-        }, 4700));
+        }, d(4700)));
         break;
       }
     }
@@ -250,6 +255,7 @@ export default function Home() {
             <Minimap />
             <ChatLog />
             <CTAButtons />
+            <ZoomButtons />
             <ModalLayer />
           </div>
         </div>

@@ -13,7 +13,6 @@ export interface GraveData {
   slot_id: number;
   tier: number;
   f_count?: number;
-  gravedigger_comment?: string;
   last_commit_message?: string;
 }
 

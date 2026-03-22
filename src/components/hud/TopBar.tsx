@@ -12,12 +12,13 @@ export default function TopBar() {
   return (
     <div
       style={{
-        height: 44,
+        minHeight: 44,
         flexShrink: 0,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
         padding: isMobile ? '0 8px' : '0 16px',
+        paddingTop: isMobile ? 'env(safe-area-inset-top, 0px)' : undefined,
         background: 'linear-gradient(180deg, #2a2825 0%, #1e1c18 100%)',
         borderBottom: '1px solid #3a3530',
         boxShadow: 'inset 0 -1px 0 rgba(200,160,80,0.06), 0 2px 8px rgba(0,0,0,0.4)',

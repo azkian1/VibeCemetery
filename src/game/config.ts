@@ -12,7 +12,7 @@ export function createGameConfig(parent: HTMLElement): Phaser.Types.Core.GameCon
     },
     backgroundColor: '#1a1918',
     scene: [CemeteryScene],
-    input: { windowEvents: false },
+    input: { windowEvents: false, activePointers: 3 },
     audio: { noAudio: true },
     pixelArt: true,
     antialias: false,

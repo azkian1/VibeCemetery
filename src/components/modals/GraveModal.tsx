@@ -11,6 +11,7 @@ import StoneButton from '@/components/ui/StoneButton';
 import OrnamentDivider from '@/components/ui/OrnamentDivider';
 import InsetBlock from '@/components/ui/InsetBlock';
 import { cemeteryEvents } from '@/game/events';
+import { epitaphFallback } from '@/gravedigger/epitaphs';
 
 export default function GraveModal() {
   const { modalData, close, closeAll } = useModal();
@@ -251,7 +252,7 @@ export default function GraveModal() {
           )}
 
           <p style={{ margin: '8px 0 0', fontSize: 14, color: '#aaa9a0', fontStyle: 'italic', textAlign: 'center' }}>
-            &ldquo;{g.epitaph || 'lol'}&rdquo;
+            &ldquo;{g.epitaph || epitaphFallback(g)}&rdquo;
           </p>
         </div>
 
@@ -282,18 +283,6 @@ export default function GraveModal() {
               </div>
             ) : null;
           })()}
-
-          {/* Gravedigger comment */}
-          {g.gravedigger_comment && (
-            <div style={{ margin: '0 0 14px', textAlign: 'center' }}>
-              <p style={{ margin: 0, fontSize: 13, color: '#7898b8', fontStyle: 'italic' }}>
-                &ldquo;{g.gravedigger_comment}&rdquo;
-              </p>
-              <p style={{ margin: '4px 0 0', fontSize: 11, color: '#5a7898', textAlign: 'right' }}>
-                — The Gravedigger
-              </p>
-            </div>
-          )}
 
           {/* Author + GitHub */}
           <div style={{ fontSize: 12, color: '#4a4944', margin: '0 0 4px', textAlign: 'center' }}>
@@ -349,16 +338,18 @@ export default function GraveModal() {
 
           {/* Action buttons */}
           <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
-            <StoneButton
-              onClick={handleF}
-              disabled={voted || !isLoggedIn}
-              active={voted}
-              style={{ flex: 1 }}
-              aria-label={voted ? `Paid respects (${fCount})` : !isLoggedIn ? 'Login to pay respects' : `Press F to pay respects (${fCount})`}
-              aria-pressed={voted}
-            >
-              {voted ? 'F ✓' : !isLoggedIn ? 'Login to F' : 'Press F'}
-            </StoneButton>
+            {!isMobile && (
+              <StoneButton
+                onClick={handleF}
+                disabled={voted || !isLoggedIn}
+                active={voted}
+                style={{ flex: 1 }}
+                aria-label={voted ? `Paid respects (${fCount})` : !isLoggedIn ? 'Login to pay respects' : `Press F to pay respects (${fCount})`}
+                aria-pressed={voted}
+              >
+                {voted ? 'F ✓' : !isLoggedIn ? 'Login to F' : 'Press F'}
+              </StoneButton>
+            )}
 
             <StoneButton onClick={handleShare} style={{ flex: 1 }} aria-label="Share grave link">
               {copied ? 'Copied. F.' : 'Share Grave'}

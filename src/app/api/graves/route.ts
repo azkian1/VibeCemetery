@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
 import { supabaseAdmin } from '@/lib/supabase'
 import { pickRandomFreeSlot } from '@/lib/map-slots'
+import { generateEpitaph } from '@/gravedigger/epitaphs'
 
 /** Strip HTML tags and collapse whitespace — defense-in-depth for stored text */
 function sanitize(str: string): string {
@@ -211,10 +212,19 @@ export async function POST(req: NextRequest) {
 
   let slotId = picked.id
 
-  // 7. Insert grave (with retry on slot_id conflict)
+  // 7. Generate epitaph + insert grave (with retry on slot_id conflict)
+  const epitaph = generateEpitaph({
+    name: trimmedName,
+    cause: trimmedCause,
+    stack: stack ? stack.map(s => sanitize(s)) : null,
+    born_at: born_at ?? null,
+    died_at: died_at ?? null,
+  })
+
   const graveRow = {
     name: trimmedName,
     description: trimmedDescription,
+    epitaph,
     born_at: born_at ?? null,
     died_at: died_at ?? null,
     cause: trimmedCause,

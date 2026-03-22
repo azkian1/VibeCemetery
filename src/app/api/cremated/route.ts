@@ -200,7 +200,7 @@ export async function POST(request: Request) {
 export async function GET() {
   const { data, error } = await supabaseAdmin
     .from('cremated')
-    .select('*')
+    .select('id, name, cause, author_github, github_url, last_commit_message, created_at, source')
     .order('created_at', { ascending: false })
 
   if (error) {
