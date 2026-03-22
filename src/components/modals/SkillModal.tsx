@@ -14,6 +14,8 @@ export default function SkillModal() {
   const [copied, setCopied] = useState(false);
   const isMobile = useIsMobile();
 
+  if (isMobile) return null;
+
   const command = 'claude skill add vibecemetery/gravedigger';
 
   const handleCopy = () => {

@@ -39,6 +39,11 @@ export default function PhaserCanvas() {
     setReady(true);
   }, []);
 
+  const handleBurialCeremony = useCallback((data: { slot_id: number }) => {
+    // Pre-register slot_id so graves-sync effect skips it (ceremony renders it later)
+    sentSlotIdsRef.current.add(data.slot_id);
+  }, []);
+
   useEffect(() => {
     if (!containerRef.current || gameRef.current) return;
 
@@ -68,14 +73,16 @@ export default function PhaserCanvas() {
     cemeteryEvents.on('building_click', handleBuildingClick);
     cemeteryEvents.on('slots_ready', handleSlotsReady);
     cemeteryEvents.on('scene_ready', handleSceneReady);
+    cemeteryEvents.on('burial_ceremony', handleBurialCeremony);
 
     return () => {
       cemeteryEvents.off('grave_click', handleGraveClick);
       cemeteryEvents.off('building_click', handleBuildingClick);
       cemeteryEvents.off('slots_ready', handleSlotsReady);
       cemeteryEvents.off('scene_ready', handleSceneReady);
+      cemeteryEvents.off('burial_ceremony', handleBurialCeremony);
     };
-  }, [handleGraveClick, handleBuildingClick, handleSlotsReady, handleSceneReady]);
+  }, [handleGraveClick, handleBuildingClick, handleSlotsReady, handleSceneReady, handleBurialCeremony]);
 
   // Sync React graves → Phaser tilemap
   useEffect(() => {
@@ -116,7 +123,7 @@ export default function PhaserCanvas() {
   return (
     <div
       ref={containerRef}
-      style={{ position: 'absolute', inset: 0, overflow: 'hidden', zIndex: 0, pointerEvents: state.activeModal ? 'none' : 'auto' }}
+      style={{ position: 'absolute', inset: 0, overflow: 'hidden', zIndex: 0, touchAction: 'none', pointerEvents: state.activeModal ? 'none' : 'auto' }}
     />
   );
 }

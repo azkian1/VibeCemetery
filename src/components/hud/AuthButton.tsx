@@ -2,6 +2,7 @@
 
 import { useSession, signIn } from 'next-auth/react';
 import { useModal } from '@/context/GameContext';
+import { useIsMobile } from '@/hooks/useIsMobile';
 
 const btnBase: React.CSSProperties = {
   background: 'linear-gradient(180deg, #2a2825 0%, #1e1c18 100%)',
@@ -30,6 +31,7 @@ function hoverOut(e: React.MouseEvent<HTMLButtonElement>, defaultColor: string) 
 export default function AuthButton() {
   const { data: session } = useSession();
   const { open } = useModal();
+  const isMobile = useIsMobile();
 
   if (session?.user) {
     return (
@@ -60,6 +62,8 @@ export default function AuthButton() {
       </button>
     );
   }
+
+  if (isMobile) return null;
 
   return (
     <button

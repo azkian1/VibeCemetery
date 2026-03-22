@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import { useModal, useGame } from '@/context/GameContext';
 import ModalOverlay from './ModalOverlay';
@@ -13,6 +13,7 @@ import StepCause from './bury/StepCause';
 import StepDone from './bury/StepDone';
 import type { DeadRepo, GraveData, BuryResult } from '@/types/game';
 import { GRAVEDIGGER_BURIAL, GRAVEDIGGER_MASS_BURIAL } from '@/gravedigger/phrases';
+import { cemeteryEvents } from '@/game/events';
 
 const DEATH_CAUSES_DEFAULT = 'Developer lost interest';
 const SLOT_THRESHOLDS = [30, 80, 150, 300] as const;
@@ -36,6 +37,7 @@ export default function BuryFlowModal() {
   const [buryDone, setBuryDone] = useState(0);
   const [buryTotal, setBuryTotal] = useState(0);
   const [burying, setBurying] = useState(false);
+  const ceremonyRef = useRef<{ slot_id: number; id: string; name: string } | null>(null);
 
   // ── Slot economy ──
   const userGravesCount = useMemo(() => {
@@ -229,6 +231,10 @@ export default function BuryFlowModal() {
             buryResults.push({ name: repo.name, success: false, type: 'grave', error: `HTTP ${res.status}` });
           } else {
             const grave: GraveData = await res.json();
+            // Emit ceremony BEFORE dispatch so PhaserCanvas pre-registers the slot_id
+            const ceremonyData = { slot_id: grave.slot_id, id: grave.id, name: grave.name };
+            cemeteryEvents.emit('burial_ceremony', ceremonyData);
+            ceremonyRef.current = ceremonyData;
             dispatch({ type: 'ADD_GRAVE', grave });
             buryResults.push({ name: repo.name, success: true, type: 'grave', grave });
 
@@ -311,17 +317,27 @@ export default function BuryFlowModal() {
         },
       });
     }
-  }, [repos, selected, graveSet, causes, dispatch, burying]);
+
+    // If there's a pending ceremony and no other results worth showing, close immediately
+    const hasCeremony = ceremonyRef.current !== null;
+    ceremonyRef.current = null; // reset after reading
+    const hasOtherResults = buryResults.some(r => r.type === 'cremated' && r.success);
+    if (hasCeremony && !hasOtherResults) {
+      close();
+    }
+  }, [repos, selected, graveSet, causes, dispatch, burying, close]);
+
+  if (isMobile) return null;
 
   return (
-    <ModalOverlay onClose={close}>
+    <ModalOverlay onClose={burying ? (() => {}) : close}>
       <StoneFrame isMobile={isMobile} maxWidth={520}>
         <div style={{
           padding: isMobile ? '20px 16px' : '24px 28px',
           maxHeight: isMobile ? '100vh' : undefined,
           overflowY: isMobile ? 'auto' : undefined,
         }}>
-          <CloseButton onClick={close} />
+          {!burying && <CloseButton onClick={close} />}
 
           <h2 style={{ margin: '0 0 16px', fontSize: 20, color: '#e8d5a3', textAlign: 'center' }}>
             {step === 1 && 'Scan Repositories'}
@@ -387,6 +403,7 @@ export default function BuryFlowModal() {
               onOpenProfile={() => open('profile')}
             />
           )}
+
         </div>
       </StoneFrame>
     </ModalOverlay>

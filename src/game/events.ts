@@ -77,6 +77,10 @@ export interface CemeteryEventMap {
   highlight_slot: { slotId: number };
   // Phaser → React: scene fully initialized
   scene_ready: Record<string, never>;
+  // React → Phaser: trigger burial ceremony animation
+  burial_ceremony: { slot_id: number; id: string; name: string };
+  // Phaser → React: ceremony finished
+  burial_ceremony_done: { slot_id: number };
 }
 
 export type CemeteryEventType = keyof CemeteryEventMap;

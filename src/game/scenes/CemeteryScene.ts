@@ -104,6 +104,10 @@ export class CemeteryScene extends Phaser.Scene {
   private lastCamY = -1;
   private lastCamZoom = -1;
   private modalOpen = false;
+  private pendingCeremony: { slot_id: number; id: string; name: string } | null = null;
+  private ceremonyInProgress = false;
+  private ceremonyObjects: Phaser.GameObjects.GameObject[] = [];
+  private buryModalOpen = false;
   private isDragging = false;
   private dragDistance = 0;
   private dragStartX = 0;
@@ -282,9 +286,32 @@ export class CemeteryScene extends Phaser.Scene {
     // Modal state → block/unblock input
     cemeteryEvents.on('modal_state', this.onModalState);
 
+    // Burial ceremony animation
+    cemeteryEvents.on('burial_ceremony', this.onBurialCeremony);
 
     // Signal React that scene is ready to receive data
     cemeteryEvents.emit('scene_ready', {} as Record<string, never>);
+
+    // ── DEBUG HOTKEYS (remove before production) ──
+    this.input.keyboard?.on('keydown-U', () => {
+      if (this.ceremonyInProgress) return;
+      const freeSlot = Array.from(this.slots.values()).find(
+        s => s.type !== 'Building' && s.type !== 'meta_grave' && !this.renderedSlots.has(s.id)
+      );
+      if (!freeSlot) { console.warn('[DEBUG] No free slots for ceremony'); return; }
+      console.log(`[DEBUG] Burial ceremony on slot ${freeSlot.id} (${freeSlot.name})`);
+      const data = { slot_id: freeSlot.id, id: `debug-${Date.now()}`, name: `dead-project-${freeSlot.id}` };
+      this.playBurialCeremony(data);
+    });
+
+    this.input.keyboard?.on('keydown-I', () => {
+      if (this.ceremonyInProgress) return;
+      const crematory = Array.from(this.slots.values()).find(s => s.name === 'Crematory');
+      if (!crematory) { console.warn('[DEBUG] Crematory not found'); return; }
+      console.log('[DEBUG] Cremation effect at Crematory');
+      this.playCremationEffect(crematory);
+    });
+    // ── END DEBUG HOTKEYS ──
   }
 
   update() {
@@ -746,6 +773,15 @@ export class CemeteryScene extends Phaser.Scene {
   private onModalState = (data: { open: boolean }) => {
     this.modalOpen = data.open;
     this.input.enabled = !data.open;
+    // Start ceremony after bury modal closes (200ms buffer for CSS fade-out)
+    if (!data.open && this.pendingCeremony && this.buryModalOpen) {
+      const ceremonyData = this.pendingCeremony;
+      this.pendingCeremony = null;
+      this.buryModalOpen = false;
+      this.timers.push(this.time.delayedCall(200, () => {
+        this.playBurialCeremony(ceremonyData);
+      }));
+    }
   };
 
   private slotHighlightGfx: Phaser.GameObjects.Graphics | null = null;
@@ -803,6 +839,403 @@ export class CemeteryScene extends Phaser.Scene {
   };
 
 
+  private onBurialCeremony = (data: { slot_id: number; id: string; name: string }) => {
+    this.pendingCeremony = data;
+    this.buryModalOpen = true; // track that the bury modal is the one currently open
+  };
+
+  private playBurialCeremony(data: { slot_id: number; id: string; name: string }) {
+    const slot = this.slots.get(data.slot_id);
+    if (!slot) {
+      // Fallback: render instantly
+      this.renderGraveOnMap(data);
+      cemeteryEvents.emit('burial_ceremony_done', { slot_id: data.slot_id });
+      return;
+    }
+
+    this.ceremonyInProgress = true;
+    // Disable input during ceremony
+    this.input.enabled = false;
+
+    const cam = this.cameras.main;
+    const cx = slot.x + slot.width / 2;
+    const cy = slot.y + slot.height / 2;
+    const originalZoom = cam.zoom;
+    const CEREMONY_ZOOM = 1.5;
+
+    // Phase 1: Camera pan + zoom to slot (1200ms)
+    // Tween a proxy object, apply centerOn each frame so slot stays centered at any zoom
+    const panTarget = { x: cam.midPoint.x, y: cam.midPoint.y, zoom: cam.zoom };
+    this.tweens.add({
+      targets: panTarget,
+      x: cx,
+      y: cy,
+      zoom: CEREMONY_ZOOM,
+      duration: 1200,
+      ease: 'Sine.easeInOut',
+      onUpdate: () => {
+        cam.centerOn(panTarget.x, panTarget.y);
+        cam.setZoom(panTarget.zoom);
+      },
+      onComplete: () => {
+        // Phase 2: Dirt burst + shake (1000ms)
+        this.playDirtBurst(cx, cy);
+        cam.shake(300, 0.005);
+
+        this.timers.push(this.time.delayedCall(1000, () => {
+          // Phase 3: Render grave + reveal (800ms)
+          this.renderGraveOnMap(data);
+          this.playGraveReveal(slot, () => {
+            // Phase 4: R.I.P. + gold glow (1600ms)
+            this.playRIPGlow(slot, data.name, () => {
+              // Phase 5: Zoom out (800ms) — keep centered on grave
+              const zoomOut = { zoom: cam.zoom };
+              this.tweens.add({
+                targets: zoomOut,
+                zoom: Math.max(originalZoom, 1.0),
+                duration: 800,
+                ease: 'Sine.easeInOut',
+                onUpdate: () => {
+                  cam.setZoom(zoomOut.zoom);
+                  cam.centerOn(cx, cy);
+                },
+                onComplete: () => {
+                  this.ceremonyInProgress = false;
+                  this.input.enabled = !this.modalOpen;
+                  cemeteryEvents.emit('burial_ceremony_done', { slot_id: data.slot_id });
+                },
+              });
+            });
+          });
+        }));
+      },
+    });
+  }
+
+  private playDirtBurst(cx: number, cy: number) {
+    // Generate dirt texture if not already created
+    if (!this.textures.exists('dirt')) {
+      const gfx = this.add.graphics();
+      gfx.fillStyle(0x8B6914, 1);
+      gfx.fillRect(0, 0, 4, 4);
+      gfx.generateTexture('dirt', 4, 4);
+      gfx.destroy();
+    }
+
+    const particles = this.add.particles(cx, cy, 'dirt', {
+      speed: { min: 80, max: 200 },
+      angle: { min: 240, max: 300 },
+      scale: { start: 1.5, end: 0.5 },
+      alpha: { start: 1, end: 0 },
+      lifespan: 800,
+      gravityY: 300,
+      quantity: 20,
+      emitting: false,
+    });
+    particles.setDepth(920);
+    particles.explode(20);
+    this.ceremonyObjects.push(particles);
+
+    this.timers.push(this.time.delayedCall(1000, () => {
+      particles.destroy();
+    }));
+  }
+
+  private playGraveReveal(slot: SlotData, onComplete: () => void) {
+    const rect = this.add.rectangle(
+      slot.x + slot.width / 2,
+      slot.y + slot.height / 2,
+      slot.width,
+      slot.height,
+      0x1a1a2e,
+      1.0,
+    );
+    rect.setDepth(910);
+    this.ceremonyObjects.push(rect);
+
+    this.tweens.add({
+      targets: rect,
+      alpha: 0,
+      duration: 800,
+      ease: 'Sine.easeInOut',
+      onComplete: () => {
+        rect.destroy();
+        onComplete();
+      },
+    });
+  }
+
+  private playRIPGlow(slot: SlotData, name: string, onComplete: () => void) {
+    const cx = slot.x + slot.width / 2;
+    const cy = slot.y + slot.height / 2;
+
+    // Gold glow circle
+    const GLOW_STEPS = 10;
+    const glowGfx = this.add.graphics();
+    glowGfx.setDepth(905);
+    this.ceremonyObjects.push(glowGfx);
+    const glowState = { intensity: 0 };
+
+    const drawGlow = () => {
+      glowGfx.clear();
+      for (let i = GLOW_STEPS; i >= 0; i--) {
+        const r = 60 * (i / GLOW_STEPS);
+        const a = glowState.intensity * 0.08 * (1 - i / GLOW_STEPS);
+        glowGfx.fillStyle(0xe8d5a3, a);
+        glowGfx.fillCircle(cx, cy, r);
+      }
+    };
+
+    // Glow tween: fade in → pulse → fade out
+    this.tweens.add({
+      targets: glowState,
+      intensity: 1,
+      duration: 400,
+      ease: 'Sine.easeIn',
+      onUpdate: drawGlow,
+      onComplete: () => {
+        this.tweens.add({
+          targets: glowState,
+          intensity: 0.6,
+          duration: 600,
+          yoyo: true,
+          ease: 'Sine.easeInOut',
+          onUpdate: drawGlow,
+          onComplete: () => {
+            this.tweens.add({
+              targets: glowState,
+              intensity: 0,
+              duration: 400,
+              ease: 'Sine.easeOut',
+              onUpdate: drawGlow,
+              onComplete: () => {
+                glowGfx.destroy();
+              },
+            });
+          },
+        });
+      },
+    });
+
+    // R.I.P. text
+    const ripText = this.add.text(cx, cy - 10, 'R.I.P.', {
+      fontSize: '16px',
+      fontFamily: "'Cinzel', Georgia, serif",
+      color: '#e8d5a3',
+      stroke: '#000000',
+      strokeThickness: 3,
+      align: 'center',
+    });
+    ripText.setOrigin(0.5, 0.5);
+    ripText.setDepth(915);
+    ripText.setAlpha(0);
+    this.ceremonyObjects.push(ripText);
+
+    // Float up + fade in, then fade out
+    this.tweens.add({
+      targets: ripText,
+      y: cy - 40,
+      alpha: 1,
+      duration: 800,
+      ease: 'Sine.easeOut',
+      onComplete: () => {
+        this.timers.push(this.time.delayedCall(200, () => {
+          this.tweens.add({
+            targets: ripText,
+            alpha: 0,
+            duration: 600,
+            ease: 'Sine.easeIn',
+            onComplete: () => {
+              ripText.destroy();
+              onComplete();
+            },
+          });
+        }));
+      },
+    });
+  }
+
+  private playCremationEffect(crematory: SlotData) {
+    this.ceremonyInProgress = true;
+    this.input.enabled = false;
+
+    const cam = this.cameras.main;
+    const cx = crematory.x + crematory.width / 2;
+    const cy = crematory.y + crematory.height / 2;
+    const originalZoom = cam.zoom;
+    const CEREMONY_ZOOM = 1.4;
+
+    // Generate smoke texture if needed
+    if (!this.textures.exists('smoke')) {
+      const gfx = this.add.graphics();
+      gfx.fillStyle(0x888888, 1);
+      gfx.fillCircle(4, 4, 4);
+      gfx.generateTexture('smoke', 8, 8);
+      gfx.destroy();
+    }
+
+    // Generate ember texture if needed
+    if (!this.textures.exists('ember')) {
+      const gfx = this.add.graphics();
+      gfx.fillStyle(0xff6600, 1);
+      gfx.fillRect(0, 0, 3, 3);
+      gfx.generateTexture('ember', 3, 3);
+      gfx.destroy();
+    }
+
+    // Clamp center so viewport stays within 0–1920 map bounds
+    const clampCenter = (targetX: number, targetY: number, z: number) => {
+      const halfW = cam.width / (z * 2);
+      const halfH = cam.height / (z * 2);
+      return {
+        x: Phaser.Math.Clamp(targetX, halfW, 1920 - halfW),
+        y: Phaser.Math.Clamp(targetY, halfH, 1920 - halfH),
+      };
+    };
+
+    // Phase 1: Camera pan to crematory (1000ms)
+    const panTarget = { x: cam.midPoint.x, y: cam.midPoint.y, zoom: cam.zoom };
+    const dest = clampCenter(cx, cy, CEREMONY_ZOOM);
+    this.tweens.add({
+      targets: panTarget,
+      x: dest.x,
+      y: dest.y,
+      zoom: CEREMONY_ZOOM,
+      duration: 1000,
+      ease: 'Sine.easeInOut',
+      onUpdate: () => {
+        const clamped = clampCenter(panTarget.x, panTarget.y, panTarget.zoom);
+        cam.centerOn(clamped.x, clamped.y);
+        cam.setZoom(panTarget.zoom);
+      },
+      onComplete: () => {
+        // Chimney top — above the building
+        const chimneyX = cx;
+        const chimneyY = crematory.y - 10;
+
+        // Phase 2: Fire burst from chimney (embers shooting up)
+        const embers = this.add.particles(chimneyX, chimneyY, 'ember', {
+          speed: { min: 60, max: 180 },
+          angle: { min: 250, max: 290 },
+          scale: { start: 1.5, end: 0.3 },
+          alpha: { start: 1, end: 0 },
+          lifespan: { min: 600, max: 1200 },
+          gravityY: -50,
+          quantity: 3,
+          frequency: 50,
+          tint: [0xff6600, 0xff4400, 0xffaa00, 0xff2200],
+        });
+        embers.setDepth(920);
+        this.ceremonyObjects.push(embers);
+
+        // Phase 2b: Smoke rising from chimney
+        const smoke = this.add.particles(chimneyX, chimneyY - 20, 'smoke', {
+          speed: { min: 15, max: 40 },
+          angle: { min: 260, max: 280 },
+          scale: { start: 0.5, end: 3 },
+          alpha: { start: 0.4, end: 0 },
+          lifespan: { min: 2000, max: 3500 },
+          gravityY: -30,
+          quantity: 1,
+          frequency: 100,
+          tint: [0x666666, 0x888888, 0x555555],
+        });
+        smoke.setDepth(919);
+        this.ceremonyObjects.push(smoke);
+
+        // Camera micro-shake
+        cam.shake(500, 0.003);
+
+        // Orange glow at chimney base
+        const glowGfx = this.add.graphics();
+        glowGfx.setDepth(905);
+        this.ceremonyObjects.push(glowGfx);
+        const glowState = { intensity: 0 };
+
+        this.tweens.add({
+          targets: glowState,
+          intensity: 1,
+          duration: 400,
+          yoyo: true,
+          hold: 1500,
+          ease: 'Sine.easeInOut',
+          onUpdate: () => {
+            glowGfx.clear();
+            for (let i = 10; i >= 0; i--) {
+              const r = 50 * (i / 10);
+              const a = glowState.intensity * 0.1 * (1 - i / 10);
+              glowGfx.fillStyle(0xff6600, a);
+              glowGfx.fillCircle(chimneyX, chimneyY, r);
+            }
+          },
+          onComplete: () => glowGfx.destroy(),
+        });
+
+        // "ASHES TO ASHES" text
+        const ashText = this.add.text(cx, cy - 20, 'ASHES TO ASHES', {
+          fontSize: '14px',
+          fontFamily: "'Cinzel', Georgia, serif",
+          color: '#ff9944',
+          stroke: '#000000',
+          strokeThickness: 3,
+          align: 'center',
+        });
+        ashText.setOrigin(0.5, 0.5);
+        ashText.setDepth(915);
+        ashText.setAlpha(0);
+        this.ceremonyObjects.push(ashText);
+
+        this.tweens.add({
+          targets: ashText,
+          y: cy - 50,
+          alpha: 1,
+          duration: 800,
+          ease: 'Sine.easeOut',
+          onComplete: () => {
+            this.timers.push(this.time.delayedCall(1200, () => {
+              this.tweens.add({
+                targets: ashText,
+                alpha: 0,
+                duration: 600,
+                ease: 'Sine.easeIn',
+                onComplete: () => ashText.destroy(),
+              });
+            }));
+          },
+        });
+
+        // Phase 3: Stop particles + zoom out after 3s
+        this.timers.push(this.time.delayedCall(2500, () => {
+          embers.stop();
+          smoke.stop();
+        }));
+
+        this.timers.push(this.time.delayedCall(3500, () => {
+          embers.destroy();
+          smoke.destroy();
+
+          const zoomOut = { zoom: cam.zoom };
+          const targetZoom = Math.max(originalZoom, 1.0);
+          this.tweens.add({
+            targets: zoomOut,
+            zoom: targetZoom,
+            duration: 800,
+            ease: 'Sine.easeInOut',
+            onUpdate: () => {
+              cam.setZoom(zoomOut.zoom);
+              const clamped = clampCenter(cx, cy, zoomOut.zoom);
+              cam.centerOn(clamped.x, clamped.y);
+            },
+            onComplete: () => {
+              this.ceremonyInProgress = false;
+              this.input.enabled = !this.modalOpen;
+            },
+          });
+        }));
+      },
+    });
+  }
+
   shutdown() {
     // EventBus listeners
     cemeteryEvents.off('render_graves', this.onRenderGraves);
@@ -810,6 +1243,19 @@ export class CemeteryScene extends Phaser.Scene {
     cemeteryEvents.off('minimap_click', this.onMinimapClick);
     cemeteryEvents.off('highlight_slot', this.onHighlightSlot);
     cemeteryEvents.off('modal_state', this.onModalState);
+    cemeteryEvents.off('burial_ceremony', this.onBurialCeremony);
+    this.pendingCeremony = null;
+    this.buryModalOpen = false;
+    // Destroy any ceremony game objects left mid-animation
+    for (const obj of this.ceremonyObjects) {
+      if (obj && obj.active) obj.destroy();
+    }
+    this.ceremonyObjects = [];
+    this.ceremonyInProgress = false;
+    // Clean up dirt texture from global TextureManager
+    if (this.textures.exists('dirt')) {
+      this.textures.remove('dirt');
+    }
 
     // All looping timers (fire, particles, lamp glow)
     for (const t of this.timers) t.destroy();

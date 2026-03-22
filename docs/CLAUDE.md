@@ -41,7 +41,7 @@ vibecemetery/
 │   │   │   ├── CrematoryModal.tsx — 2-tab: Columbarium (with URL) + Ash Pit (no URL)
 │   │   │   ├── MausoleumModal.tsx (displayed as "The Crypt") — sortable graves ledger
 │   │   │   ├── LeaderboardModal.tsx (displayed as "Necropolis") — 3 tabs: Serial Killers, Causes, AI-Bots
-│   │   │   ├── BuryFlowModal.tsx  (4-step: Scan → Select → Cause → Done)
+│   │   │   ├── BuryFlowModal.tsx  (4-step: Scan → Select → Cause → Done, emits burial_ceremony for graves)
 │   │   │   ├── SkillModal.tsx     — skill install instructions
 │   │   │   └── bury/       — BuryFlow step components
 │   │   │       ├── StepScan.tsx
@@ -59,9 +59,9 @@ vibecemetery/
 │   │   └── GameContext.tsx  — shared state (graves, cremated, modals, chat, fVotes)
 │   ├── game/
 │   │   ├── config.ts       — Phaser GameConfig (windowEvents: false)
-│   │   ├── events.ts       — typed EventBridge Phaser ↔ React
+│   │   ├── events.ts       — typed EventBridge Phaser ↔ React (incl. burial_ceremony / burial_ceremony_done)
 │   │   ├── scenes/
-│   │   │   └── CemeteryScene.ts — main scene: map, camera, day/night, lamps, particles
+│   │   │   └── CemeteryScene.ts — main scene: map, camera, day/night, lamps, particles, burial ceremony animation
 │   │   └── utils/
 │   │       ├── slotManager.ts   — parse Object Layer → slot coords
 │   │       └── tileRegistry.ts  — tile GID catalog, dynamic graves
@@ -119,6 +119,7 @@ Modal stack supports push/pop (deduplication on push). `useModal()` hook: `open(
 - Building names: Crematory (code: 'Crematory'), The Crypt (code: 'Mausoleum' → display 'The Crypt')
 - Phaser config: `input: { windowEvents: false }` — prevents pointer bleed-through to HTML overlay
 - Day/night cycle: dusk(15s) → night(25s) → dawn(30s) → day(50s), synced via `day_phase` event
+- **Burial ceremony animation** (~5.5s, graves only, not cremations): modal emits `burial_ceremony` BEFORE `ADD_GRAVE` dispatch (so PhaserCanvas pre-registers slot_id in `sentSlotIdsRef` to suppress auto-render). CemeteryScene stores `pendingCeremony`, starts animation on modal close via `onModalState`. Sequence: camera pan+zoom → dirt burst+shake → grave reveal → R.I.P. glow → zoom out. All ceremony objects tracked in `ceremonyObjects[]` for shutdown cleanup. `buryModalOpen` flag ensures only bury modal close triggers ceremony
 
 ## API Routes
 - `GET /api/github/scan?username=X` — scan public repos, filter dead (1+ month inactive). Rate limit: 10/min per IP (in-memory). Cached 24h. Uses server `GITHUB_TOKEN`
@@ -156,6 +157,7 @@ NEXTAUTH_SECRET
 - Phase 4.2 (Modal content & UX) — DONE (all modals implemented including ProfileModal, UrnModal)
 - Phase 4.3 (Working buttons) — DONE (BURY flow end-to-end, F votes, deep links, profile)
 - Phase 4.4 (Audits) — PARTIALLY DONE (security audit done, rate-limit.ts, security headers in next.config)
+- Phase 4.5 (Burial ceremony animation) — DONE (camera fly, dirt burst, grave reveal, R.I.P. glow, zoom out)
 - **Phase 5 (Skill / CLI cremation) — MOSTLY DONE** (`/bury` skill tested, API working, auth via git config. TODO: production URL)
 - Phase 6 (NPC Gravedigger agent) — TODO — NO LAUNCH WITHOUT THIS
 - See `docs/PLANv3.md` for full plan
