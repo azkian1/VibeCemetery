@@ -37,7 +37,7 @@ export default function BuryFlowModal() {
   const [buryDone, setBuryDone] = useState(0);
   const [buryTotal, setBuryTotal] = useState(0);
   const [burying, setBurying] = useState(false);
-  const ceremonyRef = useRef<{ slot_id: number; id: string; name: string } | null>(null);
+  const ceremonyRef = useRef<{ slot_id: number; id: string; name: string; chatText: string; gravediggerPhrase: string } | null>(null);
 
   // ── Slot economy ──
   const userGravesCount = useMemo(() => {
@@ -232,32 +232,13 @@ export default function BuryFlowModal() {
           } else {
             const grave: GraveData = await res.json();
             // Emit ceremony BEFORE dispatch so PhaserCanvas pre-registers the slot_id
-            const ceremonyData = { slot_id: grave.slot_id, id: grave.id, name: grave.name };
+            const chatText = `${repo.name} has been buried. Rest in peace.`;
+            const gravediggerPhrase = GRAVEDIGGER_BURIAL[Math.floor(Math.random() * GRAVEDIGGER_BURIAL.length)];
+            const ceremonyData = { slot_id: grave.slot_id, id: grave.id, name: grave.name, chatText, gravediggerPhrase };
             cemeteryEvents.emit('burial_ceremony', ceremonyData);
             ceremonyRef.current = ceremonyData;
             dispatch({ type: 'ADD_GRAVE', grave });
             buryResults.push({ name: repo.name, success: true, type: 'grave', grave });
-
-            dispatch({
-              type: 'ADD_CHAT_MESSAGE',
-              message: {
-                id: crypto.randomUUID(),
-                type: 'burial',
-                text: `${repo.name} has been buried. Rest in peace.`,
-                timestamp: Date.now(),
-              },
-            });
-
-            const phrase = GRAVEDIGGER_BURIAL[Math.floor(Math.random() * GRAVEDIGGER_BURIAL.length)];
-            dispatch({
-              type: 'ADD_CHAT_MESSAGE',
-              message: {
-                id: crypto.randomUUID(),
-                type: 'gravedigger',
-                text: phrase,
-                timestamp: Date.now(),
-              },
-            });
           }
         } else {
           // ── Cremation ──

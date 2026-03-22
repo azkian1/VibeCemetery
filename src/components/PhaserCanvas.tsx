@@ -11,6 +11,7 @@ export default function PhaserCanvas() {
   const [ready, setReady] = useState(false);
   const { state, dispatch } = useGame();
   const sentSlotIdsRef = useRef(new Set<number>());
+  const ceremonyChatRef = useRef<{ chatText: string; gravediggerPhrase: string } | null>(null);
 
   const handleGraveClick = useCallback((data: SlotEventData) => {
     if (!state.graves.has(data.slotId) && data.type !== 'meta_grave') return;
@@ -39,10 +40,25 @@ export default function PhaserCanvas() {
     setReady(true);
   }, []);
 
-  const handleBurialCeremony = useCallback((data: { slot_id: number }) => {
+  const handleBurialCeremony = useCallback((data: { slot_id: number; chatText: string; gravediggerPhrase: string }) => {
     // Pre-register slot_id so graves-sync effect skips it (ceremony renders it later)
     sentSlotIdsRef.current.add(data.slot_id);
+    ceremonyChatRef.current = { chatText: data.chatText, gravediggerPhrase: data.gravediggerPhrase };
   }, []);
+
+  const handleBurialCeremonyDone = useCallback(() => {
+    const chat = ceremonyChatRef.current;
+    if (!chat) return;
+    ceremonyChatRef.current = null;
+    dispatch({
+      type: 'ADD_CHAT_MESSAGE',
+      message: { id: crypto.randomUUID(), type: 'burial', text: chat.chatText, timestamp: Date.now() },
+    });
+    dispatch({
+      type: 'ADD_CHAT_MESSAGE',
+      message: { id: crypto.randomUUID(), type: 'gravedigger', text: chat.gravediggerPhrase, timestamp: Date.now() },
+    });
+  }, [dispatch]);
 
   useEffect(() => {
     if (!containerRef.current || gameRef.current) return;
@@ -74,6 +90,7 @@ export default function PhaserCanvas() {
     cemeteryEvents.on('slots_ready', handleSlotsReady);
     cemeteryEvents.on('scene_ready', handleSceneReady);
     cemeteryEvents.on('burial_ceremony', handleBurialCeremony);
+    cemeteryEvents.on('burial_ceremony_done', handleBurialCeremonyDone);
 
     return () => {
       cemeteryEvents.off('grave_click', handleGraveClick);
@@ -81,8 +98,9 @@ export default function PhaserCanvas() {
       cemeteryEvents.off('slots_ready', handleSlotsReady);
       cemeteryEvents.off('scene_ready', handleSceneReady);
       cemeteryEvents.off('burial_ceremony', handleBurialCeremony);
+      cemeteryEvents.off('burial_ceremony_done', handleBurialCeremonyDone);
     };
-  }, [handleGraveClick, handleBuildingClick, handleSlotsReady, handleSceneReady, handleBurialCeremony]);
+  }, [handleGraveClick, handleBuildingClick, handleSlotsReady, handleSceneReady, handleBurialCeremony, handleBurialCeremonyDone]);
 
   // Sync React graves → Phaser tilemap
   useEffect(() => {

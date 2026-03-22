@@ -55,7 +55,7 @@ export default function GateEpitaph() {
         alignItems: 'center',
         justifyContent: 'center',
         background: '#1a1918',
-        cursor: 'pointer',
+        cursor: 'default',
         opacity: fading ? 0 : 1,
         transition: 'opacity 0.8s ease-in-out',
         pointerEvents: fading ? 'none' : 'auto',

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
 import { supabaseAdmin } from '@/lib/supabase'
-import { getGraveSlotIds } from '@/lib/map-slots'
+import { pickRandomFreeSlot } from '@/lib/map-slots'
 
 /** Strip HTML tags and collapse whitespace — defense-in-depth for stored text */
 function sanitize(str: string): string {
@@ -194,24 +194,22 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  // 6. Assign slot_id from actual map slots
-  const allSlotIds = getGraveSlotIds()
-
+  // 6. Assign random slot_id (T0 80% / T1 20%, admin-only tiers excluded)
   const { data: usedSlots } = await supabaseAdmin
     .from('graves')
     .select('slot_id')
 
   const usedSet = new Set((usedSlots ?? []).map((r) => r.slot_id))
-  const freeSlotId = allSlotIds.find((id) => !usedSet.has(id))
+  const picked = pickRandomFreeSlot(usedSet)
 
-  if (freeSlotId == null) {
+  if (!picked) {
     return NextResponse.json(
       { error: 'No free grave slots available on the map' },
       { status: 507 },
     )
   }
 
-  let slotId = freeSlotId
+  let slotId = picked.id
 
   // 7. Insert grave (with retry on slot_id conflict)
   const graveRow = {
@@ -234,22 +232,22 @@ export async function POST(req: NextRequest) {
     .single()
 
   if (insertResult.error) {
-    // Retry with next free slot in case of race condition
+    // Retry with fresh slot in case of race condition
     const { data: freshUsed } = await supabaseAdmin
       .from('graves')
       .select('slot_id')
 
     const freshSet = new Set((freshUsed ?? []).map((r) => r.slot_id))
-    const nextFree = allSlotIds.find((id) => !freshSet.has(id))
+    const retryPick = pickRandomFreeSlot(freshSet)
 
-    if (nextFree == null) {
+    if (!retryPick) {
       return NextResponse.json(
         { error: 'No free grave slots available on the map' },
         { status: 507 },
       )
     }
 
-    slotId = nextFree
+    slotId = retryPick.id
     insertResult = await supabaseAdmin
       .from('graves')
       .insert({ ...graveRow, slot_id: slotId })

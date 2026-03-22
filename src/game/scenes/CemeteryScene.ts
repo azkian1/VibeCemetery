@@ -1011,22 +1011,37 @@ export class CemeteryScene extends Phaser.Scene {
     ripText.setAlpha(0);
     this.ceremonyObjects.push(ripText);
 
+    // Repo name text below R.I.P.
+    const nameText = this.add.text(cx, cy + 8, name, {
+      fontSize: '11px',
+      fontFamily: "'Cinzel', Georgia, serif",
+      color: '#e8d5a3',
+      stroke: '#000000',
+      strokeThickness: 2,
+      align: 'center',
+    });
+    nameText.setOrigin(0.5, 0.5);
+    nameText.setDepth(915);
+    nameText.setAlpha(0);
+    this.ceremonyObjects.push(nameText);
+
     // Float up + fade in, then fade out
     this.tweens.add({
-      targets: ripText,
-      y: cy - 40,
+      targets: [ripText, nameText],
+      y: '-=30',
       alpha: 1,
       duration: 800,
       ease: 'Sine.easeOut',
       onComplete: () => {
         this.timers.push(this.time.delayedCall(200, () => {
           this.tweens.add({
-            targets: ripText,
+            targets: [ripText, nameText],
             alpha: 0,
             duration: 600,
             ease: 'Sine.easeIn',
             onComplete: () => {
               ripText.destroy();
+              nameText.destroy();
               onComplete();
             },
           });
