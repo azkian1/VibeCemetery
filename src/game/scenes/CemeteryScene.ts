@@ -103,6 +103,7 @@ export class CemeteryScene extends Phaser.Scene {
   private lastCamX = -1;
   private lastCamY = -1;
   private lastCamZoom = -1;
+  private lastCamEmit = 0;
   private modalOpen = false;
   private pendingCeremony: { slot_id: number; id: string; name: string } | null = null;
   private ceremonyInProgress = false;
@@ -344,10 +345,13 @@ export class CemeteryScene extends Phaser.Scene {
     const sy = cam.scrollY;
     const z = cam.zoom;
     if (
-      Math.abs(sx - this.lastCamX) > 1 ||
-      Math.abs(sy - this.lastCamY) > 1 ||
+      Math.abs(sx - this.lastCamX) > 5 ||
+      Math.abs(sy - this.lastCamY) > 5 ||
       Math.abs(z - this.lastCamZoom) > 0.01
     ) {
+      const now = this.time.now;
+      if (now - this.lastCamEmit < 50) return;
+      this.lastCamEmit = now;
       this.lastCamX = sx;
       this.lastCamY = sy;
       this.lastCamZoom = z;
@@ -1307,10 +1311,14 @@ export class CemeteryScene extends Phaser.Scene {
     }
     this.ceremonyObjects = [];
     this.ceremonyInProgress = false;
-    // Clean up dirt texture from global TextureManager
+    // Clean up generated textures from global TextureManager
     if (this.textures.exists('dirt')) {
       this.textures.remove('dirt');
     }
+    if (this.textures.exists('smoke')) this.textures.remove('smoke');
+    if (this.textures.exists('ember')) this.textures.remove('ember');
+    if (this.textures.exists('leaf')) this.textures.remove('leaf');
+    if (this.textures.exists('dust')) this.textures.remove('dust');
 
     // All looping timers (fire, particles, lamp glow)
     for (const t of this.timers) t.destroy();

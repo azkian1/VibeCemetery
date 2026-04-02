@@ -308,9 +308,11 @@ export function useCremated() {
     }
   }, [dispatch]);
 
+  // Refetch when user changes (login/logout)
+  const currentUser = state.user?.github_username ?? null;
   useEffect(() => {
     fetchCremated();
-  }, [fetchCremated]);
+  }, [fetchCremated, currentUser]);
 
   return {
     cremated: state.cremated,

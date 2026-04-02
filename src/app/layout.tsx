@@ -27,6 +27,8 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
+  // TODO: update when production domain is finalized
+  metadataBase: new URL("https://vibecemetery.com"),
   title: "VibeCemetery",
   description: "A cemetery for abandoned vibe-coded projects",
   openGraph: {
