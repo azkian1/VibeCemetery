@@ -1,6 +1,0 @@
-User-agent: *
-Allow: /
-Disallow: /api/
-
-# TODO: update domain when production URL is finalized
-Sitemap: https://vibecemetery.com/sitemap.xml

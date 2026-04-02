@@ -1,8 +1,8 @@
 import type { MetadataRoute } from 'next';
 import { supabaseAdmin } from '@/lib/supabase';
+import { getSiteUrl } from '@/lib/site';
 
-// TODO: update when production domain is finalized
-const BASE_URL = 'https://vibecemetery.com';
+const BASE_URL = getSiteUrl();
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const entries: MetadataRoute.Sitemap = [

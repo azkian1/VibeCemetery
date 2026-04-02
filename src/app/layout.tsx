@@ -1,6 +1,9 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono, Cinzel } from "next/font/google";
+import { getSiteUrl } from '@/lib/site';
 import "./globals.css";
+
+const siteUrl = getSiteUrl();
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -27,13 +30,16 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  // TODO: update when production domain is finalized
-  metadataBase: new URL("https://vibecemetery.com"),
+  metadataBase: new URL(siteUrl),
   title: "VibeCemetery",
   description: "A cemetery for abandoned vibe-coded projects",
+  alternates: {
+    canonical: "/",
+  },
   openGraph: {
     title: "VibeCemetery",
     description: "A cemetery for abandoned vibe-coded projects",
+    url: siteUrl,
     images: [{ url: "/og-image.png", width: 1200, height: 630 }],
   },
   twitter: {
@@ -64,7 +70,7 @@ export default function RootLayout({
               "@type": "WebApplication",
               "name": "VibeCemetery",
               "description": "Interactive pixel-art cemetery for dead vibe-coded projects. Bury your abandoned GitHub repos with a proper funeral.",
-              "url": "https://vibecemetery.com",
+              "url": siteUrl,
               "applicationCategory": "Game",
               "operatingSystem": "Web",
             }),

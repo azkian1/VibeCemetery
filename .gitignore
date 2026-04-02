@@ -56,6 +56,8 @@ next-env.d.ts
 
 # Dev tools & test artifacts
 test-ui.py
+debug-dev.log
+test-results/
 
 # Internal docs (strategy, agent prompts, archives, map design)
 /docs/PRDv3.md

@@ -30,7 +30,9 @@ export default function DayCycleIcon() {
     if (newSymbol === displaySymbol) return;
 
     pendingSymbolRef.current = newSymbol;
-    setSymbolOpacity(0);
+    const fadeOutTimer = setTimeout(() => {
+      setSymbolOpacity(0);
+    }, 0);
 
     const timer = setTimeout(() => {
       setDisplaySymbol(pendingSymbolRef.current!);
@@ -38,7 +40,10 @@ export default function DayCycleIcon() {
       pendingSymbolRef.current = null;
     }, 400);
 
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(fadeOutTimer);
+      clearTimeout(timer);
+    };
   }, [phase, displaySymbol]);
 
   const cfg = PHASE_CONFIG[phase];

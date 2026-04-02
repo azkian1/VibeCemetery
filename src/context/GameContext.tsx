@@ -9,6 +9,7 @@ import {
   useMemo,
   type ReactNode,
 } from 'react';
+import { useSession } from 'next-auth/react';
 import type { GraveData, CrematedData } from '@/types/game';
 import type { SlotPositionData } from '@/game/events';
 
@@ -204,6 +205,23 @@ const GameContext = createContext<{
 
 export function GameProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(gameReducer, initialState);
+  const { data: session, status } = useSession();
+  const githubUsername = session?.user?.github_username ?? null;
+
+  useEffect(() => {
+    if (status === 'loading') return;
+
+    dispatch({
+      type: 'SET_USER',
+      user: githubUsername
+        ? {
+            github_username: githubUsername,
+            image: session?.user?.image ?? '',
+            name: session?.user?.name ?? '',
+          }
+        : null,
+    });
+  }, [status, githubUsername, session?.user?.image, session?.user?.name]);
 
   return (
     <GameContext.Provider value={useMemo(() => ({ state, dispatch }), [state, dispatch])}>

@@ -68,7 +68,7 @@ test.describe('Ceremony plumbing (desktop 1440×900)', () => {
       return document.querySelector('[style*="position: fixed"]') !== null ||
              document.querySelector('[role="dialog"]') !== null;
     });
-    // Either a modal appeared or the button triggered some UI — no crash
+    expect(hasModal).toBeTruthy();
     await expect(page.locator('canvas').first()).toBeVisible();
   });
 

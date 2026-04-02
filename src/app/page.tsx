@@ -92,7 +92,10 @@ function DeepLinkOpener() {
   const navigatedFor = useRef<string | null>(null);
   const urnHandled = useRef<string | null>(null);
   const activeModalRef = useRef(state.activeModal);
-  activeModalRef.current = state.activeModal;
+
+  useEffect(() => {
+    activeModalRef.current = state.activeModal;
+  }, [state.activeModal]);
 
   // Deep link: ?grave=<uuid>
   useEffect(() => {

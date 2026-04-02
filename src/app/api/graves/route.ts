@@ -5,9 +5,33 @@ import { supabaseAdmin } from '@/lib/supabase'
 import { pickRandomFreeSlot } from '@/lib/map-slots'
 import { generateEpitaph } from '@/gravedigger/epitaphs'
 
+type DbInsertError = {
+  code?: string
+  details?: string | null
+  message?: string
+} | null
+
 /** Strip HTML tags and collapse whitespace — defense-in-depth for stored text */
 function sanitize(str: string): string {
   return str.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim()
+}
+
+function isUniqueViolation(error: DbInsertError): boolean {
+  return error?.code === '23505'
+}
+
+function isSlotCollision(error: DbInsertError): boolean {
+  return isUniqueViolation(error) && (
+    (error?.details ?? '').includes('Key (slot_id)=') ||
+    (error?.message ?? '').includes('graves_slot_id_key')
+  )
+}
+
+function isRepoDuplicate(error: DbInsertError): boolean {
+  return isUniqueViolation(error) && (
+    (error?.details ?? '').includes('Key (github_repo_id)=') ||
+    (error?.message ?? '').includes('graves_github_repo_id_key')
+  )
 }
 
 // ---------------------------------------------------------------------------
@@ -242,7 +266,19 @@ export async function POST(req: NextRequest) {
     .single()
 
   if (insertResult.error) {
-    // Retry with fresh slot in case of race condition
+    if (isRepoDuplicate(insertResult.error)) {
+      return NextResponse.json(
+        { error: 'This repository has already been buried' },
+        { status: 409 },
+      )
+    }
+
+    if (!isSlotCollision(insertResult.error)) {
+      console.error('Failed to create grave:', insertResult.error)
+      return NextResponse.json({ error: 'Failed to create grave' }, { status: 500 })
+    }
+
+    // Retry once with a fresh slot if another request won the same slot_id
     const { data: freshUsed } = await supabaseAdmin
       .from('graves')
       .select('slot_id')
@@ -266,6 +302,14 @@ export async function POST(req: NextRequest) {
   }
 
   if (insertResult.error) {
+    if (isRepoDuplicate(insertResult.error)) {
+      return NextResponse.json(
+        { error: 'This repository has already been buried' },
+        { status: 409 },
+      )
+    }
+
+    console.error('Failed to create grave after retry:', insertResult.error)
     return NextResponse.json({ error: 'Failed to create grave' }, { status: 500 })
   }
 

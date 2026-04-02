@@ -266,7 +266,7 @@ export class CemeteryScene extends Phaser.Scene {
       cam.scrollY = clampWithElastic(rawY, b.minY, b.maxY);
     });
 
-    this.input.on('pointerup', (pointer: Phaser.Input.Pointer) => {
+    this.input.on('pointerup', () => {
       this.prevPinchDist = 0;
       // Transition from pinch to single-finger drag: re-anchor
       if (this.input.pointer1.isDown || this.input.pointer2.isDown) {

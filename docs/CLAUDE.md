@@ -119,14 +119,14 @@ Modal stack supports push/pop (deduplication on push). `useModal()` hook: `open(
 - Shared UI components in `src/components/ui/` — always use StoneFrame for modals
 - API routes in `src/app/api/`
 - `supabaseAdmin` (service key) for server-side, `supabase` (anon key) for client-side
-- GitHub repos "dead" = no commits 1+ month, forks excluded
+- GitHub repos "dead" = no commits 14+ days, forks excluded
 - Building names: Crematory (code: 'Crematory'), The Crypt (code: 'Mausoleum' → display 'The Crypt')
 - Phaser config: `input: { windowEvents: false }` — prevents pointer bleed-through to HTML overlay
 - Day/night cycle: dusk(15s) → night(25s) → dawn(30s) → day(50s), synced via `day_phase` event
 - **Burial ceremony animation** (~5.5s, graves only, not cremations): modal emits `burial_ceremony` BEFORE `ADD_GRAVE` dispatch (so PhaserCanvas pre-registers slot_id in `sentSlotIdsRef` to suppress auto-render). CemeteryScene stores `pendingCeremony`, starts animation on modal close via `onModalState`. Sequence: camera pan+zoom → dirt burst+shake → grave reveal → R.I.P. glow → zoom out. All ceremony objects tracked in `ceremonyObjects[]` for shutdown cleanup. `buryModalOpen` flag ensures only bury modal close triggers ceremony
 
 ## API Routes
-- `GET /api/github/scan?username=X` — scan public repos, filter dead (1+ month inactive). Rate limit: 10/min per IP (in-memory). Cached 24h. Uses server `GITHUB_TOKEN`
+- `GET /api/github/scan?username=X` — scan public repos, filter dead (14+ days inactive). Rate limit: 10/min per IP (in-memory). Cached 24h. Uses server `GITHUB_TOKEN`
 - `GET /api/github/last-commit?owner=X&repo=Y` — fetch last commit message from GitHub. Uses server `GITHUB_TOKEN`
 - `POST /api/graves` — create grave (authenticated). Rate limit: 20/day per user. Duplicate prevention by repo_id. Assigns `slot_id` from actual Tiled map slots via `map-slots.ts`
 - `GET /api/graves` — list all graves. Enriches f_count from f_votes table. Optional `?author=username` filter
@@ -162,9 +162,10 @@ NEXTAUTH_SECRET
 - Phase 4.3 (Working buttons) — DONE (BURY flow end-to-end, F votes, deep links, profile)
 - Phase 4.4 (Audits) — DONE (security audit, rate-limit.ts, security headers + CSP in next.config)
 - Phase 4.5 (Burial ceremony animation) — DONE (camera fly, dirt burst, grave reveal, R.I.P. glow, zoom out)
-- **Phase 5 (Skill / CLI cremation) — MOSTLY DONE** (`/bury` skill tested, API working, auth via git config. TODO: production URL)
+- **Phase 5 (Skill / CLI cremation) — MOSTLY DONE** (`/bury` skill tested, API working, auth via git config. Production origin now configurable via `NEXT_PUBLIC_SITE_URL`)
 - **Phase 5.5 (Mobile polish) — DONE** (all 13 tasks from `docs/mobile.md` complete — see Mobile section below)
-- Phase 6 (NPC Gravedigger agent) — TODO — NO LAUNCH WITHOUT THIS
+- Phase 5.6 (Pre-launch hardening) — IN PROGRESS (`POST /api/graves` retry tightened, `GameContext.user` wired to session, shared site URL config added)
+- Phase 6 (Expanded NPC / agent layer) — TODO — post-launch scope
 - See `docs/PLANv3.md` for full plan
 
 ## Mobile (read-only showcase)

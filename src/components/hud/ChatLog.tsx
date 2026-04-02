@@ -126,7 +126,6 @@ export default function ChatLog() {
 
     scheduleNext();
     return () => clearTimeout(timeout);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [addMessage, isMobile]);
 
   // Track scroll position

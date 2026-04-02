@@ -30,8 +30,6 @@ export default function Minimap() {
 
   const slotsRef = useRef(state.slotPositions);
   const gravesRef = useRef(state.graves);
-  slotsRef.current = state.slotPositions;
-  gravesRef.current = state.graves;
 
   const slotMap = useMemo(() => {
     const m = new Map<number, SlotPositionData>();
@@ -39,13 +37,18 @@ export default function Minimap() {
     return m;
   }, [state.slotPositions]);
   const slotMapRef = useRef(slotMap);
-  slotMapRef.current = slotMap;
 
   const buildings = useMemo(() =>
     state.slotPositions.filter(s => s.type === 'Building'),
   [state.slotPositions]);
   const buildingsRef = useRef(buildings);
-  buildingsRef.current = buildings;
+
+  useEffect(() => {
+    slotsRef.current = state.slotPositions;
+    gravesRef.current = state.graves;
+    slotMapRef.current = slotMap;
+    buildingsRef.current = buildings;
+  }, [state.slotPositions, state.graves, slotMap, buildings]);
 
   const draw = useCallback(() => {
     const canvas = canvasRef.current;

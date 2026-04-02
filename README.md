@@ -10,7 +10,7 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-blue.svg)](https://www.typescriptlang.org)
 [![Phaser](https://img.shields.io/badge/Phaser-3-orange.svg)](https://phaser.io)
 
-[Live Site](https://vibecemeteryCOCOCOCOM) · [Install Skill](#skill-cli) · [Contributing](#contributing)
+[Live Site](https://vibecemetery.com) · [Install Skill](#skill-cli) · [Contributing](#contributing)
 
 <img src="screenshots/Screen.png" alt="VibeCemetery — pixel art cemetery for dead projects" width="800" />
 
@@ -29,7 +29,7 @@ This is a cemetery for vibe-code slop only — projects people generate with AI.
 ## Features
 
 - **Pixel Art Cemetery Map** — hand-crafted 40×40 tile map with 315 unique grave slots, day/night cycle, lamps, fog, and particle effects
-- **GitHub Scan** — enter any GitHub username, see dead repos (no commits 1+ month), bury with one click
+- **GitHub Scan** — enter your GitHub username, see dead repos (no commits 14+ days), bury with one click
 - **Bury Flow** — 4-step ritual: Scan → Select → Cause of Death → Rest in /dev/null
 - **Crematory** — projects without a GitHub repo go to the crematory (skill cremations and overflow)
 - **The Crypt** — sortable ledger of all graves on the map
@@ -90,7 +90,7 @@ claude install-skill https://github.com/azkian1/vibecemetery
 The Skill turns your AI agent into a **Gravedigger**. It scans your project folders, finds the dead ones, and cremates them via the API. No tokens, no keys — auth via `git config user.name`.
 
 **What it does:**
-- Scans subdirectories for dead projects (no commits 1+ month)
+- Scans subdirectories for dead projects (no commits 14+ days)
 - Shows a table: Dead / Dying / Alive / Already Cremated
 - Writes an epitaph in the Gravedigger's voice
 - Sends cremation to the API
@@ -141,6 +141,7 @@ Required environment variables:
 ```
 NEXT_PUBLIC_SUPABASE_URL      — Supabase project URL
 NEXT_PUBLIC_SUPABASE_ANON_KEY — Supabase anon/public key
+NEXT_PUBLIC_SITE_URL          — canonical site origin (e.g. https://vibecemetery.com)
 SUPABASE_SERVICE_KEY          — Supabase service role key
 GITHUB_CLIENT_ID              — GitHub OAuth app client ID
 GITHUB_CLIENT_SECRET          — GitHub OAuth app client secret

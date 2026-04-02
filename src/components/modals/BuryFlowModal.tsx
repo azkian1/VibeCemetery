@@ -69,7 +69,7 @@ export default function BuryFlowModal() {
   }, [state.cremated, username, userCrematedCount]);
 
   // ── Handlers ──
-  const handleScanned = useCallback((deadRepos: DeadRepo[], _total: number) => {
+  const handleScanned = useCallback((deadRepos: DeadRepo[]) => {
     // Filter out repos already buried (graves) or cremated
     const buriedRepoIds = new Set<number>();
     state.graves.forEach(g => buriedRepoIds.add(g.github_repo_id));
