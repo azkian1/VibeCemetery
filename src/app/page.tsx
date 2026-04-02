@@ -245,10 +245,12 @@ export default function Home() {
         <Suspense><DeepLinkOpener /></Suspense>
         <div style={{ display: 'flex', flexDirection: 'column', height: '100dvh', overflow: 'hidden' }}>
           {/* TopBar — separate zone above the map */}
-          <TopBar />
+          <header>
+            <TopBar />
+          </header>
 
           {/* Map area — fills remaining height */}
-          <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
+          <main style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
             <PhaserCanvas />
             <GateEpitaph />
             <HoverTooltip />
@@ -257,7 +259,7 @@ export default function Home() {
             <CTAButtons />
             <ZoomButtons />
             <ModalLayer />
-          </div>
+          </main>
         </div>
       </GameProvider>
     </SessionProvider>

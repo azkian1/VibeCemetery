@@ -56,6 +56,20 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700&display=swap" rel="stylesheet" />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "WebApplication",
+              "name": "VibeCemetery",
+              "description": "Interactive pixel-art cemetery for dead vibe-coded projects. Bury your abandoned GitHub repos with a proper funeral.",
+              "url": "https://vibecemetery.com",
+              "applicationCategory": "Game",
+              "operatingSystem": "Web",
+            }),
+          }}
+        />
       </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${cinzel.variable} antialiased`}
