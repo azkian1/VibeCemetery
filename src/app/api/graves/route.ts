@@ -4,34 +4,32 @@ import { authOptions } from '@/app/api/auth/[...nextauth]/route'
 import { supabaseAdmin } from '@/lib/supabase'
 import { pickRandomFreeSlot } from '@/lib/map-slots'
 import { generateEpitaph } from '@/gravedigger/epitaphs'
-
-type DbInsertError = {
-  code?: string
-  details?: string | null
-  message?: string
-} | null
+import { insertGraveWithSlotRetry } from './insertWithSlotRetry'
 
 /** Strip HTML tags and collapse whitespace — defense-in-depth for stored text */
 function sanitize(str: string): string {
   return str.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim()
 }
 
-function isUniqueViolation(error: DbInsertError): boolean {
-  return error?.code === '23505'
-}
+async function syncUserGravesCount(authorGithub: string): Promise<void> {
+  const { count, error: countError } = await supabaseAdmin
+    .from('graves')
+    .select('*', { count: 'exact', head: true })
+    .eq('author_github', authorGithub)
 
-function isSlotCollision(error: DbInsertError): boolean {
-  return isUniqueViolation(error) && (
-    (error?.details ?? '').includes('Key (slot_id)=') ||
-    (error?.message ?? '').includes('graves_slot_id_key')
-  )
-}
+  if (countError) {
+    console.error('Failed to recount graves for user:', authorGithub, countError)
+    return
+  }
 
-function isRepoDuplicate(error: DbInsertError): boolean {
-  return isUniqueViolation(error) && (
-    (error?.details ?? '').includes('Key (github_repo_id)=') ||
-    (error?.message ?? '').includes('graves_github_repo_id_key')
-  )
+  const { error: updateError } = await supabaseAdmin
+    .from('users')
+    .update({ graves_count: count ?? 0 })
+    .eq('github_username', authorGithub)
+
+  if (updateError) {
+    console.error('Failed to sync graves_count for user:', authorGithub, updateError)
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -205,38 +203,8 @@ export async function POST(req: NextRequest) {
   const trimmedCause = sanitize(cause);
   const trimmedDescription = typeof description === 'string' ? sanitize(description) : null;
 
-  // 5. Check duplicate (github_repo_id is UNIQUE)
-  const { data: existing } = await supabaseAdmin
-    .from('graves')
-    .select('id')
-    .eq('github_repo_id', github_repo_id)
-    .maybeSingle()
-
-  if (existing) {
-    return NextResponse.json(
-      { error: 'This repository has already been buried' },
-      { status: 409 },
-    )
-  }
-
-  // 6. Assign random slot_id (T0 80% / T1 20%, admin-only tiers excluded)
-  const { data: usedSlots } = await supabaseAdmin
-    .from('graves')
-    .select('slot_id')
-
-  const usedSet = new Set((usedSlots ?? []).map((r) => r.slot_id))
-  const picked = pickRandomFreeSlot(usedSet)
-
-  if (!picked) {
-    return NextResponse.json(
-      { error: 'No free grave slots available on the map' },
-      { status: 507 },
-    )
-  }
-
-  let slotId = picked.id
-
-  // 7. Generate epitaph + insert grave (with retry on slot_id conflict)
+  // 5. Generate epitaph + insert grave.
+  // Repo uniqueness is enforced by the DB; slot selection is retried on expected slot collisions.
   const epitaph = generateEpitaph({
     name: trimmedName,
     cause: trimmedCause,
@@ -259,61 +227,62 @@ export async function POST(req: NextRequest) {
     last_commit_message: typeof last_commit_message === 'string' ? sanitize(last_commit_message) : null,
   }
 
-  let insertResult = await supabaseAdmin
-    .from('graves')
-    .insert({ ...graveRow, slot_id: slotId })
-    .select()
-    .single()
+  type InsertedGrave = { id: string; slot_id: number } & Record<string, unknown>
+  let insertOutcome: Awaited<ReturnType<typeof insertGraveWithSlotRetry<InsertedGrave>>>
+  try {
+    insertOutcome = await insertGraveWithSlotRetry({
+      maxAttempts: 5,
+      loadUsedSlotIds: async () => {
+        const { data: usedSlots, error } = await supabaseAdmin
+          .from('graves')
+          .select('slot_id')
 
-  if (insertResult.error) {
-    if (isRepoDuplicate(insertResult.error)) {
-      return NextResponse.json(
-        { error: 'This repository has already been buried' },
-        { status: 409 },
-      )
-    }
+        if (error) {
+          throw error
+        }
 
-    if (!isSlotCollision(insertResult.error)) {
-      console.error('Failed to create grave:', insertResult.error)
-      return NextResponse.json({ error: 'Failed to create grave' }, { status: 500 })
-    }
-
-    // Retry once with a fresh slot if another request won the same slot_id
-    const { data: freshUsed } = await supabaseAdmin
-      .from('graves')
-      .select('slot_id')
-
-    const freshSet = new Set((freshUsed ?? []).map((r) => r.slot_id))
-    const retryPick = pickRandomFreeSlot(freshSet)
-
-    if (!retryPick) {
-      return NextResponse.json(
-        { error: 'No free grave slots available on the map' },
-        { status: 507 },
-      )
-    }
-
-    slotId = retryPick.id
-    insertResult = await supabaseAdmin
-      .from('graves')
-      .insert({ ...graveRow, slot_id: slotId })
-      .select()
-      .single()
-  }
-
-  if (insertResult.error) {
-    if (isRepoDuplicate(insertResult.error)) {
-      return NextResponse.json(
-        { error: 'This repository has already been buried' },
-        { status: 409 },
-      )
-    }
-
-    console.error('Failed to create grave after retry:', insertResult.error)
+        return (usedSlots ?? []).map((row) => row.slot_id)
+      },
+      pickSlot: pickRandomFreeSlot,
+      insertGrave: async (slotId) => await supabaseAdmin
+        .from('graves')
+        .insert({ ...graveRow, slot_id: slotId })
+        .select()
+        .single(),
+    })
+  } catch (error) {
+    console.error('Failed during grave slot selection:', error)
     return NextResponse.json({ error: 'Failed to create grave' }, { status: 500 })
   }
 
-  const grave = insertResult.data
+  if (insertOutcome.status === 'duplicate') {
+    return NextResponse.json(
+      { error: 'This repository has already been buried' },
+      { status: 409 },
+    )
+  }
+
+  if (insertOutcome.status === 'no_slots') {
+    return NextResponse.json(
+      { error: 'No free grave slots available on the map' },
+      { status: 507 },
+    )
+  }
+
+  if (insertOutcome.status === 'retry_exhausted') {
+    console.error('Failed to create grave after repeated slot collisions')
+    return NextResponse.json(
+      { error: 'Failed to reserve a grave slot. Please try again.' },
+      { status: 503 },
+    )
+  }
+
+  if (insertOutcome.status === 'failed') {
+    console.error('Failed to create grave:', insertOutcome.error)
+    return NextResponse.json({ error: 'Failed to create grave' }, { status: 500 })
+  }
+
+  const grave = insertOutcome.data
 
   // 8. Post-insert rate limit check (race-condition-safe)
   // Count AFTER insert — if limit exceeded, rollback the insert.
@@ -325,7 +294,16 @@ export async function POST(req: NextRequest) {
 
   if ((postCount ?? 0) > 20) {
     const { error: delErr } = await supabaseAdmin.from('graves').delete().eq('id', grave.id)
-    if (delErr) console.error('Rate-limit rollback failed for grave', grave.id)
+    if (delErr) {
+      console.error('Rate-limit rollback failed for grave', grave.id, delErr)
+      await syncUserGravesCount(author_github)
+      return NextResponse.json(
+        { error: 'Failed to finalize grave creation after rate-limit conflict' },
+        { status: 500 },
+      )
+    }
+
+    await syncUserGravesCount(author_github)
     return NextResponse.json(
       { error: 'Rate limit: max 20 graves per day' },
       { status: 429 },
@@ -338,19 +316,8 @@ export async function POST(req: NextRequest) {
   })
 
   if (rpcError) {
-    // Fallback: manual increment if RPC fails
-    const { data: userData } = await supabaseAdmin
-      .from('users')
-      .select('graves_count')
-      .eq('github_username', author_github)
-      .single()
-
-    if (userData) {
-      await supabaseAdmin
-        .from('users')
-        .update({ graves_count: (userData.graves_count || 0) + 1 })
-        .eq('github_username', author_github)
-    }
+    console.error('increment_graves_count RPC failed, syncing exact count instead:', rpcError)
+    await syncUserGravesCount(author_github)
   }
 
   return NextResponse.json(grave, { status: 201 })

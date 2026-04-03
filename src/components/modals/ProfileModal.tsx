@@ -2,7 +2,7 @@
 
 import React, { useMemo, useCallback, useState } from 'react';
 import { useSession, signOut } from 'next-auth/react';
-import { useModal, useGame, useCremated } from '@/context/GameContext';
+import { useModal, useGame, useCremated, useGraves } from '@/context/GameContext';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import { cemeteryEvents } from '@/game/events';
 import ModalOverlay from './ModalOverlay';
@@ -11,6 +11,7 @@ import CloseButton from '@/components/ui/CloseButton';
 import OrnamentDivider from '@/components/ui/OrnamentDivider';
 import StoneButton from '@/components/ui/StoneButton';
 import InsetBlock from '@/components/ui/InsetBlock';
+import LoadErrorState from '@/components/ui/LoadErrorState';
 
 const SLOT_THRESHOLDS = [30, 80, 150] as const;
 
@@ -79,11 +80,13 @@ function ProgressBar({ percent, label }: { percent: number; label?: string }) {
 export default function ProfileModal() {
   const { close, open, push } = useModal();
   const { state } = useGame();
-  useCremated(); // ensure cremated data is loaded
+  const { error: crematedError, refetch: refetchCremated } = useCremated({ auto: false });
+  const { error: gravesError, refetch: refetchGraves } = useGraves({ auto: false });
   const { data: session } = useSession();
   const isMobile = useIsMobile();
   const user = session?.user;
   const username = user?.github_username;
+  const loadError = gravesError || crematedError;
 
   // Filter user's graves and cremations (case-insensitive — CLI may send different casing)
   const lowerUsername = username?.toLowerCase();
@@ -149,6 +152,21 @@ export default function ProfileModal() {
         <CloseButton onClick={close} />
 
         <div style={{ padding: isMobile ? '20px 16px' : '22px 24px 18px' }}>
+          {loadError && (
+            <div style={{ marginBottom: 12 }}>
+              <InsetBlock>
+                <LoadErrorState
+                  compact
+                  message="Your burial records failed to load."
+                  onRetry={() => {
+                    refetchGraves();
+                    refetchCremated();
+                  }}
+                />
+              </InsetBlock>
+            </div>
+          )}
+
           {/* Header — Avatar + Name + Stats */}
           <div style={{
             display: 'flex',
@@ -312,7 +330,7 @@ export default function ProfileModal() {
           </InsetBlock>
 
           {/* YOUR PROJECTS */}
-          {totalBurials > 0 ? (
+          {!loadError && totalBurials > 0 ? (
             <div style={{ marginBottom: 10 }}>
               <div style={sectionHeader}>Your Projects</div>
               <div style={{
@@ -339,7 +357,7 @@ export default function ProfileModal() {
                 ))}
               </div>
             </div>
-          ) : (
+          ) : !loadError ? (
             <div style={{
               textAlign: 'center',
               marginBottom: 10,
@@ -357,10 +375,10 @@ export default function ProfileModal() {
                 Bury Your First Project
               </StoneButton>
             </div>
-          )}
+          ) : null}
 
           {/* CTA — bury flow handles slot/cremation logic internally */}
-          {totalBurials > 0 && (
+          {!loadError && totalBurials > 0 && (
             <div style={{ textAlign: 'center', marginBottom: 8 }}>
               {slotsUsed >= slotsUnlocked && !allSlotsMaxed && (
                 <div style={{ fontSize: 11, color: '#6a6960', marginBottom: 6, fontStyle: 'italic' }}>

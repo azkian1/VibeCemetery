@@ -77,6 +77,8 @@ export interface CemeteryEventMap {
   highlight_slot: { slotId: number };
   // Phaser → React: scene fully initialized
   scene_ready: Record<string, never>;
+  // Phaser → React: critical asset failed to load
+  load_error: { assetKey: string; assetUrl: string };
   // React → Phaser: trigger burial ceremony animation
   burial_ceremony: { slot_id: number; id: string; name: string; chatText: string; gravediggerPhrase: string };
   // Phaser → React: ceremony finished

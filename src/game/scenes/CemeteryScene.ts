@@ -118,12 +118,22 @@ export class CemeteryScene extends Phaser.Scene {
   private prevPinchDist = 0;
   private isMobile = false;
   private minZoom = 0;
+  private assetLoadError: { assetKey: string; assetUrl: string } | null = null;
 
   constructor() {
     super({ key: 'CemeteryScene' });
   }
 
   preload() {
+    this.assetLoadError = null;
+    this.load.once('loaderror', (file: Phaser.Loader.File) => {
+      if (this.assetLoadError) return;
+
+      const assetUrl = typeof file.src === 'string' ? file.src : 'unknown asset URL';
+      this.assetLoadError = { assetKey: file.key, assetUrl };
+      cemeteryEvents.emit('load_error', this.assetLoadError);
+    });
+
     this.load.tilemapTiledJSON('cemetery-map', '/map/az.tmj');
     for (const name of TILESET_NAMES) {
       this.load.image(name, `${TILESET_BASE_URL}/${name}.png`);
@@ -132,6 +142,10 @@ export class CemeteryScene extends Phaser.Scene {
   }
 
   create() {
+    if (this.assetLoadError) {
+      return;
+    }
+
     this.renderedSlots.clear();
 
     // Create tilemap

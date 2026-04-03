@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { useModal, useGame, useCremated } from '@/context/GameContext';
+import { useModal, useGame, useCremated, useGraves } from '@/context/GameContext';
 import { useSession } from 'next-auth/react';
 import ModalOverlay from './ModalOverlay';
 import { useIsMobile } from '@/hooks/useIsMobile';
@@ -9,6 +9,7 @@ import StoneFrame from '@/components/ui/StoneFrame';
 import CloseButton from '@/components/ui/CloseButton';
 import InsetBlock from '@/components/ui/InsetBlock';
 import OrnamentDivider from '@/components/ui/OrnamentDivider';
+import LoadErrorState from '@/components/ui/LoadErrorState';
 
 type Tab = 'killers' | 'causes' | 'bots';
 const TABS: { key: Tab; label: string }[] = [
@@ -23,9 +24,11 @@ export default function LeaderboardModal() {
   const { data: session } = useSession();
   const isMobile = useIsMobile();
   const graves = state.graves;
-  const { cremated } = useCremated();
+  const { error: gravesError, refetch: refetchGraves } = useGraves({ auto: false });
+  const { cremated, error: crematedError, refetch: refetchCremated } = useCremated({ auto: false });
   const [tab, setTab] = useState<Tab>('killers');
   const loading = state.gravesLoading || state.crematedLoading;
+  const loadError = gravesError || crematedError;
 
   const currentUser = session?.user?.github_username ?? session?.user?.name ?? null;
 
@@ -160,8 +163,21 @@ export default function LeaderboardModal() {
               </p>
             )}
 
+            {!loading && loadError && (
+              <InsetBlock>
+                <LoadErrorState
+                  compact
+                  message="The spirits are restless. The records failed to load."
+                  onRetry={() => {
+                    refetchGraves();
+                    refetchCremated();
+                  }}
+                />
+              </InsetBlock>
+            )}
+
             {/* Serial Killers */}
-            {!loading && tab === 'killers' && (
+            {!loading && !loadError && tab === 'killers' && (
               <InsetBlock>
                 {rankedUsers.length === 0 ? (
                   <p style={{ color: '#6a6960', textAlign: 'center', padding: 20, margin: 0 }}>
@@ -210,7 +226,7 @@ export default function LeaderboardModal() {
             )}
 
             {/* Causes of Death */}
-            {!loading && tab === 'causes' && (
+            {!loading && !loadError && tab === 'causes' && (
               <InsetBlock>
                 {rankedCauses.length === 0 ? (
                   <p style={{ color: '#6a6960', textAlign: 'center', padding: 20, margin: 0 }}>
@@ -240,7 +256,7 @@ export default function LeaderboardModal() {
             )}
 
             {/* AI-Bots */}
-            {!loading && tab === 'bots' && (
+            {!loading && !loadError && tab === 'bots' && (
               <InsetBlock>
                 <div style={{ padding: '32px 16px', textAlign: 'center' }}>
                   <div style={{ fontSize: 28, marginBottom: 12, opacity: 0.6 }}>🤖</div>

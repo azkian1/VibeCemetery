@@ -4,11 +4,13 @@ import { useRef, useEffect, useCallback, useState } from 'react';
 import { cemeteryEvents, type SlotEventData, type SlotsReadyData, type RenderGraveData } from '../game/events';
 import { useGame } from '@/context/GameContext';
 import type { ModalType } from '@/context/GameContext';
+import StoneButton from '@/components/ui/StoneButton';
 
 export default function PhaserCanvas() {
   const containerRef = useRef<HTMLDivElement>(null);
   const gameRef = useRef<Phaser.Game | null>(null);
   const [ready, setReady] = useState(false);
+  const [assetLoadError, setAssetLoadError] = useState<{ assetKey: string; assetUrl: string } | null>(null);
   const { state, dispatch } = useGame();
   const sentSlotIdsRef = useRef(new Set<number>());
   const ceremonyChatRef = useRef<{ chatText: string; gravediggerPhrase: string } | null>(null);
@@ -38,6 +40,12 @@ export default function PhaserCanvas() {
 
   const handleSceneReady = useCallback(() => {
     setReady(true);
+    setAssetLoadError(null);
+  }, []);
+
+  const handleLoadError = useCallback((data: { assetKey: string; assetUrl: string }) => {
+    setAssetLoadError(data);
+    setReady(false);
   }, []);
 
   const handleBurialCeremony = useCallback((data: { slot_id: number; chatText: string; gravediggerPhrase: string }) => {
@@ -89,6 +97,7 @@ export default function PhaserCanvas() {
     cemeteryEvents.on('building_click', handleBuildingClick);
     cemeteryEvents.on('slots_ready', handleSlotsReady);
     cemeteryEvents.on('scene_ready', handleSceneReady);
+    cemeteryEvents.on('load_error', handleLoadError);
     cemeteryEvents.on('burial_ceremony', handleBurialCeremony);
     cemeteryEvents.on('burial_ceremony_done', handleBurialCeremonyDone);
 
@@ -97,10 +106,11 @@ export default function PhaserCanvas() {
       cemeteryEvents.off('building_click', handleBuildingClick);
       cemeteryEvents.off('slots_ready', handleSlotsReady);
       cemeteryEvents.off('scene_ready', handleSceneReady);
+      cemeteryEvents.off('load_error', handleLoadError);
       cemeteryEvents.off('burial_ceremony', handleBurialCeremony);
       cemeteryEvents.off('burial_ceremony_done', handleBurialCeremonyDone);
     };
-  }, [handleGraveClick, handleBuildingClick, handleSlotsReady, handleSceneReady, handleBurialCeremony, handleBurialCeremonyDone]);
+  }, [handleGraveClick, handleBuildingClick, handleSlotsReady, handleSceneReady, handleLoadError, handleBurialCeremony, handleBurialCeremonyDone]);
 
   // Sync React graves → Phaser tilemap
   useEffect(() => {
@@ -139,9 +149,49 @@ export default function PhaserCanvas() {
   }, [state.activeModal]);
 
   return (
-    <div
-      ref={containerRef}
-      style={{ position: 'absolute', inset: 0, overflow: 'hidden', zIndex: 0, touchAction: 'none', pointerEvents: state.activeModal ? 'none' : 'auto' }}
-    />
+    <>
+      <div
+        ref={containerRef}
+        style={{ position: 'absolute', inset: 0, overflow: 'hidden', zIndex: 0, touchAction: 'none', pointerEvents: state.activeModal ? 'none' : 'auto' }}
+      />
+      {assetLoadError && (
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            zIndex: 12,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 16,
+            background: 'rgba(10, 10, 10, 0.72)',
+          }}
+        >
+          <div
+            style={{
+              maxWidth: 420,
+              width: '100%',
+              padding: '24px 22px',
+              border: '1px solid #3a3530',
+              borderRadius: 4,
+              background: 'linear-gradient(180deg, rgba(28,26,24,0.96) 0%, rgba(20,18,16,0.98) 100%)',
+              boxShadow: '0 12px 36px rgba(0,0,0,0.45)',
+              textAlign: 'center',
+            }}
+          >
+            <h3 style={{ margin: '0 0 8px', color: '#e8d5a3', fontSize: 18 }}>Cemetery Assets Failed to Load</h3>
+            <p style={{ margin: '0 0 8px', color: '#a09888', fontSize: 14, fontStyle: 'italic', lineHeight: 1.6 }}>
+              The cemetery could not load one of its map assets. Please refresh and try again.
+            </p>
+            <p style={{ margin: '0 0 16px', color: '#6a6960', fontSize: 11, wordBreak: 'break-word' }}>
+              {assetLoadError.assetKey}: {assetLoadError.assetUrl}
+            </p>
+            <div style={{ display: 'flex', justifyContent: 'center' }}>
+              <StoneButton onClick={() => window.location.reload()}>Reload</StoneButton>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }

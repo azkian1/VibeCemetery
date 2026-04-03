@@ -9,6 +9,7 @@ import StoneFrame from '@/components/ui/StoneFrame';
 import CloseButton from '@/components/ui/CloseButton';
 import InsetBlock from '@/components/ui/InsetBlock';
 import OrnamentDivider from '@/components/ui/OrnamentDivider';
+import LoadErrorState from '@/components/ui/LoadErrorState';
 
 type Tab = 'columbarium' | 'ashpit';
 const TABS: { key: Tab; label: string }[] = [
@@ -30,7 +31,7 @@ function timeAgo(dateStr: string): string {
 
 export default function CrematoryModal() {
   const { close, push } = useModal();
-  const { cremated, loading, refetch } = useCremated();
+  const { cremated, loading, error, refetch } = useCremated({ auto: false });
   const isMobile = useIsMobile();
   const [tab, setTab] = useState<Tab>('columbarium');
 
@@ -247,8 +248,18 @@ export default function CrematoryModal() {
               </p>
             )}
 
+            {!loading && error && (
+              <InsetBlock>
+                <LoadErrorState
+                  compact
+                  message="The crematory ledger failed to load."
+                  onRetry={refetch}
+                />
+              </InsetBlock>
+            )}
+
             {/* Columbarium — GitHub projects with urns */}
-            {!loading && tab === 'columbarium' && (
+            {!loading && !error && tab === 'columbarium' && (
               <InsetBlock>
                 {urns.length === 0 ? (
                   <p style={{ color: '#6a6960', textAlign: 'center', padding: 20, margin: 0, fontStyle: 'italic' }}>
@@ -261,7 +272,7 @@ export default function CrematoryModal() {
             )}
 
             {/* Ash Pit — CLI cremations without GitHub */}
-            {!loading && tab === 'ashpit' && (
+            {!loading && !error && tab === 'ashpit' && (
               <InsetBlock>
                 {ashes.length === 0 ? (
                   <p style={{ color: '#6a6960', textAlign: 'center', padding: 20, margin: 0, fontStyle: 'italic' }}>
@@ -278,7 +289,9 @@ export default function CrematoryModal() {
           <OrnamentDivider />
           <div style={{ textAlign: 'center' }}>
             <span style={{ color: '#8a8980', fontSize: 13 }}>
-              {cremated.length > 0
+              {error
+                ? 'The furnace records are silent'
+                : cremated.length > 0
                 ? <><div style={{ fontSize: 20, fontWeight: 'bold', color: '#e8d5a3', marginBottom: 2 }}>{cremated.length}</div>{cremated.length === 1 ? 'soul' : 'souls'} reduced to ash</>
                 : 'The furnace awaits its first offering'}
             </span>

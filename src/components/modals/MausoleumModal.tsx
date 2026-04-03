@@ -1,12 +1,13 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { useModal, useGame } from '@/context/GameContext';
+import { useModal, useGame, useGraves } from '@/context/GameContext';
 import ModalOverlay from './ModalOverlay';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import StoneFrame from '@/components/ui/StoneFrame';
 import CloseButton from '@/components/ui/CloseButton';
 import OrnamentDivider from '@/components/ui/OrnamentDivider';
+import LoadErrorState from '@/components/ui/LoadErrorState';
 
 
 type SortCol = 'tier' | 'project' | 'cause' | 'f' | 'died';
@@ -27,6 +28,7 @@ function getTier(slotType: string | undefined): { label: string; color: string; 
 export default function MausoleumModal() {
   const { close, push } = useModal();
   const { state } = useGame();
+  const { error, refetch } = useGraves({ auto: false });
   const isMobile = useIsMobile();
   const graves = state.graves;
   const [sortCol, setSortCol] = useState<SortCol>('f');
@@ -133,6 +135,11 @@ export default function MausoleumModal() {
 
           {loading ? (
             <p style={{ textAlign: 'center', color: '#8a8980' }}>Checking the records...</p>
+          ) : error ? (
+            <LoadErrorState
+              message="The Crypt ledger failed to load."
+              onRetry={refetch}
+            />
           ) : (
             <>
               {/* Table */}
