@@ -246,7 +246,7 @@ export default function Home() {
         <CrematedLoader />
         <FStatusLoader />
         <Suspense><DeepLinkOpener /></Suspense>
-        <div style={{ display: 'flex', flexDirection: 'column', height: '100dvh', overflow: 'hidden' }}>
+        <div data-testid="app-shell" style={{ display: 'flex', flexDirection: 'column', height: '100dvh', overflow: 'hidden' }}>
           {/* TopBar — separate zone above the map */}
           <header>
             <TopBar />

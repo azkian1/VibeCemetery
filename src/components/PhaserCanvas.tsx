@@ -152,6 +152,8 @@ export default function PhaserCanvas() {
     <>
       <div
         ref={containerRef}
+        data-testid="phaser-stage"
+        data-scene-ready={ready ? 'true' : 'false'}
         style={{ position: 'absolute', inset: 0, overflow: 'hidden', zIndex: 0, touchAction: 'none', pointerEvents: state.activeModal ? 'none' : 'auto' }}
       />
       {assetLoadError && (

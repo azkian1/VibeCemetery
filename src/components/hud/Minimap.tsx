@@ -163,6 +163,7 @@ export default function Minimap() {
 
   return (
     <div
+      data-testid="minimap-shell"
       style={{
         position: 'absolute',
         top: 12,

@@ -28,6 +28,7 @@ export default function HoverTooltip() {
 
   return (
     <div
+      data-testid="hover-tooltip"
       style={{
         position: 'absolute',
         left: hovered.screenX,
