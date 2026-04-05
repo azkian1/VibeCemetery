@@ -1,26 +1,10 @@
 import { NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/app/api/auth/[...nextauth]/route'
+import { resolveCliActor } from '@/lib/cli-auth'
 import { supabaseAdmin } from '@/lib/supabase'
 
 /** Strip HTML tags and collapse whitespace — defense-in-depth for stored text */
 function sanitize(str: string): string {
   return str.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim()
-}
-
-async function getUsername(request: Request, body: Record<string, unknown>): Promise<{ username: string | null, source: 'session' | 'body' | null }> {
-  // 1. Try NextAuth session (browser)
-  const session = await getServerSession(authOptions)
-  if (session?.user?.github_username) {
-    return { username: session.user.github_username, source: 'session' }
-  }
-
-  // 2. Try author_github from body (CLI / Skill)
-  if (typeof body.author_github === 'string' && body.author_github.trim()) {
-    return { username: body.author_github.trim(), source: 'body' }
-  }
-
-  return { username: null, source: null }
 }
 
 export async function POST(request: Request) {
@@ -38,29 +22,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Request body must be a JSON object' }, { status: 400 })
   }
 
-  const { username: authorGithub, source } = await getUsername(request, body as Record<string, unknown>)
-  if (!authorGithub) {
+  const actor = await resolveCliActor(request)
+  if (!actor) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
+  const authorGithub = actor.username
+
   if (!/^[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,37}[a-zA-Z0-9])?$/.test(authorGithub)) {
     return NextResponse.json({ error: 'Invalid username format' }, { status: 400 })
-  }
-
-  // If username came from body (CLI), verify user exists on VibeCemetery
-  if (source === 'body') {
-    const { data: user } = await supabaseAdmin
-      .from('users')
-      .select('github_username')
-      .eq('github_username', authorGithub)
-      .single()
-
-    if (!user) {
-      return NextResponse.json(
-        { error: 'User not found. Sign in on VibeCemetery first.' },
-        { status: 403 }
-      )
-    }
   }
 
   const { name, cause, github_url, last_commit_message } = body as Record<string, unknown>
@@ -87,7 +57,7 @@ export async function POST(request: Request) {
   // Rate limit: first 50 cremations unlimited, then 3/day
   const { count: totalCount, error: totalError } = await supabaseAdmin
     .from('cremated')
-    .select('*', { count: 'exact', head: true })
+    .select('id', { count: 'exact', head: true })
     .eq('author_github', authorGithub)
 
   if (totalError) {
@@ -105,7 +75,7 @@ export async function POST(request: Request) {
 
     const { count: dailyCount, error: dailyError } = await supabaseAdmin
       .from('cremated')
-      .select('*', { count: 'exact', head: true })
+      .select('id', { count: 'exact', head: true })
       .eq('author_github', authorGithub)
       .gte('created_at', todayStart.toISOString())
 
@@ -143,11 +113,11 @@ export async function POST(request: Request) {
       name: trimmedName,
       cause: trimmedCause,
       author_github: authorGithub,
-      source: source === 'session' ? 'github' : 'skill',
+      source: actor.source === 'session' ? 'github' : 'skill',
       ...(trimmedGithubUrl && { github_url: trimmedGithubUrl }),
       ...(trimmedLastCommit && { last_commit_message: trimmedLastCommit }),
     })
-    .select()
+    .select('id, name, cause, author_github, github_url, last_commit_message, created_at, source')
     .single()
 
   if (insertError) {
@@ -161,7 +131,7 @@ export async function POST(request: Request) {
   if (pastFirstBurn) {
     const { count: postCount } = await supabaseAdmin
       .from('cremated')
-      .select('*', { count: 'exact', head: true })
+      .select('id', { count: 'exact', head: true })
       .eq('author_github', authorGithub)
       .gte('created_at', todayStart.toISOString())
 

@@ -3,7 +3,6 @@
 import { Suspense, useEffect, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import dynamic from 'next/dynamic';
-import { SessionProvider } from 'next-auth/react';
 import { GameProvider, useGame, useGraves, useCremated, useFStatus, useModal, type ModalType } from '@/context/GameContext';
 import { cemeteryEvents } from '@/game/events';
 
@@ -240,31 +239,29 @@ function ModalLayer() {
 
 export default function Home() {
   return (
-    <SessionProvider>
-      <GameProvider>
-        <GravesLoader />
-        <CrematedLoader />
-        <FStatusLoader />
-        <Suspense><DeepLinkOpener /></Suspense>
-        <div data-testid="app-shell" style={{ display: 'flex', flexDirection: 'column', height: '100dvh', overflow: 'hidden' }}>
-          {/* TopBar — separate zone above the map */}
-          <header>
-            <TopBar />
-          </header>
+    <GameProvider>
+      <GravesLoader />
+      <CrematedLoader />
+      <FStatusLoader />
+      <Suspense><DeepLinkOpener /></Suspense>
+      <div data-testid="app-shell" style={{ display: 'flex', flexDirection: 'column', height: '100dvh', overflow: 'hidden' }}>
+        {/* TopBar — separate zone above the map */}
+        <header>
+          <TopBar />
+        </header>
 
-          {/* Map area — fills remaining height */}
-          <main style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
-            <PhaserCanvas />
-            <GateEpitaph />
-            <HoverTooltip />
-            <Minimap />
-            <ChatLog />
-            <CTAButtons />
-            <ZoomButtons />
-            <ModalLayer />
-          </main>
-        </div>
-      </GameProvider>
-    </SessionProvider>
+        {/* Map area — fills remaining height */}
+        <main style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
+          <PhaserCanvas />
+          <GateEpitaph />
+          <HoverTooltip />
+          <Minimap />
+          <ChatLog />
+          <CTAButtons />
+          <ZoomButtons />
+          <ModalLayer />
+        </main>
+      </div>
+    </GameProvider>
   );
 }

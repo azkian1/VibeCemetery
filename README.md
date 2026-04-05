@@ -87,7 +87,7 @@ One-line install for [Claude Code](https://docs.anthropic.com/en/docs/claude-cod
 claude install-skill https://github.com/azkian1/vibecemetery
 ```
 
-The Skill turns your AI agent into a **Gravedigger**. It scans your project folders, finds the dead ones, and cremates them via the API. No tokens, no keys — auth via `git config user.name`.
+The Skill turns your AI agent into a **Gravedigger**. It scans your project folders, finds the dead ones, and cremates them via the API. First run opens a browser approval once, then the CLI stores a server-issued token locally for silent future use.
 
 **What it does:**
 - Scans subdirectories for dead projects (no commits 14+ days)
@@ -95,6 +95,11 @@ The Skill turns your AI agent into a **Gravedigger**. It scans your project fold
 - Writes an epitaph in the Gravedigger's voice
 - Sends cremation to the API
 - Local dedup via `cremated-registry.json`
+
+**CLI auth V1 setup:**
+- Apply `docs/cli-auth-v1.sql` in Supabase
+- Ensure `users.github_username` has a `UNIQUE` constraint
+- Set `CLI_TOKEN_SECRET` in production to decouple long-lived CLI tokens from `NEXTAUTH_SECRET`
 
 ## Roadmap
 
@@ -148,6 +153,7 @@ GITHUB_CLIENT_SECRET          — GitHub OAuth app client secret
 GITHUB_TOKEN                  — GitHub PAT (for repo scanning, no special permissions)
 NEXTAUTH_URL                  — http://localhost:3000 (local) or your domain
 NEXTAUTH_SECRET               — random string for session encryption
+CLI_TOKEN_SECRET              — optional separate secret for long-lived CLI tokens
 ```
 
 Then run:

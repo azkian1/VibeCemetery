@@ -1,5 +1,9 @@
 import { createClient } from '@supabase/supabase-js'
 
+if (typeof window !== 'undefined') {
+  throw new Error('supabaseAdmin must only be imported on the server')
+}
+
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
 

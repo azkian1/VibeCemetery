@@ -25,13 +25,19 @@ export const authOptions: NextAuthOptions = {
   callbacks: {
     async signIn({ profile }) {
       const githubProfile = profile as GitHubProfile
-      await supabaseAdmin
+      const { error } = await supabaseAdmin
         .from('users')
         .upsert({
           github_id: githubProfile.id,
           github_username: githubProfile.login,
           avatar_url: githubProfile.avatar_url,
         }, { onConflict: 'github_id' })
+
+      if (error) {
+        console.error('NextAuth user upsert failed', error)
+        return false
+      }
+
       return true
     },
     async session({ session, token }) {

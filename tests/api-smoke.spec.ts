@@ -18,12 +18,12 @@ function getRequiredEnv(name: 'NEXTAUTH_SECRET' | 'NEXT_PUBLIC_SUPABASE_URL' | '
   return value
 }
 
-function useSecureCookies() {
+function shouldUseSecureCookies() {
   return (process.env.NEXTAUTH_URL ?? '').startsWith('https://') || process.env.VERCEL === '1'
 }
 
 function getSessionCookieName() {
-  return `${useSecureCookies() ? '__Secure-' : ''}next-auth.session-token`
+  return `${shouldUseSecureCookies() ? '__Secure-' : ''}next-auth.session-token`
 }
 
 async function createAuthHeaders(
@@ -81,6 +81,27 @@ async function deleteSmokeGrave(graveId: string) {
   await supabaseAdmin.from('graves').delete().eq('id', graveId)
 }
 
+async function createSmokeUser(username: string) {
+  const { error } = await supabaseAdmin
+    .from('users')
+    .upsert({
+      github_id: 800000000 + Math.floor(Math.random() * 1000000),
+      github_username: username,
+      avatar_url: `https://avatars.githubusercontent.com/${username}`,
+    }, { onConflict: 'github_id' })
+
+  if (error) {
+    throw new Error(`Failed to create smoke user: ${error.message}`)
+  }
+}
+
+async function deleteSmokeCliData(username: string) {
+  await supabaseAdmin.from('cremated').delete().eq('author_github', username)
+  await supabaseAdmin.from('cli_link_sessions').delete().eq('github_username', username)
+  await supabaseAdmin.from('cli_tokens').delete().eq('github_username', username)
+  await supabaseAdmin.from('users').delete().eq('github_username', username)
+}
+
 test.describe.serial('API smoke', () => {
   test('GET /api/graves returns a bounded list', async ({ request }) => {
     const res = await request.get('/api/graves?limit=1')
@@ -106,6 +127,121 @@ test.describe.serial('API smoke', () => {
         github_repo_id: 1,
         name: 'repo',
         cause: 'dead',
+      },
+    })
+
+    expect(res.status()).toBe(401)
+    expect(await res.json()).toEqual({ error: 'Unauthorized' })
+  })
+
+  test('CLI link flow issues one-time token and revoke disables later CLI auth', async ({ request }) => {
+    const username = `api-smoke-cli-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+    await createSmokeUser(username)
+    const sessionHeaders = await createAuthHeaders(username)
+
+    try {
+      const startRes = await request.post('/api/cli/link/start')
+      expect(startRes.status()).toBe(200)
+      expect(startRes.headers()['cache-control']).toBe('no-store')
+      const startBody = await startRes.json()
+      expect(typeof startBody.link_id).toBe('string')
+      expect(typeof startBody.approve_url).toBe('string')
+
+      const pendingRes = await request.get(`/api/cli/link/status?link_id=${startBody.link_id}`)
+      expect(pendingRes.status()).toBe(200)
+      expect(pendingRes.headers()['cache-control']).toBe('no-store')
+      expect(await pendingRes.json()).toEqual({ status: 'pending' })
+
+      const approveRes = await request.post('/api/cli/link/approve', {
+        headers: sessionHeaders,
+        data: { link_id: startBody.link_id },
+      })
+      expect(approveRes.status()).toBe(200)
+      expect(approveRes.headers()['cache-control']).toBe('no-store')
+      expect(await approveRes.json()).toEqual({ status: 'approved' })
+
+      const claimRes = await request.get(`/api/cli/link/status?link_id=${startBody.link_id}`)
+      expect(claimRes.status()).toBe(200)
+      expect(claimRes.headers()['cache-control']).toBe('no-store')
+      const claimBody = await claimRes.json()
+      expect(claimBody.status).toBe('approved')
+      expect(claimBody.github_username).toBe(username)
+      expect(typeof claimBody.cli_token).toBe('string')
+
+      const claimedRes = await request.get(`/api/cli/link/status?link_id=${startBody.link_id}`)
+      expect(claimedRes.status()).toBe(200)
+      expect(await claimedRes.json()).toEqual({ status: 'claimed', github_username: username })
+
+      const cremationRes = await request.post('/api/cremated', {
+        headers: { authorization: `Bearer ${claimBody.cli_token}` },
+        data: {
+          name: `CLI Smoke ${Date.now()}`,
+          cause: 'CLI token smoke test',
+        },
+      })
+      expect(cremationRes.status()).toBe(201)
+      const cremationBody = await cremationRes.json()
+      expect(cremationBody.author_github).toBe(username)
+      expect(cremationBody.source).toBe('skill')
+
+      const tokensRes = await request.get('/api/cli/tokens', { headers: sessionHeaders })
+      expect(tokensRes.status()).toBe(200)
+      expect(tokensRes.headers()['cache-control']).toBe('no-store')
+      const tokensBody = await tokensRes.json()
+      expect(Array.isArray(tokensBody.tokens)).toBe(true)
+      expect(tokensBody.tokens).toHaveLength(1)
+
+      const revokeRes = await request.post('/api/cli/token/revoke', {
+        headers: sessionHeaders,
+        data: { token_id: tokensBody.tokens[0].id },
+      })
+      expect(revokeRes.status()).toBe(200)
+      expect(revokeRes.headers()['cache-control']).toBe('no-store')
+      expect(await revokeRes.json()).toEqual({ ok: true })
+
+      const deniedRes = await request.post('/api/cremated', {
+        headers: { authorization: `Bearer ${claimBody.cli_token}` },
+        data: {
+          name: `CLI Smoke Denied ${Date.now()}`,
+          cause: 'revoked token should fail',
+        },
+      })
+      expect(deniedRes.status()).toBe(401)
+      expect(await deniedRes.json()).toEqual({ error: 'Unauthorized' })
+    } finally {
+      await deleteSmokeCliData(username)
+    }
+  })
+
+  test('POST /api/cremated still works for authenticated browser sessions', async ({ request }) => {
+    const username = `api-smoke-session-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+    await createSmokeUser(username)
+    const sessionHeaders = await createAuthHeaders(username)
+
+    try {
+      const res = await request.post('/api/cremated', {
+        headers: sessionHeaders,
+        data: {
+          name: `Session Smoke ${Date.now()}`,
+          cause: 'browser session smoke test',
+        },
+      })
+
+      expect(res.status()).toBe(201)
+      const body = await res.json()
+      expect(body.author_github).toBe(username)
+      expect(body.source).toBe('github')
+    } finally {
+      await deleteSmokeCliData(username)
+    }
+  })
+
+  test('POST /api/cremated ignores body-based identity without session or CLI token', async ({ request }) => {
+    const res = await request.post('/api/cremated', {
+      data: {
+        name: 'Body Auth Funeral',
+        cause: 'Security audit regression test',
+        author_github: 'spoofed-user',
       },
     })
 

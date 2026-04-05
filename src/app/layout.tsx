@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono, Cinzel } from "next/font/google";
 import { getSiteUrl } from '@/lib/site';
+import AppProviders from '@/components/AppProviders';
 import "./globals.css";
 
 const siteUrl = getSiteUrl();
@@ -80,7 +81,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${cinzel.variable} antialiased`}
       >
-        {children}
+        <AppProviders>{children}</AppProviders>
       </body>
     </html>
   );
