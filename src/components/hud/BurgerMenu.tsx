@@ -36,7 +36,7 @@ const FAQ_ITEMS: FaqItem[] = [
     answer:
       '1. Sign in with GitHub\n' +
       '2. Press "BURY" — we\'ll scan your repos\n' +
-      '3. Pick which dead ones to bury or cremate\n' +
+      '3. Pick which dead ones to bury\n' +
       '4. Choose cause of death\n' +
       '5. The grave appears on the map forever',
   },
@@ -49,16 +49,15 @@ const FAQ_ITEMS: FaqItem[] = [
   {
     question: 'What is the Crematory?',
     answer:
-      'Not every dead project gets a grave. Cremation is for repos that didn\'t earn a plot — ' +
-      'they end up in the Columbarium as urns. No headstone, but still remembered. ' +
+      'Not every project gets a grave. Cremation is for those without a repo or when slots run out. ' +
+      'They end up in the Crematory — Columbarium for projects with URLs, Ash Pit for the rest. ' +
       'Ashes to ashes.',
   },
   {
     question: 'What is the CLI Skill?',
     answer:
-      'A command for LLM-powered coding tools. ' +
-      'Type /bury, answer a few questions, and the grave appears on the map — ' +
-      'without ever opening a browser.',
+      'A command for AI coding tools. Approve once in browser, then type /bury to cremate projects directly from your editor. ' +
+      'Cremations earn Souls.',
   },
 ];
 
