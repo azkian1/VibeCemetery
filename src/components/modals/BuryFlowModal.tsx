@@ -47,12 +47,16 @@ export default function BuryFlowModal() {
     return count;
   }, [state.graves, username]);
 
-  const userCrematedCount = useMemo(() => {
-    if (!username) return 0;
-    return state.cremated.filter(c => c.author_github === username).length;
+  const userCremated = useMemo(() => {
+    if (!username) return [];
+    return state.cremated.filter(c => c.author_github === username);
   }, [state.cremated, username]);
 
-  const souls = userCrematedCount * 3;
+  const userCrematedCount = userCremated.length;
+
+  const souls = userCremated.reduce(
+    (acc, c) => acc + (c.source === 'skill' ? 1 : 3), 0
+  );
   const slotsUnlocked = 1 + SLOT_THRESHOLDS.filter(t => souls >= t).length;
   const availableSlots = Math.max(0, slotsUnlocked - userGravesCount);
 
