@@ -282,12 +282,12 @@ export default function ProfileModal() {
                   <div
                     style={{
                       fontSize: 10,
-                      color: '#6a6960',
+                      color: '#aaa9a0',
                       marginBottom: 3,
                       cursor: 'help',
                       position: 'relative',
                       display: 'inline-block',
-                      borderBottom: '1px dotted #6a6960',
+                      borderBottom: '1px dotted #aaa9a0',
                     }}
                     onMouseEnter={() => setSoulsTipVisible(true)}
                     onMouseLeave={() => setSoulsTipVisible(false)}
