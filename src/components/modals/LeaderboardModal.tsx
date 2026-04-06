@@ -73,7 +73,7 @@ export default function LeaderboardModal() {
   const userRank = currentUser
     ? rankedUsers.findIndex((u) => u.author === currentUser) + 1
     : 0;
-  const userTotal = userRank ? rankedUsers[userRank - 1].total : 0;
+  const userTotal = userRank > 0 ? rankedUsers[userRank - 1]?.total ?? 0 : 0;
 
   const tabStyle = (active: boolean): React.CSSProperties => ({
     flex: 1,
@@ -181,7 +181,7 @@ export default function LeaderboardModal() {
               <InsetBlock>
                 {rankedUsers.length === 0 ? (
                   <p style={{ color: '#6a6960', textAlign: 'center', padding: 20, margin: 0 }}>
-                    No gravediggers yet. The shovels gather dust.
+                    No one has buried or cremated yet. The shovels gather dust.
                   </p>
                 ) : (
                   <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr auto auto auto' }}>
@@ -284,7 +284,7 @@ export default function LeaderboardModal() {
                 ? 'Log in to claim your rank among the git reapers'
                 : userRank > 0
                   ? <>Your rank: <span style={{ fontSize: 18, fontWeight: 'bold', color: '#c8a050' }}>#{userRank}</span> — {userTotal} total</>
-                  : 'You haven\u2019t buried anyone yet. The shovel awaits.'}
+                  : 'You haven\u2019t killed any projects yet. The shovel awaits.'}
             </span>
           </div>
         </div>
