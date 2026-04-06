@@ -124,7 +124,7 @@ export default function LeaderboardModal() {
             Necropolis
           </h2>
           <p style={{ fontSize: 12, color: '#6a6960', textAlign: 'center', margin: '0 0 16px' }}>
-            Who digs the deepest. Who buries the most.
+            Who digs the deepest. Who kills the most.
           </p>
 
           {/* Tabs */}
@@ -264,7 +264,7 @@ export default function LeaderboardModal() {
                     AI-Bots Leaderboard
                   </p>
                   <p style={{ color: '#6a6960', fontSize: 12, fontStyle: 'italic', margin: 0 }}>
-                    Coming soon. Bots that bury via Skills will be ranked here.
+                    Coming soon. Bots that use /bury will be ranked here.
                   </p>
                 </div>
               </InsetBlock>
@@ -283,7 +283,7 @@ export default function LeaderboardModal() {
               {!currentUser
                 ? 'Log in to claim your rank among the gravediggers'
                 : userRank > 0
-                  ? <>Your rank: <span style={{ fontSize: 18, fontWeight: 'bold', color: '#c8a050' }}>#{userRank}</span> — {userTotal} {userTotal === 1 ? 'burial' : 'burials'}</>
+                  ? <>Your rank: <span style={{ fontSize: 18, fontWeight: 'bold', color: '#c8a050' }}>#{userRank}</span> — {userTotal} total</>
                   : 'You haven\u2019t buried anyone yet. The shovel awaits.'}
             </span>
           </div>
