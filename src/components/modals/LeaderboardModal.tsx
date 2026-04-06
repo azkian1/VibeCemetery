@@ -281,7 +281,7 @@ export default function LeaderboardModal() {
           }}>
             <span style={{ color: '#6a6960', fontSize: 13 }}>
               {!currentUser
-                ? 'Log in to claim your rank among the gravediggers'
+                ? 'Log in to claim your rank among the git reapers'
                 : userRank > 0
                   ? <>Your rank: <span style={{ fontSize: 18, fontWeight: 'bold', color: '#c8a050' }}>#{userRank}</span> — {userTotal} total</>
                   : 'You haven\u2019t buried anyone yet. The shovel awaits.'}
