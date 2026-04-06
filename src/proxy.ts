@@ -6,17 +6,25 @@ function toOrigin(url: string): string {
   catch { return url.replace(/\/+$/, '') }
 }
 
-const ALLOWED_ORIGINS = [
-  toOrigin(process.env.NEXTAUTH_URL ?? 'http://localhost:3000'),
-]
+function getAllowedOrigins(): string[] {
+  const origins = new Set<string>()
+  origins.add(toOrigin(process.env.NEXTAUTH_URL ?? 'http://localhost:3000'))
+
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim()
+  if (siteUrl) {
+    origins.add(toOrigin(siteUrl))
+  }
+
+  return [...origins]
+}
 
 /** Per-IP read rate limit: 60 requests per 60 seconds */
 const READ_LIMIT = 60
 const READ_WINDOW = 60_000
 
-export function middleware(req: NextRequest) {
+export async function proxy(req: NextRequest) {
   const origin = req.headers.get('origin') ?? ''
-  const isAllowed = ALLOWED_ORIGINS.includes(origin)
+  const isAllowed = origin !== '' && getAllowedOrigins().includes(origin)
 
   if (req.method === 'OPTIONS') {
     if (!isAllowed) return new NextResponse(null, { status: 403 })
@@ -34,7 +42,7 @@ export function middleware(req: NextRequest) {
   // Rate-limit GET requests on public endpoints
   if (req.method === 'GET') {
     const ip = getClientIp(req)
-    const result = checkRateLimit(`read:${ip}`, READ_LIMIT, READ_WINDOW)
+    const result = await checkRateLimit(`read:${ip}`, READ_LIMIT, READ_WINDOW)
     if (!result.allowed) {
       return NextResponse.json(
         { error: 'Too many requests' },

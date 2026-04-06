@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createCliLinkId, getCliLinkExpiryDate } from '@/lib/cli-auth'
+import { createCliClaimToken, createCliLinkId, getCliLinkExpiryDate, hashCliClaimToken } from '@/lib/cli-auth'
 import { checkRateLimit, getClientIp } from '@/lib/rate-limit'
 import { getSiteUrl } from '@/lib/site'
 import { supabaseAdmin } from '@/lib/supabase'
@@ -9,7 +9,7 @@ const LINK_START_WINDOW = 60_000
 
 export async function POST(request: NextRequest) {
   const ip = getClientIp(request)
-  const result = checkRateLimit(`cli-link-start:${ip}`, LINK_START_LIMIT, LINK_START_WINDOW)
+  const result = await checkRateLimit(`cli-link-start:${ip}`, LINK_START_LIMIT, LINK_START_WINDOW)
 
   if (!result.allowed) {
     return NextResponse.json(
@@ -25,12 +25,14 @@ export async function POST(request: NextRequest) {
   }
 
   const linkId = createCliLinkId()
+  const claimToken = createCliClaimToken()
   const expiresAt = getCliLinkExpiryDate()
 
   const { error } = await supabaseAdmin
     .from('cli_link_sessions')
     .insert({
       id: linkId,
+      claim_token_hash: hashCliClaimToken(claimToken),
       expires_at: expiresAt.toISOString(),
     })
 
@@ -41,6 +43,7 @@ export async function POST(request: NextRequest) {
   return NextResponse.json({
     link_id: linkId,
     approve_url: `${getSiteUrl()}/cli/connect?link_id=${linkId}`,
+    claim_token: claimToken,
     expires_at: expiresAt.toISOString(),
     poll_interval_ms: 2000,
   }, {

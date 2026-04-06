@@ -16,6 +16,7 @@ create table if not exists public.cli_link_sessions (
   id uuid primary key,
   github_username text references public.users(github_username) on update cascade on delete cascade,
   token_id uuid references public.cli_tokens(id) on delete set null,
+  claim_token_hash text not null,
   created_at timestamptz not null default now(),
   expires_at timestamptz not null,
   approved_at timestamptz,
@@ -24,3 +25,6 @@ create table if not exists public.cli_link_sessions (
 
 create index if not exists cli_link_sessions_expires_at_idx
   on public.cli_link_sessions (expires_at);
+
+alter table public.cli_link_sessions
+  add column if not exists claim_token_hash text;

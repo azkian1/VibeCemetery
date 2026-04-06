@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { checkRateLimit, getClientIp } from '@/lib/rate-limit';
 
 // 20 requests per minute per IP
@@ -6,8 +8,13 @@ const COMMIT_RATE_LIMIT = 20;
 const COMMIT_WINDOW_MS = 60_000;
 
 export async function GET(request: NextRequest) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.github_username) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   const ip = getClientIp(request);
-  const rl = checkRateLimit(`commit:${ip}`, COMMIT_RATE_LIMIT, COMMIT_WINDOW_MS);
+  const rl = await checkRateLimit(`commit:${ip}`, COMMIT_RATE_LIMIT, COMMIT_WINDOW_MS);
   if (!rl.allowed) {
     return NextResponse.json(
       { error: 'Too many requests. Please try again later.' },

@@ -1,10 +1,3 @@
-/**
- * Simple in-memory sliding-window rate limiter.
- * Not shared across serverless instances — good enough for single-instance
- * dev/preview and provides baseline protection in production.
- * For strict enforcement at scale, use Redis (e.g. Upstash).
- */
-
 import type { NextRequest } from 'next/server';
 
 interface RateLimitEntry {
@@ -12,10 +5,22 @@ interface RateLimitEntry {
   windowMs: number;
 }
 
+type RateLimitResult = { allowed: true } | { allowed: false; retryAfterMs: number };
+
+interface RateLimitStore {
+  check(key: string, maxRequests: number, windowMs: number): Promise<RateLimitResult>;
+}
+
 const buckets = new Map<string, RateLimitEntry>();
 const MAX_BUCKETS = 5000;
 const CLEANUP_INTERVAL = 60_000;
 let lastCleanup = Date.now();
+
+function getUpstashConfig() {
+  const url = process.env.UPSTASH_REDIS_REST_URL?.trim();
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN?.trim();
+  return url && token ? { url: url.replace(/\/+$/, ''), token } : null;
+}
 
 function cleanup() {
   const now = Date.now();
@@ -37,33 +42,92 @@ function cleanup() {
   }
 }
 
+const memoryStore: RateLimitStore = {
+  async check(key, maxRequests, windowMs) {
+    cleanup();
+
+    const now = Date.now();
+    const cutoff = now - windowMs;
+    const entry = buckets.get(key) ?? { timestamps: [], windowMs };
+
+    entry.timestamps = entry.timestamps.filter((t) => t > cutoff);
+    entry.windowMs = windowMs;
+
+    if (entry.timestamps.length >= maxRequests) {
+      const oldest = entry.timestamps[0];
+      return { allowed: false, retryAfterMs: oldest + windowMs - now };
+    }
+
+    entry.timestamps.push(now);
+    buckets.set(key, entry);
+    return { allowed: true };
+  },
+};
+
+async function upstashCommand<T>(path: string): Promise<T> {
+  const config = getUpstashConfig();
+  if (!config) {
+    throw new Error('Upstash config missing');
+  }
+
+  const response = await fetch(`${config.url}${path}`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${config.token}`,
+    },
+    cache: 'no-store',
+  });
+
+  if (!response.ok) {
+    throw new Error(`Upstash rate limit request failed with ${response.status}`);
+  }
+
+  const json = await response.json() as { result?: T };
+  return json.result as T;
+}
+
+const upstashStore: RateLimitStore = {
+  async check(key, maxRequests, windowMs) {
+    const encodedKey = encodeURIComponent(key);
+    const count = await upstashCommand<number>(`/incr/${encodedKey}`);
+
+    if (count === 1) {
+      await upstashCommand<number>(`/pexpire/${encodedKey}/${windowMs}`);
+    }
+
+    if (count > maxRequests) {
+      const ttl = await upstashCommand<number>(`/pttl/${encodedKey}`);
+      return { allowed: false, retryAfterMs: ttl > 0 ? ttl : windowMs };
+    }
+
+    return { allowed: true };
+  },
+};
+
+function getRateLimitStore(): RateLimitStore {
+  return getUpstashConfig() ? upstashStore : memoryStore;
+}
+
 /**
  * Check rate limit for a given key (typically IP).
  * Returns { allowed: true } or { allowed: false, retryAfterMs }.
  */
-export function checkRateLimit(
+export async function checkRateLimit(
   key: string,
   maxRequests: number,
   windowMs: number,
-): { allowed: true } | { allowed: false; retryAfterMs: number } {
-  cleanup();
-
-  const now = Date.now();
-  const cutoff = now - windowMs;
-  const entry = buckets.get(key) ?? { timestamps: [], windowMs };
-
-  // Drop expired timestamps
-  entry.timestamps = entry.timestamps.filter((t) => t > cutoff);
-  entry.windowMs = windowMs;
-
-  if (entry.timestamps.length >= maxRequests) {
-    const oldest = entry.timestamps[0];
-    return { allowed: false, retryAfterMs: oldest + windowMs - now };
+): Promise<RateLimitResult> {
+  try {
+    return await getRateLimitStore().check(key, maxRequests, windowMs);
+  } catch (error) {
+    console.error('[VibeCemetery] Shared rate limit failed, falling back to memory store:', error);
+    return memoryStore.check(key, maxRequests, windowMs);
   }
+}
 
-  entry.timestamps.push(now);
-  buckets.set(key, entry);
-  return { allowed: true };
+export function __resetRateLimitStateForTests() {
+  buckets.clear();
+  lastCleanup = Date.now();
 }
 
 /**

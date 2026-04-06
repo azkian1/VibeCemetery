@@ -1,4 +1,4 @@
-import { createHash, createHmac, randomUUID } from 'node:crypto'
+import { createHash, createHmac, randomBytes, randomUUID } from 'node:crypto'
 
 if (typeof window !== 'undefined') {
   throw new Error('cli-auth helpers must only run on the server')
@@ -30,6 +30,10 @@ export function createCliTokenId(): string {
   return randomUUID()
 }
 
+export function createCliClaimToken(): string {
+  return randomBytes(32).toString('base64url')
+}
+
 export function getCliLinkExpiryDate(now = Date.now()): Date {
   return new Date(now + CLI_LINK_TTL_MS)
 }
@@ -48,6 +52,10 @@ export function buildCliRawToken({ tokenId, secret }: { tokenId: string, secret:
 
 export function hashCliToken(rawToken: string): string {
   return createHash('sha256').update(rawToken).digest('hex')
+}
+
+export function hashCliClaimToken(claimToken: string): string {
+  return createHash('sha256').update(claimToken).digest('hex')
 }
 
 export function maskCliTokenPrefix(rawToken: string): string {

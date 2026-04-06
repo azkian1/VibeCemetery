@@ -1,7 +1,9 @@
 import { test, expect } from '@playwright/test'
 import {
   buildCliRawToken,
+  createCliClaimToken,
   createCliTokenRecord,
+  hashCliClaimToken,
   isCliLinkExpired,
   hashCliToken,
   maskCliTokenPrefix,
@@ -41,6 +43,14 @@ test.describe('cli-auth helpers', () => {
     expect(record.tokenPrefix).toBe(maskCliTokenPrefix(record.rawToken))
     expect(record.tokenHash).not.toContain(record.rawToken)
     expect(record.tokenPrefix.endsWith('...')).toBe(true)
+  })
+
+  test('creates a high-entropy CLI claim token and hashes it deterministically', async () => {
+    const claimToken = createCliClaimToken()
+
+    expect(claimToken.length).toBeGreaterThan(20)
+    expect(hashCliClaimToken(claimToken)).toBe(hashCliClaimToken(claimToken))
+    expect(hashCliClaimToken(createCliClaimToken())).not.toBe(hashCliClaimToken(claimToken))
   })
 
   test('treats link sessions as expired once they pass the TTL boundary', async () => {

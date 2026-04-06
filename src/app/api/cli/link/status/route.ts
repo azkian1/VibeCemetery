@@ -1,18 +1,30 @@
+import { timingSafeEqual } from 'node:crypto'
 import { NextResponse } from 'next/server'
-import { buildCliTokenFromId, isCliLinkExpired, isUuid } from '@/lib/cli-auth'
+import { buildCliTokenFromId, hashCliClaimToken, isCliLinkExpired, isUuid } from '@/lib/cli-auth'
 import { supabaseAdmin } from '@/lib/supabase'
+
+function claimTokenMatches(expectedHash: string, claimToken: string): boolean {
+  const expected = Buffer.from(expectedHash, 'hex')
+  const actual = Buffer.from(hashCliClaimToken(claimToken), 'hex')
+  return expected.length === actual.length && timingSafeEqual(expected, actual)
+}
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const linkId = searchParams.get('link_id')?.trim() ?? ''
+  const claimToken = request.headers.get('x-cli-claim-token')?.trim() ?? ''
 
   if (!isUuid(linkId)) {
     return NextResponse.json({ error: 'Invalid link id' }, { status: 400, headers: { 'Cache-Control': 'no-store' } })
   }
 
+  if (claimToken.length < 20) {
+    return NextResponse.json({ error: 'Invalid claim token' }, { status: 401, headers: { 'Cache-Control': 'no-store' } })
+  }
+
   const { data: linkSession, error } = await supabaseAdmin
     .from('cli_link_sessions')
-    .select('id, github_username, token_id, approved_at, claimed_at, expires_at')
+    .select('id, github_username, token_id, approved_at, claimed_at, expires_at, claim_token_hash')
     .eq('id', linkId)
     .maybeSingle()
 
@@ -22,6 +34,10 @@ export async function GET(request: Request) {
 
   if (!linkSession) {
     return NextResponse.json({ error: 'Link session not found' }, { status: 404, headers: { 'Cache-Control': 'no-store' } })
+  }
+
+  if (!linkSession.claim_token_hash || !claimTokenMatches(linkSession.claim_token_hash, claimToken)) {
+    return NextResponse.json({ error: 'Invalid claim token' }, { status: 401, headers: { 'Cache-Control': 'no-store' } })
   }
 
   if (isCliLinkExpired(linkSession.expires_at) && !linkSession.claimed_at) {

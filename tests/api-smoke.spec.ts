@@ -146,11 +146,27 @@ test.describe.serial('API smoke', () => {
       const startBody = await startRes.json()
       expect(typeof startBody.link_id).toBe('string')
       expect(typeof startBody.approve_url).toBe('string')
+      expect(typeof startBody.claim_token).toBe('string')
+      expect(startBody.claim_token.length).toBeGreaterThan(20)
 
       const pendingRes = await request.get(`/api/cli/link/status?link_id=${startBody.link_id}`)
-      expect(pendingRes.status()).toBe(200)
+      expect(pendingRes.status()).toBe(401)
       expect(pendingRes.headers()['cache-control']).toBe('no-store')
-      expect(await pendingRes.json()).toEqual({ status: 'pending' })
+      expect(await pendingRes.json()).toEqual({ error: 'Invalid claim token' })
+
+      const wrongClaimRes = await request.get(`/api/cli/link/status?link_id=${startBody.link_id}`, {
+        headers: { 'x-cli-claim-token': `${startBody.claim_token.slice(0, -1)}x` },
+      })
+      expect(wrongClaimRes.status()).toBe(401)
+      expect(wrongClaimRes.headers()['cache-control']).toBe('no-store')
+      expect(await wrongClaimRes.json()).toEqual({ error: 'Invalid claim token' })
+
+      const pendingWithClaimRes = await request.get(`/api/cli/link/status?link_id=${startBody.link_id}`, {
+        headers: { 'x-cli-claim-token': startBody.claim_token },
+      })
+      expect(pendingWithClaimRes.status()).toBe(200)
+      expect(pendingWithClaimRes.headers()['cache-control']).toBe('no-store')
+      expect(await pendingWithClaimRes.json()).toEqual({ status: 'pending' })
 
       const approveRes = await request.post('/api/cli/link/approve', {
         headers: sessionHeaders,
@@ -160,7 +176,9 @@ test.describe.serial('API smoke', () => {
       expect(approveRes.headers()['cache-control']).toBe('no-store')
       expect(await approveRes.json()).toEqual({ status: 'approved' })
 
-      const claimRes = await request.get(`/api/cli/link/status?link_id=${startBody.link_id}`)
+      const claimRes = await request.get(`/api/cli/link/status?link_id=${startBody.link_id}`, {
+        headers: { 'x-cli-claim-token': startBody.claim_token },
+      })
       expect(claimRes.status()).toBe(200)
       expect(claimRes.headers()['cache-control']).toBe('no-store')
       const claimBody = await claimRes.json()
@@ -168,7 +186,9 @@ test.describe.serial('API smoke', () => {
       expect(claimBody.github_username).toBe(username)
       expect(typeof claimBody.cli_token).toBe('string')
 
-      const claimedRes = await request.get(`/api/cli/link/status?link_id=${startBody.link_id}`)
+      const claimedRes = await request.get(`/api/cli/link/status?link_id=${startBody.link_id}`, {
+        headers: { 'x-cli-claim-token': startBody.claim_token },
+      })
       expect(claimedRes.status()).toBe(200)
       expect(await claimedRes.json()).toEqual({ status: 'claimed', github_username: username })
 
@@ -291,6 +311,13 @@ test.describe.serial('API smoke', () => {
 
     expect(res.status()).toBe(400)
     expect(await res.json()).toEqual({ error: 'Missing required query parameter: username' })
+  })
+
+  test('GET /api/github/last-commit rejects unauthenticated requests', async ({ request }) => {
+    const res = await request.get('/api/github/last-commit?owner=vercel&repo=next.js')
+
+    expect(res.status()).toBe(401)
+    expect(await res.json()).toEqual({ error: 'Unauthorized' })
   })
 
   test('GET /api/github/scan only allows scanning your own GitHub account', async ({ request }) => {

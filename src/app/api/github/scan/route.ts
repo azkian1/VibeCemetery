@@ -58,7 +58,7 @@ export async function GET(request: NextRequest) {
   }
 
   const ip = getClientIp(request);
-  const rl = checkRateLimit(`scan:${ip}`, SCAN_RATE_LIMIT, SCAN_WINDOW_MS);
+  const rl = await checkRateLimit(`scan:${ip}`, SCAN_RATE_LIMIT, SCAN_WINDOW_MS);
   if (!rl.allowed) {
     return NextResponse.json(
       { error: "Too many requests. Please try again later." },

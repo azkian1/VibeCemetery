@@ -75,11 +75,12 @@ vibecemetery/
 │   ├── hooks/
 │   │   └── useIsMobile.ts  — mobile detection hook
 │   ├── lib/
-│   │   ├── supabase.ts     — Supabase clients (admin + public)
+│   │   ├── supabase.ts     — server-side Supabase admin client
 │   │   ├── map-slots.ts    — parse grave slot IDs from Tiled .tmj map
-│   │   ├── rate-limit.ts   — in-memory sliding window rate limiter
-│   │   └── github-auth.ts  — GitHub auth utilities
-│   ├── middleware.ts        — NextAuth middleware
+│   │   ├── rate-limit.ts   — shared rate limiter (Upstash REST if configured, memory fallback otherwise)
+│   │   ├── site.ts         — canonical site URL resolver for browser/CLI links
+│   │   └── cli-auth.ts     — CLI link + token helpers
+│   ├── middleware.ts        — API CORS + read-rate-limit middleware
 │   └── types/
 │       └── game.ts         — GraveData, CrematedData, DeadRepo, BuryResult, GitHubScanResult
 ├── public/
@@ -94,9 +95,10 @@ vibecemetery/
 │       └── crypt/              — KR Burial Grounds
 ├── docs/
 │   ├── CLAUDE.md               — project overview (this file)
-│   ├── PRDv3.md                — product requirements
-│   ├── PLANv3.md               — master plan (phases 1-9)
-│   └── AGENT-MODAL-UX.md       — agent modal UX patterns
+│   ├── mobile.md               — mobile behavior and testing notes
+│   ├── patch.md                — recent implementation notes / patch log
+│   ├── cli-auth-v1.sql         — Supabase schema for CLI auth tables
+│   └── GitUpstSupaVer.md       — operational notes for rotating secrets and adding Upstash/Vercel env
 ```
 
 ## Database Tables
@@ -128,16 +130,16 @@ Modal stack supports push/pop (deduplication on push). `useModal()` hook: `open(
 - **Burial ceremony animation** (~5.5s, graves only, not cremations): modal emits `burial_ceremony` BEFORE `ADD_GRAVE` dispatch (so PhaserCanvas pre-registers slot_id in `sentSlotIdsRef` to suppress auto-render). CemeteryScene stores `pendingCeremony`, starts animation on modal close via `onModalState`. Sequence: camera pan+zoom → dirt burst+shake → grave reveal → R.I.P. glow → zoom out. All ceremony objects tracked in `ceremonyObjects[]` for shutdown cleanup. `buryModalOpen` flag ensures only bury modal close triggers ceremony
 
 ## API Routes
-- `GET /api/github/scan?username=X` — scan public repos, filter dead (14+ days inactive). Rate limit: 10/min per IP (in-memory). Cached 24h. Uses server `GITHUB_TOKEN`
+- `GET /api/github/scan?username=X` — scan public repos, filter dead (14+ days inactive). Rate limit: 10/min per IP (shared via Upstash if configured, memory fallback otherwise). Cached 24h. Uses server `GITHUB_TOKEN`
 - `GET /api/github/last-commit?owner=X&repo=Y` — fetch last commit message from GitHub. Uses server `GITHUB_TOKEN`
 - `POST /api/graves` — create grave (authenticated). Rate limit: 20/day per user. Duplicate prevention by repo_id. Assigns `slot_id` from actual Tiled map slots via `map-slots.ts`
 - `GET /api/graves` — list all graves. Enriches f_count from f_votes table. Optional `?author=username` filter
 - `POST /api/graves/[id]/f` — Press F to pay respects. One vote per user per grave (idempotent). Updates graves.f_count
 - `GET /api/f-status` — get current user's voted grave IDs (Set of grave UUIDs)
 - `POST /api/cremated` — cremate project (browser session or CLI Bearer token). Accepts `{name, cause, github_url?, last_commit_message?}`. Rate limit: first 50 unlimited, then 3/day
-- `POST /api/cli/link/start` — create short-lived CLI link session, returns browser approval URL
+- `POST /api/cli/link/start` — create short-lived CLI link session, returns browser approval URL + one-time `claim_token`
 - `POST /api/cli/link/approve` — signed-in browser user approves pending CLI link session
-- `GET /api/cli/link/status?link_id=...` — CLI polls for pending/approved/claimed/expired link state; raw token returned once on approval
+- `GET /api/cli/link/status?link_id=...` — CLI polls for pending/approved/claimed/expired link state with `x-cli-claim-token`; raw token returned once on approval
 - `GET /api/cremated` — list all cremated projects
 
 ## Deep Links
@@ -149,6 +151,7 @@ Modal stack supports push/pop (deduplication on push). `useModal()` hook: `open(
 ```
 NEXT_PUBLIC_SUPABASE_URL
 NEXT_PUBLIC_SUPABASE_ANON_KEY
+NEXT_PUBLIC_SITE_URL
 SUPABASE_SERVICE_KEY
 GITHUB_CLIENT_ID
 GITHUB_CLIENT_SECRET
@@ -156,6 +159,8 @@ GITHUB_TOKEN              — server-side PAT for GitHub API (rate limit, no spe
 NEXTAUTH_URL
 NEXTAUTH_SECRET
 CLI_TOKEN_SECRET          — optional dedicated secret for long-lived CLI tokens; falls back to NEXTAUTH_SECRET if omitted
+UPSTASH_REDIS_REST_URL    — optional; enables shared rate limiting across instances
+UPSTASH_REDIS_REST_TOKEN  — optional; enables shared rate limiting across instances
 ```
 
 ## Current Phase
@@ -169,10 +174,11 @@ CLI_TOKEN_SECRET          — optional dedicated secret for long-lived CLI token
 - Phase 4.4 (Audits) — DONE (security audit, rate-limit.ts, security headers + CSP in next.config)
 - Phase 4.5 (Burial ceremony animation) — DONE (camera fly, dirt burst, grave reveal, R.I.P. glow, zoom out)
 - **Phase 5 (Skill / CLI cremation) — DONE for V1** (browser approval flow, server-issued CLI token, revoke UI/API, no body-auth for CLI, production origin configurable via `NEXT_PUBLIC_SITE_URL`)
+- Security checklist status: `docs/securitychecklist.md` completed and removed; implementation details live in this file, `README.md`, `docs/cli-auth-v1.sql`, and `docs/patch.md`
 - **Phase 5.5 (Mobile polish) — DONE** (all 13 tasks from `docs/mobile.md` complete — see Mobile section below)
-- Phase 5.6 (Pre-launch hardening) — IN PROGRESS (`POST /api/graves` retry tightened, `GameContext.user` wired to session, shared site URL config added)
+- Phase 5.6 (Pre-launch hardening) — IN PROGRESS (`POST /api/graves` retry tightened, `GameContext.user` wired to session, shared site URL config added, CLI claim-token flow shipped, shared rate-limit backend prepared for Upstash)
 - Phase 6 (Expanded NPC / agent layer) — TODO — post-launch scope
-- See `docs/PLANv3.md` for full plan
+- Active reference docs in this repo: `README.md`, `docs/patch.md`, `docs/mobile.md`, `docs/cli-auth-v1.sql`, `docs/GitUpstSupaVer.md`
 
 ## Mobile (read-only showcase)
 - **Detection:** `useIsMobile()` hook (`max-width: 640px` via matchMedia). Phaser uses `this.scale.width < 640` / `this.isMobile`
@@ -197,6 +203,7 @@ CLI_TOKEN_SECRET          — optional dedicated secret for long-lived CLI token
 - Auth: first run opens `/cli/connect` in the browser, user approves once, CLI stores server-issued token locally and sends `Authorization: Bearer <cli_token>` on future runs
 - Raw CLI token is one-time visible only; database stores hash + masked prefix, and tokens can be revoked from the profile
 - Supabase setup: apply `docs/cli-auth-v1.sql` and ensure `users.github_username` is `UNIQUE`
-- Endpoint hardening: CLI link/token endpoints use `Cache-Control: no-store`; `POST /api/cli/link/start` has basic IP rate limiting
+- Link claiming proof: `POST /api/cli/link/start` returns a one-time `claim_token`; CLI must send it back in `x-cli-claim-token` when polling `/api/cli/link/status`
+- Endpoint hardening: CLI link/token endpoints use `Cache-Control: no-store`; `POST /api/cli/link/start` has rate limiting via shared limiter when Upstash is configured
 - Local deduplication via `cremated-registry.json` (fingerprints: git_remote, first_commit, path)
 - Uses `node` for HTTP requests (UTF-8 safe on Windows)

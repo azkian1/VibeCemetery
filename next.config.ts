@@ -3,6 +3,9 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   transpilePackages: ['phaser'],
+  turbopack: {
+    root: process.cwd(),
+  },
   headers: async () => [
     {
       source: '/(.*)',
