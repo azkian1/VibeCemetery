@@ -143,6 +143,8 @@ export default function ProfileModal() {
 
   const openBury = useCallback(() => { close(); open('bury'); }, [close, open]);
   const [soulsTipVisible, setSoulsTipVisible] = useState(false);
+  const [earnSlotsExpanded, setEarnSlotsExpanded] = useState(false);
+
   if (!user) return null;
 
   return (
@@ -328,6 +330,112 @@ export default function ProfileModal() {
                 </div>
               )}
             </InsetBlock>
+          )}
+
+          {/* Earn Slots */}
+          {!loadError && !isMobile && !allSlotsMaxed && (
+            <div style={{ marginBottom: 10 }}>
+              <button
+                onClick={() => setEarnSlotsExpanded(v => !v)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#8a8980',
+                  fontSize: 12,
+                  cursor: 'pointer',
+                  padding: '4px 0',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  transition: 'color 0.15s',
+                  fontFamily: 'var(--font-cinzel)',
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.color = '#c8a050'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.color = '#8a8980'; }}
+              >
+                <span style={{
+                  fontSize: 10,
+                  transition: 'transform 0.2s',
+                  transform: earnSlotsExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
+                }}>
+                  ▼
+                </span>
+                How to unlock more slots?
+              </button>
+
+              <div style={{
+                overflow: 'hidden',
+                maxHeight: earnSlotsExpanded ? 600 : 0,
+                transition: 'max-height 0.3s ease',
+              }}>
+                <InsetBlock style={{ marginTop: 8 }}>
+                  {/* Missions */}
+                  <div style={{ marginBottom: 12 }}>
+                    <div style={{ fontSize: 11, color: '#c8a050', marginBottom: 6, fontWeight: 'bold' }}>
+                      Missions
+                    </div>
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      padding: '6px 8px',
+                      background: 'rgba(0,0,0,0.12)',
+                      border: '1px solid #2a2520',
+                      borderRadius: 2,
+                    }}>
+                      <span style={{ fontSize: 16, color: '#6a6960' }}>☐</span>
+                      <span style={{ fontSize: 12, color: '#8a8980', fontStyle: 'italic' }}>
+                        Post about your burial on X (coming soon)
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Cremation Progress */}
+                  <div>
+                    <div style={{ fontSize: 11, color: '#c8a050', marginBottom: 6, fontWeight: 'bold' }}>
+                      Cremation Progress
+                    </div>
+
+                    {/* Show unlocked slots */}
+                    {unlocked.map((threshold, idx) => (
+                      <div key={threshold} style={{ marginBottom: 6 }}>
+                        <div style={{ fontSize: 11, color: '#68a060', marginBottom: 2 }}>
+                          ✓ Slot {idx + 2} unlocked ({threshold} Souls)
+                        </div>
+                      </div>
+                    ))}
+
+                    {/* Show next slot progress */}
+                    {nextThreshold && (
+                      <div style={{ marginBottom: 6 }}>
+                        <div style={{ fontSize: 11, color: '#aaa9a0', marginBottom: 3 }}>
+                          Slot {unlocked.length + 2}: {nextThreshold} Souls
+                        </div>
+                        <ProgressBar
+                          percent={progressToNext}
+                          label={`${souls}/${nextThreshold}`}
+                        />
+                      </div>
+                    )}
+
+                    {/* Helper text */}
+                    <div style={{
+                      fontSize: 11,
+                      color: '#6a6960',
+                      marginTop: 8,
+                      padding: '6px 8px',
+                      background: 'rgba(0,0,0,0.08)',
+                      borderRadius: 2,
+                      lineHeight: 1.5,
+                    }}>
+                      GitHub cremation = <strong style={{ color: '#c8a050' }}>3 Souls</strong>
+                      <br />
+                      Skill cremation = <strong style={{ color: '#c8a050' }}>1 Soul</strong>
+                    </div>
+                  </div>
+                </InsetBlock>
+              </div>
+            </div>
           )}
 
           {/* YOUR PROJECTS */}
