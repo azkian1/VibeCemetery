@@ -329,41 +329,44 @@ export default function ProfileModal() {
 
           {/* Earn Slots */}
           {!loadError && !isMobile && !allSlotsMaxed && (
-            <div style={{ marginBottom: 10, display: 'flex', justifyContent: 'center' }}>
-              <button
-                onClick={() => setEarnSlotsExpanded(v => !v)}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: '#8a8980',
-                  fontSize: 12,
-                  cursor: 'pointer',
-                  padding: '4px 0',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  transition: 'color 0.15s',
-                  fontFamily: 'var(--font-cinzel)',
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.color = '#c8a050'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.color = '#8a8980'; }}
-              >
-                <span style={{
-                  fontSize: 10,
-                  transition: 'transform 0.2s',
-                  transform: earnSlotsExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
-                }}>
-                  ▼
-                </span>
-                How to unlock more slots?
-              </button>
+            <>
+              <div style={{ marginBottom: 8, display: 'flex', justifyContent: 'center' }}>
+                <button
+                  onClick={() => setEarnSlotsExpanded(v => !v)}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: '#8a8980',
+                    fontSize: 12,
+                    cursor: 'pointer',
+                    padding: '4px 0',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    transition: 'color 0.15s',
+                    fontFamily: 'var(--font-cinzel)',
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.color = '#c8a050'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.color = '#8a8980'; }}
+                >
+                  <span style={{
+                    fontSize: 10,
+                    transition: 'transform 0.2s',
+                    transform: earnSlotsExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
+                  }}>
+                    ▼
+                  </span>
+                  How to unlock more slots?
+                </button>
+              </div>
 
               <div style={{
                 overflow: 'hidden',
                 maxHeight: earnSlotsExpanded ? 600 : 0,
                 transition: 'max-height 0.3s ease',
+                marginBottom: 10,
               }}>
-                <InsetBlock style={{ marginTop: 8 }}>
+                <InsetBlock>
                   {/* Missions */}
                   <div style={{ marginBottom: 12 }}>
                     <div style={{ fontSize: 11, color: '#c8a050', marginBottom: 6, fontWeight: 'bold' }}>
@@ -430,7 +433,7 @@ export default function ProfileModal() {
                   </div>
                 </InsetBlock>
               </div>
-            </div>
+            </>
           )}
 
           {/* YOUR PROJECTS */}
