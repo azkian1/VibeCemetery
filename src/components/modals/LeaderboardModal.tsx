@@ -186,7 +186,7 @@ export default function LeaderboardModal() {
                 ) : (
                   <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr auto auto auto' }}>
                     <span style={headerCell}>#</span>
-                    <span style={headerCell}>Gravedigger</span>
+                    <span style={headerCell}>Git Reaper</span>
                     <span style={{ ...headerCell, textAlign: 'center' }}>Buried</span>
                     <span style={{ ...headerCell, textAlign: 'center' }}>Cremated</span>
                     <span style={{ ...headerCell, textAlign: 'center' }}>Total</span>
