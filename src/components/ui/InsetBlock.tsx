@@ -20,13 +20,14 @@ export default function InsetBlock({ children, label, style }: InsetBlockProps) 
     }}>
       {label && (
         <span style={{
-          fontSize: 10,
-          color: '#7a7970',
+          fontSize: 11,
+          color: '#aaa9a0',
           textTransform: 'uppercase',
           letterSpacing: 1.5,
           display: 'block',
-          marginBottom: 5,
+          marginBottom: 8,
           textAlign: 'center',
+          fontWeight: 'bold',
         }}>
           {label}
         </span>
