@@ -351,83 +351,85 @@ export default function ProfileModal() {
           <OrnamentDivider />
 
           {/* Grave Slots */}
-          <InsetBlock label="Grave Slots" style={{ marginBottom: 10 }}>
-            <div style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'baseline',
-              marginBottom: 4,
-            }}>
-              <span style={{ fontSize: 13, color: '#aaa9a0' }}>
-                Used: <strong style={{ color: '#e8d5a3' }}>{slotsUsed}</strong> / {slotsUnlocked}
-              </span>
-              {slotsUsed < slotsUnlocked && (
-                <span style={{ fontSize: 11, color: '#68a060' }}>
-                  {slotsUnlocked - slotsUsed} avail
-                </span>
-              )}
-            </div>
-            <ProgressBar
-              percent={slotsUnlocked > 0 ? (slotsUsed / slotsUnlocked) * 100 : 0}
-            />
-            {allSlotsMaxed ? (
+          {!loadError && (
+            <InsetBlock label="Grave Slots" style={{ marginBottom: 10 }}>
               <div style={{
-                textAlign: 'center',
-                fontSize: 11,
-                color: '#c8a050',
-                marginTop: 6,
-                fontStyle: 'italic',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'baseline',
+                marginBottom: 4,
               }}>
-                All slots unlocked
+                <span style={{ fontSize: 13, color: '#aaa9a0' }}>
+                  Used: <strong style={{ color: '#e8d5a3' }}>{slotsUsed}</strong> / {slotsUnlocked}
+                </span>
+                {slotsUsed < slotsUnlocked && (
+                  <span style={{ fontSize: 11, color: '#68a060' }}>
+                    {slotsUnlocked - slotsUsed} avail
+                  </span>
+                )}
               </div>
-            ) : nextThreshold && (
-              <div style={{ marginTop: 6 }}>
-                <div
-                  style={{
-                    fontSize: 10,
-                    color: '#6a6960',
-                    marginBottom: 3,
-                    cursor: 'help',
-                    position: 'relative',
-                    display: 'inline-block',
-                    borderBottom: '1px dotted #6a6960',
-                  }}
-                  onMouseEnter={() => setSoulsTipVisible(true)}
-                  onMouseLeave={() => setSoulsTipVisible(false)}
-                  onClick={() => setSoulsTipVisible(v => !v)}
-                >
-                  Next slot at {nextThreshold} Souls
-                  {soulsTipVisible && (
-                    <div style={{
-                      position: 'absolute',
-                      bottom: '100%',
-                      left: '50%',
-                      transform: 'translateX(-50%)',
-                      marginBottom: 6,
-                      padding: '6px 10px',
-                      background: '#1a1816',
-                      border: '1px solid #3a3530',
-                      borderRadius: 3,
-                      boxShadow: '0 4px 12px rgba(0,0,0,0.6)',
-                      whiteSpace: 'nowrap',
-                      fontSize: 11,
-                      color: '#c8b888',
-                      lineHeight: 1.5,
-                      zIndex: 10,
-                      pointerEvents: 'none',
-                    }}>
-                      <div>GitHub cremation = <strong style={{ color: '#e8d5a3' }}>3 Souls</strong></div>
-                      <div>Skill cremation = <strong style={{ color: '#e8d5a3' }}>1 Soul</strong></div>
-                    </div>
-                  )}
+              <ProgressBar
+                percent={slotsUnlocked > 0 ? (slotsUsed / slotsUnlocked) * 100 : 0}
+              />
+              {allSlotsMaxed ? (
+                <div style={{
+                  textAlign: 'center',
+                  fontSize: 11,
+                  color: '#c8a050',
+                  marginTop: 6,
+                  fontStyle: 'italic',
+                }}>
+                  All slots unlocked
                 </div>
-                <ProgressBar
-                  percent={progressToNext}
-                  label={`${souls}/${nextThreshold}`}
-                />
-              </div>
-            )}
-          </InsetBlock>
+              ) : nextThreshold && (
+                <div style={{ marginTop: 6 }}>
+                  <div
+                    style={{
+                      fontSize: 10,
+                      color: '#6a6960',
+                      marginBottom: 3,
+                      cursor: 'help',
+                      position: 'relative',
+                      display: 'inline-block',
+                      borderBottom: '1px dotted #6a6960',
+                    }}
+                    onMouseEnter={() => setSoulsTipVisible(true)}
+                    onMouseLeave={() => setSoulsTipVisible(false)}
+                    onClick={() => setSoulsTipVisible(v => !v)}
+                  >
+                    Next slot at {nextThreshold} Souls
+                    {soulsTipVisible && (
+                      <div style={{
+                        position: 'absolute',
+                        bottom: '100%',
+                        left: '50%',
+                        transform: 'translateX(-50%)',
+                        marginBottom: 6,
+                        padding: '6px 10px',
+                        background: '#1a1816',
+                        border: '1px solid #3a3530',
+                        borderRadius: 3,
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.6)',
+                        whiteSpace: 'nowrap',
+                        fontSize: 11,
+                        color: '#c8b888',
+                        lineHeight: 1.5,
+                        zIndex: 10,
+                        pointerEvents: 'none',
+                      }}>
+                        <div>GitHub cremation = <strong style={{ color: '#e8d5a3' }}>3 Souls</strong></div>
+                        <div>Skill cremation = <strong style={{ color: '#e8d5a3' }}>1 Soul</strong></div>
+                      </div>
+                    )}
+                  </div>
+                  <ProgressBar
+                    percent={progressToNext}
+                    label={`${souls}/${nextThreshold}`}
+                  />
+                </div>
+              )}
+            </InsetBlock>
+          )}
 
           {/* YOUR PROJECTS */}
           {!loadError && totalBurials > 0 ? (
@@ -469,10 +471,10 @@ export default function ProfileModal() {
                 fontSize: 13,
                 margin: '0 0 8px',
               }}>
-                No burials yet. The cemetery awaits your offerings.
+                No projects laid to rest yet. The cemetery awaits your offerings.
               </p>
               <StoneButton onClick={openBury}>
-                Bury Your First Project
+                Bury or Cremate Your First Project
               </StoneButton>
             </div>
           ) : null}
@@ -482,7 +484,7 @@ export default function ProfileModal() {
             <div style={{ textAlign: 'center', marginBottom: 8 }}>
               {slotsUsed >= slotsUnlocked && !allSlotsMaxed && (
                 <div style={{ fontSize: 11, color: '#6a6960', marginBottom: 6, fontStyle: 'italic' }}>
-                  Bury &amp; cremate projects to unlock more grave slots
+                  Cremate projects to earn Souls and unlock more grave slots
                 </div>
               )}
               <StoneButton onClick={openBury}>
