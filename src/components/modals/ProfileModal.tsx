@@ -256,18 +256,13 @@ export default function ProfileModal() {
             <InsetBlock label="Grave Slots" style={{ marginBottom: 10 }}>
               <div style={{
                 display: 'flex',
-                justifyContent: 'space-between',
+                justifyContent: 'center',
                 alignItems: 'baseline',
                 marginBottom: 4,
               }}>
                 <span style={{ fontSize: 13, color: '#aaa9a0' }}>
                   Used: <strong style={{ color: '#e8d5a3' }}>{slotsUsed}</strong> / {slotsUnlocked}
                 </span>
-                {slotsUsed < slotsUnlocked && (
-                  <span style={{ fontSize: 11, color: '#68a060' }}>
-                    {slotsUnlocked - slotsUsed} avail
-                  </span>
-                )}
               </div>
               <ProgressBar
                 percent={slotsUnlocked > 0 ? (slotsUsed / slotsUnlocked) * 100 : 0}
@@ -334,7 +329,7 @@ export default function ProfileModal() {
 
           {/* Earn Slots */}
           {!loadError && !isMobile && !allSlotsMaxed && (
-            <div style={{ marginBottom: 10 }}>
+            <div style={{ marginBottom: 10, display: 'flex', justifyContent: 'center' }}>
               <button
                 onClick={() => setEarnSlotsExpanded(v => !v)}
                 style={{
