@@ -15,15 +15,6 @@ import LoadErrorState from '@/components/ui/LoadErrorState';
 
 const SLOT_THRESHOLDS = [30, 80, 150] as const;
 
-const sectionHeader: React.CSSProperties = {
-  fontSize: 11,
-  color: '#4a4944',
-  textTransform: 'uppercase',
-  letterSpacing: 1.5,
-  marginBottom: 6,
-  textAlign: 'center',
-};
-
 function ProjectRow({ emoji, name, color, onClick, title, ariaLabel }: {
   emoji: string; name: string; color: string;
   onClick: () => void; title: string; ariaLabel: string;
@@ -438,8 +429,7 @@ export default function ProfileModal() {
 
           {/* YOUR PROJECTS */}
           {!loadError && totalBurials > 0 ? (
-            <div style={{ marginBottom: 10 }}>
-              <div style={sectionHeader}>Your Projects</div>
+            <InsetBlock label="Your Projects" style={{ marginBottom: 10 }}>
               <div style={{
                 maxHeight: 160,
                 overflowY: 'auto',
@@ -463,7 +453,7 @@ export default function ProfileModal() {
                   />
                 ))}
               </div>
-            </div>
+            </InsetBlock>
           ) : !loadError ? (
             <div style={{
               textAlign: 'center',
