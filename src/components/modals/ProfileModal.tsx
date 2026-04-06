@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useCallback, useEffect, useState } from 'react';
+import React, { useMemo, useCallback, useState } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import { useModal, useGame, useCremated, useGraves } from '@/context/GameContext';
 import { useIsMobile } from '@/hooks/useIsMobile';
@@ -14,13 +14,6 @@ import InsetBlock from '@/components/ui/InsetBlock';
 import LoadErrorState from '@/components/ui/LoadErrorState';
 
 const SLOT_THRESHOLDS = [30, 80, 150] as const;
-
-interface CliTokenEntry {
-  id: string;
-  token_prefix: string;
-  created_at: string;
-  last_used_at: string | null;
-}
 
 const sectionHeader: React.CSSProperties = {
   fontSize: 11,
@@ -150,100 +143,6 @@ export default function ProfileModal() {
 
   const openBury = useCallback(() => { close(); open('bury'); }, [close, open]);
   const [soulsTipVisible, setSoulsTipVisible] = useState(false);
-  const [cliTokens, setCliTokens] = useState<CliTokenEntry[]>([]);
-  const [cliLoading, setCliLoading] = useState(true);
-  const [cliError, setCliError] = useState<string | null>(null);
-  const [revokingTokenId, setRevokingTokenId] = useState<string | null>(null);
-  const [startingCliLink, setStartingCliLink] = useState(false);
-
-  useEffect(() => {
-    if (!username) return;
-
-    let cancelled = false;
-
-    async function loadCliTokens() {
-      setCliLoading(true);
-      setCliError(null);
-
-      try {
-        const res = await fetch('/api/cli/tokens', { cache: 'no-store' });
-        const body = await res.json().catch(() => null);
-
-        if (!res.ok) {
-          throw new Error(body?.error ?? 'Failed to load CLI access');
-        }
-
-        if (!cancelled) {
-          setCliTokens(Array.isArray(body?.tokens) ? body.tokens : []);
-        }
-      } catch (err) {
-        if (!cancelled) {
-          setCliError(err instanceof Error ? err.message : 'Failed to load CLI access');
-        }
-      } finally {
-        if (!cancelled) {
-          setCliLoading(false);
-        }
-      }
-    }
-
-    loadCliTokens();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [username]);
-
-  const revokeCliToken = useCallback(async (tokenId: string) => {
-    setRevokingTokenId(tokenId);
-    setCliError(null);
-
-    try {
-      const res = await fetch('/api/cli/token/revoke', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token_id: tokenId }),
-      });
-      const body = await res.json().catch(() => null);
-
-      if (!res.ok) {
-        throw new Error(body?.error ?? 'Failed to revoke CLI token');
-      }
-
-      setCliTokens((prev) => prev.filter((token) => token.id !== tokenId));
-    } catch (err) {
-      setCliError(err instanceof Error ? err.message : 'Failed to revoke CLI token');
-    } finally {
-      setRevokingTokenId(null);
-    }
-  }, []);
-
-  const openCliConnect = useCallback(() => {
-    if (startingCliLink) return;
-
-    setCliError(null);
-    setStartingCliLink(true);
-
-    fetch('/api/cli/link/start', {
-      method: 'POST',
-      cache: 'no-store',
-    })
-      .then(async (res) => {
-        const body = await res.json().catch(() => null);
-        if (!res.ok || typeof body?.approve_url !== 'string') {
-          throw new Error(body?.error ?? 'Failed to start CLI link');
-        }
-
-        window.open(body.approve_url, '_blank', 'noopener,noreferrer');
-      })
-      .catch((err) => {
-        setCliError(err instanceof Error ? err.message : 'Failed to start CLI link');
-      })
-      .finally(() => {
-        setStartingCliLink(false);
-      });
-  }, [startingCliLink]);
-
   if (!user) return null;
 
   return (
@@ -492,63 +391,6 @@ export default function ProfileModal() {
               </StoneButton>
             </div>
           )}
-
-          <InsetBlock label="CLI Access" style={{ marginBottom: 10 }}>
-            <div style={{ textAlign: 'center', marginBottom: 10, color: '#8a8980', fontSize: 12, lineHeight: 1.6 }}>
-              First `/bury` run opens a browser approval. After that, terminal cremations stay silent until revoked.
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 10 }}>
-              <StoneButton onClick={openCliConnect} disabled={startingCliLink}>
-                {startingCliLink ? 'Opening...' : 'Connect CLI'}
-              </StoneButton>
-            </div>
-
-            {cliLoading ? (
-              <div style={{ textAlign: 'center', color: '#6a6960', fontSize: 12 }}>
-                Checking linked terminals...
-              </div>
-            ) : cliError ? (
-              <div style={{ textAlign: 'center', color: '#c87868', fontSize: 12 }}>
-                {cliError}
-              </div>
-            ) : cliTokens.length === 0 ? (
-              <div style={{ textAlign: 'center', color: '#6a6960', fontSize: 12, fontStyle: 'italic' }}>
-                No active CLI tokens.
-              </div>
-            ) : (
-              <div style={{ display: 'grid', gap: 8 }}>
-                {cliTokens.map((token) => (
-                  <div
-                    key={token.id}
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      gap: 10,
-                      padding: '8px 10px',
-                      border: '1px solid #2a2520',
-                      background: 'rgba(0,0,0,0.12)',
-                    }}
-                  >
-                    <div style={{ minWidth: 0 }}>
-                      <div style={{ color: '#e8d5a3', fontSize: 12 }}>{token.token_prefix}</div>
-                      <div style={{ color: '#6a6960', fontSize: 11 }}>
-                        Last used {token.last_used_at ? new Date(token.last_used_at).toLocaleString() : 'never'}
-                      </div>
-                    </div>
-                    <StoneButton
-                      onClick={() => revokeCliToken(token.id)}
-                      disabled={revokingTokenId === token.id}
-                      style={{ padding: '6px 12px', fontSize: 12 }}
-                    >
-                      {revokingTokenId === token.id ? 'Revoking...' : 'Revoke'}
-                    </StoneButton>
-                  </div>
-                ))}
-              </div>
-            )}
-          </InsetBlock>
 
           <OrnamentDivider />
 

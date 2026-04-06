@@ -60,7 +60,7 @@ export default function CliConnectClient({ linkId }: { linkId: string }) {
             Connect CLI
           </h1>
           <p style={{ margin: '0 0 14px', fontSize: 13, color: '#aaa9a0', textAlign: 'center', lineHeight: 1.6 }}>
-            Approve terminal access once. Future `/bury` runs will authenticate silently until you revoke the token.
+            Approve a live `/bury` link request from your agent. This page only confirms browser access; the token is claimed outside the site.
           </p>
 
           <InsetBlock>
@@ -86,10 +86,10 @@ export default function CliConnectClient({ linkId }: { linkId: string }) {
             ) : approveState === 'approved' ? (
               <div style={{ textAlign: 'center' }}>
                 <div style={{ color: '#68a060', fontSize: 14, marginBottom: 8 }}>
-                  CLI access granted.
+                  Link request approved.
                 </div>
                 <div style={{ color: '#8a8980', fontSize: 13, lineHeight: 1.6 }}>
-                  Return to the terminal. The token will be claimed there exactly once.
+                  Return to your agent. If it started this request, it can claim the token exactly once.
                 </div>
               </div>
             ) : (
@@ -113,7 +113,7 @@ export default function CliConnectClient({ linkId }: { linkId: string }) {
           )}
 
           <div style={{ textAlign: 'center', color: '#6a6960', fontSize: 12, lineHeight: 1.6 }}>
-            Tokens are stored hashed on the server and can be revoked later from your profile.
+            Tokens are stored hashed on the server. This page only approves the request.
           </div>
         </div>
       </StoneFrame>

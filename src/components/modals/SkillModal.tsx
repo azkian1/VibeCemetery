@@ -38,8 +38,8 @@ export default function SkillModal() {
           </h2>
 
           <p style={{ fontSize: 13, color: '#aaa9a0', margin: '0 0 16px', lineHeight: 1.5, textAlign: 'center' }}>
-            Install the Skill and the Gravedigger will find and bury
-            your dead projects automatically. First run asks for browser approval once, then future cremations stay silent.
+            Install the Skill, then run <code style={{ color: '#c8a050' }}>/bury</code> from your agent.
+            On first run the agent opens a browser approval page once. After that, future cremations stay silent.
           </p>
 
           {/* Command block */}
@@ -81,8 +81,8 @@ export default function SkillModal() {
             }}
           >
             <li>Automatic GitHub scan for dead repos</li>
-            <li>One-command burial from your terminal</li>
-            <li>One-time browser approval, then silent reuse</li>
+            <li>Run <code style={{ color: '#c8a050' }}>/bury</code> from your agent or editor</li>
+            <li>The agent opens browser approval on first run</li>
             <li>Gravedigger commentary in character</li>
           </ul>
 
