@@ -16,13 +16,15 @@ export interface GravediggerTemplate {
   text: string;
   /** Which placeholders this template requires */
   requires: string[];
+  /** Which cemetery record types may use this template */
+  contexts?: Array<'grave' | 'cremated'>;
 }
 
 // ── By project name ──
 
 export const TEMPLATES_NAME: GravediggerTemplate[] = [
-  { text: 'Just buried {name}. The soil is still warm.', requires: ['name'] },
-  { text: '{name}. Heard of it? Me neither. But here it lies.', requires: ['name'] },
+  { text: 'Just buried {name}. The soil is still warm.', requires: ['name'], contexts: ['grave'] },
+  { text: '{name}. Heard of it? Me neither. But here it lies.', requires: ['name'], contexts: ['grave'] },
   { text: '{name} — another name on the wall.', requires: ['name'] },
   { text: 'Farewell, {name}. You were... a project.', requires: ['name'] },
   { text: '{name} has joined the others. Quiet now.', requires: ['name'] },
@@ -51,9 +53,9 @@ export const TEMPLATES_LAST_COMMIT: GravediggerTemplate[] = [
 // ── By stack / language ──
 
 export const TEMPLATES_STACK: GravediggerTemplate[] = [
-  { text: 'Another {stack} project in the ground.', requires: ['stack'] },
+  { text: 'Another {stack} project in the ground.', requires: ['stack'], contexts: ['grave'] },
   { text: '{stack}. Good choice. Didn\'t help.', requires: ['stack'] },
-  { text: 'Written in {stack}. Buried in dirt. Same outcome.', requires: ['stack'] },
+  { text: 'Written in {stack}. Buried in dirt. Same outcome.', requires: ['stack'], contexts: ['grave'] },
   { text: 'The {stack} section grows. {stack_count} and counting.', requires: ['stack', 'stack_count'] },
   { text: '{stack} won\'t save you. Nothing does.', requires: ['stack'] },
 ];

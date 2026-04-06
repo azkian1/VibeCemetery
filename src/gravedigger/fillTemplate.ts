@@ -12,6 +12,8 @@ interface TemplateData {
   stack_count?: string;
 }
 
+type TemplateContext = 'grave' | 'cremated'
+
 function humanLifespan(bornAt: string | null, diedAt: string | null): string | undefined {
   if (!bornAt || !diedAt) return undefined;
   const ms = new Date(diedAt).getTime() - new Date(bornAt).getTime();
@@ -68,8 +70,9 @@ function fill(template: string, data: TemplateData): string {
   });
 }
 
-function filterTemplates(data: TemplateData): GravediggerTemplate[] {
+function filterTemplates(data: TemplateData, context: TemplateContext): GravediggerTemplate[] {
   return ALL_TEMPLATES.filter(t =>
+    (t.contexts == null || t.contexts.includes(context)) &&
     t.requires.every(key => data[key as keyof TemplateData] != null)
   );
 }
@@ -89,10 +92,13 @@ export function generateFromGrave(
   // Pick a random source
   const idx = Math.floor(Math.random() * totalItems);
   let data: TemplateData;
+  let context: TemplateContext;
   if (idx < graveArr.length) {
     data = extractData(graveArr[idx]);
+    context = 'grave';
   } else {
     data = extractCrematedData(cremated[idx - graveArr.length]);
+    context = 'cremated';
   }
 
   // Stack count (how many graves share this stack)
@@ -106,7 +112,7 @@ export function generateFromGrave(
     if (count > 1) data.stack_count = String(count);
   }
 
-  const candidates = filterTemplates(data);
+  const candidates = filterTemplates(data, context);
   if (candidates.length === 0) return null;
 
   const template = candidates[Math.floor(Math.random() * candidates.length)];

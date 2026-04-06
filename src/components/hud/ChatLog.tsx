@@ -29,6 +29,10 @@ export default function ChatLog() {
   const isMobile = useIsMobile();
   const { messages, addMessage } = useChat();
   const { state } = useGame();
+  const totalSouls = state.cremated.reduce(
+    (acc, cremated) => acc + (cremated.source === 'skill' ? 1 : 3),
+    0,
+  );
   const scrollRef = useRef<HTMLDivElement>(null);
   const isAtBottomRef = useRef(true);
   const lastIdleIndexRef = useRef(-1);
@@ -178,7 +182,7 @@ export default function ChatLog() {
         display: 'flex',
         gap: 14,
       }}>
-        <span>Souls: {state.graves.size} 💀</span>
+        <span>Souls: {totalSouls} 💀</span>
         <span>Cremated: {state.cremated.length} 🔥</span>
       </div>
 
