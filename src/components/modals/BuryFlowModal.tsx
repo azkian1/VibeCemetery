@@ -258,7 +258,7 @@ export default function BuryFlowModal() {
                 message: {
                   id: crypto.randomUUID(),
                   type: 'burial',
-                  text: `${repo.name} has been cremated. Ashes to the Columbarium.`,
+                  text: `${repo.name} has been cremated. Ashes to ashes.`,
                   timestamp: Date.now(),
                 },
               });

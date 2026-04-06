@@ -66,7 +66,7 @@ export default function StepDone({
           <p style={{ color: '#b86858', fontSize: 13, margin: '0 0 4px' }}>&#x1F525; Cremated:</p>
           {cremated.map((r, i) => (
             <p key={`${r.name}-${i}`} style={{ color: '#8a8980', fontSize: 13, margin: '2px 0', paddingLeft: 12 }}>
-              {r.name}{r.error ? ` — ${r.error}` : ' — saved to Columbarium'}
+              {r.name}{r.error ? ` — ${r.error}` : ' — cremation recorded'}
             </p>
           ))}
         </div>
