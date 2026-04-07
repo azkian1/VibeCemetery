@@ -38,7 +38,7 @@ vibecemetery/
 │   │   │   ├── ModalOverlay.tsx
 │   │   │   ├── GraveModal.tsx     — grave details, F votes, share
 │   │   │   ├── UrnModal.tsx       — cremated item details, last words, share
-│   │   │   ├── ProfileModal.tsx   — user profile, Souls progress, slot thresholds
+│   │   │   ├── ProfileModal.tsx   — user profile, Souls progress, slot thresholds, project list (no CLI token management UI)
 │   │   │   ├── CrematoryModal.tsx — 2-tab: Columbarium (with URL) + Ash Pit (no URL)
 │   │   │   ├── MausoleumModal.tsx (displayed as "The Crypt") — sortable graves ledger
 │   │   │   ├── LeaderboardModal.tsx (displayed as "Necropolis") — 3 tabs: Serial Killers, Causes, AI-Bots
@@ -201,7 +201,7 @@ UPSTASH_REDIS_REST_TOKEN  — optional; enables shared rate limiting across inst
 ## CLI Skill — /bury (Mogil'schik)
 - Location: `.claude/commands/bury/` (SKILL.md, character.md, cremated-registry.json)
 - Auth: first run opens `/cli/connect` in the browser, user approves once, CLI stores server-issued token locally and sends `Authorization: Bearer <cli_token>` on future runs
-- Raw CLI token is one-time visible only; database stores hash + masked prefix, and tokens can be revoked from the profile
+- Raw CLI token is one-time visible only; database stores hash + masked prefix. Revocation is supported by API/backend flow, but no longer exposed in the profile modal UI.
 - Supabase setup: apply `docs/cli-auth-v1.sql` and ensure `users.github_username` is `UNIQUE`
 - Link claiming proof: `POST /api/cli/link/start` returns a one-time `claim_token`; CLI must send it back in `x-cli-claim-token` when polling `/api/cli/link/status`
 - Endpoint hardening: CLI link/token endpoints use `Cache-Control: no-store`; `POST /api/cli/link/start` has rate limiting via shared limiter when Upstash is configured
