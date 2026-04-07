@@ -71,13 +71,22 @@ function ProgressBar({ percent, label }: { percent: number; label?: string }) {
 export default function ProfileModal() {
   const { close, open, push } = useModal();
   const { state } = useGame();
-  const { error: crematedError, refetch: refetchCremated } = useCremated({ auto: false });
-  const { error: gravesError, refetch: refetchGraves } = useGraves({ auto: false });
+  const {
+    error: crematedError,
+    loading: crematedLoading,
+    refetch: refetchCremated,
+  } = useCremated({ auto: false });
+  const {
+    error: gravesError,
+    loading: gravesLoading,
+    refetch: refetchGraves,
+  } = useGraves({ auto: false });
   const { data: session } = useSession();
   const isMobile = useIsMobile();
   const user = session?.user;
   const username = user?.github_username;
   const loadError = gravesError || crematedError;
+  const loading = gravesLoading || crematedLoading;
 
   // Filter user's graves and cremations (case-insensitive — CLI may send different casing)
   const lowerUsername = username?.toLowerCase();
@@ -243,7 +252,7 @@ export default function ProfileModal() {
           <OrnamentDivider />
 
           {/* Grave Slots */}
-          {!loadError && (
+          {!loading && !loadError && (
             <InsetBlock label="Grave Slots" style={{ marginBottom: 10 }}>
               <div style={{
                 display: 'flex',
@@ -319,7 +328,7 @@ export default function ProfileModal() {
           )}
 
           {/* Earn Slots */}
-          {!loadError && !isMobile && !allSlotsMaxed && (
+          {!loading && !loadError && !isMobile && !allSlotsMaxed && (
             <>
               <div style={{ marginBottom: 8, display: 'flex', justifyContent: 'center' }}>
                 <button
@@ -428,7 +437,13 @@ export default function ProfileModal() {
           )}
 
           {/* YOUR PROJECTS */}
-          {!loadError && totalBurials > 0 ? (
+          {loading && !loadError ? (
+            <InsetBlock style={{ marginBottom: 10 }}>
+              <div style={{ textAlign: 'center', color: '#8a8980', fontSize: 13, padding: '8px 0' }}>
+                Loading burial records...
+              </div>
+            </InsetBlock>
+          ) : !loadError && totalBurials > 0 ? (
             <InsetBlock label="Your Projects" style={{ marginBottom: 10 }}>
               <div style={{
                 maxHeight: 160,
@@ -475,7 +490,7 @@ export default function ProfileModal() {
           ) : null}
 
           {/* CTA — bury flow handles slot/cremation logic internally */}
-          {!loadError && totalBurials > 0 && (
+          {!loading && !loadError && totalBurials > 0 && (
             <div style={{ textAlign: 'center', marginBottom: 8 }}>
               {slotsUsed >= slotsUnlocked && !allSlotsMaxed && (
                 <div style={{ fontSize: 11, color: '#6a6960', marginBottom: 6, fontStyle: 'italic' }}>
