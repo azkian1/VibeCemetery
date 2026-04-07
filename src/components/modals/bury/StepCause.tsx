@@ -21,6 +21,7 @@ const DEATH_CAUSES = [
 interface StepCauseProps {
   repos: DeadRepo[];
   selected: Set<number>;
+  graveSet: Set<number>;
   causes: Map<number, string>;
   onSetCause: (id: number, cause: string) => void;
   onSubmit: () => void;
@@ -31,6 +32,7 @@ interface StepCauseProps {
 export default function StepCause({
   repos,
   selected,
+  graveSet,
   causes,
   onSetCause,
   onSubmit,
@@ -38,6 +40,23 @@ export default function StepCause({
   loading,
 }: StepCauseProps) {
   const selectedRepos = repos.filter((r) => selected.has(r.id));
+  const graveCount = [...selected].filter(id => graveSet.has(id)).length;
+  const cremateCount = selected.size - graveCount;
+  
+  const getButtonText = () => {
+    if (loading) {
+      if (graveCount > 0 && cremateCount > 0) return 'Processing...';
+      if (graveCount > 0) return 'Burying...';
+      return 'Cremating...';
+    }
+    if (graveCount > 0 && cremateCount > 0) {
+      return `Bury ${graveCount} & Cremate ${cremateCount}`;
+    }
+    if (graveCount > 0) {
+      return `Bury ${graveCount} project${graveCount !== 1 ? 's' : ''}`;
+    }
+    return `Cremate ${cremateCount} project${cremateCount !== 1 ? 's' : ''}`;
+  };
 
   return (
     <div>
@@ -145,7 +164,7 @@ export default function StepCause({
             fontFamily: 'inherit',
           }}
         >
-          {loading ? 'Burying...' : `Bury ${selectedRepos.length} project${selectedRepos.length !== 1 ? 's' : ''}`}
+          {getButtonText()}
         </button>
       </div>
     </div>

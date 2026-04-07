@@ -14,6 +14,10 @@ interface TemplateData {
 
 type TemplateContext = 'grave' | 'cremated'
 
+function hasNonAscii(value: string | null | undefined): boolean {
+  return !!value && /[^\x00-\x7F]/.test(value);
+}
+
 function humanLifespan(bornAt: string | null, diedAt: string | null): string | undefined {
   if (!bornAt || !diedAt) return undefined;
   const ms = new Date(diedAt).getTime() - new Date(bornAt).getTime();
@@ -35,6 +39,7 @@ function truncate(s: string | null | undefined, max: number): string | undefined
   if (!s) return undefined;
   const trimmed = s.trim();
   if (!trimmed) return undefined;
+  if (hasNonAscii(trimmed)) return undefined;
   if (trimmed.length <= max) return trimmed;
   return trimmed.slice(0, max - 1) + '…';
 }

@@ -67,6 +67,7 @@ export async function GET(request: NextRequest) {
   }
 
   const rawUsername = request.nextUrl.searchParams.get("username");
+  const forceRefresh = request.nextUrl.searchParams.get("refresh") === "1";
 
   if (!rawUsername) {
     return NextResponse.json(
@@ -87,7 +88,7 @@ export async function GET(request: NextRequest) {
   }
 
   const cached = scanCache.get(username);
-  if (cached) {
+  if (!forceRefresh && cached) {
     if (Date.now() < cached.expiresAt) {
       return NextResponse.json(cached.data);
     }

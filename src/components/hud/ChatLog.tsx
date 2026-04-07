@@ -25,6 +25,10 @@ function pickRandom<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
+function hasNonAscii(text: string): boolean {
+  return /[^\x00-\x7F]/.test(text);
+}
+
 export default function ChatLog() {
   const isMobile = useIsMobile();
   const { messages, addMessage } = useChat();
@@ -106,7 +110,7 @@ export default function ChatLog() {
         }
 
         // Fallback: static phrase
-        if (!text) {
+        if (!text || hasNonAscii(text)) {
           let idx: number;
           do {
             idx = Math.floor(Math.random() * GRAVEDIGGER_IDLE.length);

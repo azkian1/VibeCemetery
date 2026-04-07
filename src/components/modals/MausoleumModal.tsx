@@ -176,10 +176,10 @@ export default function MausoleumModal() {
                   <thead>
                     <tr>
                       <th scope="col" aria-sort={ariaSort('tier')} style={thStyle('tier', 'center')} onClick={() => toggleSort('tier')}>Tier{sortArrow('tier')}</th>
-                      <th scope="col" aria-sort={ariaSort('project')} style={thStyle('project', 'center')} onClick={() => toggleSort('project')}>Project{sortArrow('project')}</th>
-                      <th scope="col" aria-sort={ariaSort('cause')} style={thStyle('cause', 'center')} onClick={() => toggleSort('cause')}>Cause{sortArrow('cause')}</th>
+                      <th scope="col" aria-sort={ariaSort('project')} style={thStyle('project')} onClick={() => toggleSort('project')}>Project{sortArrow('project')}</th>
+                      <th scope="col" aria-sort={ariaSort('cause')} style={thStyle('cause')} onClick={() => toggleSort('cause')}>Cause{sortArrow('cause')}</th>
                       <th scope="col" aria-sort={ariaSort('f')} style={thStyle('f', 'center')} onClick={() => toggleSort('f')}>F{sortArrow('f')}</th>
-                      {!isMobile && <th scope="col" aria-sort={ariaSort('died')} style={thStyle('died', 'center')} onClick={() => toggleSort('died')}>Died{sortArrow('died')}</th>}
+                      {!isMobile && <th scope="col" aria-sort={ariaSort('died')} style={thStyle('died', 'right')} onClick={() => toggleSort('died')}>Died{sortArrow('died')}</th>}
                     </tr>
                   </thead>
                   <tbody>

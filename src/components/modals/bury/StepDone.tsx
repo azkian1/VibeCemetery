@@ -44,11 +44,11 @@ export default function StepDone({
         <p style={{ color: '#b86858', fontSize: 15, margin: '0 0 12px' }}>
           The dead will have to wait.
         </p>
-      ) : (
+      ) : graves.length > 0 ? (
         <p style={{ color: '#e8d5a3', fontSize: 18, margin: '0 0 12px' }}>
           Rest in peace
         </p>
-      )}
+      ) : null}
 
       {graves.length > 0 && (
         <div style={{ marginBottom: 8, textAlign: 'left' }}>
@@ -62,10 +62,10 @@ export default function StepDone({
       )}
 
       {cremated.length > 0 && (
-        <div style={{ marginBottom: 8, textAlign: 'left' }}>
+        <div style={{ marginBottom: 8, textAlign: 'center' }}>
           <p style={{ color: '#b86858', fontSize: 13, margin: '0 0 4px' }}>&#x1F525; Cremated:</p>
           {cremated.map((r, i) => (
-            <p key={`${r.name}-${i}`} style={{ color: '#8a8980', fontSize: 13, margin: '2px 0', paddingLeft: 12 }}>
+            <p key={`${r.name}-${i}`} style={{ color: '#8a8980', fontSize: 13, margin: '2px 0' }}>
               {r.name}{r.error ? ` — ${r.error}` : ' — cremation recorded'}
             </p>
           ))}

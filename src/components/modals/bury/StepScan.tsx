@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useSession, signIn } from 'next-auth/react';
 import type { DeadRepo, GitHubScanResult } from '@/types/game';
 
@@ -30,37 +30,18 @@ export default function StepScan({
   const { status } = useSession();
   const [dots, setDots] = useState('');
   const [scanPhase, setScanPhase] = useState('Connecting to GitHub...');
-  const [scanned, setScanned] = useState(false);
 
-  // Animated dots
-  useEffect(() => {
-    if (!loading) return;
-    const id = setInterval(() => setDots(d => d.length >= 3 ? '' : d + '.'), 400);
-    return () => clearInterval(id);
-  }, [loading]);
-
-  // Progress messages
-  useEffect(() => {
-    if (!loading) return;
-    const phases = [
-      { delay: 1500, msg: 'Fetching repositories...' },
-      { delay: 4000, msg: 'Checking last commit dates...' },
-      { delay: 7000, msg: 'Filtering dead repos...' },
-    ];
-    const timers = phases.map(p => setTimeout(() => setScanPhase(p.msg), p.delay));
-    return () => timers.forEach(clearTimeout);
-  }, [loading]);
-
-  // Auto-scan own repos on mount (only own GitHub)
-  useEffect(() => {
-    if (!defaultUsername || scanned) return;
+  const runScan = useCallback((forceRefresh = false) => {
+    if (!defaultUsername) return () => {};
 
     const controller = new AbortController();
-    setScanned(true);
     setLoading(true);
     onError('');
 
-    fetch(`/api/github/scan?username=${encodeURIComponent(defaultUsername)}`, { signal: controller.signal })
+    const params = new URLSearchParams({ username: defaultUsername });
+    if (forceRefresh) params.set('refresh', '1');
+
+    fetch(`/api/github/scan?${params.toString()}`, { signal: controller.signal })
       .then(async (res) => {
         if (!res.ok) {
           if (res.status === 429) {
@@ -83,8 +64,33 @@ export default function StepScan({
     return () => {
       controller.abort();
     };
+  }, [defaultUsername, onError, onScanned, setLoading]);
+
+  // Animated dots
+  useEffect(() => {
+    if (!loading) return;
+    const id = setInterval(() => setDots(d => d.length >= 3 ? '' : d + '.'), 400);
+    return () => clearInterval(id);
+  }, [loading]);
+
+  // Progress messages
+  useEffect(() => {
+    if (!loading) return;
+    const phases = [
+      { delay: 1500, msg: 'Fetching repositories...' },
+      { delay: 4000, msg: 'Checking last commit dates...' },
+      { delay: 7000, msg: 'Filtering dead repos...' },
+    ];
+    const timers = phases.map(p => setTimeout(() => setScanPhase(p.msg), p.delay));
+    return () => timers.forEach(clearTimeout);
+  }, [loading]);
+
+  // Auto-scan own repos on mount (only own GitHub)
+  useEffect(() => {
+    if (!defaultUsername) return;
+    return runScan(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [defaultUsername]);
+  }, [defaultUsername, runScan]);
 
   // Not authenticated
   if (status === 'loading') {
@@ -130,7 +136,7 @@ export default function StepScan({
 
   const rescanButton = (
     <button
-      onClick={() => { setScanned(false); }}
+      onClick={() => { void runScan(true); }}
       style={{
         marginTop: 16,
         padding: '6px 16px',

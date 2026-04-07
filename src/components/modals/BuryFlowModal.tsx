@@ -18,6 +18,10 @@ import { cemeteryEvents } from '@/game/events';
 const DEATH_CAUSES_DEFAULT = 'Developer lost interest';
 const SLOT_THRESHOLDS = [30, 80, 150, 300] as const;
 
+function toEnglishSafeProjectLabel(name: string): string {
+  return /[^\x00-\x7F]/.test(name) ? 'A project' : name;
+}
+
 export default function BuryFlowModal() {
   const { close, open } = useModal();
   const { state, dispatch } = useGame();
@@ -236,7 +240,7 @@ export default function BuryFlowModal() {
           } else {
             const grave: GraveData = await res.json();
             // Emit ceremony BEFORE dispatch so PhaserCanvas pre-registers the slot_id
-            const chatText = `${repo.name} has been buried. Rest in peace.`;
+            const chatText = `${toEnglishSafeProjectLabel(repo.name)} has been buried. Rest in peace.`;
             const gravediggerPhrase = GRAVEDIGGER_BURIAL[Math.floor(Math.random() * GRAVEDIGGER_BURIAL.length)];
             const ceremonyData = { slot_id: grave.slot_id, id: grave.id, name: grave.name, chatText, gravediggerPhrase };
             cemeteryEvents.emit('burial_ceremony', ceremonyData);
@@ -262,7 +266,7 @@ export default function BuryFlowModal() {
                 message: {
                   id: crypto.randomUUID(),
                   type: 'burial',
-                  text: `${repo.name} has been cremated. Ashes to ashes.`,
+                  text: `${toEnglishSafeProjectLabel(repo.name)} has been cremated. Ashes to ashes.`,
                   timestamp: Date.now(),
                 },
               });
@@ -328,11 +332,16 @@ export default function BuryFlowModal() {
             {step === 1 && 'Scan Repositories'}
             {step === 2 && 'Select for Burial'}
             {step === 3 && 'Cause of Death'}
-            {step === 4 && (burying
-              ? 'Burying...'
-              : results.some(r => r.success)
-                ? 'Burial Complete'
-                : 'Burial Failed')}
+            {step === 4 && (() => {
+              if (burying) return 'Processing...';
+              const hasSuccess = results.some(r => r.success);
+              if (!hasSuccess) return 'Failed';
+              const graves = results.filter(r => r.success && r.type === 'grave').length;
+              const cremations = results.filter(r => r.success && r.type === 'cremated').length;
+              if (graves > 0 && cremations > 0) return 'Complete';
+              if (graves > 0) return 'Burial Complete';
+              return 'Cremation Complete';
+            })()}
           </h2>
 
           {step === 1 && (
@@ -369,6 +378,7 @@ export default function BuryFlowModal() {
             <StepCause
               repos={repos}
               selected={selected}
+              graveSet={graveSet}
               causes={causes}
               onSetCause={handleSetCause}
               onSubmit={handleSubmit}
