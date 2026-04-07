@@ -26,9 +26,15 @@ export default function GraveModal() {
   const voted = grave ? state.fVotes.has(grave.id) : false;
   const fCount = grave?.f_count ?? 0;
   const [copied, setCopied] = useState(false);
+  const [fError, setFError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setFError(null);
+  }, [grave?.id, slotId]);
 
   const handleF = async () => {
     if (!grave || voted || !isLoggedIn || slotId == null) return;
+    setFError(null);
     const prevCount = grave.f_count ?? 0;
     dispatch({ type: 'ADD_F_VOTE', graveId: grave.id, slotId });
     try {
@@ -40,9 +46,11 @@ export default function GraveModal() {
         }
       } else {
         dispatch({ type: 'REMOVE_F_VOTE', graveId: grave.id, slotId, fCount: prevCount });
+        setFError('Could not pay respects. Try again.');
       }
     } catch {
       dispatch({ type: 'REMOVE_F_VOTE', graveId: grave.id, slotId, fCount: prevCount });
+      setFError('Could not pay respects. Check your connection.');
     }
   };
 
@@ -334,6 +342,11 @@ export default function GraveModal() {
             }}>
               {fCount}
             </span>
+            {fError && (
+              <p role="status" aria-live="polite" style={{ margin: '6px 0 0', fontSize: 12, color: '#b86858', fontStyle: 'italic' }}>
+                {fError}
+              </p>
+            )}
           </div>
 
           {/* Action buttons */}
