@@ -13,6 +13,14 @@ import LoadErrorState from '@/components/ui/LoadErrorState';
 type SortCol = 'tier' | 'project' | 'cause' | 'f' | 'died';
 type SortDir = 'asc' | 'desc';
 
+function getTierRank(slotType: string | undefined): number {
+  if (slotType === 'grave_largeX' || slotType === 'grave_largetop') return 4;
+  if (slotType === 'grave_large' || slotType === 'grave_wide') return 3;
+  if (slotType === 'grave_tall') return 2;
+  if (slotType === 'grave_special') return 0;
+  return 1;
+}
+
 function getTier(slotType: string | undefined): { label: string; color: string; bg: string } {
   if (slotType === 'grave_largeX' || slotType === 'grave_largetop')
     return { label: 'T3', color: '#c04040', bg: 'rgba(192,64,64,0.12)' };
@@ -57,8 +65,8 @@ export default function MausoleumModal() {
     return arr.sort((a, b) => {
       switch (sortCol) {
         case 'tier': {
-          const ta = slotTypeMap.get(a.slot_id) === 'grave_tall' ? 1 : 0;
-          const tb = slotTypeMap.get(b.slot_id) === 'grave_tall' ? 1 : 0;
+          const ta = getTierRank(slotTypeMap.get(a.slot_id));
+          const tb = getTierRank(slotTypeMap.get(b.slot_id));
           return (ta - tb) * dir;
         }
         case 'project':
@@ -130,7 +138,7 @@ export default function MausoleumModal() {
             The Crypt
           </h2>
           <p style={{ fontSize: 12, color: '#9a998f', textAlign: 'center', margin: '0 0 16px' }}>
-            The Gravedigger&apos;s ledger. Every soul accounted for.
+            The Gravedigger&apos;s ledger. Only the buried are recorded here.
           </p>
 
           {loading ? (
