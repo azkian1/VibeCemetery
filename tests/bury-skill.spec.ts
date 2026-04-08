@@ -117,4 +117,12 @@ test.describe('bury skill helpers', () => {
       cause: 'Lost interest',
     })
   })
+
+  test('strips UTF-8 BOM before parsing JSON config text', async () => {
+    const { stripUtf8Bom } = await loadHelper()
+
+    expect(JSON.parse(stripUtf8Bom('\uFEFF{"cli_token":"vc_cli_123"}'))).toEqual({
+      cli_token: 'vc_cli_123',
+    })
+  })
 })
