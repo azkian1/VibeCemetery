@@ -26,15 +26,21 @@ export default function GraveModal() {
   const voted = grave ? state.fVotes.has(grave.id) : false;
   const fCount = grave?.f_count ?? 0;
   const [copied, setCopied] = useState(false);
-  const [fError, setFError] = useState<string | null>(null);
+  const [fErrorState, setFErrorState] = useState<{ graveId: string | null, message: string | null }>({
+    graveId: null,
+    message: null,
+  });
+  const fError = grave && fErrorState.graveId === grave.id ? fErrorState.message : null;
 
-  useEffect(() => {
-    setFError(null);
-  }, [grave?.id, slotId]);
+  const handleClose = useCallback(() => {
+    setCopied(false);
+    setFErrorState({ graveId: null, message: null });
+    close();
+  }, [close]);
 
   const handleF = async () => {
     if (!grave || voted || !isLoggedIn || slotId == null) return;
-    setFError(null);
+    setFErrorState({ graveId: grave.id, message: null });
     const prevCount = grave.f_count ?? 0;
     dispatch({ type: 'ADD_F_VOTE', graveId: grave.id, slotId });
     try {
@@ -46,11 +52,11 @@ export default function GraveModal() {
         }
       } else {
         dispatch({ type: 'REMOVE_F_VOTE', graveId: grave.id, slotId, fCount: prevCount });
-        setFError('Could not pay respects. Try again.');
+        setFErrorState({ graveId: grave.id, message: 'Could not pay respects. Try again.' });
       }
     } catch {
       dispatch({ type: 'REMOVE_F_VOTE', graveId: grave.id, slotId, fCount: prevCount });
-      setFError('Could not pay respects. Check your connection.');
+      setFErrorState({ graveId: grave.id, message: 'Could not pay respects. Check your connection.' });
     }
   };
 
@@ -69,6 +75,8 @@ export default function GraveModal() {
     if (slotId == null) return;
     const slot = state.slotPositions.find((s) => s.id === slotId);
     if (!slot) return;
+    setCopied(false);
+    setFErrorState({ graveId: null, message: null });
     closeAll();
     setTimeout(() => {
       cemeteryEvents.emit('minimap_click', {
@@ -106,9 +114,9 @@ export default function GraveModal() {
     };
 
     return (
-      <ModalOverlay onClose={close}>
+      <ModalOverlay onClose={handleClose}>
         <StoneFrame isMobile={isMobile} maxWidth={500}>
-          <CloseButton onClick={close} />
+          <CloseButton onClick={handleClose} />
 
           {/* ── Header — epitaph plate ── */}
           <div style={{

@@ -137,8 +137,8 @@ Modal stack supports push/pop (deduplication on push). `useModal()` hook: `open(
 - `POST /api/graves/[id]/f` — Press F to pay respects. One vote per user per grave (idempotent). Updates graves.f_count
 - `GET /api/f-status` — get current user's voted grave IDs (Set of grave UUIDs)
 - `POST /api/cremated` — cremate project (browser session or CLI Bearer token). Accepts `{name, cause, github_url?, last_commit_message?}`. Rate limit: first 50 unlimited, then 3/day
-- `POST /api/cli/link/start` — create short-lived CLI link session, returns browser approval URL + one-time `claim_token`
-- `POST /api/cli/link/approve` — signed-in browser user approves pending CLI link session
+- `POST /api/cli/link/start` — create short-lived CLI link session, returns browser approval URL with `#claim_token=...` fragment + one-time `claim_token`
+- `POST /api/cli/link/approve` — signed-in browser user approves pending CLI link session and must prove possession of the current `claim_token`
 - `GET /api/cli/link/status?link_id=...` — CLI polls for pending/approved/claimed/expired link state with `x-cli-claim-token`; raw token returned once on approval
 - `GET /api/cremated` — list all cremated projects
 
@@ -198,12 +198,17 @@ UPSTASH_REDIS_REST_TOKEN  — optional; enables shared rate limiting across inst
 - Currently allowed domains: `fonts.googleapis.com`, `fonts.gstatic.com`, `avatars.githubusercontent.com`, `*.supabase.co`
 - Server-side fetch (API routes → `api.github.com`) is not covered by CSP — this applies only to the browser
 
-## CLI Skill — /bury (Mogil'schik)
-- Location: `.claude/commands/bury/` (SKILL.md, character.md, cremated-registry.json)
+## CLI Command — /bury (Mogil'schik)
+- Entry point: `.claude/commands/bury.md`
+- Internal workflow: `.claude/skills/bury-workflow/` (`SKILL.md`, `character.md`, `bury-helper.mjs`). Local registry now lives outside the repo alongside CLI config.
+- Current deployment contract: local-only during development, so `/bury` targets `http://localhost:3000` for now.
+- `/bury` is the only official user-facing entrypoint. The workflow skill exists only to execute the cremation pipeline behind that command.
+- Scope boundary: `/bury` is local cremation only. It may inspect local git metadata, but it does not use GitHub scan endpoints and it never creates graves on the map.
 - Auth: first run opens `/cli/connect` in the browser, user approves once, CLI stores server-issued token locally and sends `Authorization: Bearer <cli_token>` on future runs
 - Raw CLI token is one-time visible only; database stores hash + masked prefix. Revocation is supported by API/backend flow, but no longer exposed in the profile modal UI.
+- Safety-critical `/bury` helper logic now lives in `.claude/skills/bury-workflow/bury-helper.mjs` for external config/registry paths, registry sanitization, approval URL validation, and API POST execution.
 - Supabase setup: apply `docs/cli-auth-v1.sql` and ensure `users.github_username` is `UNIQUE`
-- Link claiming proof: `POST /api/cli/link/start` returns a one-time `claim_token`; CLI must send it back in `x-cli-claim-token` when polling `/api/cli/link/status`
+- Link proof: `POST /api/cli/link/start` returns a one-time `claim_token`; CLI must send it back in `x-cli-claim-token` when polling `/api/cli/link/status`, and browser approval must carry the same proof via the `approve_url` hash fragment
 - Endpoint hardening: CLI link/token endpoints use `Cache-Control: no-store`; `POST /api/cli/link/start` has rate limiting via shared limiter when Upstash is configured
-- Local deduplication via `cremated-registry.json` (fingerprints: git_remote, first_commit, path)
+- Local deduplication via per-user `cremated-registry.json` stored outside the repo (fingerprints: git_remote, first_commit, path_fingerprint)
 - Uses `node` for HTTP requests (UTF-8 safe on Windows)

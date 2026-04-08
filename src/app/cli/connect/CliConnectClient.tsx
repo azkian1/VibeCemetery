@@ -1,25 +1,49 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { signIn, useSession } from 'next-auth/react'
 import StoneFrame from '@/components/ui/StoneFrame'
 import StoneButton from '@/components/ui/StoneButton'
 import InsetBlock from '@/components/ui/InsetBlock'
 import OrnamentDivider from '@/components/ui/OrnamentDivider'
 
+function getClaimTokenStorageKey(linkId: string) {
+  return `vc-cli-claim-token:${linkId}`
+}
+
 export default function CliConnectClient({ linkId }: { linkId: string }) {
   const { data: session, status } = useSession()
   const [submitting, setSubmitting] = useState(false)
   const [approveState, setApproveState] = useState<'idle' | 'approved'>('idle')
   const [error, setError] = useState<string | null>(null)
+  const [claimToken, setClaimToken] = useState('')
 
   const hasLinkRequest = useMemo(
     () => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(linkId),
     [linkId],
   )
 
+  useEffect(() => {
+    const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''))
+    const hashClaimToken = hashParams.get('claim_token')?.trim() ?? ''
+    const storageKey = getClaimTokenStorageKey(linkId)
+    const storedClaimToken = hashClaimToken ? '' : window.sessionStorage.getItem(storageKey)?.trim() ?? ''
+    const nextClaimToken = hashClaimToken || storedClaimToken
+
+    if (hashClaimToken) {
+      window.sessionStorage.setItem(storageKey, hashClaimToken)
+    }
+
+    setClaimToken(nextClaimToken)
+
+    if (window.location.hash) {
+      const cleanUrl = `${window.location.pathname}${window.location.search}`
+      window.history.replaceState(window.history.state, '', cleanUrl)
+    }
+  }, [linkId])
+
   async function handleApprove() {
-    if (!hasLinkRequest || submitting) return
+    if (!hasLinkRequest || !claimToken || submitting) return
 
     setSubmitting(true)
     setError(null)
@@ -28,7 +52,7 @@ export default function CliConnectClient({ linkId }: { linkId: string }) {
       const res = await fetch('/api/cli/link/approve', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ link_id: linkId }),
+        body: JSON.stringify({ link_id: linkId, claim_token: claimToken }),
       })
 
       const body = await res.json().catch(() => null)
@@ -38,12 +62,17 @@ export default function CliConnectClient({ linkId }: { linkId: string }) {
       }
 
       setApproveState('approved')
+      window.sessionStorage.removeItem(getClaimTokenStorageKey(linkId))
     } catch {
       setError('Failed to approve CLI access')
     } finally {
       setSubmitting(false)
     }
   }
+
+  const authCallbackUrl = typeof window === 'undefined'
+    ? '/cli/connect'
+    : `${window.location.origin}${window.location.pathname}${window.location.search}`
 
   return (
     <main style={{
@@ -68,6 +97,10 @@ export default function CliConnectClient({ linkId }: { linkId: string }) {
               <div style={{ textAlign: 'center', color: '#8a8980', fontSize: 13, lineHeight: 1.6 }}>
                 Start `/bury` in your terminal first. The CLI will open this page again with a live link request.
               </div>
+            ) : !claimToken ? (
+              <div style={{ textAlign: 'center', color: '#c87868', fontSize: 13, lineHeight: 1.6 }}>
+                This link request is missing approval proof. Restart `/bury` and open the fresh link.
+              </div>
             ) : status === 'loading' ? (
               <div style={{ textAlign: 'center', color: '#8a8980', fontSize: 13 }}>
                 Checking your session...
@@ -78,7 +111,7 @@ export default function CliConnectClient({ linkId }: { linkId: string }) {
                   Sign in with GitHub first, then approve this link request.
                 </p>
                 <StoneButton
-                  onClick={() => signIn('github', { callbackUrl: window.location.href })}
+                  onClick={() => signIn('github', { callbackUrl: authCallbackUrl })}
                 >
                   Sign In With GitHub
                 </StoneButton>

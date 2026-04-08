@@ -148,6 +148,7 @@ test.describe.serial('API smoke', () => {
       expect(typeof startBody.approve_url).toBe('string')
       expect(typeof startBody.claim_token).toBe('string')
       expect(startBody.claim_token.length).toBeGreaterThan(20)
+      expect(startBody.approve_url).toContain(`/cli/connect?link_id=${startBody.link_id}#claim_token=`)
 
       const pendingRes = await request.get(`/api/cli/link/status?link_id=${startBody.link_id}`)
       expect(pendingRes.status()).toBe(401)
@@ -170,7 +171,7 @@ test.describe.serial('API smoke', () => {
 
       const approveRes = await request.post('/api/cli/link/approve', {
         headers: sessionHeaders,
-        data: { link_id: startBody.link_id },
+        data: { link_id: startBody.link_id, claim_token: startBody.claim_token },
       })
       expect(approveRes.status()).toBe(200)
       expect(approveRes.headers()['cache-control']).toBe('no-store')
@@ -233,6 +234,58 @@ test.describe.serial('API smoke', () => {
     }
   })
 
+  test('CLI link approve requires claim-token proof of possession', async ({ request }) => {
+    const username = `api-smoke-cli-proof-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+    await createSmokeUser(username)
+    const sessionHeaders = await createAuthHeaders(username)
+
+    try {
+      const startRes = await request.post('/api/cli/link/start')
+      expect(startRes.status()).toBe(200)
+      const startBody = await startRes.json()
+
+      const missingProofRes = await request.post('/api/cli/link/approve', {
+        headers: sessionHeaders,
+        data: { link_id: startBody.link_id },
+      })
+      expect(missingProofRes.status()).toBe(401)
+      expect(missingProofRes.headers()['cache-control']).toBe('no-store')
+      expect(await missingProofRes.json()).toEqual({ error: 'Invalid claim token' })
+    } finally {
+      await deleteSmokeCliData(username)
+    }
+  })
+
+  test('CLI link approve rejects a different live claim token', async ({ request }) => {
+    const username = `api-smoke-cli-wrong-proof-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+    await createSmokeUser(username)
+    const sessionHeaders = await createAuthHeaders(username)
+
+    try {
+      const firstStartRes = await request.post('/api/cli/link/start')
+      expect(firstStartRes.status()).toBe(200)
+      const firstStartBody = await firstStartRes.json()
+
+      const secondStartRes = await request.post('/api/cli/link/start')
+      expect(secondStartRes.status()).toBe(200)
+      const secondStartBody = await secondStartRes.json()
+
+      const wrongProofRes = await request.post('/api/cli/link/approve', {
+        headers: sessionHeaders,
+        data: {
+          link_id: firstStartBody.link_id,
+          claim_token: secondStartBody.claim_token,
+        },
+      })
+
+      expect(wrongProofRes.status()).toBe(401)
+      expect(wrongProofRes.headers()['cache-control']).toBe('no-store')
+      expect(await wrongProofRes.json()).toEqual({ error: 'Invalid claim token' })
+    } finally {
+      await deleteSmokeCliData(username)
+    }
+  })
+
   test('POST /api/cremated still works for authenticated browser sessions', async ({ request }) => {
     const username = `api-smoke-session-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
     await createSmokeUser(username)
@@ -251,6 +304,27 @@ test.describe.serial('API smoke', () => {
       const body = await res.json()
       expect(body.author_github).toBe(username)
       expect(body.source).toBe('github')
+    } finally {
+      await deleteSmokeCliData(username)
+    }
+  })
+
+  test('POST /api/cremated rejects HTML-only values that sanitize to empty', async ({ request }) => {
+    const username = `api-smoke-sanitize-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+    await createSmokeUser(username)
+    const sessionHeaders = await createAuthHeaders(username)
+
+    try {
+      const res = await request.post('/api/cremated', {
+        headers: sessionHeaders,
+        data: {
+          name: '<b>   </b>',
+          cause: '<i> </i>',
+        },
+      })
+
+      expect(res.status()).toBe(400)
+      expect(await res.json()).toEqual({ error: 'name and cause are required' })
     } finally {
       await deleteSmokeCliData(username)
     }

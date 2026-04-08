@@ -2,10 +2,12 @@ const PROD_FALLBACK_SITE_URL = 'https://vibecemetery.com'
 const DEV_FALLBACK_SITE_URL = 'http://localhost:3000'
 
 export function getSiteUrl(): string {
+  const configuredUrl = process.env.NEXT_PUBLIC_SITE_URL?.trim()
+
   const fallbackUrl = process.env.NODE_ENV === 'production'
     ? PROD_FALLBACK_SITE_URL
     : DEV_FALLBACK_SITE_URL
-  const rawUrl = (process.env.NEXT_PUBLIC_SITE_URL?.trim() || fallbackUrl).replace(/\/+$/, '')
+  const rawUrl = (configuredUrl || fallbackUrl).replace(/\/+$/, '')
 
   try {
     const url = new URL(rawUrl)
@@ -16,4 +18,12 @@ export function getSiteUrl(): string {
   } catch {
     throw new Error(`Invalid NEXT_PUBLIC_SITE_URL: ${rawUrl}`)
   }
+}
+
+export function getCliApprovalSiteUrl(): string {
+  if (process.env.NODE_ENV === 'production' && !process.env.NEXT_PUBLIC_SITE_URL?.trim()) {
+    throw new Error('NEXT_PUBLIC_SITE_URL is required in production for CLI approval links')
+  }
+
+  return getSiteUrl()
 }

@@ -16,7 +16,13 @@ export default function SkillModal() {
 
   if (isMobile) return null;
 
-  const command = 'claude skill add vibecemetery/gravedigger';
+  const command = [
+    '1. Copy .claude/commands/bury/ from this repo',
+    '2. Paste it into your Claude commands directory',
+    '   Windows: %USERPROFILE%\\.claude\\commands\\bury\\',
+    '   macOS/Linux: ~/.claude/commands/bury/',
+    '3. Restart Claude, then run /bury',
+  ].join('\n');
 
   const handleCopy = () => {
     navigator.clipboard.writeText(command).then(() => {
@@ -34,12 +40,13 @@ export default function SkillModal() {
           <CloseButton onClick={close} />
 
           <h2 style={{ margin: '0 0 16px', fontSize: 20, color: '#e8d5a3', textAlign: 'center' }}>
-            Hire the Gravedigger
+            Install the Cremation Command
           </h2>
 
           <p style={{ fontSize: 13, color: '#aaa9a0', margin: '0 0 16px', lineHeight: 1.5, textAlign: 'center' }}>
-            Install the Skill, then run <code style={{ color: '#c8a050' }}>/bury</code> from your agent.
-            On first run the agent opens a browser approval page once. After that, future cremations stay silent.
+            This command automates cremations from your terminal or editor. It scans only local projects and does not create graves directly.
+            After setup, run <code style={{ color: '#c8a050' }}>/bury</code>. On first run your agent opens a browser approval page once.
+            After that, future cremations stay silent.
           </p>
 
           {/* Command block */}
@@ -56,12 +63,10 @@ export default function SkillModal() {
                     whiteSpace: 'pre-line',
                   }}
                 >
-                  <span style={{ color: '#6a6960' }}>claude skill add</span>
-                  {'\n'}
-                  <span>vibecemetery/gravedigger</span>
+                  <span>Copy `.claude/commands/bury/` into your Claude commands directory</span>
                 </code>
                 <StoneButton onClick={handleCopy}>
-                  {copied ? 'Copied!' : 'Copy'}
+                  {copied ? 'Copied!' : 'Copy Setup'}
                 </StoneButton>
               </div>
             </InsetBlock>
@@ -80,10 +85,10 @@ export default function SkillModal() {
               textAlign: 'center',
             }}
           >
-            <li>Automatic GitHub scan for dead repos</li>
+            <li>Scans local project folders for dead projects</li>
             <li>Run <code style={{ color: '#c8a050' }}>/bury</code> from your agent or editor</li>
-            <li>The agent opens browser approval on first run</li>
-            <li>Gravedigger commentary in character</li>
+            <li>First run opens browser approval for CLI access</li>
+            <li>Cremates selected projects and earns Souls</li>
           </ul>
 
           <div style={{ textAlign: 'center' }}>

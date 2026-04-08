@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useSession, signIn } from 'next-auth/react';
 import type { DeadRepo, GitHubScanResult } from '@/types/game';
 
@@ -65,6 +65,11 @@ export default function StepScan({
       controller.abort();
     };
   }, [defaultUsername, onError, onScanned, setLoading]);
+  const runScanRef = useRef(runScan);
+
+  useEffect(() => {
+    runScanRef.current = runScan;
+  }, [runScan]);
 
   // Animated dots
   useEffect(() => {
@@ -88,9 +93,8 @@ export default function StepScan({
   // Auto-scan own repos on mount (only own GitHub)
   useEffect(() => {
     if (!defaultUsername) return;
-    return runScan(false);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [defaultUsername, runScan]);
+    return runScanRef.current(false);
+  }, [defaultUsername]);
 
   // Not authenticated
   if (status === 'loading') {

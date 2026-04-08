@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createCliClaimToken, createCliLinkId, getCliLinkExpiryDate, hashCliClaimToken } from '@/lib/cli-auth'
 import { checkRateLimit, getClientIp } from '@/lib/rate-limit'
-import { getSiteUrl } from '@/lib/site'
+import { getCliApprovalSiteUrl } from '@/lib/site'
 import { supabaseAdmin } from '@/lib/supabase'
 
 const LINK_START_LIMIT = 10
@@ -19,6 +19,21 @@ export async function POST(request: NextRequest) {
         headers: {
           'Cache-Control': 'no-store',
           'Retry-After': String(Math.ceil(result.retryAfterMs / 1000)),
+        },
+      },
+    )
+  }
+
+  let approvalSiteUrl: string
+  try {
+    approvalSiteUrl = getCliApprovalSiteUrl()
+  } catch {
+    return NextResponse.json(
+      { error: 'CLI approval site URL is not configured' },
+      {
+        status: 500,
+        headers: {
+          'Cache-Control': 'no-store',
         },
       },
     )
@@ -42,7 +57,7 @@ export async function POST(request: NextRequest) {
 
   return NextResponse.json({
     link_id: linkId,
-    approve_url: `${getSiteUrl()}/cli/connect?link_id=${linkId}`,
+    approve_url: `${approvalSiteUrl}/cli/connect?link_id=${linkId}#claim_token=${encodeURIComponent(claimToken)}`,
     claim_token: claimToken,
     expires_at: expiresAt.toISOString(),
     poll_interval_ms: 2000,

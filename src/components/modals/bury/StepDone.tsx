@@ -88,7 +88,7 @@ export default function StepDone({
       {onOpenSkill && (
         <button
           onClick={onOpenSkill}
-          aria-label="Install Skill to automate burials"
+          aria-label="Open cremation command setup"
           style={{
             color: '#7898b8',
             fontSize: 13,
@@ -102,7 +102,7 @@ export default function StepDone({
             fontFamily: 'inherit',
           }}
         >
-          Install Skill to automate this from your terminal
+          Set up /bury for local terminal cremations
         </button>
       )}
 

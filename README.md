@@ -37,7 +37,7 @@ This is a cemetery for vibe-code slop only — projects people generate with AI.
 - **Press F** — pay respects to any grave. One F per user per grave. Most mourned projects rise to the top
 - **Gravedigger NPC** — cemetery's resident character with dry humor, reacts to burials in the chat log
 - **Deep Links** — shareable links to any grave (`?grave=uuid`) or urn (`?urn=id`)
-- **Skill (CLI)** — install once, your AI agent buries dead projects automatically
+- **Skill (CLI)** — add the `/bury` command and let your AI agent cremate dead local projects
 
 ## How It Works
 
@@ -77,29 +77,37 @@ Every user starts with **1 grave slot** on the map. Cremate projects to earn **S
 | 80 Souls | +1 slot (3 total) |
 | 150 Souls | +1 slot (4 total) |
 
-**The loop:** install Skill → agent finds dead projects → cremations earn Souls → threshold → next project gets a grave instead of cremation → keep going.
+**The loop:** set up the `/bury` command → run `/bury` → agent finds dead local projects → cremations earn Souls → your account progresses for the broader cemetery product.
 
-## Skill (CLI)
+## Command (CLI)
 
-One-line install for [Claude Code](https://docs.anthropic.com/en/docs/claude-code):
+Manual setup for [Claude Code](https://docs.anthropic.com/en/docs/claude-code):
 
-```bash
-claude install-skill https://github.com/azkian1/vibecemetery
-```
+1. Copy `.claude/commands/bury.md` from this repo into your personal Claude commands directory.
+2. Copy the entire `.claude/skills/bury-workflow/` directory from this repo into your personal Claude skills directory.
+3. Use `~/.claude/commands/bury.md` and `~/.claude/skills/bury-workflow/` on macOS/Linux, or `%USERPROFILE%\.claude\commands\bury.md` and `%USERPROFILE%\.claude\skills\bury-workflow\` on Windows.
+4. Restart Claude Code, then run `/bury`.
+5. On updates, replace both the command file and the `bury-workflow/` skill directory with the newer versions from this repo.
 
-The Skill turns your AI agent into a **Gravedigger**. It scans your project folders, finds the dead ones, and cremates them via the API. First run opens a browser approval once, then the CLI stores a server-issued token locally for silent future use.
+`/bury` is the only official user-facing entrypoint. It turns your AI agent into a **Gravedigger**, then runs the internal `bury-workflow` pipeline. It scans your local project folders, finds the dead ones, and cremates them via the API. It never scans your GitHub account and it does not create map graves directly. First run opens browser approval once, then the CLI stores a server-issued token locally for silent future use.
+
+Current status: the shipped command is wired for local development and targets `http://localhost:3000` until the public site contract is finalized.
 
 **What it does:**
 - Scans subdirectories for dead projects (no commits 14+ days)
-- Shows a table: Dead / Dying / Alive / Already Cremated
+- Uses only local filesystem and optional local git metadata for project status
+- Shows a table: Dead / Alive / Already Cremated
 - Writes an epitaph in the Gravedigger's voice
 - Sends cremation to the API
-- Local dedup via `cremated-registry.json`
+- Uses helper-backed local config/registry files stored outside the repo
+- Local dedup via a per-user `cremated-registry.json` stored outside the repo
+- Never ships a live registry file with local paths or raw remotes inside the repo
 
 **CLI auth V1 setup:**
 - Apply `docs/cli-auth-v1.sql` in Supabase
 - Ensure `users.github_username` has a `UNIQUE` constraint
 - Set `CLI_TOKEN_SECRET` in production to decouple long-lived CLI tokens from `NEXTAUTH_SECRET`
+- Browser approval now also proves possession of the live CLI `claim_token`; stale approval links are rejected instead of approving by `link_id` alone
 
 ## Roadmap
 
