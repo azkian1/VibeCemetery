@@ -1,7 +1,11 @@
 import { expect, test } from '@playwright/test'
 import { createHash } from 'node:crypto'
+import { readFileSync } from 'node:fs'
 
-const helperPath = `${process.cwd().replace(/\\/g, '/')}/.claude/skills/bury-workflow/bury-helper.mjs`
+const helperPath = `${process.cwd().replace(/\\/g, '/')}/SKILL/commands/bury/bury-helper.mjs`
+const detectionFixtures = JSON.parse(
+  readFileSync(`${process.cwd()}/tests/fixtures/bury-detection-fixtures.json`, 'utf8'),
+)
 
 async function loadHelper() {
   return await import(`file:///${helperPath}`)
@@ -124,5 +128,88 @@ test.describe('bury skill helpers', () => {
     expect(JSON.parse(stripUtf8Bom('\uFEFF{"cli_token":"vc_cli_123"}'))).toEqual({
       cli_token: 'vc_cli_123',
     })
+  })
+
+  test('computes stable path fingerprints after normalizing separators', async () => {
+    const { computePathFingerprint } = await loadHelper()
+
+    expect(computePathFingerprint('C:\\Users\\example\\Desktop\\Projects\\_COMPLETED\\DemoBot')).toBe(
+      computePathFingerprint('C:/Users/example/Desktop/Projects/_COMPLETED/DemoBot'),
+    )
+  })
+
+  test('computes stable path fingerprints for equivalent relative paths', async () => {
+    const { computePathFingerprint } = await loadHelper()
+
+    expect(computePathFingerprint('tests/fixtures/../fixtures')).toBe(
+      computePathFingerprint('tests/fixtures'),
+    )
+  })
+
+  test('matches detection fixtures for fallback and non-project folders', async () => {
+    const { classifyProjectRootEntries } = await loadHelper()
+
+    for (const fixture of detectionFixtures.slice(0, 3)) {
+      expect(classifyProjectRootEntries(fixture.entries), fixture.name).toMatchObject(fixture.expected)
+    }
+  })
+
+  test('detects strong markers before fallback signals', async () => {
+    const { classifyProjectRootEntries } = await loadHelper()
+
+    expect(classifyProjectRootEntries(detectionFixtures[3].entries)).toMatchObject(detectionFixtures[3].expected)
+  })
+
+  test('matches markers and boosters case-insensitively on local filesystems', async () => {
+    const { classifyProjectRootEntries } = await loadHelper()
+
+    expect(classifyProjectRootEntries([
+      { name: 'Package.json', type: 'file' },
+      { name: 'Readme.md', type: 'file' },
+    ])).toMatchObject({
+      isCandidate: true,
+      source: 'strong',
+    })
+
+    expect(classifyProjectRootEntries([
+      { name: 'script.PY', type: 'file' },
+      { name: 'Dockerfile', type: 'file' },
+    ])).toMatchObject({
+      isCandidate: true,
+      source: 'fallback',
+      codeLikeCount: 1,
+      confidenceBoosterCount: 1,
+    })
+  })
+
+  test('builds selection prompt with selectable rows only and no all shortcut', async () => {
+    const { buildSelectionPromptModel } = await loadHelper()
+
+    const model = buildSelectionPromptModel([
+      { name: '18scenario_generator', status: 'Untracked' },
+      { name: 'DemoMini', status: 'Cremated' },
+      { name: 'Puzzle', status: 'Dead' },
+      { name: 'DemoBot', status: 'Cremated' },
+      { name: 'Transcript', status: 'Untracked' },
+    ])
+
+    expect(model.selectableRows.map((row) => ({ index: row.index, name: row.name }))).toEqual([
+      { index: 1, name: '18scenario_generator' },
+      { index: 2, name: 'Puzzle' },
+      { index: 3, name: 'Transcript' },
+    ])
+    expect(model.crematedRows.map((row) => row.name)).toEqual(['DemoMini', 'DemoBot'])
+    expect(model.acceptedReplies).toEqual(['1,2,3', 'all dead'])
+  })
+
+  test('omits all dead reply when there are no selectable dead projects', async () => {
+    const { buildSelectionPromptModel } = await loadHelper()
+
+    const model = buildSelectionPromptModel([
+      { name: '18scenario_generator', status: 'Untracked' },
+      { name: 'Gam333r', status: 'Untracked' },
+    ])
+
+    expect(model.acceptedReplies).toEqual(['1,2'])
   })
 })

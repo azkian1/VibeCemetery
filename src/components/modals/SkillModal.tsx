@@ -17,11 +17,12 @@ export default function SkillModal() {
   if (isMobile) return null;
 
   const command = [
-    '1. Copy .claude/commands/bury/ from this repo',
-    '2. Paste it into your Claude commands directory',
-    '   Windows: %USERPROFILE%\\.claude\\commands\\bury\\',
-    '   macOS/Linux: ~/.claude/commands/bury/',
-    '3. Restart Claude, then run /bury',
+    '1. Copy SKILL/commands/bury.md from this repo',
+    '2. Copy SKILL/commands/bury/ from this repo',
+    '3. Install them into your Claude commands directory as:',
+    '   Windows: %USERPROFILE%\\.claude\\commands\\bury.md and %USERPROFILE%\\.claude\\commands\\bury\\',
+    '   macOS/Linux: ~/.claude/commands/bury.md and ~/.claude/commands/bury/',
+    '4. Restart Claude, then run /bury',
   ].join('\n');
 
   const handleCopy = () => {
@@ -63,7 +64,7 @@ export default function SkillModal() {
                     whiteSpace: 'pre-line',
                   }}
                 >
-                  <span>Copy `.claude/commands/bury/` into your Claude commands directory</span>
+                  <span>Copy `SKILL/commands/bury.md` and `SKILL/commands/bury/` into your Claude commands directory</span>
                 </code>
                 <StoneButton onClick={handleCopy}>
                   {copied ? 'Copied!' : 'Copy Setup'}

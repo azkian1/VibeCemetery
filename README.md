@@ -83,13 +83,15 @@ Every user starts with **1 grave slot** on the map. Cremate projects to earn **S
 
 Manual setup for [Claude Code](https://docs.anthropic.com/en/docs/claude-code):
 
-1. Copy `.claude/commands/bury.md` from this repo into your personal Claude commands directory.
-2. Copy the entire `.claude/skills/bury-workflow/` directory from this repo into your personal Claude skills directory.
-3. Use `~/.claude/commands/bury.md` and `~/.claude/skills/bury-workflow/` on macOS/Linux, or `%USERPROFILE%\.claude\commands\bury.md` and `%USERPROFILE%\.claude\skills\bury-workflow\` on Windows.
+1. Copy `SKILL/commands/bury.md` from this repo into your personal Claude commands directory.
+2. Copy the entire `SKILL/commands/bury/` directory from this repo alongside that command file.
+3. Use `~/.claude/commands/bury.md` and `~/.claude/commands/bury/` on macOS/Linux, or `%USERPROFILE%\.claude\commands\bury.md` and `%USERPROFILE%\.claude\commands\bury\` on Windows.
 4. Restart Claude Code, then run `/bury`.
-5. On updates, replace both the command file and the `bury-workflow/` skill directory with the newer versions from this repo.
+5. On updates, replace both the command file and the `bury/` support directory with the newer versions from `SKILL/commands/` in this repo.
 
-`/bury` is the only official user-facing entrypoint. It turns your AI agent into a **Gravedigger**, then runs the internal `bury-workflow` pipeline. It scans your local project folders, finds the dead ones, and cremates them via the API. It never scans your GitHub account and it does not create map graves directly. First run opens browser approval once, then the CLI stores a server-issued token locally for silent future use.
+Runtime note: the command must resolve support files from the installed command directory, not from the repo being scanned.
+
+`/bury` is the only official user-facing entrypoint. It turns your AI agent into a **Gravedigger** and runs the full command pipeline from `bury.md`. It scans your local project folders, finds the dead ones, and cremates them via the API. It never scans your GitHub account and it does not create map graves directly. First run opens browser approval once, then the CLI stores a server-issued token locally for silent future use.
 
 Current status: the shipped command is wired for local development and targets `http://localhost:3000` until the public site contract is finalized.
 

@@ -1,0 +1,50 @@
+[
+  {
+    "name": "multi-file python folder",
+    "entries": [
+      { "name": "first.py", "type": "file" },
+      { "name": "second.py", "type": "file" }
+    ],
+    "expected": {
+      "isCandidate": true,
+      "source": "fallback",
+      "codeLikeCount": 2
+    }
+  },
+  {
+    "name": "single-file html folder",
+    "entries": [
+      { "name": "randomizer-65.html", "type": "file" }
+    ],
+    "expected": {
+      "isCandidate": true,
+      "source": "fallback",
+      "codeLikeCount": 1
+    }
+  },
+  {
+    "name": "docs-only folder",
+    "entries": [
+      { "name": "README.md", "type": "file" },
+      { "name": "notes.txt", "type": "file" }
+    ],
+    "expected": {
+      "isCandidate": false,
+      "source": "none",
+      "codeLikeCount": 0
+    }
+  },
+  {
+    "name": "strong git project",
+    "entries": [
+      { "name": ".git", "type": "directory" },
+      { "name": "index.html", "type": "file" },
+      { "name": "README.md", "type": "file" }
+    ],
+    "expected": {
+      "isCandidate": true,
+      "source": "strong",
+      "strongMatches": [".git/"]
+    }
+  }
+]

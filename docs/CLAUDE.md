@@ -199,14 +199,14 @@ UPSTASH_REDIS_REST_TOKEN  — optional; enables shared rate limiting across inst
 - Server-side fetch (API routes → `api.github.com`) is not covered by CSP — this applies only to the browser
 
 ## CLI Command — /bury (Mogil'schik)
-- Entry point: `.claude/commands/bury.md`
-- Internal workflow: `.claude/skills/bury-workflow/` (`SKILL.md`, `character.md`, `bury-helper.mjs`). Local registry now lives outside the repo alongside CLI config.
+- Entry point and source of truth: `SKILL/commands/bury.md`
+- Command support files: `SKILL/commands/bury/` (`character.md`, `bury-helper.mjs`). Local registry now lives outside the repo alongside CLI config.
 - Current deployment contract: local-only during development, so `/bury` targets `http://localhost:3000` for now.
-- `/bury` is the only official user-facing entrypoint. The workflow skill exists only to execute the cremation pipeline behind that command.
+- `/bury` is the only official user-facing entrypoint. Support files for the command live in `SKILL/commands/bury/` and must be resolved from the installed command directory, not the scan path.
 - Scope boundary: `/bury` is local cremation only. It may inspect local git metadata, but it does not use GitHub scan endpoints and it never creates graves on the map.
 - Auth: first run opens `/cli/connect` in the browser, user approves once, CLI stores server-issued token locally and sends `Authorization: Bearer <cli_token>` on future runs
 - Raw CLI token is one-time visible only; database stores hash + masked prefix. Revocation is supported by API/backend flow, but no longer exposed in the profile modal UI.
-- Safety-critical `/bury` helper logic now lives in `.claude/skills/bury-workflow/bury-helper.mjs` for external config/registry paths, registry sanitization, approval URL validation, and API POST execution.
+- Safety-critical `/bury` helper logic now lives in `SKILL/commands/bury/bury-helper.mjs` for external config/registry paths, registry sanitization, approval URL validation, and API POST execution.
 - Supabase setup: apply `docs/cli-auth-v1.sql` and ensure `users.github_username` is `UNIQUE`
 - Link proof: `POST /api/cli/link/start` returns a one-time `claim_token`; CLI must send it back in `x-cli-claim-token` when polling `/api/cli/link/status`, and browser approval must carry the same proof via the `approve_url` hash fragment
 - Endpoint hardening: CLI link/token endpoints use `Cache-Control: no-store`; `POST /api/cli/link/start` has rate limiting via shared limiter when Upstash is configured
