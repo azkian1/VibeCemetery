@@ -59,6 +59,7 @@ test-ui.py
 debug-dev.log
 debug-dev.err.log
 test-results/
+.playwright-mcp/
 tome.md
 .opencode/
 
