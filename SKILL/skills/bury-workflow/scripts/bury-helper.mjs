@@ -42,6 +42,16 @@ export const CODE_LIKE_EXTENSIONS = [
   '.ps1',
 ]
 
+export const SKIPPED_CHILD_DIRECTORY_NAMES = [
+  'node_modules',
+  'vendor',
+  'target',
+  'dist',
+  'build',
+  '.next',
+  '__pycache__',
+]
+
 function sha256(value) {
   return `sha256:${crypto.createHash('sha256').update(value).digest('hex')}`
 }
@@ -127,6 +137,80 @@ export function classifyProjectRootEntries(entries) {
     confidenceBoosters,
     confidenceBoosterCount: confidenceBoosters.length,
   }
+}
+
+export function selectProjectCandidates(options = {}) {
+  const scanPath = typeof options.scanPath === 'string' ? options.scanPath : ''
+  const scanPathClassification = classifyProjectRootEntries(options.scanPathEntries)
+
+  if (scanPath && scanPathClassification.isCandidate) {
+    return [{
+      path: scanPath,
+      classification: scanPathClassification,
+    }]
+  }
+
+  const childDirectories = Array.isArray(options.childDirectories) ? options.childDirectories : []
+  return childDirectories.flatMap((child) => {
+    const childPath = typeof child?.path === 'string' ? child.path : ''
+    const classification = classifyProjectRootEntries(child?.entries)
+
+    if (!childPath || !classification.isCandidate) {
+      return []
+    }
+
+    return [{
+      path: childPath,
+      classification,
+    }]
+  })
+}
+
+function readProjectRootEntries(rootPath) {
+  return fs.readdirSync(rootPath, { withFileTypes: true }).flatMap((entry) => {
+    if (entry.isDirectory()) {
+      return [{ name: entry.name, type: 'directory' }]
+    }
+
+    if (entry.isFile()) {
+      return [{ name: entry.name, type: 'file' }]
+    }
+
+    return []
+  })
+}
+
+export function detectProjectCandidates(scanPath, options = {}) {
+  const resolvedScanPath = path.resolve(scanPath)
+  const registryEntries = normalizeRegistryEntries(Array.isArray(options.registryEntries) ? options.registryEntries : [])
+  const scanPathEntries = readProjectRootEntries(resolvedScanPath)
+  const childDirectories = fs.readdirSync(resolvedScanPath, { withFileTypes: true }).flatMap((entry) => {
+    if (!entry.isDirectory() || SKIPPED_CHILD_DIRECTORY_NAMES.includes(entry.name)) {
+      return []
+    }
+
+    const childPath = path.join(resolvedScanPath, entry.name)
+    return [{
+      path: childPath,
+      entries: readProjectRootEntries(childPath),
+    }]
+  })
+
+  return selectProjectCandidates({
+    scanPath: resolvedScanPath,
+    scanPathEntries,
+    childDirectories,
+  }).map((candidate) => {
+    const pathFingerprint = computePathFingerprint(candidate.path)
+    const registryMatch = registryEntries.some((entry) => entry.path_fingerprint === pathFingerprint)
+
+    return {
+      ...candidate,
+      name: path.basename(candidate.path),
+      path_fingerprint: pathFingerprint,
+      status: registryMatch ? 'Cremated' : 'Untracked',
+    }
+  })
 }
 
 export function buildSelectionPromptModel(rows) {
@@ -462,6 +546,13 @@ async function main() {
 
   if (command === 'post-cremation') {
     await postCremationFromStdin()
+    return
+  }
+
+  if (command === 'detect-candidates') {
+    const scanPath = process.argv[3]
+    const { entries } = loadRegistry()
+    process.stdout.write(`${JSON.stringify(detectProjectCandidates(scanPath, { registryEntries: entries }))}\n`)
   }
 }
 

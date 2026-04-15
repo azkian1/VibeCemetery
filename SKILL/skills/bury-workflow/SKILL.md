@@ -83,13 +83,19 @@ When writing JSON, write to a temp file in the same directory and atomically ren
 
 Runtime registry data belongs only in the external per-user path above.
 
-### 4. Scan for project directories
+### 4. Detect project candidates
 
-Scan only the immediate child directories of the canonical scan path. Do not treat the scan path itself as a project. Do not follow symlinks.
+Use one minimal pre-check before the existing child-scan flow. Do not follow symlinks.
 
-Use a two-tier detection rule and deduplicate candidate projects by canonical child directory path. Do not search deeper than one level when deciding project membership.
+For runtime candidate detection, do not infer project candidates manually from ad hoc directory listings. Call `node "${CLAUDE_SKILL_DIR}/scripts/bury-helper.mjs" detect-candidates "<scanPath>"` and treat the returned JSON as the source of truth for root-vs-child candidate selection.
 
-First, check only immediate children of the scan path for these strong markers. The matching scope is `<scanPath>/*/<marker>` only; never recurse deeper than one child directory.
+First, check whether the canonical scan path itself looks like a project. If any strong marker exists directly inside the scan path root, treat that scan path as a single project candidate.
+
+If the scan path itself does not look like a project, fall back to scanning only the immediate child directories of the canonical scan path.
+
+Deduplicate candidate projects by canonical directory path. Do not search deeper than one level when deciding project membership.
+
+Check these strong markers only in either the scan path root or the immediate child root being evaluated. The matching scope is either `<scanPath>/<marker>` or `<scanPath>/*/<marker>`; never recurse deeper than one child directory.
 
 Use Glob/Bash to find directories with any of:
 - `.git/`
@@ -103,7 +109,7 @@ Use Glob/Bash to find directories with any of:
 - `*.sln`
 - `*.csproj`
 
-Then add a fallback pass for child directories that did not match a strong marker. A child directory also qualifies as a project candidate if it looks like an untracked code project in its root directory.
+Then add a fallback pass only when the scan path itself did not match a strong marker. A directory being evaluated also qualifies as a project candidate if it looks like an untracked code project in its root directory.
 
 Minimal code-like signals in the child directory root:
 - `*.py`
@@ -129,16 +135,16 @@ Confidence boosters in the child directory root:
 - `Dockerfile`
 - `.env.example`
 
-Fallback qualification rule for a child directory with no strong marker:
+Fallback qualification rule for a directory root with no strong marker:
 - qualifies if it has at least 2 code-like files in the root
 - qualifies if it has 1 code-like file in the root and at least 1 confidence booster in the root
 - qualifies if the root contains exactly 1 file total and that file is code-like
 
 Do not treat a directory as a project candidate if it only has docs, research, media, archives, or data files without any qualifying code-like signal.
 
-Preferred implementation: use helper-backed detection and fingerprint logic from `${CLAUDE_SKILL_DIR}/scripts/bury-helper.mjs` so root classification, prompt formatting, and registry matching stay aligned.
+Required implementation: use helper-backed detection and fingerprint logic from `${CLAUDE_SKILL_DIR}/scripts/bury-helper.mjs` so direct-path classification, child scanning, and registry matching stay aligned.
 
-Skip these directory names when traversing: `node_modules`, `vendor`, `target`, `dist`, `build`, `.next`, `__pycache__`
+Skip these directory names when traversing child directories: `node_modules`, `vendor`, `target`, `dist`, `build`, `.next`, `__pycache__`
 
 ### 5. Gather info for each project
 
@@ -169,6 +175,8 @@ Mark matched projects with status `Cremated`.
 ### 6. Present the list
 
 Show only selectable projects in the numbered table, then ask what to cremate. Wait for the user's reply before proceeding. The user decides what's dead; never auto-cremate.
+
+If helper-backed detection returns a candidate with status `Cremated`, present it as already cremated and do not offer it as a selectable item.
 
 Preferred implementation: use helper-backed prompt construction so visible numbering, cremated separation, and accepted reply hints stay in sync.
 

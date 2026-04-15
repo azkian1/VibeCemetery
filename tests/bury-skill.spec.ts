@@ -1,6 +1,8 @@
 import { expect, test } from '@playwright/test'
 import { createHash } from 'node:crypto'
-import { readFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import path from 'node:path'
 
 const helperPath = `${process.cwd().replace(/\\/g, '/')}/SKILL/skills/bury-workflow/scripts/bury-helper.mjs`
 const detectionFixtures = JSON.parse(
@@ -158,6 +160,117 @@ test.describe('bury skill helpers', () => {
     const { classifyProjectRootEntries } = await loadHelper()
 
     expect(classifyProjectRootEntries(detectionFixtures[3].entries)).toMatchObject(detectionFixtures[3].expected)
+  })
+
+  test('prefers the scan path itself when it already looks like a project', async () => {
+    const { selectProjectCandidates } = await loadHelper()
+
+    expect(selectProjectCandidates({
+      scanPath: 'C:/Users/example/Desktop/March/DemoGame',
+      scanPathEntries: detectionFixtures[1].entries,
+      childDirectories: [
+        {
+          path: 'C:/Users/example/Desktop/March/DemoGame/child-one',
+          entries: detectionFixtures[0].entries,
+        },
+      ],
+    })).toEqual([
+      {
+        path: 'C:/Users/example/Desktop/March/DemoGame',
+        classification: expect.objectContaining({
+          isCandidate: true,
+          source: 'fallback',
+        }),
+      },
+    ])
+  })
+
+  test('falls back to immediate child directories when the scan path is not a project', async () => {
+    const { selectProjectCandidates } = await loadHelper()
+
+    expect(selectProjectCandidates({
+      scanPath: 'C:/Users/example/Desktop/March',
+      scanPathEntries: detectionFixtures[2].entries,
+      childDirectories: [
+        {
+          path: 'C:/Users/example/Desktop/March/DemoGame',
+          entries: detectionFixtures[1].entries,
+        },
+        {
+          path: 'C:/Users/example/Desktop/March/Notes',
+          entries: detectionFixtures[2].entries,
+        },
+      ],
+    })).toEqual([
+      {
+        path: 'C:/Users/example/Desktop/March/DemoGame',
+        classification: expect.objectContaining({
+          isCandidate: true,
+          source: 'fallback',
+        }),
+      },
+    ])
+  })
+
+  test('detects a direct-path project from the filesystem and marks it cremated by path fingerprint', async () => {
+    const { computePathFingerprint, detectProjectCandidates } = await loadHelper()
+    const fixtureRoot = mkdtempSync(path.join(tmpdir(), 'bury-direct-root-'))
+
+    try {
+      writeFileSync(path.join(fixtureRoot, 'index.html'), '<html></html>')
+      mkdirSync(path.join(fixtureRoot, 'ignored-child'))
+      writeFileSync(path.join(fixtureRoot, 'ignored-child', 'package.json'), '{"name":"ignored-child"}')
+
+      expect(detectProjectCandidates(fixtureRoot, {
+        registryEntries: [{
+          name: path.basename(fixtureRoot),
+          path_fingerprint: computePathFingerprint(fixtureRoot),
+          git_remote: '',
+          first_commit: '',
+          cremated_at: '2026-04-15',
+          cause: 'Already cremated',
+        }],
+      })).toEqual([
+        expect.objectContaining({
+          path: fixtureRoot,
+          name: path.basename(fixtureRoot),
+          status: 'Cremated',
+          path_fingerprint: computePathFingerprint(fixtureRoot),
+          classification: expect.objectContaining({
+            isCandidate: true,
+            source: 'fallback',
+          }),
+        }),
+      ])
+    } finally {
+      rmSync(fixtureRoot, { recursive: true, force: true })
+    }
+  })
+
+  test('detects immediate child projects from the filesystem when the scan path root is not a project', async () => {
+    const { detectProjectCandidates } = await loadHelper()
+    const fixtureRoot = mkdtempSync(path.join(tmpdir(), 'bury-child-scan-'))
+
+    try {
+      writeFileSync(path.join(fixtureRoot, 'README.md'), 'notes only')
+      writeFileSync(path.join(fixtureRoot, 'notes.txt'), 'still not a project')
+      mkdirSync(path.join(fixtureRoot, 'DemoGame'))
+      writeFileSync(path.join(fixtureRoot, 'DemoGame', 'index.html'), '<html></html>')
+
+      expect(detectProjectCandidates(fixtureRoot)).toEqual([
+        expect.objectContaining({
+          path: path.join(fixtureRoot, 'DemoGame'),
+          name: 'DemoGame',
+          status: 'Untracked',
+          classification: expect.objectContaining({
+            isCandidate: true,
+            source: 'fallback',
+          }),
+        }),
+      ])
+    } finally {
+      rmSync(fixtureRoot, { recursive: true, force: true })
+    }
   })
 
   test('matches markers and boosters case-insensitively on local filesystems', async () => {
