@@ -95,8 +95,6 @@ vibecemetery/
 │       └── crypt/              — KR Burial Grounds
 ├── docs/
 │   ├── CLAUDE.md               — project overview (this file)
-│   ├── mobile.md               — mobile behavior and testing notes
-│   ├── patch.md                — recent implementation notes / patch log
 │   ├── cli-auth-v1.sql         — Supabase schema for CLI auth tables
 │   └── GitUpstSupaVer.md       — operational notes for rotating secrets and adding Upstash/Vercel env
 ```
@@ -174,11 +172,11 @@ UPSTASH_REDIS_REST_TOKEN  — optional; enables shared rate limiting across inst
 - Phase 4.4 (Audits) — DONE (security audit, rate-limit.ts, security headers + CSP in next.config)
 - Phase 4.5 (Burial ceremony animation) — DONE (camera fly, dirt burst, grave reveal, R.I.P. glow, zoom out)
 - **Phase 5 (Skill / CLI cremation) — DONE for V1** (browser approval flow, server-issued CLI token, revoke UI/API, no body-auth for CLI, production origin configurable via `NEXT_PUBLIC_SITE_URL`)
-- Security checklist status: `docs/securitychecklist.md` completed and removed; implementation details live in this file, `README.md`, `docs/cli-auth-v1.sql`, and `docs/patch.md`
-- **Phase 5.5 (Mobile polish) — DONE** (all 13 tasks from `docs/mobile.md` complete — see Mobile section below)
+- Security checklist status: `docs/securitychecklist.md` completed and removed; implementation details live in this file, `README.md`, and `docs/cli-auth-v1.sql`
+- **Phase 5.5 (Mobile polish) — DONE**
 - Phase 5.6 (Pre-launch hardening) — IN PROGRESS (`POST /api/graves` retry tightened, `GameContext.user` wired to session, shared site URL config added, CLI claim-token flow shipped, shared rate-limit backend prepared for Upstash)
 - Phase 6 (Expanded NPC / agent layer) — TODO — post-launch scope
-- Active reference docs in this repo: `README.md`, `docs/patch.md`, `docs/mobile.md`, `docs/cli-auth-v1.sql`, `docs/GitUpstSupaVer.md`
+- Active reference docs in this repo: `README.md`, `docs/cli-auth-v1.sql`, `docs/GitUpstSupaVer.md`
 
 ## Mobile (read-only showcase)
 - **Detection:** `useIsMobile()` hook (`max-width: 640px` via matchMedia). Phaser uses `this.scale.width < 640` / `this.isMobile`

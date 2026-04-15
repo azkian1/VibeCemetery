@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test';
 /**
  * VibeCemetery Mobile Audit Tests
  *
- * Tests verify the CURRENT state of the app against the mobile.md checklist.
+ * Tests verify the current mobile read-only behavior and viewport constraints.
  */
 
 async function waitForApp(page: import('@playwright/test').Page) {

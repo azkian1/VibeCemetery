@@ -59,6 +59,8 @@ test-ui.py
 debug-dev.log
 debug-dev.err.log
 test-results/
+tome.md
+.opencode/
 
 # Internal docs (strategy, agent prompts, archives, map design)
 /docs/PRDv3.md
@@ -83,3 +85,4 @@ postcss.config.mjs
 
 # Local settings
 .claude/settings.local.json
+SKILL/settings.local.json
