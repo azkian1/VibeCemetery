@@ -18,10 +18,10 @@ export default function SkillModal() {
 
   const command = [
     '1. Copy SKILL/commands/bury.md from this repo',
-    '2. Copy SKILL/commands/bury/ from this repo',
-    '3. Install them into your Claude commands directory as:',
-    '   Windows: %USERPROFILE%\\.claude\\commands\\bury.md and %USERPROFILE%\\.claude\\commands\\bury\\',
-    '   macOS/Linux: ~/.claude/commands/bury.md and ~/.claude/commands/bury/',
+    '2. Copy SKILL/skills/bury-workflow/ from this repo',
+    '3. Install them into your Claude commands and skills directories as:',
+    '   Windows: %USERPROFILE%\\.claude\\commands\\bury.md and %USERPROFILE%\\.claude\\skills\\bury-workflow\\',
+    '   macOS/Linux: ~/.claude/commands/bury.md and ~/.claude/skills/bury-workflow/',
     '4. Restart Claude, then run /bury',
   ].join('\n');
 
@@ -64,7 +64,7 @@ export default function SkillModal() {
                     whiteSpace: 'pre-line',
                   }}
                 >
-                  <span>Copy `SKILL/commands/bury.md` and `SKILL/commands/bury/` into your Claude commands directory</span>
+                  <span>Copy `SKILL/commands/bury.md` and `SKILL/skills/bury-workflow/` into your Claude command and skills directories</span>
                 </code>
                 <StoneButton onClick={handleCopy}>
                   {copied ? 'Copied!' : 'Copy Setup'}

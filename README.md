@@ -84,10 +84,10 @@ Every user starts with **1 grave slot** on the map. Cremate projects to earn **S
 Manual setup for [Claude Code](https://docs.anthropic.com/en/docs/claude-code):
 
 1. Copy `SKILL/commands/bury.md` from this repo into your personal Claude commands directory.
-2. Copy the entire `SKILL/commands/bury/` directory from this repo alongside that command file.
-3. Use `~/.claude/commands/bury.md` and `~/.claude/commands/bury/` on macOS/Linux, or `%USERPROFILE%\.claude\commands\bury.md` and `%USERPROFILE%\.claude\commands\bury\` on Windows.
+2. Copy the entire `SKILL/skills/bury-workflow/` directory from this repo into your personal Claude skills directory.
+3. Use `~/.claude/commands/bury.md` and `~/.claude/skills/bury-workflow/` on macOS/Linux, or `%USERPROFILE%\.claude\commands\bury.md` and `%USERPROFILE%\.claude\skills\bury-workflow\` on Windows.
 4. Restart Claude Code, then run `/bury`.
-5. On updates, replace both the command file and the `bury/` support directory with the newer versions from `SKILL/commands/` in this repo.
+5. On updates, replace both the command file and the `bury-workflow/` skill directory with the newer versions from `SKILL/` in this repo.
 
 Runtime note: the command must resolve support files from the installed command directory, not from the repo being scanned.
 

@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test'
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 
-const helperPath = `${process.cwd().replace(/\\/g, '/')}/SKILL/commands/bury/bury-helper.mjs`
+const helperPath = `${process.cwd().replace(/\\/g, '/')}/SKILL/skills/bury-workflow/scripts/bury-helper.mjs`
 const detectionFixtures = JSON.parse(
   readFileSync(`${process.cwd()}/tests/fixtures/bury-detection-fixtures.json`, 'utf8'),
 )
@@ -193,12 +193,12 @@ test.describe('bury skill helpers', () => {
       { name: 'Transcript', status: 'Untracked' },
     ])
 
-    expect(model.selectableRows.map((row) => ({ index: row.index, name: row.name }))).toEqual([
+    expect(model.selectableRows.map((row: { index: number; name: string }) => ({ index: row.index, name: row.name }))).toEqual([
       { index: 1, name: '18scenario_generator' },
       { index: 2, name: 'Puzzle' },
       { index: 3, name: 'Transcript' },
     ])
-    expect(model.crematedRows.map((row) => row.name)).toEqual(['DemoMini', 'DemoBot'])
+    expect(model.crematedRows.map((row: { name: string }) => row.name)).toEqual(['DemoMini', 'DemoBot'])
     expect(model.acceptedReplies).toEqual(['1,2,3', 'all dead'])
   })
 
