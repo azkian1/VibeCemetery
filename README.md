@@ -10,7 +10,7 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-blue.svg)](https://www.typescriptlang.org)
 [![Phaser](https://img.shields.io/badge/Phaser-3-orange.svg)](https://phaser.io)
 
-[Live Site](https://vibecemetery.com) · [Install Skill](#skill-cli) · [Contributing](#contributing)
+[Live Site](https://vibecemetery.app) · [Install /bury](#command-cli) · [Contributing](#contributing)
 
 <img src="screenshots/Screen.png" alt="VibeCemetery — pixel art cemetery for dead projects" width="800" />
 
@@ -93,7 +93,7 @@ Runtime note: the command must resolve support files from the installed command 
 
 `/bury` is the only official user-facing entrypoint. It turns your AI agent into a **Gravedigger** and runs the full command pipeline from `bury.md`. It scans your local project folders, finds the dead ones, and cremates them via the API. It never scans your GitHub account and it does not create map graves directly. First run opens browser approval once, then the CLI stores a server-issued token locally for silent future use.
 
-Current status: the shipped command is wired for local development and targets `http://localhost:3000` until the public site contract is finalized.
+Current status: the public site contract is live on `https://vibecemetery.app`. The shipped `/bury` command targets the production domain for browser approval and API requests.
 
 **What it does:**
 - Scans subdirectories for dead projects (no commits 14+ days)
@@ -156,7 +156,7 @@ Required environment variables:
 ```
 NEXT_PUBLIC_SUPABASE_URL      — Supabase project URL
 NEXT_PUBLIC_SUPABASE_ANON_KEY — Supabase anon/public key
-NEXT_PUBLIC_SITE_URL          — canonical site origin (e.g. https://vibecemetery.com)
+NEXT_PUBLIC_SITE_URL          — canonical site origin (e.g. https://vibecemetery.app)
 SUPABASE_SERVICE_KEY          — Supabase service role key
 GITHUB_CLIENT_ID              — GitHub OAuth app client ID
 GITHUB_CLIENT_SECRET          — GitHub OAuth app client secret

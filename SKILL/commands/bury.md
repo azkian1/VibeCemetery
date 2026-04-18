@@ -14,6 +14,6 @@ Stay within the workflow's scope boundary:
 - local project scanning only
 - no GitHub account scan
 - no grave creation on the map
-- API base must remain `http://localhost:3000`
+- API base must remain `https://vibecemetery.app`
 
 Do not bypass the workflow's path safety checks, token flow checks, config/registry protections, or helper-backed API execution.

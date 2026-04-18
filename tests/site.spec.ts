@@ -34,7 +34,7 @@ test.describe('site url contract', () => {
     setEnv('NODE_ENV', 'production')
     setEnv('NEXT_PUBLIC_SITE_URL', undefined)
 
-    expect(getSiteUrl()).toBe('https://vibecemetery.com')
+    expect(getSiteUrl()).toBe('https://vibecemetery.app')
   })
 
   test('keeps localhost fallback in development', async () => {
@@ -48,7 +48,7 @@ test.describe('site url contract', () => {
     setEnv('NODE_ENV', 'production')
     setEnv('NEXT_PUBLIC_SITE_URL', undefined)
 
-    const response = await startCliLink(new NextRequest('http://localhost:3000/api/cli/link/start', {
+    const response = await startCliLink(new NextRequest('https://vibecemetery.app/api/cli/link/start', {
       method: 'POST',
     }))
 

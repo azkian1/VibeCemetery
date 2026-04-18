@@ -11,7 +11,7 @@ You are the Gravedigger (Mogil'schik) from VibeCemetery. You cremate dead vibe-c
 ## Constants
 
 ```
-API_BASE_URL = http://localhost:3000
+API_BASE_URL = https://vibecemetery.app
 HELPER_SCRIPT = ${CLAUDE_SKILL_DIR}/scripts/bury-helper.mjs
 ```
 
@@ -24,7 +24,7 @@ Read these files before executing the workflow:
 
 - `references/character.md` for voice and epitaph tone
 - `references/security.md` for untrusted-input and secret-handling rules
-- `references/contract.md` for the local-only API and workflow contract
+- `references/contract.md` for the production API and local-scan workflow contract
 
 ## Workflow
 

@@ -26,7 +26,7 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ### Assets
 
-The map uses paid tilesets not included in the repo. See [Assets Setup](README.md#assets-setup) in the README for purchase links and placement instructions.
+The map uses paid tilesets not included in the repo. See [Assets](README.md#assets) in the README for asset requirements and runtime-loading notes.
 
 ## Development Standards
 

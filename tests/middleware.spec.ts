@@ -14,19 +14,19 @@ test.afterEach(() => {
 
 test.describe('api proxy', () => {
   test('accepts preflight requests from canonical site origin', async () => {
-    process.env.NEXTAUTH_URL = 'http://localhost:3000'
-    process.env.NEXT_PUBLIC_SITE_URL = 'https://vibecemetery.com'
+    process.env.NEXTAUTH_URL = 'https://vibecemetery.app'
+    process.env.NEXT_PUBLIC_SITE_URL = 'https://vibecemetery.app'
 
-    const request = new NextRequest('http://localhost:3000/api/cli/link/status?link_id=test', {
+    const request = new NextRequest('https://vibecemetery.app/api/cli/link/status?link_id=test', {
       method: 'OPTIONS',
       headers: {
-        origin: 'https://vibecemetery.com',
+        origin: 'https://vibecemetery.app',
       },
     })
 
     const response = await proxy(request)
 
     expect(response.status).toBe(204)
-    expect(response.headers.get('Access-Control-Allow-Origin')).toBe('https://vibecemetery.com')
+    expect(response.headers.get('Access-Control-Allow-Origin')).toBe('https://vibecemetery.app')
   })
 })

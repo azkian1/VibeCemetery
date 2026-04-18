@@ -95,8 +95,7 @@ vibecemetery/
 │       └── crypt/              — KR Burial Grounds
 ├── docs/
 │   ├── CLAUDE.md               — project overview (this file)
-│   ├── cli-auth-v1.sql         — Supabase schema for CLI auth tables
-│   └── GitUpstSupaVer.md       — operational notes for rotating secrets and adding Upstash/Vercel env
+│   └── cli-auth-v1.sql         — Supabase schema for CLI auth tables
 ```
 
 ## Database Tables
@@ -172,11 +171,11 @@ UPSTASH_REDIS_REST_TOKEN  — optional; enables shared rate limiting across inst
 - Phase 4.4 (Audits) — DONE (security audit, rate-limit.ts, security headers + CSP in next.config)
 - Phase 4.5 (Burial ceremony animation) — DONE (camera fly, dirt burst, grave reveal, R.I.P. glow, zoom out)
 - **Phase 5 (Skill / CLI cremation) — DONE for V1** (browser approval flow, server-issued CLI token, revoke UI/API, no body-auth for CLI, production origin configurable via `NEXT_PUBLIC_SITE_URL`)
-- Security checklist status: `docs/securitychecklist.md` completed and removed; implementation details live in this file, `README.md`, and `docs/cli-auth-v1.sql`
+- Security implementation details live in this file, `README.md`, and `docs/cli-auth-v1.sql`
 - **Phase 5.5 (Mobile polish) — DONE**
 - Phase 5.6 (Pre-launch hardening) — IN PROGRESS (`POST /api/graves` retry tightened, `GameContext.user` wired to session, shared site URL config added, CLI claim-token flow shipped, shared rate-limit backend prepared for Upstash)
 - Phase 6 (Expanded NPC / agent layer) — TODO — post-launch scope
-- Active reference docs in this repo: `README.md`, `docs/cli-auth-v1.sql`, `docs/GitUpstSupaVer.md`
+- Active reference docs in this repo: `README.md`, `docs/cli-auth-v1.sql`
 
 ## Mobile (read-only showcase)
 - **Detection:** `useIsMobile()` hook (`max-width: 640px` via matchMedia). Phaser uses `this.scale.width < 640` / `this.isMobile`
@@ -192,14 +191,14 @@ UPSTASH_REDIS_REST_TOKEN  — optional; enables shared rate limiting across inst
 ## Security Headers (next.config.ts)
 - X-Content-Type-Options, X-Frame-Options, HSTS, Referrer-Policy, Permissions-Policy — all set
 - **CSP (Content-Security-Policy)** — configured in `next.config.ts`, works automatically on Vercel and `next start`
-- **IMPORTANT:** when adding a new external resource (CDN, analytics, new API) — update the corresponding CSP directive in `next.config.ts`, otherwise the browser will block loading
+- **IMPORTANT:** when adding a new external resource (CDN, analytics, new API), update the relevant CSP directive in `next.config.ts`, otherwise the browser will block it
 - Currently allowed domains: `fonts.googleapis.com`, `fonts.gstatic.com`, `avatars.githubusercontent.com`, `*.supabase.co`
-- Server-side fetch (API routes → `api.github.com`) is not covered by CSP — this applies only to the browser
+- Server-side fetches (API routes -> `api.github.com`) are not covered by CSP - it only applies in the browser
 
 ## CLI Command — /bury (Mogil'schik)
 - Entry point and source of truth: `SKILL/commands/bury.md`
 - Workflow support files: `SKILL/skills/bury-workflow/` (`references/*`, `scripts/bury-helper.mjs`). Local registry now lives outside the repo alongside CLI config.
-- Current deployment contract: local-only during development, so `/bury` targets `http://localhost:3000` for now.
+- Current deployment contract: production domain is live on `https://vibecemetery.app`, so `/bury` should target the canonical site for browser approval and API requests.
 - `/bury` is the only official user-facing entrypoint. The command file lives in `SKILL/commands/bury.md`, and its workflow support files live in `SKILL/skills/bury-workflow/`.
 - Scope boundary: `/bury` is local cremation only. It may inspect local git metadata, but it does not use GitHub scan endpoints and it never creates graves on the map.
 - Auth: first run opens `/cli/connect` in the browser, user approves once, CLI stores server-issued token locally and sends `Authorization: Bearer <cli_token>` on future runs

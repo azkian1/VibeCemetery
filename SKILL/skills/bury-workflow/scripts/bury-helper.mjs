@@ -4,7 +4,7 @@ import path from 'node:path'
 import crypto from 'node:crypto'
 import { fileURLToPath } from 'node:url'
 
-export const API_BASE_URL = 'http://localhost:3000'
+export const API_BASE_URL = 'https://vibecemetery.app'
 
 export const STRONG_MARKER_FILES = [
   'package.json',

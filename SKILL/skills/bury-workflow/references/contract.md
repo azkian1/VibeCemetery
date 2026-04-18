@@ -2,7 +2,7 @@
 
 Current contract notes:
 
-- `API_BASE_URL` must remain `http://localhost:3000` until the site domain is finalized.
+- `API_BASE_URL` must remain `https://vibecemetery.app` because the production site domain is finalized and live.
 - `/bury` is the only official user-facing entrypoint. This workflow exists only to execute the command pipeline behind it.
 - `/bury` only handles local cremations. GitHub account scanning and grave placement belong to the browser site flow, not this workflow.
 - If the provided scan path itself looks like a project, `/bury` should treat it as a single project candidate. Otherwise it should scan only immediate child directories.

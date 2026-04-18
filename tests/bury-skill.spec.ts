@@ -49,11 +49,11 @@ test.describe('bury skill helpers', () => {
     })
   })
 
-  test('validates localhost approval urls against claim proof and link id', async () => {
+  test('validates production approval urls against claim proof and link id', async () => {
     const { validateApproveUrl } = await loadHelper()
     const valid = validateApproveUrl({
-      approveUrl: 'http://localhost:3000/cli/connect?link_id=11111111-1111-4111-8111-111111111111#claim_token=claim-proof-token-1234567890',
-      apiBaseUrl: 'http://localhost:3000',
+      approveUrl: 'https://vibecemetery.app/cli/connect?link_id=11111111-1111-4111-8111-111111111111#claim_token=claim-proof-token-1234567890',
+      apiBaseUrl: 'https://vibecemetery.app',
       linkId: '11111111-1111-4111-8111-111111111111',
       claimToken: 'claim-proof-token-1234567890',
     })
@@ -61,8 +61,8 @@ test.describe('bury skill helpers', () => {
     expect(valid.ok).toBe(true)
 
     const invalid = validateApproveUrl({
-      approveUrl: 'https://vibecemetery.com/cli/connect?link_id=11111111-1111-4111-8111-111111111111#claim_token=claim-proof-token-1234567890',
-      apiBaseUrl: 'http://localhost:3000',
+      approveUrl: 'http://localhost:3000/cli/connect?link_id=11111111-1111-4111-8111-111111111111#claim_token=claim-proof-token-1234567890',
+      apiBaseUrl: 'https://vibecemetery.app',
       linkId: '11111111-1111-4111-8111-111111111111',
       claimToken: 'claim-proof-token-1234567890',
     })

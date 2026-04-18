@@ -1,4 +1,4 @@
-const PROD_FALLBACK_SITE_URL = 'https://vibecemetery.com'
+const PROD_FALLBACK_SITE_URL = 'https://vibecemetery.app'
 const DEV_FALLBACK_SITE_URL = 'http://localhost:3000'
 
 export function getSiteUrl(): string {
