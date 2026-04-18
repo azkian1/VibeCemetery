@@ -69,6 +69,26 @@ export default function PhaserCanvas() {
   }, [dispatch]);
 
   useEffect(() => {
+    cemeteryEvents.on('grave_click', handleGraveClick);
+    cemeteryEvents.on('building_click', handleBuildingClick);
+    cemeteryEvents.on('slots_ready', handleSlotsReady);
+    cemeteryEvents.on('scene_ready', handleSceneReady);
+    cemeteryEvents.on('load_error', handleLoadError);
+    cemeteryEvents.on('burial_ceremony', handleBurialCeremony);
+    cemeteryEvents.on('burial_ceremony_done', handleBurialCeremonyDone);
+
+    return () => {
+      cemeteryEvents.off('grave_click', handleGraveClick);
+      cemeteryEvents.off('building_click', handleBuildingClick);
+      cemeteryEvents.off('slots_ready', handleSlotsReady);
+      cemeteryEvents.off('scene_ready', handleSceneReady);
+      cemeteryEvents.off('load_error', handleLoadError);
+      cemeteryEvents.off('burial_ceremony', handleBurialCeremony);
+      cemeteryEvents.off('burial_ceremony_done', handleBurialCeremonyDone);
+    };
+  }, [handleGraveClick, handleBuildingClick, handleSlotsReady, handleSceneReady, handleLoadError, handleBurialCeremony, handleBurialCeremonyDone]);
+
+  useEffect(() => {
     if (!containerRef.current || gameRef.current) return;
 
     let cancelled = false;
@@ -91,26 +111,6 @@ export default function PhaserCanvas() {
       }
     };
   }, []);
-
-  useEffect(() => {
-    cemeteryEvents.on('grave_click', handleGraveClick);
-    cemeteryEvents.on('building_click', handleBuildingClick);
-    cemeteryEvents.on('slots_ready', handleSlotsReady);
-    cemeteryEvents.on('scene_ready', handleSceneReady);
-    cemeteryEvents.on('load_error', handleLoadError);
-    cemeteryEvents.on('burial_ceremony', handleBurialCeremony);
-    cemeteryEvents.on('burial_ceremony_done', handleBurialCeremonyDone);
-
-    return () => {
-      cemeteryEvents.off('grave_click', handleGraveClick);
-      cemeteryEvents.off('building_click', handleBuildingClick);
-      cemeteryEvents.off('slots_ready', handleSlotsReady);
-      cemeteryEvents.off('scene_ready', handleSceneReady);
-      cemeteryEvents.off('load_error', handleLoadError);
-      cemeteryEvents.off('burial_ceremony', handleBurialCeremony);
-      cemeteryEvents.off('burial_ceremony_done', handleBurialCeremonyDone);
-    };
-  }, [handleGraveClick, handleBuildingClick, handleSlotsReady, handleSceneReady, handleLoadError, handleBurialCeremony, handleBurialCeremonyDone]);
 
   // Sync React graves → Phaser tilemap
   useEffect(() => {

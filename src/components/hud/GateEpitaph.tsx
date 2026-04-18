@@ -21,14 +21,14 @@ export default function GateEpitaph() {
       setTimeout(() => dismiss(), 1600);
     };
 
-    cemeteryEvents.on('scene_ready', onReady);
-    return () => cemeteryEvents.off('scene_ready', onReady);
-  }, [dismiss]);
+    const onLoadError = () => dismiss();
 
-  // Fallback: if scene never fires ready (e.g. asset error), fade out after 6s
-  useEffect(() => {
-    const fallback = setTimeout(() => dismiss(), 6000);
-    return () => clearTimeout(fallback);
+    cemeteryEvents.on('scene_ready', onReady);
+    cemeteryEvents.on('load_error', onLoadError);
+    return () => {
+      cemeteryEvents.off('scene_ready', onReady);
+      cemeteryEvents.off('load_error', onLoadError);
+    };
   }, [dismiss]);
 
   // Dismiss on any user interaction (click, tap, key)
@@ -46,6 +46,7 @@ export default function GateEpitaph() {
 
   return (
     <div
+      data-testid="gate-epitaph"
       style={{
         position: 'absolute',
         inset: 0,
