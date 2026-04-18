@@ -1,5 +1,4 @@
 import * as Phaser from 'phaser';
-import { clampCameraCenter, clampCameraScroll, getCameraMetrics, WORLD_SIZE } from '../utils/camera';
 import { parseSlots, SlotData } from '../utils/slotManager';
 import { pickTileVariant, renderGrave } from '../utils/tileRegistry';
 import { cemeteryEvents, SlotEventData, RenderGraveData, MinimapClickData } from '../events';
@@ -93,8 +92,6 @@ const TILE_LAYER_NAMES = [
   'Forest1',
 ];
 
-const MAP_SIZE = WORLD_SIZE;
-
 export class CemeteryScene extends Phaser.Scene {
   private map!: Phaser.Tilemaps.Tilemap;
   private slots = new Map<number, SlotData>();
@@ -122,123 +119,9 @@ export class CemeteryScene extends Phaser.Scene {
   private isMobile = false;
   private minZoom = 0;
   private assetLoadError: { assetKey: string; assetUrl: string } | null = null;
-  private snapBackTween: Phaser.Tweens.Tween | null = null;
-  private introZoomTween: Phaser.Tweens.Tween | null = null;
 
   constructor() {
     super({ key: 'CemeteryScene' });
-  }
-
-  private getCameraCenter(cam = this.cameras.main) {
-    return {
-      x: cam.scrollX + cam.width / (cam.zoom * 2),
-      y: cam.scrollY + cam.height / (cam.zoom * 2),
-    };
-  }
-
-  private stopSnapBackTween() {
-    this.snapBackTween?.stop();
-    this.snapBackTween = null;
-  }
-
-  private stopIntroZoom() {
-    this.introZoomTween?.stop();
-    this.introZoomTween = null;
-  }
-
-  private applyResponsiveCamera(center = { x: MAP_SIZE / 2, y: MAP_SIZE / 2 }, preserveZoom = false) {
-    const cam = this.cameras.main;
-    const metrics = getCameraMetrics({
-      viewportWidth: this.scale.width,
-      viewportHeight: this.scale.height,
-      isMobile: this.scale.width < 640,
-    });
-
-    this.isMobile = this.scale.width < 640;
-    this.minZoom = metrics.minZoom;
-    cam.setZoom(preserveZoom ? Phaser.Math.Clamp(cam.zoom, metrics.minZoom, 2.0) : metrics.startZoom);
-
-    const clampedCenter = clampCameraCenter({
-      centerX: center.x,
-      centerY: center.y,
-      zoom: cam.zoom,
-      viewportWidth: cam.width,
-      viewportHeight: cam.height,
-    });
-    cam.centerOn(clampedCenter.x, clampedCenter.y);
-
-    return metrics;
-  }
-
-  private playIntroZoom(targetZoom: number) {
-    const cam = this.cameras.main;
-    const startZoom = cam.zoom;
-    if (targetZoom <= startZoom + 0.001) return;
-
-    this.stopIntroZoom();
-    const center = this.getCameraCenter(cam);
-    const zoomState = { zoom: startZoom };
-    this.introZoomTween = this.tweens.add({
-      targets: zoomState,
-      zoom: targetZoom,
-      duration: 2000,
-      ease: 'Sine.easeInOut',
-      onUpdate: () => {
-        cam.setZoom(zoomState.zoom);
-        const clampedCenter = clampCameraCenter({
-          centerX: center.x,
-          centerY: center.y,
-          zoom: zoomState.zoom,
-          viewportWidth: cam.width,
-          viewportHeight: cam.height,
-        });
-        cam.centerOn(clampedCenter.x, clampedCenter.y);
-      },
-      onComplete: () => {
-        this.introZoomTween = null;
-      },
-    });
-  }
-
-  private clampCameraToBounds(animate = false) {
-    const cam = this.cameras.main;
-    const target = clampCameraScroll({
-      scrollX: cam.scrollX,
-      scrollY: cam.scrollY,
-      zoom: cam.zoom,
-      viewportWidth: cam.width,
-      viewportHeight: cam.height,
-    });
-
-    const moved = Math.abs(cam.scrollX - target.scrollX) > 1 || Math.abs(cam.scrollY - target.scrollY) > 1;
-    if (!moved) {
-      this.stopSnapBackTween();
-      return false;
-    }
-
-    if (!animate) {
-      this.stopSnapBackTween();
-      cam.scrollX = target.scrollX;
-      cam.scrollY = target.scrollY;
-      return true;
-    }
-
-    if (this.snapBackTween) return true;
-
-    this.snapBackTween = this.tweens.add({
-      targets: cam,
-      scrollX: target.scrollX,
-      scrollY: target.scrollY,
-      duration: 300,
-      ease: 'Back.easeOut',
-      onComplete: () => {
-        this.snapBackTween = null;
-      },
-      onStop: () => {
-        this.snapBackTween = null;
-      },
-    });
-    return true;
   }
 
   preload() {
@@ -309,8 +192,15 @@ export class CemeteryScene extends Phaser.Scene {
 
     // Camera setup — smooth intro (no hard bounds, elastic instead)
     const cam = this.cameras.main;
-    const metrics = this.applyResponsiveCamera();
-    this.playIntroZoom(metrics.targetZoom);
+    const isMobile = this.scale.width < 640;
+    this.isMobile = isMobile;
+    cam.centerOn(960, 960);
+    const fitZoom = Math.max(this.scale.width / 1920, this.scale.height / 1920);
+    const minZoom = fitZoom;
+    this.minZoom = minZoom;
+    const startZoom = isMobile ? Math.max(fitZoom, 0.85) : fitZoom;
+    cam.setZoom(startZoom);
+    cam.zoomTo(1.0, 2000, 'Sine.easeInOut');
 
     // Elastic bounds helpers
     const ELASTIC = 0.3; // resistance when dragging past edge
@@ -320,8 +210,8 @@ export class CemeteryScene extends Phaser.Scene {
       return {
         minX: 0,
         minY: 0,
-        maxX: Math.max(0, MAP_SIZE - vw),
-        maxY: Math.max(0, MAP_SIZE - vh),
+        maxX: Math.max(0, 1920 - vw),
+        maxY: Math.max(0, 1920 - vh),
       };
     };
 
@@ -332,7 +222,18 @@ export class CemeteryScene extends Phaser.Scene {
     };
 
     const snapBack = () => {
-      this.clampCameraToBounds(true);
+      const b = getBounds();
+      const targetX = Phaser.Math.Clamp(cam.scrollX, b.minX, b.maxX);
+      const targetY = Phaser.Math.Clamp(cam.scrollY, b.minY, b.maxY);
+      if (Math.abs(cam.scrollX - targetX) > 1 || Math.abs(cam.scrollY - targetY) > 1) {
+        this.tweens.add({
+          targets: cam,
+          scrollX: targetX,
+          scrollY: targetY,
+          duration: 300,
+          ease: 'Back.easeOut',
+        });
+      }
     };
 
     // Drag controls
@@ -341,11 +242,8 @@ export class CemeteryScene extends Phaser.Scene {
       if (this.input.pointer1.isDown && this.input.pointer2.isDown) {
         this.isDragging = false;
         this.prevPinchDist = 0;
-        this.stopIntroZoom();
         return;
       }
-      this.stopIntroZoom();
-      this.stopSnapBackTween();
       this.isDragging = true;
       this.dragDistance = 0;
       this.dragStartX = pointer.x;
@@ -362,11 +260,9 @@ export class CemeteryScene extends Phaser.Scene {
         const p2 = this.input.pointer2;
         const dist = Phaser.Math.Distance.Between(p1.x, p1.y, p2.x, p2.y);
         if (this.prevPinchDist > 0) {
-          this.stopIntroZoom();
           const scale = dist / this.prevPinchDist;
-          const newZoom = Phaser.Math.Clamp(cam.zoom * scale, this.minZoom, 2.0);
+          const newZoom = Phaser.Math.Clamp(cam.zoom * scale, minZoom, 2.0);
           cam.setZoom(newZoom);
-          this.clampCameraToBounds(false);
         }
         this.prevPinchDist = dist;
         return;
@@ -403,13 +299,10 @@ export class CemeteryScene extends Phaser.Scene {
 
     // Zoom controls
     this.input.on('wheel', (_pointer: Phaser.Input.Pointer, _gameObjects: Phaser.GameObjects.GameObject[], _deltaX: number, deltaY: number) => {
-      this.stopIntroZoom();
-      const newZoom = Phaser.Math.Clamp(cam.zoom - deltaY * 0.001, this.minZoom, 2.0);
+      const newZoom = Phaser.Math.Clamp(cam.zoom - deltaY * 0.001, minZoom, 2.0);
       cam.setZoom(newZoom);
       snapBack();
     });
-
-    this.scale.on('resize', this.onResize, this);
 
     // Interactive zones for slots
     this.setupInteractiveZones();
@@ -462,16 +355,6 @@ export class CemeteryScene extends Phaser.Scene {
 
   update() {
     const cam = this.cameras.main;
-    if (
-      !this.ceremonyInProgress &&
-      !this.modalOpen &&
-      !this.isDragging &&
-      !this.input.pointer1.isDown &&
-      !this.input.pointer2.isDown
-    ) {
-      this.clampCameraToBounds(true);
-    }
-
     const sx = cam.scrollX;
     const sy = cam.scrollY;
     const z = cam.zoom;
@@ -917,13 +800,12 @@ export class CemeteryScene extends Phaser.Scene {
     this.renderGraveOnMap(data);
   };
   private onMinimapClick = (data: MinimapClickData) => {
-    this.stopIntroZoom();
     const cam = this.cameras?.main;
     if (!cam) return;
     const vw = cam.width / cam.zoom;
     const vh = cam.height / cam.zoom;
-    const targetX = Phaser.Math.Clamp(data.worldX - vw / 2, 0, Math.max(0, MAP_SIZE - vw));
-    const targetY = Phaser.Math.Clamp(data.worldY - vh / 2, 0, Math.max(0, MAP_SIZE - vh));
+    const targetX = Phaser.Math.Clamp(data.worldX - vw / 2, 0, Math.max(0, 1920 - vw));
+    const targetY = Phaser.Math.Clamp(data.worldY - vh / 2, 0, Math.max(0, 1920 - vh));
     this.tweens.add({
       targets: cam,
       scrollX: targetX,
@@ -1003,27 +885,15 @@ export class CemeteryScene extends Phaser.Scene {
 
 
   private onZoomChange = (data: { delta: number }) => {
-    this.stopIntroZoom();
     const cam = this.cameras.main;
     if (!cam) return;
     const newZoom = Phaser.Math.Clamp(cam.zoom + data.delta, this.minZoom, 2.0);
     cam.setZoom(newZoom);
-    this.clampCameraToBounds(false);
-  };
-
-  private onResize = () => {
-    if (!this.cameras?.main) return;
-
-    const wasIntroActive = !!this.introZoomTween;
-    this.stopIntroZoom();
-    this.stopSnapBackTween();
-    const center = this.getCameraCenter(this.cameras.main);
-    const metrics = this.applyResponsiveCamera(center, true);
-    this.clampCameraToBounds(false);
-
-    if (wasIntroActive && !this.ceremonyInProgress) {
-      this.playIntroZoom(metrics.targetZoom);
-    }
+    // Clamp scroll into valid range after zoom change
+    const vw = cam.width / newZoom;
+    const vh = cam.height / newZoom;
+    cam.scrollX = Phaser.Math.Clamp(cam.scrollX, 0, Math.max(0, 1920 - vw));
+    cam.scrollY = Phaser.Math.Clamp(cam.scrollY, 0, Math.max(0, 1920 - vh));
   };
 
   private onBurialCeremony = (data: { slot_id: number; id: string; name: string }) => {
@@ -1049,34 +919,20 @@ export class CemeteryScene extends Phaser.Scene {
     const cy = slot.y + slot.height / 2;
     const originalZoom = cam.zoom;
     const CEREMONY_ZOOM = 1.5;
-    const clampedCeremonyCenter = clampCameraCenter({
-      centerX: cx,
-      centerY: cy,
-      zoom: CEREMONY_ZOOM,
-      viewportWidth: cam.width,
-      viewportHeight: cam.height,
-    });
 
     // Phase 1: Camera pan + zoom to slot (1200ms)
     // Tween a proxy object, apply centerOn each frame so slot stays centered at any zoom
     const panTarget = { x: cam.midPoint.x, y: cam.midPoint.y, zoom: cam.zoom };
     this.tweens.add({
       targets: panTarget,
-      x: clampedCeremonyCenter.x,
-      y: clampedCeremonyCenter.y,
+      x: cx,
+      y: cy,
       zoom: CEREMONY_ZOOM,
       duration: 1200,
       ease: 'Sine.easeInOut',
       onUpdate: () => {
+        cam.centerOn(panTarget.x, panTarget.y);
         cam.setZoom(panTarget.zoom);
-        const clamped = clampCameraCenter({
-          centerX: panTarget.x,
-          centerY: panTarget.y,
-          zoom: panTarget.zoom,
-          viewportWidth: cam.width,
-          viewportHeight: cam.height,
-        });
-        cam.centerOn(clamped.x, clamped.y);
       },
       onComplete: () => {
         // Phase 2: Dirt burst + shake (1000ms)
@@ -1093,19 +949,12 @@ export class CemeteryScene extends Phaser.Scene {
               const zoomOut = { zoom: cam.zoom };
               this.tweens.add({
                 targets: zoomOut,
-                zoom: originalZoom,
+                zoom: Math.max(originalZoom, 1.0),
                 duration: 800,
                 ease: 'Sine.easeInOut',
                 onUpdate: () => {
                   cam.setZoom(zoomOut.zoom);
-                  const clamped = clampCameraCenter({
-                    centerX: cx,
-                    centerY: cy,
-                    zoom: zoomOut.zoom,
-                    viewportWidth: cam.width,
-                    viewportHeight: cam.height,
-                  });
-                  cam.centerOn(clamped.x, clamped.y);
+                  cam.centerOn(cx, cy);
                 },
                 onComplete: () => {
                   this.ceremonyInProgress = false;
@@ -1308,13 +1157,12 @@ export class CemeteryScene extends Phaser.Scene {
 
     // Clamp center so viewport stays within 0–1920 map bounds
     const clampCenter = (targetX: number, targetY: number, z: number) => {
-      return clampCameraCenter({
-        centerX: targetX,
-        centerY: targetY,
-        zoom: z,
-        viewportWidth: cam.width,
-        viewportHeight: cam.height,
-      });
+      const halfW = cam.width / (z * 2);
+      const halfH = cam.height / (z * 2);
+      return {
+        x: Phaser.Math.Clamp(targetX, halfW, 1920 - halfW),
+        y: Phaser.Math.Clamp(targetY, halfH, 1920 - halfH),
+      };
     };
 
     // Phase 1: Camera pan to crematory (1000ms)
@@ -1439,7 +1287,7 @@ export class CemeteryScene extends Phaser.Scene {
           smoke.destroy();
 
           const zoomOut = { zoom: cam.zoom };
-          const targetZoom = originalZoom;
+          const targetZoom = Math.max(originalZoom, 1.0);
           this.tweens.add({
             targets: zoomOut,
             zoom: targetZoom,
@@ -1469,7 +1317,6 @@ export class CemeteryScene extends Phaser.Scene {
     cemeteryEvents.off('modal_state', this.onModalState);
     cemeteryEvents.off('burial_ceremony', this.onBurialCeremony);
     cemeteryEvents.off('zoom_change', this.onZoomChange);
-    this.scale.off('resize', this.onResize, this);
     this.pendingCeremony = null;
     this.buryModalOpen = false;
     // Destroy any ceremony game objects left mid-animation
@@ -1498,8 +1345,6 @@ export class CemeteryScene extends Phaser.Scene {
     }
 
     // Stop all tweens (day/night, lamp pulses, camera snaps)
-    this.stopIntroZoom();
-    this.stopSnapBackTween();
     this.tweens.killAll();
 
     // Phaser input listeners (pointerdown, pointermove, pointerup, wheel)
