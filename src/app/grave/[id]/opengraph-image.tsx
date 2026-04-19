@@ -94,7 +94,54 @@ export default async function OpenGraphImage({
           background: 'linear-gradient(180deg, rgba(19,17,15,0.9) 0%, rgba(10,9,8,0.97) 100%)',
           padding: '34px 36px',
           gap: '34px',
+          position: 'relative',
         }}>
+          <div style={{
+            position: 'absolute',
+            inset: '12px',
+            border: '1px solid rgba(200,160,80,0.12)',
+            pointerEvents: 'none',
+          }} />
+          <div style={{
+            position: 'absolute',
+            top: '18px',
+            left: '18px',
+            width: '54px',
+            height: '54px',
+            borderTop: '1px solid rgba(200,160,80,0.18)',
+            borderLeft: '1px solid rgba(200,160,80,0.18)',
+            pointerEvents: 'none',
+          }} />
+          <div style={{
+            position: 'absolute',
+            top: '18px',
+            right: '18px',
+            width: '54px',
+            height: '54px',
+            borderTop: '1px solid rgba(200,160,80,0.18)',
+            borderRight: '1px solid rgba(200,160,80,0.18)',
+            pointerEvents: 'none',
+          }} />
+          <div style={{
+            position: 'absolute',
+            bottom: '18px',
+            left: '18px',
+            width: '54px',
+            height: '54px',
+            borderBottom: '1px solid rgba(200,160,80,0.18)',
+            borderLeft: '1px solid rgba(200,160,80,0.18)',
+            pointerEvents: 'none',
+          }} />
+          <div style={{
+            position: 'absolute',
+            bottom: '18px',
+            right: '18px',
+            width: '54px',
+            height: '54px',
+            borderBottom: '1px solid rgba(200,160,80,0.18)',
+            borderRight: '1px solid rgba(200,160,80,0.18)',
+            pointerEvents: 'none',
+          }} />
           <div style={{
             width: '430px',
             height: '100%',
