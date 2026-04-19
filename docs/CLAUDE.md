@@ -1,211 +1,255 @@
-# CLAUDE.md — VibeCemetery
+# CLAUDE.md - VibeCemetery Reference
+
+This file is the detailed project reference. The actual Claude Code entrypoint should live at the repo root in `CLAUDE.md`.
 
 ## Project Overview
-VibeCemetery — interactive pixel-art cemetery for dead vibe-coded projects. Users bury their abandoned GitHub repositories on a hand-crafted Tiled map.
+VibeCemetery is a Next.js + Phaser web app where users bury abandoned GitHub repositories on a hand-crafted pixel-art cemetery map or cremate local projects through the `/bury` CLI workflow.
 
 ## Tech Stack
-- **Framework:** Next.js (App Router, TypeScript)
-- **Game engine:** Phaser 3 (pixelArt, no audio)
-- **Font:** Cinzel (Google Fonts) — loaded via next/font + direct link for Phaser canvas
-- **Database:** Supabase (PostgreSQL)
-- **Auth:** NextAuth.js + GitHub OAuth
-- **Deploy:** Vercel
-- **Source dir:** `src/`
+- Framework: Next.js 16 (App Router, TypeScript, React 19)
+- Game layer: Phaser 3
+- Database: Supabase Postgres
+- Auth: NextAuth.js with GitHub OAuth
+- Styling: mostly inline styles plus `src/app/globals.css`
+- Fonts: Cinzel via `next/font` and Google Fonts access for Phaser text rendering
+- Deployment: Vercel
 
-## Project Structure
-```
+## Runbook
+- Install: `npm install`
+- Dev server: `npm run dev`
+- Production build: `npm run build`
+- Start production build: `npm run start`
+- Lint: `npm run lint`
+- Targeted Playwright suite for `/bury`: `npm run test:bury-skill`
+
+## Repository Structure
+```text
 vibecemetery/
-├── src/
-│   ├── app/                — pages + API routes (App Router)
-│   │   ├── layout.tsx      — Cinzel font setup (next/font + Google Fonts link)
-│   │   ├── page.tsx        — main SPA page (SessionProvider, GameProvider, deep links)
-│   │   ├── grave/[id]/page.tsx  — deep link page for graves (?grave=uuid)
-│   │   ├── urn/[id]/page.tsx    — deep link page for urns (?urn=id)
-│   │   └── api/            — API routes (see API Routes section)
-│   ├── components/
-│   │   ├── PhaserCanvas.tsx — Phaser wrapper (dynamic import, ssr: false)
-│   │   ├── HoverTooltip.tsx — hover tooltip over graves
-│   │   ├── hud/            — HUD components
-│   │   │   ├── TopBar.tsx       — top bar (burger, Necropolis, DayCycleIcon, @Mogilschik, AuthButton)
-│   │   │   ├── CTAButtons.tsx   — BURY + SKILL buttons (bottom-right)
-│   │   │   ├── ChatLog.tsx      — Lineage 2 style chat log (bottom-left)
-│   │   │   ├── AuthButton.tsx   — Login/Profile button
-│   │   │   ├── DayCycleIcon.tsx — day/night medallion (sun/moon with fade transition)
-│   │   │   ├── Minimap.tsx      — canvas minimap with click-to-teleport
-│   │   │   ├── ZoomButtons.tsx  — mobile-only +/− zoom buttons (bottom-right, emits zoom_change)
-│   │   │   └── BurgerMenu.tsx   — menu panel (FAQ, About, GitHub link)
-│   │   ├── modals/         — modal dialogs
-│   │   │   ├── ModalOverlay.tsx
-│   │   │   ├── GraveModal.tsx     — grave details, F votes, share
-│   │   │   ├── UrnModal.tsx       — cremated item details, last words, share
-│   │   │   ├── ProfileModal.tsx   — user profile, Souls progress, slot thresholds, project list (no CLI token management UI)
-│   │   │   ├── CrematoryModal.tsx — 2-tab: Columbarium (with URL) + Ash Pit (no URL)
-│   │   │   ├── MausoleumModal.tsx (displayed as "The Crypt") — sortable graves ledger
-│   │   │   ├── LeaderboardModal.tsx (displayed as "Necropolis") — 3 tabs: Serial Killers, Causes, AI-Bots
-│   │   │   ├── BuryFlowModal.tsx  (4-step: Scan → Select → Cause → Done, emits burial_ceremony for graves)
-│   │   │   ├── SkillModal.tsx     — skill install instructions
-│   │   │   └── bury/       — BuryFlow step components
-│   │   │       ├── StepScan.tsx
-│   │   │       ├── StepSelect.tsx
-│   │   │       ├── StepCause.tsx
-│   │   │       └── StepDone.tsx
-│   │   └── ui/             — shared stone-styled UI components
-│   │       ├── StoneFrame.tsx      — modal container (stone gradient, noise, vignette)
-│   │       ├── ModalOverlay.tsx    — semi-transparent backdrop with focus trap
-│   │       ├── CloseButton.tsx     — close button (✕)
-│   │       ├── StoneButton.tsx     — stone gradient button
-│   │       ├── OrnamentDivider.tsx — decorative divider (✦)
-│   │       └── InsetBlock.tsx      — inset carved block for code/quotes
-│   ├── context/
-│   │   └── GameContext.tsx  — shared state (graves, cremated, modals, chat, fVotes)
-│   ├── game/
-│   │   ├── config.ts       — Phaser GameConfig (windowEvents: false)
-│   │   ├── events.ts       — typed EventBridge Phaser ↔ React (incl. burial_ceremony / burial_ceremony_done / zoom_change)
-│   │   ├── scenes/
-│   │   │   └── CemeteryScene.ts — main scene: map, camera, pinch-to-zoom, day/night, lamps, particles, burial ceremony animation
-│   │   └── utils/
-│   │       ├── slotManager.ts   — parse Object Layer → slot coords
-│   │       └── tileRegistry.ts  — tile GID catalog, dynamic graves
-│   ├── gravedigger/
-│   │   ├── character.md    — Gravedigger NPC character design (personality, tone, rules)
-│   │   ├── phrases.ts      — static phrase pools (greeting, idle, burial, mass burial, profile)
-│   │   ├── epitaphs.ts     — tombstone epitaph generator (37 templates, deterministic fallback for old graves)
-│   │   ├── templates.ts    — dynamic chat phrase templates with {placeholders}
-│   │   └── fillTemplate.ts — picks random grave/cremated, fills chat template with real data
-│   ├── hooks/
-│   │   └── useIsMobile.ts  — mobile detection hook
-│   ├── lib/
-│   │   ├── supabase.ts     — server-side Supabase admin client
-│   │   ├── map-slots.ts    — parse grave slot IDs from Tiled .tmj map
-│   │   ├── rate-limit.ts   — shared rate limiter (Upstash REST if configured, memory fallback otherwise)
-│   │   ├── site.ts         — canonical site URL resolver for browser/CLI links
-│   │   └── cli-auth.ts     — CLI link + token helpers
-│   ├── middleware.ts        — API CORS + read-rate-limit middleware
-│   └── types/
-│       └── game.ts         — GraveData, CrematedData, DeadRepo, BuryResult, GitHubScanResult
-├── public/
-│   ├── map/
-│   │   ├── az.tmj              — main map (40x40, 9 tilesets embedded inline)
-│   │   ├── docs/
-│   │   │   ├── CLAUDEMAP.md        — full map reference (slots, GID, tiles)
-│   │   │   └── LEVEL_DESIGN_RULES.md — level design rules
-│   │   └── *.png               — 9 tileset PNGs
-│   └── Tailes/                 — source tilesets (PNG, 48px)
-│       ├── graveyard/          — KR Peaceful Rest Graveyard
-│       └── crypt/              — KR Burial Grounds
-├── docs/
-│   ├── CLAUDE.md               — project overview (this file)
-│   └── cli-auth-v1.sql         — Supabase schema for CLI auth tables
+|-- src/
+|   |-- app/
+|   |   |-- layout.tsx                 # app shell, metadata, font setup
+|   |   |-- page.tsx                   # main SPA page
+|   |   |-- globals.css                # base document styles
+|   |   |-- error.tsx                  # app error boundary UI
+|   |   |-- not-found.tsx              # 404 page
+|   |   |-- robots.ts                  # robots.txt
+|   |   |-- sitemap.ts                 # sitemap.xml
+|   |   |-- cli/connect/
+|   |   |   |-- page.tsx               # CLI approval page route
+|   |   |   `-- CliConnectClient.tsx   # client approval flow
+|   |   |-- grave/[id]/
+|   |   |   |-- page.tsx               # grave deep-link redirect page
+|   |   |   |-- GraveRedirectClient.tsx
+|   |   |   `-- opengraph-image.tsx    # grave share card image
+|   |   |-- urn/[id]/page.tsx          # urn deep-link redirect page
+|   |   `-- api/
+|   |       |-- auth/[...nextauth]/route.ts
+|   |       |-- cremated/route.ts
+|   |       |-- f-status/route.ts
+|   |       |-- github/last-commit/route.ts
+|   |       |-- github/scan/route.ts
+|   |       |-- graves/route.ts
+|   |       |-- graves/insertWithSlotRetry.ts
+|   |       |-- graves/[id]/f/route.ts
+|   |       `-- cli/
+|   |           |-- link/start/route.ts
+|   |           |-- link/approve/route.ts
+|   |           |-- link/status/route.ts
+|   |           |-- token/revoke/route.ts
+|   |           `-- tokens/route.ts
+|   |-- components/
+|   |   |-- AppProviders.tsx           # top-level React providers
+|   |   |-- PhaserCanvas.tsx           # Phaser bootstrap wrapper
+|   |   |-- HoverTooltip.tsx
+|   |   |-- hud/
+|   |   |   |-- TopBar.tsx
+|   |   |   |-- CTAButtons.tsx
+|   |   |   |-- ChatLog.tsx
+|   |   |   |-- AuthButton.tsx
+|   |   |   |-- DayCycleIcon.tsx
+|   |   |   |-- Minimap.tsx
+|   |   |   |-- ZoomButtons.tsx
+|   |   |   |-- BurgerMenu.tsx
+|   |   |   `-- GateEpitaph.tsx
+|   |   |-- modals/
+|   |   |   |-- index.ts
+|   |   |   |-- ModalOverlay.tsx
+|   |   |   |-- GraveModal.tsx
+|   |   |   |-- UrnModal.tsx
+|   |   |   |-- ProfileModal.tsx
+|   |   |   |-- CrematoryModal.tsx
+|   |   |   |-- MausoleumModal.tsx
+|   |   |   |-- LeaderboardModal.tsx
+|   |   |   |-- BuryFlowModal.tsx
+|   |   |   |-- SkillModal.tsx
+|   |   |   `-- bury/
+|   |   |       |-- StepScan.tsx
+|   |   |       |-- StepSelect.tsx
+|   |   |       |-- StepCause.tsx
+|   |   |       `-- StepDone.tsx
+|   |   `-- ui/
+|   |       |-- StoneFrame.tsx
+|   |       |-- CloseButton.tsx
+|   |       |-- StoneButton.tsx
+|   |       |-- OrnamentDivider.tsx
+|   |       |-- InsetBlock.tsx
+|   |       `-- LoadErrorState.tsx
+|   |-- context/GameContext.tsx        # shared cemetery state
+|   |-- game/
+|   |   |-- config.ts
+|   |   |-- events.ts
+|   |   |-- scenes/CemeteryScene.ts
+|   |   `-- utils/
+|   |       |-- slotManager.ts
+|   |       `-- tileRegistry.ts
+|   |-- gravedigger/
+|   |   |-- character.md
+|   |   |-- phrases.ts
+|   |   |-- epitaphs.ts
+|   |   |-- templates.ts
+|   |   `-- fillTemplate.ts
+|   |-- hooks/useIsMobile.ts
+|   |-- lib/
+|   |   |-- cli-auth.ts
+|   |   |-- github-auth.ts
+|   |   |-- grave-share.ts
+|   |   |-- grave-share-server.ts
+|   |   |-- map-slots.ts
+|   |   |-- rate-limit.ts
+|   |   |-- site.ts
+|   |   `-- supabase.ts
+|   |-- proxy.ts                       # API CORS + read rate limiting
+|   `-- types/
+|       |-- game.ts
+|       `-- next-auth.d.ts
+|-- public/
+|   |-- map/
+|   |   |-- az.tmj
+|   |   `-- docs/
+|   |       |-- CLAUDEMAP.md
+|   |       |-- LEVEL_DESIGN_RULES.md
+|   |       `-- PATCH.md
+|   |-- Tailes/
+|   `-- og-image.png
+|-- tests/
+|   |-- api-smoke.spec.ts
+|   |-- bury-skill.spec.ts
+|   |-- ceremony.spec.ts
+|   |-- cli-auth.spec.ts
+|   |-- cli-connect.spec.ts
+|   |-- grave-share.spec.ts
+|   |-- graves-write-path.spec.ts
+|   |-- middleware.spec.ts
+|   |-- mobile.spec.ts
+|   |-- rate-limit.spec.ts
+|   |-- site.spec.ts
+|   `-- fixtures/
+|-- SKILL/
+|   |-- commands/bury.md
+|   `-- skills/bury-workflow/
+|-- docs/
+|   |-- CLAUDE.md
+|   `-- cli-auth-v1.sql
+|-- next.config.ts
+|-- playwright.config.ts
+|-- playwright.unit.config.ts
+|-- playwright.cli-connect.config.ts
+|-- eslint.config.mjs
+|-- package.json
+`-- README.md
 ```
 
-## Database Tables
-- **users** — github_id, github_username, avatar_url, graves_count, cremated_count
-- **graves** — project graves with GitHub repo link, slot_id for map placement, last_commit_message, tier, f_count, epitaph (generated by Gravedigger at burial)
-- **cremated** — cremated projects (first 50 unlimited, then 3/day per user). `source` column: `'github'` (browser session) or `'skill'` (CLI token auth). Souls: github=3, skill=1. Auth: browser session or server-issued CLI Bearer token
-- **f_votes** — Press F votes (one per user per grave). Idempotent. Count synced to `graves.f_count`
-- **cli_link_sessions** — short-lived browser approval sessions for CLI linking (10 minute TTL, one-time token claim)
-- **cli_tokens** — hashed long-lived CLI tokens, revocable from the site, never stored raw
-- **Supabase RPC:** `increment_cremated_count(username)` — atomic counter increment
-
-## Modal Types
-```typescript
-ModalType = 'grave' | 'crematory' | 'mausoleum' | 'leaderboard' | 'bury' | 'skill' | 'burger' | 'profile' | 'urn'
-```
-Modal stack supports push/pop (deduplication on push). `useModal()` hook: `open()`, `push()`, `close()`, `closeAll()`.
-
-## Key Conventions
-- All UI uses inline styles with hardcoded hex values (no CSS modules/Tailwind classes)
-- Stone palette: `#1a1918` (darkest) → `#d4d0c4` (lightest), gold accents `#e8d5a3`
-- Font: Cinzel everywhere (var(--font-cinzel) for React, 'Cinzel' for Phaser canvas)
-- Shared UI components in `src/components/ui/` — always use StoneFrame for modals
-- API routes in `src/app/api/`
-- `supabaseAdmin` (service key) for server-side, `supabase` (anon key) for client-side
-- GitHub repos "dead" = no commits 14+ days, forks excluded
-- Building names: Crematory (code: 'Crematory'), The Crypt (code: 'Mausoleum' → display 'The Crypt')
-- Phaser config: `input: { windowEvents: false }` — prevents pointer bleed-through to HTML overlay
-- Day/night cycle: dusk(15s) → night(25s) → dawn(30s) → day(50s), synced via `day_phase` event
-- **Burial ceremony animation** (~5.5s, graves only, not cremations): modal emits `burial_ceremony` BEFORE `ADD_GRAVE` dispatch (so PhaserCanvas pre-registers slot_id in `sentSlotIdsRef` to suppress auto-render). CemeteryScene stores `pendingCeremony`, starts animation on modal close via `onModalState`. Sequence: camera pan+zoom → dirt burst+shake → grave reveal → R.I.P. glow → zoom out. All ceremony objects tracked in `ceremonyObjects[]` for shutdown cleanup. `buryModalOpen` flag ensures only bury modal close triggers ceremony
+## App Routes
+- `/` - main cemetery experience with Phaser canvas and React HUD
+- `/grave/[id]` - redirects into `?grave=<uuid>` flow
+- `/urn/[id]` - redirects into `?urn=<id>` flow
+- `/cli/connect` - browser approval UI for CLI linking
+- `/grave/[id]/opengraph-image` - dynamic grave share card image
 
 ## API Routes
-- `GET /api/github/scan?username=X` — scan public repos, filter dead (14+ days inactive). Rate limit: 10/min per IP (shared via Upstash if configured, memory fallback otherwise). Cached 24h. Uses server `GITHUB_TOKEN`
-- `GET /api/github/last-commit?owner=X&repo=Y` — fetch last commit message from GitHub. Uses server `GITHUB_TOKEN`
-- `POST /api/graves` — create grave (authenticated). Rate limit: 20/day per user. Duplicate prevention by repo_id. Assigns `slot_id` from actual Tiled map slots via `map-slots.ts`
-- `GET /api/graves` — list all graves. Enriches f_count from f_votes table. Optional `?author=username` filter
-- `POST /api/graves/[id]/f` — Press F to pay respects. One vote per user per grave (idempotent). Updates graves.f_count
-- `GET /api/f-status` — get current user's voted grave IDs (Set of grave UUIDs)
-- `POST /api/cremated` — cremate project (browser session or CLI Bearer token). Accepts `{name, cause, github_url?, last_commit_message?}`. Rate limit: first 50 unlimited, then 3/day
-- `POST /api/cli/link/start` — create short-lived CLI link session, returns browser approval URL with `#claim_token=...` fragment + one-time `claim_token`
-- `POST /api/cli/link/approve` — signed-in browser user approves pending CLI link session and must prove possession of the current `claim_token`
-- `GET /api/cli/link/status?link_id=...` — CLI polls for pending/approved/claimed/expired link state with `x-cli-claim-token`; raw token returned once on approval
-- `GET /api/cremated` — list all cremated projects
+- `GET /api/github/scan?username=X` - scan public GitHub repos and return inactive non-forks
+- `GET /api/github/last-commit?owner=X&repo=Y` - fetch last commit message for a repo
+- `GET /api/graves` - list graves, optional `?author=username`
+- `POST /api/graves` - create grave for an authenticated user
+- `POST /api/graves/[id]/f` - press F for a grave, one vote per user
+- `GET /api/f-status` - get voted grave ids for current user
+- `GET /api/cremated` - list cremated projects
+- `POST /api/cremated` - create cremation from browser session or CLI token
+- `POST /api/cli/link/start` - create CLI link session and claim token
+- `POST /api/cli/link/approve` - signed-in browser approval for pending CLI link
+- `GET /api/cli/link/status?link_id=...` - CLI polling endpoint, guarded by claim token
+- `GET /api/cli/tokens` - list current user's CLI tokens
+- `POST /api/cli/token/revoke` - revoke a CLI token
+- `GET|POST /api/auth/[...nextauth]` - NextAuth handler
+
+## Core Architecture Notes
+- `src/app/page.tsx` renders the main screen and coordinates deep-link handling.
+- `src/components/AppProviders.tsx` and `src/context/GameContext.tsx` hold the shared client state for graves, cremated items, modal stack, chat, user session-derived data, and event coordination.
+- `src/components/PhaserCanvas.tsx` embeds Phaser client-side only and bridges React state into the game scene.
+- `src/game/scenes/CemeteryScene.ts` owns map rendering, camera behavior, pinch zoom, day/night cycle, particle effects, lamp rendering, highlights, and the burial ceremony animation.
+- `src/lib/map-slots.ts` and `src/game/utils/slotManager.ts` are the slot source of truth for map placement.
+- `src/proxy.ts` applies shared API CORS handling and read rate limiting for `/api/*` requests.
+
+## Data Model
+- `users` - GitHub-linked user profile and progression counters
+- `graves` - mapped GitHub burials with slot assignment, epitaph, tier, and `f_count`
+- `cremated` - cremated projects from browser or CLI flow, with `source` and Souls progression
+- `f_votes` - idempotent respect votes keyed per user and grave
+- `cli_link_sessions` - short-lived browser approval sessions for CLI auth
+- `cli_tokens` - hashed long-lived CLI tokens, never stored raw
+- RPC: `increment_cremated_count(username)` for atomic cremation counter updates
+
+## Key Conventions
+- Prefer inline styles for UI; `globals.css` is for app-wide base styling, not component-level theme work.
+- Stone palette and Cinzel typography are part of the product identity; new UI should match the established cemetery visual language.
+- Shared modal chrome belongs in `src/components/ui/`; feature modal behavior belongs in `src/components/modals/`.
+- GitHub repos count as dead when they have no commits for 14+ days and are not forks.
+- Grave placement must come from parsed map slots, not hardcoded coordinates.
+- Phaser input uses `windowEvents: false` to prevent pointer bleed-through into HTML overlays.
+- Grave burial ceremony is React-triggered and Phaser-rendered; cremations do not use the ceremony animation.
+- CLI auth uses browser approval plus a one-time `claim_token`; long-lived CLI tokens are server-issued and hashed at rest.
+
+## Modal Types
+```ts
+type ModalType = 'grave' | 'crematory' | 'mausoleum' | 'leaderboard' | 'bury' | 'skill' | 'burger' | 'profile' | 'urn'
+```
 
 ## Deep Links
-- `?grave=<uuid>` — camera pans to grave slot, highlights it, opens GraveModal after animation
-- `?urn=<id>` — opens UrnModal for cremated project
-- Standalone pages: `/grave/[id]` and `/urn/[id]` redirect to main page with deep link params
+- `?grave=<uuid>` - pan camera to a grave slot and open `GraveModal`
+- `?urn=<id>` - open `UrnModal`
+- `/grave/[id]` and `/urn/[id]` redirect into those query-param flows
 
 ## Environment Variables
-```
+```text
 NEXT_PUBLIC_SUPABASE_URL
 NEXT_PUBLIC_SUPABASE_ANON_KEY
 NEXT_PUBLIC_SITE_URL
 SUPABASE_SERVICE_KEY
 GITHUB_CLIENT_ID
 GITHUB_CLIENT_SECRET
-GITHUB_TOKEN              — server-side PAT for GitHub API (rate limit, no special permissions needed)
+GITHUB_TOKEN
 NEXTAUTH_URL
 NEXTAUTH_SECRET
-CLI_TOKEN_SECRET          — optional dedicated secret for long-lived CLI tokens; falls back to NEXTAUTH_SECRET if omitted
-UPSTASH_REDIS_REST_URL    — optional; enables shared rate limiting across instances
-UPSTASH_REDIS_REST_TOKEN  — optional; enables shared rate limiting across instances
+CLI_TOKEN_SECRET
+UPSTASH_REDIS_REST_URL
+UPSTASH_REDIS_REST_TOKEN
 ```
 
-## Current Phase
-- Phase 1 (Map) — DONE
-- Phase 2 (Phaser) — DONE
-- Phase 3 (Backend + API) — DONE
-- Phase 4 (UI) — DONE
-- Phase 4.1 (Style polish) — DONE (Cinzel font, stone palette, shared UI components)
-- Phase 4.2 (Modal content & UX) — DONE (all modals implemented including ProfileModal, UrnModal)
-- Phase 4.3 (Working buttons) — DONE (BURY flow end-to-end, F votes, deep links, profile)
-- Phase 4.4 (Audits) — DONE (security audit, rate-limit.ts, security headers + CSP in next.config)
-- Phase 4.5 (Burial ceremony animation) — DONE (camera fly, dirt burst, grave reveal, R.I.P. glow, zoom out)
-- **Phase 5 (Skill / CLI cremation) — DONE for V1** (browser approval flow, server-issued CLI token, revoke UI/API, no body-auth for CLI, production origin configurable via `NEXT_PUBLIC_SITE_URL`)
-- Security implementation details live in this file, `README.md`, and `docs/cli-auth-v1.sql`
-- **Phase 5.5 (Mobile polish) — DONE**
-- Phase 5.6 (Pre-launch hardening) — IN PROGRESS (`POST /api/graves` retry tightened, `GameContext.user` wired to session, shared site URL config added, CLI claim-token flow shipped, shared rate-limit backend prepared for Upstash)
-- Phase 6 (Expanded NPC / agent layer) — TODO — post-launch scope
-- Active reference docs in this repo: `README.md`, `docs/cli-auth-v1.sql`
+## Security Notes
+- Security headers and CSP are defined in `next.config.ts`.
+- When adding a new browser-side external origin, update the relevant CSP directive first.
+- CLI link and token endpoints use `Cache-Control: no-store`.
+- Shared rate limiting uses Upstash when configured and in-memory fallback otherwise.
 
-## Mobile (read-only showcase)
-- **Detection:** `useIsMobile()` hook (`max-width: 640px` via matchMedia). Phaser uses `this.scale.width < 640` / `this.isMobile`
-- **Viewport:** `100dvh`, `viewportFit: 'cover'`, `maximumScale: 1`, `userScalable: false`, `touchAction: 'none'` on canvas
-- **Hidden on mobile:** CTA buttons (BURY/SKILL), Login button (unauthenticated), Minimap, ChatLog, DayCycleIcon medallion, F button in GraveModal
-- **Camera:** pinch-to-zoom (two-finger gesture, drag↔pinch transition handled), initial zoom `Math.max(fitZoom, 0.85)`, ZoomButtons (+/−) bottom-right
-- **Performance:** particle emission delays doubled, lamp glow redraw intervals 2.5x on mobile
-- **Safe areas:** TopBar uses `env(safe-area-inset-top)` with `minHeight: 44`
-- **Touch targets:** modal tabs (Leaderboard, Crematory) use `minHeight: 44`, larger padding/font on mobile
-- **Deep links:** all setTimeout delays halved on mobile (`window.innerWidth < 640`)
-- **Events:** `zoom_change` event (React → Phaser) for ZoomButtons
+## CLI Workflow
+- User-facing command: `SKILL/commands/bury.md`
+- Workflow implementation: `SKILL/skills/bury-workflow/`
+- `/bury` is for local project cremation only; it does not scan GitHub repos and does not create map graves.
+- First run opens browser approval at `/cli/connect`; later runs use a stored bearer token.
+- Local deduplication uses an external per-user `cremated-registry.json`, not a repo file.
 
-## Security Headers (next.config.ts)
-- X-Content-Type-Options, X-Frame-Options, HSTS, Referrer-Policy, Permissions-Policy — all set
-- **CSP (Content-Security-Policy)** — configured in `next.config.ts`, works automatically on Vercel and `next start`
-- **IMPORTANT:** when adding a new external resource (CDN, analytics, new API), update the relevant CSP directive in `next.config.ts`, otherwise the browser will block it
-- Currently allowed domains: `fonts.googleapis.com`, `fonts.gstatic.com`, `avatars.githubusercontent.com`, `*.supabase.co`
-- Server-side fetches (API routes -> `api.github.com`) are not covered by CSP - it only applies in the browser
-
-## CLI Command — /bury (Mogil'schik)
-- Entry point and source of truth: `SKILL/commands/bury.md`
-- Workflow support files: `SKILL/skills/bury-workflow/` (`references/*`, `scripts/bury-helper.mjs`). Local registry now lives outside the repo alongside CLI config.
-- Current deployment contract: production domain is live on `https://vibecemetery.app`, so `/bury` should target the canonical site for browser approval and API requests.
-- `/bury` is the only official user-facing entrypoint. The command file lives in `SKILL/commands/bury.md`, and its workflow support files live in `SKILL/skills/bury-workflow/`.
-- Scope boundary: `/bury` is local cremation only. It may inspect local git metadata, but it does not use GitHub scan endpoints and it never creates graves on the map.
-- Auth: first run opens `/cli/connect` in the browser, user approves once, CLI stores server-issued token locally and sends `Authorization: Bearer <cli_token>` on future runs
-- Raw CLI token is one-time visible only; database stores hash + masked prefix. Revocation is supported by API/backend flow, but no longer exposed in the profile modal UI.
-- Safety-critical `/bury` helper logic now lives in `SKILL/skills/bury-workflow/scripts/bury-helper.mjs` for external config/registry paths, registry sanitization, approval URL validation, and API POST execution.
-- Supabase setup: apply `docs/cli-auth-v1.sql` and ensure `users.github_username` is `UNIQUE`
-- Link proof: `POST /api/cli/link/start` returns a one-time `claim_token`; CLI must send it back in `x-cli-claim-token` when polling `/api/cli/link/status`, and browser approval must carry the same proof via the `approve_url` hash fragment
-- Endpoint hardening: CLI link/token endpoints use `Cache-Control: no-store`; `POST /api/cli/link/start` has rate limiting via shared limiter when Upstash is configured
-- Local deduplication via per-user `cremated-registry.json` stored outside the repo (fingerprints: git_remote, first_commit, path_fingerprint)
-- Uses `node` for HTTP requests (UTF-8 safe on Windows)
+## Related Docs
+- `README.md` - product overview and local setup
+- `docs/cli-auth-v1.sql` - Supabase schema for CLI auth tables
+- `public/map/docs/CLAUDEMAP.md` - map slot and tile reference
+- `public/map/docs/LEVEL_DESIGN_RULES.md` - map design constraints
