@@ -37,6 +37,7 @@ This is a cemetery for vibe-code slop only — projects people generate with AI.
 - **Press F** — pay respects to any grave. One F per user per grave. Most mourned projects rise to the top
 - **Gravedigger NPC** — cemetery's resident character with dry humor, reacts to burials in the chat log
 - **Deep Links** — shareable links to any grave (`?grave=uuid`) or urn (`?urn=id`)
+- **Social Share Card** — each grave deep link has a dedicated Open Graph / Twitter card with tombstone artwork, epitaph, cause of death, dates, and GitHub Reaper
 - **Skill (CLI)** — add the `/bury` command and let your AI agent cremate dead local projects
 
 ## How It Works
