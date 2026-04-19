@@ -9,7 +9,7 @@ export interface GraveShareData {
   born_at: string | null
   died_at: string | null
   stack: string | null
-  last_commit_message?: string | null
+  author_github?: string | null
 }
 
 export interface GraveShareCard {
@@ -18,7 +18,7 @@ export interface GraveShareCard {
   url: string
   imageUrl: string
   cause: string | null
-  lastCommitMessage: string | null
+  authorGithub: string | null
 }
 
 export interface GraveShareMetadataOptions {
@@ -54,7 +54,7 @@ export function buildGraveShareCard(opts: {
     url: graveUrl,
     imageUrl: `${graveUrl}/opengraph-image`,
     cause: collapseWhitespace(opts.grave.cause) || null,
-    lastCommitMessage: collapseWhitespace(opts.grave.last_commit_message) || null,
+    authorGithub: collapseWhitespace(opts.grave.author_github) || null,
   }
 }
 

@@ -9,7 +9,7 @@ export type GraveShareLookupResult =
 export async function getGraveShareData(id: string): Promise<GraveShareLookupResult> {
   const { data, error } = await supabaseAdmin
     .from('graves')
-    .select('id, name, cause, epitaph, born_at, died_at, stack, last_commit_message')
+    .select('id, name, cause, epitaph, born_at, died_at, stack, author_github')
     .eq('id', id)
     .maybeSingle()
 

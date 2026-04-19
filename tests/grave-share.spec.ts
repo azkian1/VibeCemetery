@@ -17,7 +17,7 @@ test.describe('grave share card', () => {
         born_at: '2026-01-10T00:00:00.000Z',
         died_at: '2026-02-20T00:00:00.000Z',
         stack: 'Next.js',
-        last_commit_message: 'fix: one last polish pass',
+        author_github: 'demo-user',
       },
     })
 
@@ -26,7 +26,7 @@ test.describe('grave share card', () => {
     expect(card.url).toBe('https://vibecemetery.app/grave/11111111-1111-4111-8111-111111111111')
     expect(card.imageUrl).toBe('https://vibecemetery.app/grave/11111111-1111-4111-8111-111111111111/opengraph-image')
     expect(card.cause).toBe('Lost interest')
-    expect(card.lastCommitMessage).toBe('fix: one last polish pass')
+    expect(card.authorGithub).toBe('demo-user')
   })
 
   test('falls back to a deterministic epitaph when a grave has none', () => {
@@ -40,7 +40,7 @@ test.describe('grave share card', () => {
         born_at: '2026-01-10T00:00:00.000Z',
         died_at: '2026-02-20T00:00:00.000Z',
         stack: 'Phaser',
-        last_commit_message: null,
+        author_github: null,
       },
     })
 
@@ -60,7 +60,7 @@ test.describe('grave share card', () => {
         born_at: null,
         died_at: null,
         stack: null,
-        last_commit_message: 'feat: final attempt',
+        author_github: 'mogilschik',
       },
     })
 
