@@ -221,45 +221,55 @@ export default async function OpenGraphImage({
             justifyContent: 'center',
             paddingRight: '10px',
           }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span />
+            <div style={{
+              marginTop: '26px',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
+              minHeight: '262px',
+              padding: '26px 28px',
+              border: '1px solid #302720',
+              background: 'linear-gradient(180deg, rgba(12,11,10,0.64) 0%, rgba(7,7,6,0.74) 100%)',
+              position: 'relative',
+            }}>
               <div style={{
+                position: 'absolute',
+                top: '-26px',
+                right: '20px',
                 border: '1px solid #5a4136',
                 color: '#d97764',
                 padding: '10px 22px',
                 fontSize: 22,
                 letterSpacing: '1px',
-                transform: 'rotate(-11deg)',
+                transform: 'rotate(-9deg)',
+                background: 'rgba(14, 12, 11, 0.92)',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
               }}>
                 DEAD PROJECT
               </div>
-            </div>
 
-            <div style={{
-              marginTop: '26px',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '12px',
-              padding: '24px 26px',
-              border: '1px solid #302720',
-              background: 'linear-gradient(180deg, rgba(12,11,10,0.64) 0%, rgba(7,7,6,0.74) 100%)',
-            }}>
-              <div style={{ fontSize: 17, color: '#887c6d', letterSpacing: '3px' }}>CAUSE OF DEATH</div>
-              <div style={{ fontSize: 42, lineHeight: 1.08, color: '#f0ce8a' }}>{cause}</div>
-            </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                <div style={{ fontSize: 17, color: '#887c6d', letterSpacing: '3px' }}>CAUSE OF DEATH</div>
+                <div style={{
+                  fontSize: 64,
+                  lineHeight: 0.96,
+                  color: '#f0ce8a',
+                  maxWidth: '520px',
+                }}>
+                  {cause}
+                </div>
+              </div>
 
-            <div style={{
-              marginTop: '18px',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '10px',
-              padding: '20px 22px',
-              width: '420px',
-              border: '1px solid #2d2924',
-              background: 'linear-gradient(180deg, rgba(22,20,18,0.88) 0%, rgba(11,10,9,0.95) 100%)',
-            }}>
-              <span style={{ fontSize: 17, color: '#817665', letterSpacing: '2px' }}>GITHUB REAPER</span>
-              <span style={{ fontSize: 32, color: '#e7dfcd' }}>{author}</span>
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '10px',
+                paddingTop: '20px',
+                borderTop: '1px solid rgba(200,160,80,0.1)',
+              }}>
+                <span style={{ fontSize: 17, color: '#817665', letterSpacing: '2px' }}>GITHUB REAPER</span>
+                <span style={{ fontSize: 32, color: '#e7dfcd' }}>{author}</span>
+              </div>
             </div>
           </div>
         </div>
