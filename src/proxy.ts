@@ -23,8 +23,10 @@ const READ_LIMIT = 60
 const READ_WINDOW = 60_000
 
 export async function proxy(req: NextRequest) {
+  const pathname = req.nextUrl.pathname
   const origin = req.headers.get('origin') ?? ''
   const isAllowed = origin !== '' && getAllowedOrigins().includes(origin)
+  const isAuthRoute = pathname.startsWith('/api/auth/')
 
   if (req.method === 'OPTIONS') {
     if (!isAllowed) return new NextResponse(null, { status: 403 })
@@ -40,7 +42,7 @@ export async function proxy(req: NextRequest) {
   }
 
   // Rate-limit GET requests on public endpoints
-  if (req.method === 'GET') {
+  if (req.method === 'GET' && !isAuthRoute) {
     const ip = getClientIp(req)
     const result = await checkRateLimit(`read:${ip}`, READ_LIMIT, READ_WINDOW)
     if (!result.allowed) {
