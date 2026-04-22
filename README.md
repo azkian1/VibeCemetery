@@ -82,8 +82,32 @@ Every user starts with **1 grave slot** on the map. Cremate projects to earn **S
 
 ## Command (CLI)
 
-Manual setup for [Claude Code](https://docs.anthropic.com/en/docs/claude-code):
+`/bury` is the only official user-facing entrypoint. It turns your AI agent into a **Gravedigger** and runs the full command pipeline from `bury.md`. It scans your local project folders, finds the dead ones, and cremates them via the API. It never scans your GitHub account and it does not create map graves directly. First run opens browser approval once, then the CLI stores a server-issued token locally for later runs.
 
+Quick install for [Claude Code](https://docs.anthropic.com/en/docs/claude-code):
+
+macOS:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/azkian1/VibeCemetery/master/SKILL/install/install-bury.sh | bash
+```
+
+Windows PowerShell:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -Command "iwr https://raw.githubusercontent.com/azkian1/VibeCemetery/master/SKILL/install/install-bury.ps1 -UseBasicParsing | iex"
+```
+
+**What it installs:**
+- `SKILL/commands/bury.md` -> `~/.claude/commands/bury.md`
+- `SKILL/skills/bury-workflow/` -> `~/.claude/skills/bury-workflow/`
+- The installer replaces both targets cleanly on rerun, so the same command works for install and update.
+
+**After install:**
+- Restart Claude Code.
+- Run `/bury`.
+
+**Manual install:**
 1. Copy `SKILL/commands/bury.md` from this repo into your personal Claude commands directory.
 2. Copy the entire `SKILL/skills/bury-workflow/` directory from this repo into your personal Claude skills directory.
 3. Use `~/.claude/commands/bury.md` and `~/.claude/skills/bury-workflow/` on macOS/Linux, or `%USERPROFILE%\.claude\commands\bury.md` and `%USERPROFILE%\.claude\skills\bury-workflow\` on Windows.
@@ -91,8 +115,6 @@ Manual setup for [Claude Code](https://docs.anthropic.com/en/docs/claude-code):
 5. On updates, replace both the command file and the `bury-workflow/` skill directory with the newer versions from `SKILL/` in this repo.
 
 Runtime note: the command must resolve support files from the installed command directory, not from the repo being scanned.
-
-`/bury` is the only official user-facing entrypoint. It turns your AI agent into a **Gravedigger** and runs the full command pipeline from `bury.md`. It scans your local project folders, finds the dead ones, and cremates them via the API. It never scans your GitHub account and it does not create map graves directly. First run opens browser approval once, then the CLI stores a server-issued token locally for silent future use.
 
 Current status: the public site contract is live on `https://vibecemetery.app`. The shipped `/bury` command targets the production domain for browser approval and API requests.
 
