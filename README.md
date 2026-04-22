@@ -89,13 +89,15 @@ Quick install for [Claude Code](https://docs.anthropic.com/en/docs/claude-code):
 macOS:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/azkian1/VibeCemetery/master/SKILL/install/install-bury.sh | bash
+curl -fsSL \
+  https://raw.githubusercontent.com/azkian1/VibeCemetery/master/SKILL/install/install-bury.sh | bash
 ```
 
 Windows PowerShell:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -Command "iwr https://raw.githubusercontent.com/azkian1/VibeCemetery/master/SKILL/install/install-bury.ps1 -UseBasicParsing | iex"
+powershell -NoProfile -ExecutionPolicy Bypass -Command \
+  "iwr https://raw.githubusercontent.com/azkian1/VibeCemetery/master/SKILL/install/install-bury.ps1 -UseBasicParsing | iex"
 ```
 
 **What it installs:**

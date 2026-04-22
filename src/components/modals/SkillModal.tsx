@@ -11,6 +11,7 @@ import InsetBlock from '@/components/ui/InsetBlock';
 import {
   detectSkillPlatform,
   getSkillInstallCommand,
+  getSkillInstallDisplayCommand,
   getSkillInstallSecondaryLink,
   getSkillPlatformLabels,
   type SkillPlatform,
@@ -37,6 +38,7 @@ export default function SkillModal() {
   if (isMobile) return null;
 
   const command = getSkillInstallCommand(selectedPlatform);
+  const displayCommand = getSkillInstallDisplayCommand(selectedPlatform);
   const platforms = getSkillPlatformLabels();
 
   const handleCopy = () => {
@@ -107,7 +109,7 @@ export default function SkillModal() {
                     wordBreak: 'break-word',
                   }}
                 >
-                  {command}
+                  {displayCommand}
                 </code>
                 <StoneButton onClick={handleCopy}>
                   {copied ? 'Copied!' : 'Copy install command'}
