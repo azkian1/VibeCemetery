@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 import { createHash } from 'node:crypto'
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 
@@ -270,6 +270,63 @@ test.describe('bury skill helpers', () => {
       ])
     } finally {
       rmSync(fixtureRoot, { recursive: true, force: true })
+    }
+  })
+
+  test('rejects unsafe scan paths before reading directory contents', async () => {
+    const { detectProjectCandidates } = await loadHelper()
+    const homeDir = mkdtempSync(path.join(tmpdir(), 'bury-home-'))
+    const desktopDir = path.join(homeDir, 'Desktop')
+    const projectsRoot = mkdtempSync(path.join(tmpdir(), 'bury-projects-'))
+    const safeProjectDir = path.join(projectsRoot, 'March', 'SafeProject')
+    const redirectedDir = mkdtempSync(path.join(tmpdir(), 'bury-redirected-'))
+    const symlinkPath = path.join(projectsRoot, 'March', 'LinkedProject')
+    const standaloneFile = path.join(projectsRoot, 'March', 'notes.txt')
+
+    mkdirSync(desktopDir, { recursive: true })
+    mkdirSync(safeProjectDir, { recursive: true })
+    mkdirSync(path.dirname(symlinkPath), { recursive: true })
+    writeFileSync(path.join(safeProjectDir, 'package.json'), '{"name":"safe-project"}')
+    writeFileSync(standaloneFile, 'not a directory')
+    symlinkSync(redirectedDir, symlinkPath, 'junction')
+
+    try {
+      expect(() => detectProjectCandidates(homeDir, { homedir: homeDir })).toThrow(/unsafe|home|scan path/i)
+      expect(() => detectProjectCandidates(desktopDir, { homedir: homeDir })).toThrow(/unsafe|desktop|scan path/i)
+      expect(() => detectProjectCandidates(path.parse(projectsRoot).root)).toThrow(/unsafe|root|scan path/i)
+      expect(() => detectProjectCandidates(standaloneFile)).toThrow(/directory|scan path/i)
+      expect(() => detectProjectCandidates(symlinkPath)).toThrow(/unsafe|symlink|junction|scan path/i)
+
+      expect(detectProjectCandidates(safeProjectDir)).toEqual([
+        expect.objectContaining({
+          path: safeProjectDir,
+          name: 'SafeProject',
+        }),
+      ])
+    } finally {
+      rmSync(homeDir, { recursive: true, force: true })
+      rmSync(projectsRoot, { recursive: true, force: true })
+      rmSync(redirectedDir, { recursive: true, force: true })
+    }
+  })
+
+  test('rejects scan paths when a parent segment is redirected', async () => {
+    const { detectProjectCandidates } = await loadHelper()
+    const projectsRoot = mkdtempSync(path.join(tmpdir(), 'bury-parent-redirect-'))
+    const redirectedParent = mkdtempSync(path.join(tmpdir(), 'bury-redirected-parent-'))
+    const linkedParent = path.join(projectsRoot, 'workspace')
+    const nestedProject = path.join(linkedParent, 'SafeProject')
+
+    mkdirSync(projectsRoot, { recursive: true })
+    symlinkSync(redirectedParent, linkedParent, 'junction')
+    mkdirSync(path.join(redirectedParent, 'SafeProject'), { recursive: true })
+    writeFileSync(path.join(redirectedParent, 'SafeProject', 'package.json'), '{"name":"safe-project"}')
+
+    try {
+      expect(() => detectProjectCandidates(nestedProject)).toThrow(/unsafe|symlink|junction|redirect/i)
+    } finally {
+      rmSync(projectsRoot, { recursive: true, force: true })
+      rmSync(redirectedParent, { recursive: true, force: true })
     }
   })
 

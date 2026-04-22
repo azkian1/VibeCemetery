@@ -10,6 +10,7 @@ Current contract notes:
 - Browser approval requires proof-of-possession of the live `claim_token`. The approval page reads it from the `approve_url` hash fragment and sends it to `/api/cli/link/approve`.
 - Safety-critical helper logic lives in `scripts/bury-helper.mjs`. Keep the workflow text aligned with that script instead of duplicating different rules.
 - Treat any approval link missing the fragment proof as stale or invalid. Do not fall back to approving by `link_id` alone.
+- Candidate scan-path refusal rules are code-enforced in `scripts/bury-helper.mjs`, including refusal of filesystem roots, home, Desktop, Documents, Downloads, non-directories, and symlinked or redirected paths.
 
 Request payload for cremation API:
 

@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 import { createServer } from 'node:http'
-import { mkdtempSync, readFileSync, rmSync, writeFileSync, mkdirSync, existsSync } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync, writeFileSync, mkdirSync, existsSync, symlinkSync } from 'node:fs'
 import path from 'node:path'
 import { tmpdir } from 'node:os'
 import { spawn } from 'node:child_process'
@@ -158,6 +158,98 @@ test('runner restores the previous install if replacement fails', async () => {
     expect(readFileSync(path.join(workflowDir, 'scripts', 'bury-helper.mjs'), 'utf8')).toBe('mutated helper')
   } finally {
     server.close()
+    rmSync(homeDir, { recursive: true, force: true })
+  }
+})
+
+test('runner rejects redirected install targets outside the Claude directory', async () => {
+  const homeDir = mkdtempSync(path.join(tmpdir(), 'vibecemetery-home-'))
+  const redirectedCommandsDir = mkdtempSync(path.join(tmpdir(), 'vibecemetery-redirected-'))
+  const claudeDir = path.join(homeDir, '.claude')
+  const commandsLinkPath = path.join(claudeDir, 'commands')
+  const { server, port } = await startFixtureServer()
+  const rawBaseUrl = `http://127.0.0.1:${port}`
+
+  mkdirSync(claudeDir, { recursive: true })
+  symlinkSync(redirectedCommandsDir, commandsLinkPath, 'junction')
+
+  try {
+    await expect(
+      new Promise<void>((resolve, reject) => {
+        const child = spawn('node', [runnerPath, '--home', homeDir, '--raw-base-url', rawBaseUrl], {
+          cwd: root,
+          env: {
+            ...process.env,
+            HOME: homeDir,
+            USERPROFILE: homeDir,
+          },
+          stdio: ['ignore', 'pipe', 'pipe'],
+        })
+
+        let stdout = ''
+        let stderr = ''
+
+        child.stdout.on('data', (chunk) => {
+          stdout += chunk.toString()
+        })
+        child.stderr.on('data', (chunk) => {
+          stderr += chunk.toString()
+        })
+        child.on('close', (code) => {
+          if (code === 0) {
+            resolve()
+            return
+          }
+
+          reject(new Error(`${stdout}\n${stderr}`))
+        })
+      }),
+    ).rejects.toThrow(/redirect|symlink|junction|outside/i)
+
+    expect(existsSync(path.join(redirectedCommandsDir, 'bury.md'))).toBe(false)
+  } finally {
+    server.close()
+    rmSync(homeDir, { recursive: true, force: true })
+    rmSync(redirectedCommandsDir, { recursive: true, force: true })
+  }
+})
+
+test('runner rejects non-local installer source overrides', async () => {
+  const homeDir = mkdtempSync(path.join(tmpdir(), 'vibecemetery-home-'))
+
+  try {
+    await expect(
+      new Promise<void>((resolve, reject) => {
+        const child = spawn('node', [runnerPath, '--home', homeDir, '--raw-base-url', 'https://example.com/not-allowed'], {
+          cwd: root,
+          env: {
+            ...process.env,
+            HOME: homeDir,
+            USERPROFILE: homeDir,
+          },
+          stdio: ['ignore', 'pipe', 'pipe'],
+        })
+
+        let stdout = ''
+        let stderr = ''
+
+        child.stdout.on('data', (chunk) => {
+          stdout += chunk.toString()
+        })
+        child.stderr.on('data', (chunk) => {
+          stderr += chunk.toString()
+        })
+        child.on('close', (code) => {
+          if (code === 0) {
+            resolve()
+            return
+          }
+
+          reject(new Error(`${stdout}\n${stderr}`))
+        })
+      }),
+    ).rejects.toThrow(/override|local|localhost|127\.0\.0\.1/i)
+  } finally {
     rmSync(homeDir, { recursive: true, force: true })
   }
 })

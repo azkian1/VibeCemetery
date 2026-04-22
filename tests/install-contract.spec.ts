@@ -8,11 +8,12 @@ async function loadContract() {
 
 test('exports the canonical installer contract', async () => {
   const contract = await loadContract()
+  const installRef = 'ba82543066d5696535d9af97f142872c6bf1ba00'
 
   expect(contract.INSTALLER_CONTRACT).toEqual({
     repoUrl: 'https://github.com/azkian1/VibeCemetery.git',
-    rawBaseUrl: 'https://raw.githubusercontent.com/azkian1/VibeCemetery/master',
-    branch: 'master',
+    rawBaseUrl: `https://raw.githubusercontent.com/azkian1/VibeCemetery/${installRef}`,
+    installRef,
     platforms: ['macOS', 'Windows'],
     targets: {
       macOS: {
@@ -54,16 +55,16 @@ test('exports the canonical installer contract', async () => {
   })
 
   expect(contract.getInstallerSourceUrl('SKILL/commands/bury.md')).toBe(
-    'https://raw.githubusercontent.com/azkian1/VibeCemetery/master/SKILL/commands/bury.md',
+    `https://raw.githubusercontent.com/azkian1/VibeCemetery/${installRef}/SKILL/commands/bury.md`,
   )
   expect(contract.getInstallerSourceUrl('SKILL/skills/bury-workflow/scripts/bury-helper.mjs')).toBe(
-    'https://raw.githubusercontent.com/azkian1/VibeCemetery/master/SKILL/skills/bury-workflow/scripts/bury-helper.mjs',
+    `https://raw.githubusercontent.com/azkian1/VibeCemetery/${installRef}/SKILL/skills/bury-workflow/scripts/bury-helper.mjs`,
   )
 
   expect(contract.getInstallerCommand('macOS')).toBe(
-    'curl -fsSL https://raw.githubusercontent.com/azkian1/VibeCemetery/master/SKILL/install/install-bury.sh | bash',
+    `curl -fsSL https://raw.githubusercontent.com/azkian1/VibeCemetery/${installRef}/SKILL/install/install-bury.sh | bash`,
   )
   expect(contract.getInstallerCommand('Windows')).toBe(
-    'powershell -NoProfile -ExecutionPolicy Bypass -Command "iwr https://raw.githubusercontent.com/azkian1/VibeCemetery/master/SKILL/install/install-bury.ps1 -UseBasicParsing | iex"',
+    `powershell -NoProfile -ExecutionPolicy Bypass -Command "iwr https://raw.githubusercontent.com/azkian1/VibeCemetery/${installRef}/SKILL/install/install-bury.ps1 -UseBasicParsing | iex"`,
   )
 })

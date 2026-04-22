@@ -88,24 +88,29 @@ Quick install for [Claude Code](https://docs.anthropic.com/en/docs/claude-code):
 
 Choose `macOS` or `Windows`, copy the command, then run it in your terminal.
 
+Quick install intentionally downloads and executes the installer script on your machine. That is a trust boundary. The commands below are pinned to a specific repository commit instead of a floating branch, but they still execute remote code. If you want the highest-control path, use manual install and inspect the files first.
+
+Current pinned installer source: commit `ba82543066d5696535d9af97f142872c6bf1ba00`.
+
 macOS:
 
 ```bash
 curl -fsSL \
-  https://raw.githubusercontent.com/azkian1/VibeCemetery/master/SKILL/install/install-bury.sh | bash
+  https://raw.githubusercontent.com/azkian1/VibeCemetery/ba82543066d5696535d9af97f142872c6bf1ba00/SKILL/install/install-bury.sh | bash
 ```
 
 Windows PowerShell:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -Command \
-  "iwr https://raw.githubusercontent.com/azkian1/VibeCemetery/master/SKILL/install/install-bury.ps1 -UseBasicParsing | iex"
+  "iwr https://raw.githubusercontent.com/azkian1/VibeCemetery/ba82543066d5696535d9af97f142872c6bf1ba00/SKILL/install/install-bury.ps1 -UseBasicParsing | iex"
 ```
 
 **What it installs:**
 - `bury.md`
 - `bury-workflow/`
 - Safe to rerun as install or update
+- Installer refuses symlinked or redirected `~/.claude` targets before overwrite or delete
 
 **After install:**
 - Restart Claude Code.
@@ -116,7 +121,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command \
 2. Copy the entire `SKILL/skills/bury-workflow/` directory from this repo into your personal Claude skills directory.
 3. Use `~/.claude/commands/bury.md` and `~/.claude/skills/bury-workflow/` on macOS/Linux, or `%USERPROFILE%\.claude\commands\bury.md` and `%USERPROFILE%\.claude\skills\bury-workflow\` on Windows.
 4. Restart Claude Code, then run `/bury`.
-5. On updates, replace both the command file and the `bury-workflow/` skill directory with the newer versions from `SKILL/` in this repo.
+5. On updates, replace both the command file and the `bury-workflow/` skill directory with the newer versioned files from `SKILL/` in this repo.
 
 Runtime note: the command must resolve support files from the installed command directory, not from the repo being scanned.
 
@@ -125,6 +130,7 @@ Current status: the public site contract is live on `https://vibecemetery.app`. 
 **What it does:**
 - Scans subdirectories for dead projects (no commits 14+ days)
 - Uses only local filesystem and optional local git metadata for project status
+- Refuses unsafe scan roots such as filesystem root, home, Desktop, Documents, Downloads, and symlinked paths
 - Shows a table: Dead / Alive / Already Cremated
 - Writes an epitaph in the Gravedigger's voice
 - Sends cremation to the API

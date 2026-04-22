@@ -24,6 +24,7 @@ Project instructions for Claude Code. Detailed reference lives in `docs/CLAUDE.m
 - `src/proxy.ts` - API CORS and read rate limiting
 - `tests/` - Playwright and unit-style coverage
 - `SKILL/` - `/bury` command and supporting workflow files
+- `SKILL/install/` - GitHub-hosted `/bury` installer scripts and shared contract
 
 ## Rules
 - Use inline styles for component-level UI unless an existing file already relies on `globals.css`.
@@ -31,6 +32,8 @@ Project instructions for Claude Code. Detailed reference lives in `docs/CLAUDE.m
 - Treat repos as dead only when inactive for 14+ days and not forks.
 - Keep grave burial ceremony behavior intact; cremations do not use ceremony animation.
 - Preserve CLI auth flow: browser approval, `claim_token`, hashed long-lived CLI tokens.
+- Enforce `/bury` safety boundaries in code, not only in skill text or docs.
+- Keep installer quick-install sources pinned to an explicit commit or release artifact, never a floating branch.
 - Update CSP in `next.config.ts` before introducing new browser-side external origins.
 
 ## References

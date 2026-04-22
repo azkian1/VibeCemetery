@@ -180,8 +180,81 @@ function readProjectRootEntries(rootPath) {
   })
 }
 
+function normalizePathForComparison(targetPath) {
+  const resolvedPath = path.resolve(targetPath)
+  return process.platform === 'win32' ? resolvedPath.toLowerCase() : resolvedPath
+}
+
+function countNonRootPathSegments(targetPath) {
+  const resolvedPath = path.resolve(targetPath)
+  const parsedPath = path.parse(resolvedPath)
+  return resolvedPath.slice(parsedPath.root.length).split(path.sep).filter(Boolean).length
+}
+
+function getPathChain(targetPath) {
+  const resolvedPath = path.resolve(targetPath)
+  const parsedPath = path.parse(resolvedPath)
+  const segments = resolvedPath.slice(parsedPath.root.length).split(path.sep).filter(Boolean)
+  return [parsedPath.root, ...segments.map((_, index) => path.join(parsedPath.root, ...segments.slice(0, index + 1)))]
+}
+
+function assertNoRedirectedSegments(targetPath) {
+  for (const currentPath of getPathChain(targetPath)) {
+    if (!fs.existsSync(currentPath)) {
+      continue
+    }
+
+    const stats = fs.lstatSync(currentPath)
+    if (stats.isSymbolicLink()) {
+      throw new Error('Scan path cannot include a symlink or junction segment')
+    }
+  }
+}
+
+function assertSafeScanPath(scanPath, options = {}) {
+  const rawScanPath = typeof scanPath === 'string' ? scanPath.trim() : ''
+  if (!rawScanPath) {
+    throw new Error('Scan path is required')
+  }
+
+  const resolvedScanPath = path.resolve(rawScanPath)
+  assertNoRedirectedSegments(resolvedScanPath)
+  const stats = fs.lstatSync(resolvedScanPath)
+  if (stats.isSymbolicLink()) {
+    throw new Error('Scan path cannot be a symlink or junction')
+  }
+
+  if (!stats.isDirectory()) {
+    throw new Error('Scan path must be an existing directory')
+  }
+
+  const parsedPath = path.parse(resolvedScanPath)
+  if (resolvedScanPath === parsedPath.root) {
+    throw new Error('Scan path cannot be a filesystem root')
+  }
+
+  const homedir = options.homedir || os.homedir()
+  const blockedRoots = [
+    homedir,
+    path.join(homedir, 'Desktop'),
+    path.join(homedir, 'Documents'),
+    path.join(homedir, 'Downloads'),
+  ].map(normalizePathForComparison)
+  const normalizedScanPath = normalizePathForComparison(fs.realpathSync.native(resolvedScanPath))
+
+  if (blockedRoots.includes(normalizedScanPath)) {
+    throw new Error('Scan path is unsafe')
+  }
+
+  if (countNonRootPathSegments(resolvedScanPath) < 2) {
+    throw new Error('Scan path is unsafe')
+  }
+
+  return fs.realpathSync.native(resolvedScanPath)
+}
+
 export function detectProjectCandidates(scanPath, options = {}) {
-  const resolvedScanPath = path.resolve(scanPath)
+  const resolvedScanPath = assertSafeScanPath(scanPath, options)
   const registryEntries = normalizeRegistryEntries(Array.isArray(options.registryEntries) ? options.registryEntries : [])
   const scanPathEntries = readProjectRootEntries(resolvedScanPath)
   const childDirectories = fs.readdirSync(resolvedScanPath, { withFileTypes: true }).flatMap((entry) => {
@@ -190,6 +263,11 @@ export function detectProjectCandidates(scanPath, options = {}) {
     }
 
     const childPath = path.join(resolvedScanPath, entry.name)
+    const childStats = fs.lstatSync(childPath)
+    if (childStats.isSymbolicLink() || !childStats.isDirectory()) {
+      return []
+    }
+
     return [{
       path: childPath,
       entries: readProjectRootEntries(childPath),

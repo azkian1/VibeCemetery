@@ -1,8 +1,8 @@
 const owner = 'azkian1'
 const repo = 'VibeCemetery'
-const branch = 'master'
+const installRef = 'ba82543066d5696535d9af97f142872c6bf1ba00'
 
-const rawBaseUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${branch}`
+const rawBaseUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${installRef}`
 
 const files = [
   {
@@ -34,7 +34,7 @@ const files = [
 const INSTALLER_CONTRACT = {
   repoUrl: `https://github.com/${owner}/${repo}.git`,
   rawBaseUrl,
-  branch,
+  installRef,
   platforms: ['macOS', 'Windows'],
   targets: {
     macOS: {

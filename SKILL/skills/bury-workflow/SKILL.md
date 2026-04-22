@@ -43,7 +43,7 @@ Refuse to scan if any of the following are true:
 - the path is the Desktop, Documents, or Downloads directory
 - the path has fewer than 2 non-root path segments
 
-If the path is refused, stop and ask the user for a more specific projects directory.
+If the path is refused, stop and ask the user for a more specific projects directory. The helper script enforces these checks directly; do not rely on prompt text alone.
 
 ### 2. Load CLI auth config
 

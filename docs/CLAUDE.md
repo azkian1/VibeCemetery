@@ -240,13 +240,20 @@ UPSTASH_REDIS_REST_TOKEN
 - When adding a new browser-side external origin, update the relevant CSP directive first.
 - CLI link and token endpoints use `Cache-Control: no-store`.
 - Shared rate limiting uses Upstash when configured and in-memory fallback otherwise.
+- `/bury` installer and helper safety boundaries must be enforced in code, not only in prompt text or documentation.
+- Quick-install sources must stay pinned to an explicit commit or release artifact; do not point them at floating branches.
+- Installer source overrides are test-only and must stay limited to localhost-style origins.
 
 ## CLI Workflow
 - User-facing command: `SKILL/commands/bury.md`
 - Workflow implementation: `SKILL/skills/bury-workflow/`
+- Installer flow: `SKILL/install/install-bury.sh` and `SKILL/install/install-bury.ps1`
+- Install source: GitHub raw URLs pinned to installer commit `ba82543066d5696535d9af97f142872c6bf1ba00`
 - `/bury` is for local project cremation only; it does not scan GitHub repos and does not create map graves.
 - First run opens browser approval at `/cli/connect`; later runs use a stored bearer token.
 - Local deduplication uses an external per-user `cremated-registry.json`, not a repo file.
+- Installer refuses symlinked or redirected `~/.claude` targets before backup, delete, or overwrite.
+- Helper refuses unsafe scan paths such as filesystem roots, home, Desktop, Documents, Downloads, non-directories, and symlinked paths.
 
 ## Related Docs
 - `README.md` - product overview and local setup
