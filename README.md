@@ -86,6 +86,8 @@ Every user starts with **1 grave slot** on the map. Cremate projects to earn **S
 
 Quick install for [Claude Code](https://docs.anthropic.com/en/docs/claude-code):
 
+Choose `macOS` or `Windows`, copy the command, then run it in your terminal.
+
 macOS:
 
 ```bash
@@ -101,9 +103,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command \
 ```
 
 **What it installs:**
-- `SKILL/commands/bury.md` -> `~/.claude/commands/bury.md`
-- `SKILL/skills/bury-workflow/` -> `~/.claude/skills/bury-workflow/`
-- The installer replaces both targets cleanly on rerun, so the same command works for install and update.
+- `bury.md`
+- `bury-workflow/`
+- Safe to rerun as install or update
 
 **After install:**
 - Restart Claude Code.

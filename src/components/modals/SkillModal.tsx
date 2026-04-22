@@ -64,8 +64,8 @@ export default function SkillModal() {
           </h2>
 
           <p style={{ fontSize: 13, color: '#aaa9a0', margin: '0 0 18px', lineHeight: 1.55, textAlign: 'center' }}>
-            <code style={{ color: '#c8a050' }}>/bury</code> cremates dead local projects from Claude Code.
-            It scans local folders only, does not scan GitHub accounts, and does not create map graves.
+            Choose <code style={{ color: '#c8a050' }}>macOS</code> or <code style={{ color: '#c8a050' }}>Windows</code>.
+            This installs only <code style={{ color: '#c8a050' }}>bury.md</code> and <code style={{ color: '#c8a050' }}>bury-workflow/</code>.
             First run opens browser approval once, then the CLI stores a local token for later runs.
           </p>
 
@@ -135,7 +135,7 @@ export default function SkillModal() {
             }}
           >
             <li>Public GitHub script</li>
-            <li>Installs only `bury.md` and `bury-workflow/`</li>
+            <li>Copies only `bury.md` and `bury-workflow/`</li>
             <li>Replacement-safe on rerun</li>
           </ul>
 
