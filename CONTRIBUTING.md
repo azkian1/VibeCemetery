@@ -6,7 +6,7 @@ Thanks for your interest in contributing! This project is built by one vibe code
 
 ### Prerequisites
 
-- Node.js 18+
+- Node.js 20+
 - A [Supabase](https://supabase.com) project
 - A [GitHub OAuth App](https://github.com/settings/developers)
 - A [GitHub Personal Access Token](https://github.com/settings/tokens) (no special permissions needed)
@@ -18,21 +18,24 @@ git clone https://github.com/azkian1/vibecemetery.git
 cd vibecemetery
 npm install
 cp .env.example .env.local
-# Fill in your keys in .env.local
+# Fill in your keys in .env.local, then apply docs/supabase-schema.sql
+# and docs/cli-auth-v1.sql in Supabase.
 npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000).
 
+Canonical setup reference: [docs/setup.md](docs/setup.md)
+
 ### Assets
 
-The map uses paid tilesets not included in the repo. See [Assets](README.md#assets) in the README for asset requirements and runtime-loading notes.
+The map uses paid tilesets not included in the repo. The Tiled map JSON is included, but the PNG tileset images are expected from Supabase Storage. See [Assets](README.md#assets) in the README for runtime details.
 
 ## Development Standards
 
 | Area | Convention |
 |------|-----------|
-| **Styling** | Inline styles only — no Tailwind, no CSS modules |
+| **Styling** | Inline styles for component UI; `src/app/globals.css` for app-wide base styles |
 | **Colors** | Stone palette (`#1a1918` → `#d4d0c4`), gold accents (`#e8d5a3`) |
 | **Font** | Cinzel everywhere (`var(--font-cinzel)`) |
 | **Modals** | Always use `StoneFrame` from `src/components/ui/` |
@@ -48,12 +51,15 @@ The map uses paid tilesets not included in the repo. See [Assets](README.md#asse
 ## Contributing Workflow
 
 1. **Fork** the repository
-2. **Create a branch** from `master`: `git checkout -b feat/your-feature`
+2. **Create a branch** from `main`: `git checkout -b feat/your-feature`
 3. **Read** `docs/CLAUDE.md` for project structure and conventions
-4. **Make your changes** — keep PRs focused and small
-5. **Test** that `npm run build` passes with no errors
-6. **Commit** with a clear message (see convention below)
-7. **Push** and open a Pull Request
+4. **Read** `docs/setup.md` for database, asset, and test expectations
+5. **Make your changes** — keep PRs focused and small
+6. **Test** `npm run lint` and `npm run build`
+7. **Run** `npm run test:bury-skill` when your changes touch `/bury`, installer code, or CLI auth
+8. **Avoid** integration specs that write to Supabase unless you intentionally configured a safe test project
+9. **Commit** with a clear message (see convention below)
+10. **Push** and open a Pull Request
 
 ## Commit Convention
 

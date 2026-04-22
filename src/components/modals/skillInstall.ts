@@ -11,17 +11,11 @@ function getSkillInstallCommand(platform: SkillPlatform) {
 }
 
 function getSkillInstallDisplayCommand(platform: SkillPlatform) {
-  if (platform === 'macOS') {
-    return `curl -fsSL \\
-  https://raw.githubusercontent.com/azkian1/VibeCemetery/master/SKILL/install/install-bury.sh | bash`
-  }
-
-  return `powershell -NoProfile -ExecutionPolicy Bypass -Command \
-  "iwr https://raw.githubusercontent.com/azkian1/VibeCemetery/master/SKILL/install/install-bury.ps1 -UseBasicParsing | iex"`
+  return getInstallerCommand(platform)
 }
 
 function getSkillInstallSecondaryLink() {
-  return `${INSTALLER_CONTRACT.repoUrl.replace(/\.git$/, '')}/blob/master/README.md#command-cli`
+  return `${INSTALLER_CONTRACT.repoUrl.replace(/\.git$/, '')}/blob/${INSTALLER_CONTRACT.installRef}/README.md#command-cli`
 }
 
 function getSkillPlatformLabels() {

@@ -35,7 +35,7 @@ This is a cemetery for vibe-code slop only — projects people generate with AI.
 - **The Crypt** — sortable ledger of all graves on the map
 - **Necropolis Leaderboard** — Serial Killers (most burials), top Causes of Death, AI-Bots
 - **Press F** — pay respects to any grave. One F per user per grave. Most mourned projects rise to the top
-- **Gravedigger NPC** — cemetery's resident character with dry humor, reacts to burials in the chat log
+- **Gravedigger** — cemetery's resident undertaker voice with dry humor, reacts to burials in the chat log
 - **Deep Links** — shareable links to any grave (`?grave=uuid`) or urn (`?urn=id`)
 - **Social Share Card** — each grave deep link has a dedicated Open Graph / Twitter card with tombstone artwork, epitaph, cause of death, dates, and GitHub Reaper
 - **Skill (CLI)** — add the `/bury` command and let your AI agent cremate dead local projects
@@ -166,11 +166,13 @@ Current status: the public site contract is live on `https://vibecemetery.app`. 
 | Game Engine | [Phaser 3](https://phaser.io) + [Tiled](https://www.mapeditor.org) |
 | Database | [Supabase](https://supabase.com) (PostgreSQL) |
 | Auth | [NextAuth.js](https://next-auth.js.org) + GitHub OAuth |
-| Styling | Inline styles (stone palette, no CSS frameworks) |
+| Styling | Inline styles for component UI, plus a small global stylesheet |
 | Font | [Cinzel](https://fonts.google.com/specimen/Cinzel) (Google Fonts) |
 | Hosting | [Vercel](https://vercel.com) |
 
 ## Getting Started
+
+Full local setup lives in [docs/setup.md](docs/setup.md).
 
 ```bash
 git clone https://github.com/azkian1/vibecemetery.git
@@ -207,9 +209,37 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
+### Database setup
+
+Apply both SQL files in Supabase:
+
+1. `docs/supabase-schema.sql`
+2. `docs/cli-auth-v1.sql`
+
+The first file creates the base app tables and counter RPCs. The second applies the CLI auth contract used by `/bury`.
+
 ## Assets
 
-The map uses paid pixel art tilesets by [Kokoro Reflections](https://kokororeflections.itch.io) that are not included in this repository. The live site loads them from external storage at runtime.
+The map uses paid pixel art tilesets by [Kokoro Reflections](https://kokororeflections.itch.io) that are not included in this repository.
+
+- The repo includes the Tiled map JSON in `public/map/az.tmj`.
+- The PNG tilesets are expected to be served from Supabase Storage in normal local and production setups.
+- There is currently no bundled placeholder asset mode, so missing tilesets will prevent the cemetery map from rendering correctly.
+
+If you are working only on docs, API routes, auth, or the CLI flow, you can still contribute without the art assets.
+
+## Testing
+
+Minimum verification:
+
+- `npm run lint`
+- `npm run build`
+
+Targeted `/bury` suite:
+
+- `npm run test:bury-skill`
+
+Additional Playwright specs live in `tests/`, but some depend on a running app, valid Supabase credentials, or write access to your test project.
 
 ## Contributing
 
@@ -217,9 +247,10 @@ Contributions welcome! This is an open source project built by one vibe coder wi
 
 Before submitting a PR:
 - Read the [docs/CLAUDE.md](docs/CLAUDE.md) for project structure and conventions
-- All UI uses inline styles with the stone palette — no Tailwind, no CSS modules
+- Read [docs/setup.md](docs/setup.md) for local environment, database, assets, and test expectations
+- Keep component UI in inline styles with the stone palette; `src/app/globals.css` is reserved for app-wide base styling
 - Font is Cinzel everywhere
-- Test that `npm run build` passes
+- Test that `npm run lint` and `npm run build` pass
 
 ## License
 
