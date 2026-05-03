@@ -7,7 +7,7 @@ const powerShellScriptPath = `${root}/SKILL/install/install-bury.ps1`
 
 test('shell installer follows the shared contract', async () => {
   const script = readFileSync(shellScriptPath, 'utf8')
-  const installRef = 'e7a04921dfee5af3880f603763bff20bfe672621'
+  const installRef = 'ba4d1a0765b81d071b2824e92460687537786dd6'
 
   expect(script).toContain('set -euo pipefail')
   expect(script).toContain('install-contract.mjs')
@@ -19,7 +19,7 @@ test('shell installer follows the shared contract', async () => {
 
 test('powershell installer follows the shared contract', async () => {
   const script = readFileSync(powerShellScriptPath, 'utf8')
-  const installRef = 'e7a04921dfee5af3880f603763bff20bfe672621'
+  const installRef = 'ba4d1a0765b81d071b2824e92460687537786dd6'
 
   expect(script).toContain("$ErrorActionPreference = 'Stop'")
   expect(script).toContain('install-contract.mjs')

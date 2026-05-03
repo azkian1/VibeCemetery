@@ -90,20 +90,20 @@ Choose `macOS` or `Windows`, copy the command, then run it in your terminal.
 
 Quick install intentionally downloads and executes the installer script on your machine. That is a trust boundary. The commands below are pinned to a specific repository commit instead of a floating branch, but they still execute remote code. If you want the highest-control path, use manual install and inspect the files first.
 
-Current pinned installer source: commit `e7a04921dfee5af3880f603763bff20bfe672621`.
+Current pinned installer source: commit `ba4d1a0765b81d071b2824e92460687537786dd6`.
 
 macOS:
 
 ```bash
 curl -fsSL \
-  https://raw.githubusercontent.com/azkian1/VibeCemetery/e7a04921dfee5af3880f603763bff20bfe672621/SKILL/install/install-bury.sh | bash
+  https://raw.githubusercontent.com/azkian1/VibeCemetery/ba4d1a0765b81d071b2824e92460687537786dd6/SKILL/install/install-bury.sh | VIBECEMETERY_INSTALL_REF=ba4d1a0765b81d071b2824e92460687537786dd6 bash
 ```
 
 Windows PowerShell:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -Command \
-  "iwr https://raw.githubusercontent.com/azkian1/VibeCemetery/e7a04921dfee5af3880f603763bff20bfe672621/SKILL/install/install-bury.ps1 -UseBasicParsing | iex"
+  "$env:VIBECEMETERY_INSTALL_REF='ba4d1a0765b81d071b2824e92460687537786dd6'; iwr https://raw.githubusercontent.com/azkian1/VibeCemetery/ba4d1a0765b81d071b2824e92460687537786dd6/SKILL/install/install-bury.ps1 -UseBasicParsing | iex"
 ```
 
 **What it installs:**
