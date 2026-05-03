@@ -1,6 +1,6 @@
 const owner = 'azkian1'
 const repo = 'VibeCemetery'
-const installRef = 'ba82543066d5696535d9af97f142872c6bf1ba00'
+const installRef = 'e7a04921dfee5af3880f603763bff20bfe672621'
 
 const rawBaseUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${installRef}`
 

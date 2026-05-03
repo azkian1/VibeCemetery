@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-raw_base='https://raw.githubusercontent.com/azkian1/VibeCemetery/ba82543066d5696535d9af97f142872c6bf1ba00'
+raw_base='https://raw.githubusercontent.com/azkian1/VibeCemetery/e7a04921dfee5af3880f603763bff20bfe672621'
 tmp_dir="$(mktemp -d)"
 
 cleanup() {

@@ -8,7 +8,7 @@ async function loadContract() {
 
 test('exports the canonical installer contract', async () => {
   const contract = await loadContract()
-  const installRef = 'ba82543066d5696535d9af97f142872c6bf1ba00'
+  const installRef = 'e7a04921dfee5af3880f603763bff20bfe672621'
 
   expect(contract.INSTALLER_CONTRACT).toEqual({
     repoUrl: 'https://github.com/azkian1/VibeCemetery.git',

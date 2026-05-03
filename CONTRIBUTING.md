@@ -51,7 +51,7 @@ The map uses paid tilesets not included in the repo. The Tiled map JSON is inclu
 ## Contributing Workflow
 
 1. **Fork** the repository
-2. **Create a branch** from `main`: `git checkout -b feat/your-feature`
+2. **Create a branch** from the default branch: `git checkout -b feat/your-feature`
 3. **Read** `docs/CLAUDE.md` for project structure and conventions
 4. **Read** `docs/setup.md` for database, asset, and test expectations
 5. **Make your changes** — keep PRs focused and small

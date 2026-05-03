@@ -1,6 +1,6 @@
 $ErrorActionPreference = 'Stop'
 
-$rawBase = 'https://raw.githubusercontent.com/azkian1/VibeCemetery/ba82543066d5696535d9af97f142872c6bf1ba00'
+$rawBase = 'https://raw.githubusercontent.com/azkian1/VibeCemetery/e7a04921dfee5af3880f603763bff20bfe672621'
 $tmpDir = New-Item -ItemType Directory -Force -Path ([System.IO.Path]::Combine([System.IO.Path]::GetTempPath(), [System.IO.Path]::GetRandomFileName()))
 
 try {
