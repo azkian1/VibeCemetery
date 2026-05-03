@@ -7,6 +7,10 @@ import { checkRateLimit, getClientIp } from '@/lib/rate-limit';
 const COMMIT_RATE_LIMIT = 20;
 const COMMIT_WINDOW_MS = 60_000;
 
+export function canReadLastCommitForOwner(owner: string, authenticatedUsername: string): boolean {
+  return owner.trim().toLowerCase() === authenticatedUsername.trim().toLowerCase();
+}
+
 export async function GET(request: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.github_username) {
@@ -30,6 +34,10 @@ export async function GET(request: NextRequest) {
       { error: 'Missing required query parameters: owner, repo' },
       { status: 400 },
     );
+  }
+
+  if (!canReadLastCommitForOwner(owner, session.user.github_username)) {
+    return NextResponse.json({ message: null }, { status: 404 });
   }
 
   const headers: Record<string, string> = {

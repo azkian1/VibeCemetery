@@ -1,5 +1,23 @@
 import type { NextConfig } from "next";
 
+export function createContentSecurityPolicy(nodeEnv = process.env.NODE_ENV): string {
+  const scriptSrc = ["script-src 'self' 'unsafe-inline'"];
+  if (nodeEnv === 'development') {
+    scriptSrc.push("'unsafe-eval'");
+  }
+
+  return [
+    "default-src 'self'",
+    scriptSrc.join(' '),
+    "style-src 'self' 'unsafe-inline' fonts.googleapis.com",
+    "font-src 'self' fonts.gstatic.com",
+    "img-src 'self' data: blob: avatars.githubusercontent.com *.supabase.co",
+    "connect-src 'self' *.supabase.co",
+    "frame-src 'none'",
+    "object-src 'none'",
+  ].join('; ');
+}
+
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   transpilePackages: ['phaser'],
@@ -32,16 +50,7 @@ const nextConfig: NextConfig = {
         },
         {
           key: 'Content-Security-Policy',
-          value: [
-            "default-src 'self'",
-            "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
-            "style-src 'self' 'unsafe-inline' fonts.googleapis.com",
-            "font-src 'self' fonts.gstatic.com",
-            "img-src 'self' data: blob: avatars.githubusercontent.com *.supabase.co",
-            "connect-src 'self' *.supabase.co",
-            "frame-src 'none'",
-            "object-src 'none'",
-          ].join('; '),
+          value: createContentSecurityPolicy(),
         },
       ],
     },

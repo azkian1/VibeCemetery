@@ -132,21 +132,30 @@ export function __resetRateLimitStateForTests() {
 
 /**
  * Extract client IP from request.
- * Priority: Vercel req.ip → cf-connecting-ip → x-real-ip → x-forwarded-for (rightmost) → fallback.
- * Rightmost x-forwarded-for is used because the trusted proxy appends it last.
+ * Forwarding headers are only safe when the deployment proxy strips inbound spoofed values.
  */
 export function getClientIp(req: NextRequest): string {
-  // Vercel runtime may set req.ip from the verified socket address
+  // Vercel/runtime may set req.ip from the verified socket address.
   const reqIp = (req as unknown as { ip?: string }).ip;
   if (reqIp) return reqIp;
+
   const headers = req.headers;
-  // Cloudflare sets this from verified connection
+  if (process.env.VERCEL === '1') {
+    const xff = headers.get('x-forwarded-for');
+    if (xff) {
+      const parts = xff.split(',');
+      return parts[parts.length - 1].trim();
+    }
+    return '0.0.0.0';
+  }
+
+  const trustProxyHeaders = /^(1|true)$/i.test(process.env.TRUST_PROXY_HEADERS?.trim() ?? '');
+  if (!trustProxyHeaders) return '0.0.0.0';
+
   const cf = headers.get('cf-connecting-ip');
   if (cf) return cf;
-  // Trusted reverse proxy header
   const xri = headers.get('x-real-ip');
   if (xri) return xri;
-  // x-forwarded-for — rightmost entry is from the trusted proxy
   const xff = headers.get('x-forwarded-for');
   if (xff) {
     const parts = xff.split(',');
