@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-raw_base='https://raw.githubusercontent.com/azkian1/VibeCemetery/e7a04921dfee5af3880f603763bff20bfe672621'
+install_ref="${VIBECEMETERY_INSTALL_REF:-e7a04921dfee5af3880f603763bff20bfe672621}"
+raw_base="https://raw.githubusercontent.com/azkian1/VibeCemetery/${install_ref}"
 tmp_dir="$(mktemp -d)"
 
 cleanup() {

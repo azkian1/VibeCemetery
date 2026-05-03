@@ -1,6 +1,6 @@
 const owner = 'azkian1'
 const repo = 'VibeCemetery'
-const installRef = 'e7a04921dfee5af3880f603763bff20bfe672621'
+const installRef = process.env.VIBECEMETERY_INSTALL_REF || 'e7a04921dfee5af3880f603763bff20bfe672621'
 
 const rawBaseUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${installRef}`
 
@@ -56,11 +56,11 @@ function getInstallerSourceUrl(sourcePath) {
 
 function getInstallerCommand(platform) {
   if (platform === 'macOS') {
-    return `curl -fsSL ${getInstallerSourceUrl('SKILL/install/install-bury.sh')} | bash`
+    return `curl -fsSL ${getInstallerSourceUrl('SKILL/install/install-bury.sh')} | VIBECEMETERY_INSTALL_REF=${installRef} bash`
   }
 
   if (platform === 'Windows') {
-    return `powershell -NoProfile -ExecutionPolicy Bypass -Command "iwr ${getInstallerSourceUrl('SKILL/install/install-bury.ps1')} -UseBasicParsing | iex"`
+    return `powershell -NoProfile -ExecutionPolicy Bypass -Command "$env:VIBECEMETERY_INSTALL_REF='${installRef}'; iwr ${getInstallerSourceUrl('SKILL/install/install-bury.ps1')} -UseBasicParsing | iex"`
   }
 
   throw new Error(`Unsupported installer platform: ${platform}`)

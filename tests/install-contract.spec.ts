@@ -62,9 +62,9 @@ test('exports the canonical installer contract', async () => {
   )
 
   expect(contract.getInstallerCommand('macOS')).toBe(
-    `curl -fsSL https://raw.githubusercontent.com/azkian1/VibeCemetery/${installRef}/SKILL/install/install-bury.sh | bash`,
+    `curl -fsSL https://raw.githubusercontent.com/azkian1/VibeCemetery/${installRef}/SKILL/install/install-bury.sh | VIBECEMETERY_INSTALL_REF=${installRef} bash`,
   )
   expect(contract.getInstallerCommand('Windows')).toBe(
-    `powershell -NoProfile -ExecutionPolicy Bypass -Command "iwr https://raw.githubusercontent.com/azkian1/VibeCemetery/${installRef}/SKILL/install/install-bury.ps1 -UseBasicParsing | iex"`,
+    `powershell -NoProfile -ExecutionPolicy Bypass -Command "$env:VIBECEMETERY_INSTALL_REF='${installRef}'; iwr https://raw.githubusercontent.com/azkian1/VibeCemetery/${installRef}/SKILL/install/install-bury.ps1 -UseBasicParsing | iex"`,
   )
 })
