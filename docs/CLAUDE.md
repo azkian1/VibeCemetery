@@ -248,7 +248,7 @@ UPSTASH_REDIS_REST_TOKEN
 - User-facing command: `SKILL/commands/bury.md`
 - Workflow implementation: `SKILL/skills/bury-workflow/`
 - Installer flow: `SKILL/install/install-bury.sh` and `SKILL/install/install-bury.ps1`
-- Install source: GitHub raw URLs pinned to installer commit `ba82543066d5696535d9af97f142872c6bf1ba00`
+- Install source: GitHub raw URLs pinned to installer commit `e7a04921dfee5af3880f603763bff20bfe672621`
 - `/bury` is for local project cremation only; it does not scan GitHub repos and does not create map graves.
 - First run opens browser approval at `/cli/connect`; later runs use a stored bearer token.
 - Local deduplication uses an external per-user `cremated-registry.json`, not a repo file.
