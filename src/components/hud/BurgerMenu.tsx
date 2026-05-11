@@ -168,10 +168,10 @@ export default function BurgerMenu() {
           </h3>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
             <StoneButton
-              onClick={() => window.open('https://x.com/Mogilschik', '_blank')}
+              onClick={() => window.open('https://x.com/azaticus', '_blank')}
               style={{ width: '100%', maxWidth: 280 }}
             >
-              @Mogilschik 𝕏
+              Gravedigger on 𝕏
             </StoneButton>
             <StoneButton
               onClick={() => window.open('https://github.com/azkian1/VibeCemetery', '_blank')}

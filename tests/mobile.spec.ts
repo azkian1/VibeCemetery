@@ -128,6 +128,8 @@ test.describe('Desktop (1440×900)', () => {
   test('BurgerMenu opens on desktop', async ({ page }) => {
     await page.getByLabel('Menu').click();
     await expect(page.getByRole('heading', { name: 'The Cemetery Guide' })).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole('button', { name: 'Gravedigger on 𝕏' })).toBeVisible();
+    await expect(page.getByRole('button', { name: /Mogil/i })).toHaveCount(0);
   });
 });
 
