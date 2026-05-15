@@ -74,18 +74,19 @@ Use `/bury` when you want your AI coding agent to scan local project folders and
 
 | Tier | Size | Slots | Status |
 |------|------|-------|--------|
-| **Tier 0** — Cross | 1×1 (48×48 px) | 158 | Free |
+| **Tier 0** — Cross | 1×1 (48×48 px) | 143 | Free |
 | **Tier 1** — Tombstone | 1×2 (48×96 px) | 120 | Free |
+| **Reserved** — Friends / Welcome | 1×1 (48×48 px) | 15 | Manual only |
 | **Tier 2** — Monument | 2×1, 2×2 | 27 | Locked (awarded by Gravedigger) |
 | **Tier 3** — VIP | 2×3, 3×3 | 10 | Locked (awarded by Gravedigger) |
 
-**315 total slots.** When they run out — that's it. Scarcity is the point.
+**315 total slots.** The normal user slot economy uses 263 auto-assignable Tier 0–1 slots. Reserved friends/welcome slots and Tier 2–3 upgrades are manual-only. When they run out — that's it. Scarcity is the point.
 
 Tier 2–3 upgrades are **not purchasable**. They're awarded weekly to the most mourned graves, most creative causes of death, and active community members.
 
 ## Progression
 
-Every user starts with **1 grave slot** on the map. Cremate projects to earn **Souls** and unlock more.
+Every user starts with **1 grave slot** on the map. Cremate projects to earn **Souls** and unlock two more. A fourth normal slot is reserved for the upcoming first-grave X share mission.
 
 | Action | Souls Earned |
 |--------|-------------|
@@ -94,9 +95,16 @@ Every user starts with **1 grave slot** on the map. Cremate projects to earn **S
 
 | Souls Threshold | Reward |
 |----------------|--------|
-| 30 Souls | +1 slot (2 total) |
-| 80 Souls | +1 slot (3 total) |
-| 150 Souls | +1 slot (4 total) |
+| 30 Souls | +1 Souls slot |
+| 100 Souls | +1 Souls slot |
+
+| Unlock Source | Normal Slots |
+|---------------|--------------|
+| Default | 1 |
+| First grave shared on X | +1 (coming soon) |
+| Souls thresholds | +2 max |
+
+Normal user slots are enforced server-side when creating graves. Until the X share mission ships, users can unlock up to 3 normal slots through default + Souls progression. Extra map presence comes only from reserved friends/welcome slots or manual Tier 2–3 Gravedigger upgrades.
 
 **The loop:** set up the `/bury` command → run `/bury` → agent finds dead local projects → cremations earn Souls → your account progresses for the broader cemetery product.
 

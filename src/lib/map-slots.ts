@@ -1,5 +1,6 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
+import { isAutoAssignableGraveSlotType } from './slot-economy';
 
 interface TmjObject {
   id: number;
@@ -28,9 +29,6 @@ export interface GraveSlot {
 
 let cachedSlots: GraveSlot[] | null = null;
 
-/** Auto-assignable slot types (T0 + T1 only). T2/T3/S are admin-only. */
-const AUTO_SLOT_TYPES = new Set(['grave', 'grave_tall']);
-
 /** Returns all grave slot IDs from the Tiled map, sorted ascending.
  *  @deprecated Use getGraveSlots() for typed slot info. */
 export function getGraveSlotIds(): number[] {
@@ -55,6 +53,16 @@ export function getGraveSlots(): GraveSlot[] {
   return cachedSlots;
 }
 
+/** Returns only slots that normal users can receive through automatic burial. */
+export function getAutoAssignableGraveSlots(): GraveSlot[] {
+  return getGraveSlots().filter((slot) => isAutoAssignableGraveSlotType(slot.type));
+}
+
+export function countAutoAssignableGraveUsage(graves: { slot_id: number }[]): number {
+  const autoSlotIds = new Set(getAutoAssignableGraveSlots().map((slot) => slot.id));
+  return graves.reduce((count, grave) => count + (autoSlotIds.has(grave.slot_id) ? 1 : 0), 0);
+}
+
 /** Bias multiplier per tier — higher = more likely to be picked. */
 const TIER_BIAS: Record<string, number> = { grave: 4, grave_tall: 1 };
 
@@ -65,12 +73,11 @@ const TIER_BIAS: Record<string, number> = { grave: 4, grave_tall: 1 };
  * - Random slot within the chosen tier for even map distribution.
  */
 export function pickRandomFreeSlot(usedIds: Set<number>): GraveSlot | null {
-  const allSlots = getGraveSlots();
+  const allSlots = getAutoAssignableGraveSlots();
   const pools = new Map<string, GraveSlot[]>();
 
   for (const s of allSlots) {
     if (usedIds.has(s.id)) continue;
-    if (!AUTO_SLOT_TYPES.has(s.type)) continue;
     if (!pools.has(s.type)) pools.set(s.type, []);
     pools.get(s.type)!.push(s);
   }

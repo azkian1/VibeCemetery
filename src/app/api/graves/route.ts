@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
 import { supabaseAdmin } from '@/lib/supabase'
-import { pickRandomFreeSlot } from '@/lib/map-slots'
+import { countAutoAssignableGraveUsage, pickRandomFreeSlot } from '@/lib/map-slots'
+import { calculateSouls, calculateUserSlotEconomy } from '@/lib/slot-economy'
 import { generateEpitaph } from '@/gravedigger/epitaphs'
 import { insertGraveWithSlotRetry } from './insertWithSlotRetry'
 
@@ -30,6 +31,38 @@ async function syncUserGravesCount(authorGithub: string): Promise<void> {
   if (updateError) {
     console.error('Failed to sync graves_count for user:', authorGithub, updateError)
   }
+}
+
+async function loadUserSlotEconomy(authorGithub: string) {
+  const [gravesResult, crematedResult, userResult] = await Promise.all([
+    supabaseAdmin
+      .from('graves')
+      .select('slot_id')
+      .eq('author_github', authorGithub),
+    supabaseAdmin
+      .from('cremated')
+      .select('source')
+      .eq('author_github', authorGithub),
+    supabaseAdmin
+      .from('users')
+      .select('*')
+      .eq('github_username', authorGithub)
+      .maybeSingle(),
+  ])
+
+  if (gravesResult.error || crematedResult.error || userResult.error) {
+    throw gravesResult.error ?? crematedResult.error ?? userResult.error
+  }
+
+  const userRecord = (userResult.data ?? {}) as Record<string, unknown>
+  const hasSharedFirstGrave = Boolean(userRecord.x_first_grave_shared_at)
+  const souls = calculateSouls((crematedResult.data ?? []) as { source: 'github' | 'skill' }[])
+
+  return calculateUserSlotEconomy({
+    souls,
+    slotsUsed: countAutoAssignableGraveUsage((gravesResult.data ?? []) as { slot_id: number }[]),
+    hasSharedFirstGrave,
+  })
 }
 
 // ---------------------------------------------------------------------------
@@ -108,6 +141,26 @@ export async function POST(req: NextRequest) {
       { error: 'Rate limit: max 20 graves per day' },
       { status: 429 },
     );
+  }
+
+  let userSlotEconomy: Awaited<ReturnType<typeof loadUserSlotEconomy>>
+  try {
+    userSlotEconomy = await loadUserSlotEconomy(author_github)
+  } catch (error) {
+    console.error('Failed to load user slot economy:', author_github, error)
+    return NextResponse.json({ error: 'Failed to check grave slot allowance' }, { status: 500 })
+  }
+
+  if (!userSlotEconomy.canCreateGrave) {
+    return NextResponse.json(
+      {
+        code: 'USER_GRAVE_SLOTS_EXHAUSTED',
+        error: 'No user grave slots available',
+        slots_unlocked: userSlotEconomy.slotsUnlocked,
+        slots_used: userSlotEconomy.slotsUsed,
+      },
+      { status: 403 },
+    )
   }
 
   // 2. Parse body
@@ -307,6 +360,35 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(
       { error: 'Rate limit: max 20 graves per day' },
       { status: 429 },
+    )
+  }
+
+  const { data: totalUserGravesAfterInsert, error: totalUserGravesError } = await supabaseAdmin
+    .from('graves')
+    .select('slot_id')
+    .eq('author_github', author_github)
+
+  if (totalUserGravesError) {
+    console.error('Failed to verify user slot limit after insert:', author_github, totalUserGravesError)
+    await syncUserGravesCount(author_github)
+    return NextResponse.json({ error: 'Failed to verify grave slot allowance' }, { status: 500 })
+  }
+
+  if (countAutoAssignableGraveUsage((totalUserGravesAfterInsert ?? []) as { slot_id: number }[]) > userSlotEconomy.slotsUnlocked) {
+    const { error: delErr } = await supabaseAdmin.from('graves').delete().eq('id', grave.id)
+    if (delErr) {
+      console.error('User slot-limit rollback failed for grave', grave.id, delErr)
+      await syncUserGravesCount(author_github)
+      return NextResponse.json(
+        { error: 'Failed to finalize grave creation after slot-limit conflict' },
+        { status: 500 },
+      )
+    }
+
+    await syncUserGravesCount(author_github)
+    return NextResponse.json(
+      { code: 'USER_GRAVE_SLOTS_EXHAUSTED', error: 'No user grave slots available' },
+      { status: 403 },
     )
   }
 

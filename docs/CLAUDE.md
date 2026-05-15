@@ -188,10 +188,11 @@ vibecemetery/
 - `src/components/PhaserCanvas.tsx` embeds Phaser client-side only and bridges React state into the game scene.
 - `src/game/scenes/CemeteryScene.ts` owns map rendering, camera behavior, pinch zoom, day/night cycle, particle effects, lamp rendering, highlights, and the burial ceremony animation.
 - `src/lib/map-slots.ts` and `src/game/utils/slotManager.ts` are the slot source of truth for map placement.
+- `src/lib/slot-economy.ts` is the source of truth for normal user slot progression: 4 max normal slots, 1 default, +1 first-grave X share coming soon, +1 at 30 Souls, +1 at 100 Souls.
 - `src/proxy.ts` applies shared API CORS handling and read rate limiting for `/api/*` requests.
 
 ## Data Model
-- `users` - GitHub-linked user profile and progression counters
+- `users` - GitHub-linked user profile, progression counters, and planned first-grave X share unlock timestamp
 - `graves` - mapped GitHub burials with slot assignment, epitaph, tier, and `f_count`
 - `cremated` - cremated projects from browser or CLI flow, with `source` and Souls progression
 - `f_votes` - idempotent respect votes keyed per user and grave
@@ -205,6 +206,8 @@ vibecemetery/
 - Shared modal chrome belongs in `src/components/ui/`; feature modal behavior belongs in `src/components/modals/`.
 - GitHub repos count as dead when they have no commits for 14+ days and are not forks.
 - Grave placement must come from parsed map slots, not hardcoded coordinates.
+- Normal user graves are limited server-side by slot economy before map slot assignment.
+- Auto-assigned user graves can use only `grave` and `grave_tall` slots. `grave_special` is reserved for friends/welcome placements; Tier 2–3 slots are manual Gravedigger upgrades for best ideas.
 - Phaser input uses `windowEvents: false` to prevent pointer bleed-through into HTML overlays.
 - Grave burial ceremony is React-triggered and Phaser-rendered; cremations do not use the ceremony animation.
 - CLI auth uses browser approval plus a one-time `claim_token`; long-lived CLI tokens are server-issued and hashed at rest.

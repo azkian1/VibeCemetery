@@ -6,9 +6,13 @@ create table if not exists public.users (
   avatar_url text,
   graves_count integer not null default 0,
   cremated_count integer not null default 0,
+  x_first_grave_shared_at timestamptz,
   created_at timestamptz not null default timezone('utc', now()),
   updated_at timestamptz not null default timezone('utc', now())
 );
+
+alter table public.users
+  add column if not exists x_first_grave_shared_at timestamptz;
 
 create table if not exists public.graves (
   id uuid primary key default gen_random_uuid(),

@@ -14,9 +14,22 @@ import StepDone from './bury/StepDone';
 import type { DeadRepo, GraveData, BuryResult } from '@/types/game';
 import { GRAVEDIGGER_BURIAL, GRAVEDIGGER_MASS_BURIAL } from '@/gravedigger/phrases';
 import { cemeteryEvents } from '@/game/events';
+import { calculateSouls, calculateUserSlotEconomy, isAutoAssignableGraveSlotType } from '@/lib/slot-economy';
 
 const DEATH_CAUSES_DEFAULT = 'Developer lost interest';
-const SLOT_THRESHOLDS = [30, 80, 150, 300] as const;
+const USER_GRAVE_SLOTS_EXHAUSTED = 'USER_GRAVE_SLOTS_EXHAUSTED';
+
+export async function shouldFallbackGraveToCremation(res: Response): Promise<boolean> {
+  if (res.status === 507) return true;
+  if (res.status !== 403) return false;
+
+  try {
+    const data = await res.clone().json();
+    return data?.code === USER_GRAVE_SLOTS_EXHAUSTED;
+  } catch {
+    return false;
+  }
+}
 
 function toEnglishSafeProjectLabel(name: string): string {
   return /[^\x00-\x7F]/.test(name) ? 'A project' : name;
@@ -28,6 +41,7 @@ export default function BuryFlowModal() {
   const { data: session } = useSession();
   const isMobile = useIsMobile();
   const username = session?.user?.github_username ?? null;
+  const hasSharedFirstGrave = Boolean(session?.user?.x_first_grave_shared_at);
 
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [repos, setRepos] = useState<DeadRepo[]>([]);
@@ -46,10 +60,20 @@ export default function BuryFlowModal() {
   // ── Slot economy ──
   const userGravesCount = useMemo(() => {
     if (!username) return 0;
+    if (state.slotPositions.length === 0) {
+      let count = 0;
+      state.graves.forEach(g => { if (g.author_github === username) count++; });
+      return count;
+    }
+    const autoSlotIds = new Set(
+      state.slotPositions
+        .filter((slot) => isAutoAssignableGraveSlotType(slot.type))
+        .map((slot) => slot.id)
+    );
     let count = 0;
-    state.graves.forEach(g => { if (g.author_github === username) count++; });
+    state.graves.forEach(g => { if (g.author_github === username && autoSlotIds.has(g.slot_id)) count++; });
     return count;
-  }, [state.graves, username]);
+  }, [state.graves, state.slotPositions, username]);
 
   const userCremated = useMemo(() => {
     if (!username) return [];
@@ -58,11 +82,14 @@ export default function BuryFlowModal() {
 
   const userCrematedCount = userCremated.length;
 
-  const souls = userCremated.reduce(
-    (acc, c) => acc + (c.source === 'skill' ? 1 : 3), 0
-  );
-  const slotsUnlocked = 1 + SLOT_THRESHOLDS.filter(t => souls >= t).length;
-  const availableSlots = Math.max(0, slotsUnlocked - userGravesCount);
+  const souls = calculateSouls(userCremated);
+  const slotEconomy = calculateUserSlotEconomy({
+    souls,
+    slotsUsed: userGravesCount,
+    hasSharedFirstGrave,
+  });
+  const slotsUnlocked = slotEconomy.slotsUnlocked;
+  const availableSlots = slotEconomy.availableSlots;
 
   // ── Cremation daily limit ──
   const dailyCremationsLeft = useMemo(() => {
@@ -212,7 +239,7 @@ export default function BuryFlowModal() {
 
           if (res.status === 409) {
             buryResults.push({ name: repo.name, success: false, type: 'grave', error: 'already buried' });
-          } else if (res.status === 507) {
+          } else if (await shouldFallbackGraveToCremation(res)) {
             // Fallback: server says no slots — cremate instead
             if (rateLimited) {
               buryResults.push({ name: repo.name, success: false, type: 'cremated', error: 'daily limit reached — come back tomorrow' });

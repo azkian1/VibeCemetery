@@ -4,6 +4,7 @@ declare module 'next-auth' {
   interface Session {
     user: {
       github_username?: string
+      x_first_grave_shared_at?: string | null
     } & DefaultSession['user']
   }
 }

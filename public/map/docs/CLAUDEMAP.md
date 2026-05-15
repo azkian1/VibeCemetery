@@ -47,7 +47,7 @@ All interactive objects. Used by Phaser for click detection and grave placement 
 | Type | Size (tiles) | Size (px) | Count |Description |
 |------|-------------|-----------|-------|-------------|
 | `grave` | 1x1 | 48x48 | 143 | Small cross / basic gravestone |
-| `grave_special` | 1x1 | 48x48 | 15 | Dirt mound — pit gets covered with earth pile on burial |
+| `grave_special` | 1x1 | 48x48 | 15 | Reserved friends/welcome slot — dirt mound gets covered with earth pile on burial |
 | `grave_tall` | 1x2 | 48x96 | 120 | Vertical tombstone |
 | `grave_wide` | 2x1 | 96x48 | 13 | Horizontal tombstone |
 | `grave_large` | 2x2 | 96x96 | 14 | Large monument |
@@ -60,15 +60,15 @@ All interactive objects. Used by Phaser for click detection and grave placement 
 
 | Slot Type | Tier | Count | Status |
 |-----------|------|-------|--------|
-| `grave` (1x1) | Tier 0 — free | 143 | Active |
-| `grave_special` (1x1) | Tier 0 — free | 15 | Active |
-| `grave_tall` (1x2) | Tier 1 — free | 120 | Active |
+| `grave` (1x1) | Tier 0 — user economy | 143 | Active |
+| `grave_special` (1x1) | Reserved — friends/welcome | 15 | Manual only |
+| `grave_tall` (1x2) | Tier 1 — user economy | 120 | Active |
 | `grave_wide` (2x1) | Tier 2 | 13 | Locked |
 | `grave_large` (2x2) | Tier 2 | 14 | Locked |
 | `grave_largetop` (2x3) | Tier 3 / VIP | 7 | Locked |
 | `grave_largeX` (3x3) | Tier 3 / VIP | 3 | Locked |
 
-Free: 278 slots (Tier 0 + 1). Locked: 37 slots (Tier 2 + 3).
+User economy: 263 auto-assignable slots (Tier 0 + 1). Reserved friends/welcome: 15 slots. Locked manual upgrades: 37 slots (Tier 2 + 3).
 
 ---
 

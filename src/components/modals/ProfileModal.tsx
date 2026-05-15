@@ -12,8 +12,7 @@ import OrnamentDivider from '@/components/ui/OrnamentDivider';
 import StoneButton from '@/components/ui/StoneButton';
 import InsetBlock from '@/components/ui/InsetBlock';
 import LoadErrorState from '@/components/ui/LoadErrorState';
-
-const SLOT_THRESHOLDS = [30, 80, 150] as const;
+import { calculateSouls, calculateUserSlotEconomy, getSlotUnlockProgress, isAutoAssignableGraveSlotType, SOUL_SLOT_THRESHOLDS } from '@/lib/slot-economy';
 
 function ProjectRow({ emoji, name, color, onClick, title, ariaLabel }: {
   emoji: string; name: string; color: string;
@@ -85,6 +84,7 @@ export default function ProfileModal() {
   const isMobile = useIsMobile();
   const user = session?.user;
   const username = user?.github_username;
+  const hasSharedFirstGrave = Boolean(user?.x_first_grave_shared_at);
   const loadError = gravesError || crematedError;
   const loading = gravesLoading || crematedLoading;
 
@@ -110,20 +110,32 @@ export default function ProfileModal() {
   const totalBurials = userGraves.length + userCremated.length;
 
   // Cremation Souls drive slot unlocks (github = 3 Souls, skill = 1 Soul)
-  const souls = userCremated.reduce(
-    (acc, c) => acc + (c.source === 'skill' ? 1 : 3), 0
-  );
+  const souls = calculateSouls(userCremated);
 
   // Slot calculation — single pass over thresholds
-  const slotsUsed = userGraves.length;
-  const unlocked = SLOT_THRESHOLDS.filter(t => souls >= t);
-  const slotsUnlocked = 1 + unlocked.length;
-  const allSlotsMaxed = unlocked.length === SLOT_THRESHOLDS.length;
-  const nextThreshold = SLOT_THRESHOLDS[unlocked.length] ?? null;
+  const slotsUsed = useMemo(() => {
+    if (state.slotPositions.length === 0) return userGraves.length;
+    const autoSlotIds = new Set(
+      state.slotPositions
+        .filter((slot) => isAutoAssignableGraveSlotType(slot.type))
+        .map((slot) => slot.id)
+    );
+    return userGraves.filter((grave) => autoSlotIds.has(grave.slotId)).length;
+  }, [state.slotPositions, userGraves]);
+  const slotEconomy = calculateUserSlotEconomy({
+    souls,
+    slotsUsed,
+    hasSharedFirstGrave,
+  });
+  const unlocked = SOUL_SLOT_THRESHOLDS.filter(t => souls >= t);
+  const slotsUnlocked = slotEconomy.slotsUnlocked;
+  const allSlotsMaxed = slotEconomy.allSlotsMaxed;
+  const nextThreshold = slotEconomy.nextSoulThreshold;
   const prevThreshold = unlocked.length > 0 ? unlocked[unlocked.length - 1] : 0;
   const progressToNext = nextThreshold
     ? ((souls - prevThreshold) / (nextThreshold - prevThreshold)) * 100
     : 100;
+  const slotUnlockProgress = getSlotUnlockProgress({ souls, hasSharedFirstGrave });
 
   // Navigate camera to a grave slot and close modal
   const navigateToGrave = useCallback((slotId: number) => {
@@ -381,9 +393,11 @@ export default function ProfileModal() {
                       border: '1px solid #2a2520',
                       borderRadius: 2,
                     }}>
-                      <span style={{ fontSize: 16, color: '#6a6960' }}>☐</span>
-                      <span style={{ fontSize: 12, color: '#8a8980', fontStyle: 'italic' }}>
-                        Post about your burial on X (coming soon)
+                      <span style={{ fontSize: 16, color: hasSharedFirstGrave ? '#68a060' : '#6a6960' }}>
+                        {hasSharedFirstGrave ? '✓' : '☐'}
+                      </span>
+                      <span style={{ fontSize: 12, color: hasSharedFirstGrave ? '#68a060' : '#8a8980', fontStyle: 'italic' }}>
+                        {slotUnlockProgress.socialLabel}
                       </span>
                     </div>
                   </div>
@@ -395,19 +409,19 @@ export default function ProfileModal() {
                     </div>
 
                     {/* Show unlocked slots */}
-                    {unlocked.map((threshold, idx) => (
-                      <div key={threshold} style={{ marginBottom: 6 }}>
+                    {slotUnlockProgress.unlockedSoulLabels.map((label) => (
+                      <div key={label} style={{ marginBottom: 6 }}>
                         <div style={{ fontSize: 11, color: '#68a060', marginBottom: 2 }}>
-                          ✓ Slot {idx + 2} unlocked ({threshold} Souls)
+                          ✓ {label}
                         </div>
                       </div>
                     ))}
 
                     {/* Show next slot progress */}
-                    {nextThreshold && (
+                    {nextThreshold && slotUnlockProgress.nextSoulLabel && (
                       <div style={{ marginBottom: 6 }}>
                         <div style={{ fontSize: 11, color: '#aaa9a0', marginBottom: 3 }}>
-                          Slot {unlocked.length + 2}: {nextThreshold} Souls
+                          {slotUnlockProgress.nextSoulLabel}
                         </div>
                         <ProgressBar
                           percent={progressToNext}

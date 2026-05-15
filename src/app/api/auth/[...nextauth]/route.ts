@@ -42,6 +42,19 @@ export const authOptions: NextAuthOptions = {
     },
     async session({ session, token }) {
       session.user.github_username = token.github_username as string
+      if (session.user.github_username) {
+        const { data, error } = await supabaseAdmin
+          .from('users')
+          .select('x_first_grave_shared_at')
+          .eq('github_username', session.user.github_username)
+          .maybeSingle()
+
+        if (error) {
+          console.error('NextAuth user progression load failed', error)
+        } else {
+          session.user.x_first_grave_shared_at = data?.x_first_grave_shared_at ?? null
+        }
+      }
       return session
     },
     async jwt({ token, profile }) {
