@@ -104,7 +104,12 @@ export default function StepScan({
   if (status !== 'authenticated') {
     return (
       <div style={{ textAlign: 'center', padding: '20px 0' }}>
-        <p style={{ color: '#aaa9a0', marginBottom: 16 }}>Sign in to scan your GitHub repos</p>
+        <p style={{ color: '#aaa9a0', margin: '0 0 6px' }}>
+          Sign in with GitHub to scan your public repos.
+        </p>
+        <p style={{ color: '#6a6960', fontSize: 12, lineHeight: 1.5, margin: '0 0 16px' }}>
+          Dead repos are non-forks with no pushes for 14+ days.
+        </p>
         <button
           onClick={() => signIn('github')}
           style={{
@@ -173,8 +178,14 @@ export default function StepScan({
   if (repos.length === 0) {
     return (
       <div style={{ textAlign: 'center', padding: '20px 0' }}>
-        <p style={{ color: '#8a8980' }}>
-          All alive! Either you&apos;re productive, or you&apos;ve hidden the evidence.
+        <p style={{ color: '#aaa9a0', fontSize: 15, margin: '0 0 6px' }}>
+          No dead repos found.
+        </p>
+        <p style={{ color: '#6a6960', fontSize: 12, lineHeight: 1.5, margin: '0 0 8px' }}>
+          A repo must be inactive for 14+ days and not be a fork.
+        </p>
+        <p style={{ color: '#8a8980', fontSize: 13, margin: 0 }}>
+          All alive, or the evidence is hidden well.
         </p>
         {rescanButton}
       </div>
@@ -185,6 +196,9 @@ export default function StepScan({
     <div style={{ textAlign: 'center', padding: '12px 0' }}>
       <p style={{ color: '#e8d5a3', fontSize: 16, marginBottom: filteredCount > 0 ? 6 : 16 }}>
         Found <strong>{repos.length}</strong> dead repo{repos.length !== 1 ? 's' : ''}
+      </p>
+      <p style={{ color: '#6a6960', fontSize: 12, lineHeight: 1.5, margin: '0 0 12px' }}>
+        Choose which projects deserve a grave, and which should be cremated.
       </p>
       {filteredCount > 0 && (
         <p style={{ color: '#6a6960', fontSize: 12, marginBottom: 16 }}>

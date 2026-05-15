@@ -330,7 +330,7 @@ export default function BuryFlowModal() {
 
           <h2 style={{ margin: '0 0 16px', fontSize: 20, color: '#e8d5a3', textAlign: 'center' }}>
             {step === 1 && 'Scan Repositories'}
-            {step === 2 && 'Select for Burial'}
+            {step === 2 && 'Select Projects'}
             {step === 3 && 'Cause of Death'}
             {step === 4 && (() => {
               if (burying) return 'Processing...';
@@ -343,6 +343,12 @@ export default function BuryFlowModal() {
               return 'Cremation Complete';
             })()}
           </h2>
+
+          {step === 1 && (
+            <p style={{ color: '#aaa9a0', fontSize: 13, lineHeight: 1.5, margin: '-6px 0 18px', textAlign: 'center' }}>
+              The Gravedigger scans your GitHub for non-fork repos with no pushes for 14+ days. Pick which ones become graves or cremations.
+            </p>
+          )}
 
           {step === 1 && (
             <StepScan

@@ -167,6 +167,9 @@ export default function StepCause({
           {getButtonText()}
         </button>
       </div>
+      <p style={{ color: '#6a6960', fontSize: 12, lineHeight: 1.5, margin: '12px 0 0', textAlign: 'center' }}>
+        Buried projects appear on the cemetery map. Cremated projects go to the Crematory and earn Souls.
+      </p>
     </div>
   );
 }

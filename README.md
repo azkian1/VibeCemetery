@@ -42,13 +42,33 @@ This is a cemetery for vibe-code slop only — projects people generate with AI.
 
 ## How It Works
 
+### Website Burial
+
+Use the site when you want a GitHub repo to get a grave on the cemetery map.
+GitHub login and burial are desktop-only for now; mobile is a showcase view for walking the cemetery.
+
 ```
 1. Log in with GitHub
-2. Click BURY → scan your repos → pick the dead ones → choose cause of death
-3. Your project gets a grave on the pixel map. Others can visit and Press F.
+2. Click BURY
+3. Scan repos with no pushes for 14+ days
+4. Pick dead repos and choose grave or cremation for each
+5. Choose cause of death
+6. Graves appear on the pixel map; cremations go to the Crematory and earn Souls.
 ```
 
-Projects with a GitHub repo get a **grave on the map**. Projects without one go to the **Crematory** — still honored, just... cremated.
+GitHub repos can become **graves on the map** if you have slots, or **cremations** if you choose fire or run out of slots. Projects without a GitHub repo go to the **Crematory** — still honored, just... cremated.
+
+### CLI Cremation
+
+Use `/bury` when you want your AI coding agent to scan local project folders and cremate abandoned projects from your machine.
+
+```
+1. Install /bury
+2. Restart Claude Code
+3. Run /bury in a safe local projects folder
+4. Approve browser linking once
+5. The agent records cremations through the VibeCemetery API
+```
 
 ## Grave Tiers
 
@@ -82,7 +102,7 @@ Every user starts with **1 grave slot** on the map. Cremate projects to earn **S
 
 ## Command (CLI)
 
-`/bury` is the only official user-facing entrypoint. It turns your AI agent into a **Gravedigger** and runs the full command pipeline from `bury.md`. It scans your local project folders, finds the dead ones, and cremates them via the API. It never scans your GitHub account and it does not create map graves directly. First run opens browser approval once, then the CLI stores a server-issued token locally for later runs.
+`/bury` is the official CLI entrypoint for local project cremations. It turns your AI agent into a **Gravedigger** and runs the full command pipeline from `bury.md`. It scans your local project folders, finds the dead ones, and cremates them via the API. It never scans your GitHub account and it does not create map graves directly. First run opens browser approval once, then the CLI stores a server-issued token locally for later runs.
 
 Quick install for [Claude Code](https://docs.anthropic.com/en/docs/claude-code):
 

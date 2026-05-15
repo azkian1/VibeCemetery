@@ -36,9 +36,16 @@ const FAQ_ITEMS: FaqItem[] = [
     answer:
       '1. Sign in with GitHub\n' +
       '2. Press "BURY" — we\'ll scan your repos\n' +
-      '3. Pick which dead ones to bury\n' +
-      '4. Choose cause of death\n' +
-      '5. The grave appears on the map forever',
+      '3. Pick dead repos\n' +
+      '4. Choose grave or cremation\n' +
+      '5. Choose cause of death\n' +
+      '6. Graves appear on the map; cremations go to the Crematory',
+  },
+  {
+    question: 'Can I bury from mobile?',
+    answer:
+      'Mobile is a showcase view for walking the cemetery. ' +
+      'To connect GitHub and bury a repo, open VibeCemetery on desktop.',
   },
   {
     question: 'What counts as a "dead" project?',
@@ -49,7 +56,7 @@ const FAQ_ITEMS: FaqItem[] = [
   {
     question: 'What is the Crematory?',
     answer:
-      'Not every project gets a grave. Cremation is for those without a repo or when slots run out. ' +
+      'Not every project gets a grave. Cremation is for projects without a repo, projects you choose not to give a grave, or when slots run out. ' +
       'They end up in the Crematory — Columbarium for projects with URLs, Ash Pit for the rest. ' +
       'Ashes to ashes.',
   },

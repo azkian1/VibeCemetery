@@ -88,10 +88,13 @@ export default function StepSelect({
             {cremateCount - dailyCremationsLeft} selected will be skipped
           </div>
         )}
+        <div style={{ color: '#6a6960', fontSize: 12, lineHeight: 1.5, textAlign: 'center', marginTop: 2, borderTop: '1px solid #3a3530', paddingTop: 6 }}>
+          Coffin = grave on the map. Fire = crematory record. Cremations earn Souls for more grave slots.
+        </div>
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-        <span style={{ color: '#e8d5a3', fontSize: 14 }}>Select repos to bury</span>
+        <span style={{ color: '#e8d5a3', fontSize: 14 }}>Select projects</span>
         <button
           onClick={onToggleAll}
           style={{
