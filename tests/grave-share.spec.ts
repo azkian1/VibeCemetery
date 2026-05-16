@@ -4,6 +4,7 @@ import {
   buildGraveShareMetadata,
   buildNoIndexMetadata,
 } from '../src/lib/grave-share'
+import { confirmFirstGraveShare } from '../src/app/api/graves/[id]/share-confirm/confirmShare'
 
 test.describe('grave share card', () => {
   test('builds grave-specific share metadata from grave data', () => {
@@ -86,5 +87,108 @@ test.describe('grave share card', () => {
         follow: false,
       },
     })
+  })
+})
+
+test.describe('first grave share confirmation', () => {
+  test('unlocks the social slot for the grave owner', async () => {
+    const updates: Array<{ username: string; sharedAt: string }> = []
+
+    const result = await confirmFirstGraveShare({
+      graveId: '11111111-1111-4111-8111-111111111111',
+      username: 'demo-user',
+      now: () => new Date('2026-05-16T12:00:00.000Z'),
+      db: {
+        loadGraveOwner: async () => 'demo-user',
+        loadUserShareTimestamp: async () => null,
+        markUserSharedFirstGrave: async (username, sharedAt) => {
+          updates.push({ username, sharedAt })
+          return sharedAt
+        },
+      },
+    })
+
+    expect(result).toEqual({
+      status: 'unlocked',
+      x_first_grave_shared_at: '2026-05-16T12:00:00.000Z',
+    })
+    expect(updates).toEqual([{ username: 'demo-user', sharedAt: '2026-05-16T12:00:00.000Z' }])
+  })
+
+  test('does not unlock social slot for a grave owned by another user', async () => {
+    let updated = false
+
+    const result = await confirmFirstGraveShare({
+      graveId: '11111111-1111-4111-8111-111111111111',
+      username: 'intruder',
+      db: {
+        loadGraveOwner: async () => 'demo-user',
+        loadUserShareTimestamp: async () => null,
+        markUserSharedFirstGrave: async () => {
+          updated = true
+          return '2026-05-16T12:00:00.000Z'
+        },
+      },
+    })
+
+    expect(result).toEqual({ status: 'forbidden' })
+    expect(updated).toBe(false)
+  })
+
+  test('rejects invalid grave ids before reading the database', async () => {
+    let loaded = false
+
+    const result = await confirmFirstGraveShare({
+      graveId: 'not-a-uuid',
+      username: 'demo-user',
+      db: {
+        loadGraveOwner: async () => {
+          loaded = true
+          return 'demo-user'
+        },
+        loadUserShareTimestamp: async () => null,
+        markUserSharedFirstGrave: async () => '2026-05-16T12:00:00.000Z',
+      },
+    })
+
+    expect(result).toEqual({ status: 'invalid_grave_id' })
+    expect(loaded).toBe(false)
+  })
+
+  test('returns not_found when the grave does not exist', async () => {
+    const result = await confirmFirstGraveShare({
+      graveId: '11111111-1111-4111-8111-111111111111',
+      username: 'demo-user',
+      db: {
+        loadGraveOwner: async () => null,
+        loadUserShareTimestamp: async () => null,
+        markUserSharedFirstGrave: async () => '2026-05-16T12:00:00.000Z',
+      },
+    })
+
+    expect(result).toEqual({ status: 'not_found' })
+  })
+
+  test('is idempotent when the social slot is already unlocked', async () => {
+    let updated = false
+
+    const result = await confirmFirstGraveShare({
+      graveId: '11111111-1111-4111-8111-111111111111',
+      username: 'demo-user',
+      db: {
+        loadGraveOwner: async () => 'demo-user',
+        loadUserShareTimestamp: async () => '2026-05-16T10:00:00.000Z',
+        markUserSharedFirstGrave: async () => {
+          updated = true
+          return '2026-05-16T12:00:00.000Z'
+        },
+      },
+    })
+
+    expect(result).toEqual({
+      status: 'already_unlocked',
+      x_first_grave_shared_at: '2026-05-16T10:00:00.000Z',
+    })
+    expect(updated).toBe(false)
   })
 })

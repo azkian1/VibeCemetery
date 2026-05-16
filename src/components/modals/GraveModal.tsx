@@ -16,7 +16,7 @@ import { epitaphFallback } from '@/gravedigger/epitaphs';
 export default function GraveModal() {
   const { modalData, close, closeAll } = useModal();
   const { state, dispatch } = useGame();
-  const { data: session } = useSession();
+  const { data: session, update: updateSession } = useSession();
   const isMobile = useIsMobile();
   const isLoggedIn = !!session?.user;
   const slotId = modalData?.slotId;
@@ -31,10 +31,15 @@ export default function GraveModal() {
     message: null,
   });
   const fError = grave && fErrorState.graveId === grave.id ? fErrorState.message : null;
+  const [shareUnlockState, setShareUnlockState] = useState<{
+    graveId: string | null;
+    status: 'idle' | 'unlocking' | 'unlocked' | 'error';
+  }>({ graveId: null, status: 'idle' });
 
   const handleClose = useCallback(() => {
     setCopied(false);
     setFErrorState({ graveId: null, message: null });
+    setShareUnlockState({ graveId: null, status: 'idle' });
     close();
   }, [close]);
 
@@ -60,15 +65,46 @@ export default function GraveModal() {
     }
   };
 
-  const handleShare = () => {
+  const confirmShareUnlock = async () => {
+    if (!grave || session?.user?.github_username !== grave.author_github || session.user.x_first_grave_shared_at) return;
+
+    setShareUnlockState({ graveId: grave.id, status: 'unlocking' });
+    try {
+      const res = await fetch(`/api/graves/${grave.id}/share-confirm`, { method: 'POST' });
+      if (!res.ok) {
+        setShareUnlockState({ graveId: grave.id, status: 'error' });
+        return;
+      }
+
+      await updateSession();
+      setShareUnlockState({ graveId: grave.id, status: 'unlocked' });
+    } catch {
+      setShareUnlockState({ graveId: grave.id, status: 'error' });
+    }
+  };
+
+  const handleShare = async () => {
     if (!grave) return;
     const url = `${window.location.origin}/grave/${grave.id}`;
-    navigator.clipboard.writeText(url).then(() => {
+    const title = `${grave.name} · VibeCemetery`;
+    const text = grave.epitaph || epitaphFallback(grave);
+
+    try {
+      if (navigator.share) {
+        await navigator.share({ title, text, url });
+      } else {
+        await navigator.clipboard.writeText(url);
+      }
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    }).catch(() => {
+      await confirmShareUnlock();
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') return;
+
       window.prompt('Copy this:', url);
-    });
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
   };
 
   const navigateToGrave = useCallback(() => {
@@ -77,6 +113,7 @@ export default function GraveModal() {
     if (!slot) return;
     setCopied(false);
     setFErrorState({ graveId: null, message: null });
+    setShareUnlockState({ graveId: null, status: 'idle' });
     closeAll();
     setTimeout(() => {
       cemeteryEvents.emit('minimap_click', {
@@ -216,6 +253,7 @@ export default function GraveModal() {
   }
 
   const g = grave as NonNullable<typeof grave>;
+  const socialUnlockStatus = shareUnlockState.graveId === g.id ? shareUnlockState.status : 'idle';
 
   const livedDays =
     g.born_at && g.died_at
@@ -225,9 +263,9 @@ export default function GraveModal() {
       : null;
 
   return (
-    <ModalOverlay onClose={close}>
+    <ModalOverlay onClose={handleClose}>
       <StoneFrame isMobile={isMobile} maxWidth={500}>
-        <CloseButton onClick={close} />
+        <CloseButton onClick={handleClose} />
 
         {/* ── Header — epitaph plate ── */}
         <div style={{
@@ -372,8 +410,13 @@ export default function GraveModal() {
               </StoneButton>
             )}
 
-            <StoneButton onClick={handleShare} style={{ flex: 1 }} aria-label="Share grave link">
-              {copied ? 'Copied. F.' : 'Share Grave'}
+            <StoneButton
+              onClick={handleShare}
+              disabled={socialUnlockStatus === 'unlocking'}
+              style={{ flex: 1 }}
+              aria-label="Share grave link"
+            >
+              {socialUnlockStatus === 'unlocking' ? 'Sharing...' : copied ? 'Copied. F.' : 'Share Grave'}
             </StoneButton>
 
             <StoneButton
@@ -388,6 +431,16 @@ export default function GraveModal() {
               {copied ? 'Link copied to clipboard' : ''}
             </span>
           </div>
+          {socialUnlockStatus === 'unlocked' && (
+            <p role="status" aria-live="polite" style={{ margin: '10px 0 0', fontSize: 12, color: '#c8a050', fontStyle: 'italic', textAlign: 'center' }}>
+              Social slot unlocked. One more grave may rise.
+            </p>
+          )}
+          {socialUnlockStatus === 'error' && (
+            <p role="status" aria-live="polite" style={{ margin: '10px 0 0', fontSize: 12, color: '#b86858', fontStyle: 'italic', textAlign: 'center' }}>
+              Shared, but the slot unlock failed. Try again.
+            </p>
+          )}
         </div>
       </StoneFrame>
     </ModalOverlay>
