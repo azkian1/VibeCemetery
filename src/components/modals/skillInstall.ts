@@ -6,11 +6,16 @@ function getSkillAgentInstallPrompt() {
   return `Install the VibeCemetery /bury command for Claude Code, OpenCode, or Cursor from:
 https://github.com/azkian1/VibeCemetery
 
-Read README.md first.
 Detect my operating system.
-Use the official pinned installer command for my OS from the README.
+Run exactly one official pinned installer for my OS:
+
+macOS/Linux:
+${getInstallerCommand('macOS')}
+
+Windows PowerShell:
+${getInstallerCommand('Windows')}
+
 Do not use a floating branch.
-After installation, tell me to restart Claude Code or my local AI CLI.
 Do not run /bury yet.`
 }
 

@@ -79,7 +79,7 @@ export default function SkillModal() {
           </div>
 
           <p style={{ fontSize: 12, color: '#6f6c63', margin: '0 0 16px', lineHeight: 1.5, textAlign: 'center' }}>
-            Paste it into your local agent chat. After install, restart your CLI and run <code style={{ color: '#c8a050' }}>/bury</code>.
+            Paste it into your local agent chat. After install, run <code style={{ color: '#c8a050' }}>/bury</code>.
           </p>
 
           <div style={{ marginBottom: 16 }}>
@@ -93,27 +93,9 @@ export default function SkillModal() {
                     Second skill support is coming soon. These controls are placeholders.
                   </div>
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                  <button
-                    type="button"
-                    disabled
-                    title="Coming soon"
-                    style={{
-                      border: '1px solid rgba(200,160,80,0.22)',
-                      background: 'rgba(20,18,14,0.45)',
-                      color: '#77746a',
-                      borderRadius: 6,
-                      padding: '10px 12px',
-                      fontSize: 12,
-                      cursor: 'not-allowed',
-                    }}
-                  >
-                    Generate Key
-                  </button>
-                  <StoneButton onClick={() => {}} disabled>
-                    Copy Agent Prompt
-                  </StoneButton>
-                </div>
+                <StoneButton onClick={() => {}} disabled>
+                  COPY AGENT SETUP
+                </StoneButton>
               </div>
             </InsetBlock>
           </div>
