@@ -2,10 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
 import { supabaseAdmin } from '@/lib/supabase'
-import { countAutoAssignableGraveUsage, pickRandomFreeSlot } from '@/lib/map-slots'
-import { calculateSouls, calculateUserSlotEconomy } from '@/lib/slot-economy'
+import { getAutoAssignableGraveSlots, pickRandomFreeSlot } from '@/lib/map-slots'
 import { generateEpitaph } from '@/gravedigger/epitaphs'
-import { insertGraveWithSlotRetry } from './insertWithSlotRetry'
+import { insertGraveAtomicallyWithSlotRetry, type AtomicInsertRpcResult } from './atomicInsertWithSlotRetry'
+import { insertOutcomeResponse } from './insertOutcomeResponse'
 
 /** Strip HTML tags and collapse whitespace — defense-in-depth for stored text */
 function sanitize(str: string): string {
@@ -31,38 +31,6 @@ async function syncUserGravesCount(authorGithub: string): Promise<void> {
   if (updateError) {
     console.error('Failed to sync graves_count for user:', authorGithub, updateError)
   }
-}
-
-async function loadUserSlotEconomy(authorGithub: string) {
-  const [gravesResult, crematedResult, userResult] = await Promise.all([
-    supabaseAdmin
-      .from('graves')
-      .select('slot_id')
-      .eq('author_github', authorGithub),
-    supabaseAdmin
-      .from('cremated')
-      .select('source')
-      .eq('author_github', authorGithub),
-    supabaseAdmin
-      .from('users')
-      .select('*')
-      .eq('github_username', authorGithub)
-      .maybeSingle(),
-  ])
-
-  if (gravesResult.error || crematedResult.error || userResult.error) {
-    throw gravesResult.error ?? crematedResult.error ?? userResult.error
-  }
-
-  const userRecord = (userResult.data ?? {}) as Record<string, unknown>
-  const hasSharedFirstGrave = Boolean(userRecord.x_first_grave_shared_at)
-  const souls = calculateSouls((crematedResult.data ?? []) as { source: 'github' | 'skill' }[])
-
-  return calculateUserSlotEconomy({
-    souls,
-    slotsUsed: countAutoAssignableGraveUsage((gravesResult.data ?? []) as { slot_id: number }[]),
-    hasSharedFirstGrave,
-  })
 }
 
 // ---------------------------------------------------------------------------
@@ -141,26 +109,6 @@ export async function POST(req: NextRequest) {
       { error: 'Rate limit: max 20 graves per day' },
       { status: 429 },
     );
-  }
-
-  let userSlotEconomy: Awaited<ReturnType<typeof loadUserSlotEconomy>>
-  try {
-    userSlotEconomy = await loadUserSlotEconomy(author_github)
-  } catch (error) {
-    console.error('Failed to load user slot economy:', author_github, error)
-    return NextResponse.json({ error: 'Failed to check grave slot allowance' }, { status: 500 })
-  }
-
-  if (!userSlotEconomy.canCreateGrave) {
-    return NextResponse.json(
-      {
-        code: 'USER_GRAVE_SLOTS_EXHAUSTED',
-        error: 'No user grave slots available',
-        slots_unlocked: userSlotEconomy.slotsUnlocked,
-        slots_used: userSlotEconomy.slotsUsed,
-      },
-      { status: 403 },
-    )
   }
 
   // 2. Parse body
@@ -280,10 +228,12 @@ export async function POST(req: NextRequest) {
     last_commit_message: typeof last_commit_message === 'string' ? sanitize(last_commit_message) : null,
   }
 
+  const autoSlotIds = getAutoAssignableGraveSlots().map((slot) => slot.id)
+
   type InsertedGrave = { id: string; slot_id: number } & Record<string, unknown>
-  let insertOutcome: Awaited<ReturnType<typeof insertGraveWithSlotRetry<InsertedGrave>>>
+  let insertOutcome: Awaited<ReturnType<typeof insertGraveAtomicallyWithSlotRetry<InsertedGrave>>>
   try {
-    insertOutcome = await insertGraveWithSlotRetry({
+    insertOutcome = await insertGraveAtomicallyWithSlotRetry({
       maxAttempts: 5,
       loadUsedSlotIds: async () => {
         const { data: usedSlots, error } = await supabaseAdmin
@@ -297,100 +247,50 @@ export async function POST(req: NextRequest) {
         return (usedSlots ?? []).map((row) => row.slot_id)
       },
       pickSlot: pickRandomFreeSlot,
-      insertGrave: async (slotId) => await supabaseAdmin
-        .from('graves')
-        .insert({ ...graveRow, slot_id: slotId })
-        .select()
-        .single(),
+      insertGrave: async (slotId) => {
+        const { data, error } = await supabaseAdmin.rpc('insert_grave_if_user_slot_available', {
+          p_author_github: author_github,
+          p_auto_slot_ids: autoSlotIds,
+          p_slot_id: slotId,
+          p_name: graveRow.name,
+          p_description: graveRow.description,
+          p_epitaph: graveRow.epitaph,
+          p_born_at: graveRow.born_at,
+          p_died_at: graveRow.died_at,
+          p_cause: graveRow.cause,
+          p_stack: graveRow.stack,
+          p_github_url: graveRow.github_url,
+          p_github_repo_id: graveRow.github_repo_id,
+          p_last_commit_message: graveRow.last_commit_message,
+        })
+
+        if (error) {
+          return { status: 'failed', message: error.message }
+        }
+
+        if (!data || typeof data !== 'object') {
+          return { status: 'failed', message: 'Empty grave insert RPC response' }
+        }
+
+        return data as AtomicInsertRpcResult<InsertedGrave>
+      },
     })
   } catch (error) {
     console.error('Failed during grave slot selection:', error)
     return NextResponse.json({ error: 'Failed to create grave' }, { status: 500 })
   }
 
-  if (insertOutcome.status === 'duplicate') {
-    return NextResponse.json(
-      { error: 'This repository has already been buried' },
-      { status: 409 },
-    )
+  const handledInsertOutcome = insertOutcomeResponse(insertOutcome)
+  if (handledInsertOutcome) {
+    return handledInsertOutcome
   }
 
-  if (insertOutcome.status === 'no_slots') {
-    return NextResponse.json(
-      { error: 'No free grave slots available on the map' },
-      { status: 507 },
-    )
-  }
-
-  if (insertOutcome.status === 'retry_exhausted') {
-    console.error('Failed to create grave after repeated slot collisions')
-    return NextResponse.json(
-      { error: 'Failed to reserve a grave slot. Please try again.' },
-      { status: 503 },
-    )
-  }
-
-  if (insertOutcome.status === 'failed') {
-    console.error('Failed to create grave:', insertOutcome.error)
+  if (insertOutcome.status !== 'created') {
+    console.error('Unhandled grave insert outcome:', insertOutcome)
     return NextResponse.json({ error: 'Failed to create grave' }, { status: 500 })
   }
 
   const grave = insertOutcome.data
-
-  // 8. Post-insert rate limit check (race-condition-safe)
-  // Count AFTER insert — if limit exceeded, rollback the insert.
-  const { count: postCount } = await supabaseAdmin
-    .from('graves')
-    .select('*', { count: 'exact', head: true })
-    .eq('author_github', author_github)
-    .gte('created_at', new Date(Date.now() - 86400000).toISOString());
-
-  if ((postCount ?? 0) > 20) {
-    const { error: delErr } = await supabaseAdmin.from('graves').delete().eq('id', grave.id)
-    if (delErr) {
-      console.error('Rate-limit rollback failed for grave', grave.id, delErr)
-      await syncUserGravesCount(author_github)
-      return NextResponse.json(
-        { error: 'Failed to finalize grave creation after rate-limit conflict' },
-        { status: 500 },
-      )
-    }
-
-    await syncUserGravesCount(author_github)
-    return NextResponse.json(
-      { error: 'Rate limit: max 20 graves per day' },
-      { status: 429 },
-    )
-  }
-
-  const { data: totalUserGravesAfterInsert, error: totalUserGravesError } = await supabaseAdmin
-    .from('graves')
-    .select('slot_id')
-    .eq('author_github', author_github)
-
-  if (totalUserGravesError) {
-    console.error('Failed to verify user slot limit after insert:', author_github, totalUserGravesError)
-    await syncUserGravesCount(author_github)
-    return NextResponse.json({ error: 'Failed to verify grave slot allowance' }, { status: 500 })
-  }
-
-  if (countAutoAssignableGraveUsage((totalUserGravesAfterInsert ?? []) as { slot_id: number }[]) > userSlotEconomy.slotsUnlocked) {
-    const { error: delErr } = await supabaseAdmin.from('graves').delete().eq('id', grave.id)
-    if (delErr) {
-      console.error('User slot-limit rollback failed for grave', grave.id, delErr)
-      await syncUserGravesCount(author_github)
-      return NextResponse.json(
-        { error: 'Failed to finalize grave creation after slot-limit conflict' },
-        { status: 500 },
-      )
-    }
-
-    await syncUserGravesCount(author_github)
-    return NextResponse.json(
-      { code: 'USER_GRAVE_SLOTS_EXHAUSTED', error: 'No user grave slots available' },
-      { status: 403 },
-    )
-  }
 
   // 9. Increment graves_count for the author
   const { error: rpcError } = await supabaseAdmin.rpc('increment_graves_count', {
