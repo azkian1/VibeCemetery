@@ -9,23 +9,17 @@ import CloseButton from '@/components/ui/CloseButton';
 import StoneButton from '@/components/ui/StoneButton';
 import InsetBlock from '@/components/ui/InsetBlock';
 import {
-  detectSkillPlatform,
-  getSkillInstallCommand,
-  getSkillInstallDisplayCommand,
+  getSkillAgentInstallPrompt,
   getSkillInstallSecondaryLink,
-  getSkillPlatformLabels,
-  type SkillPlatform,
 } from './skillInstall';
+
+type CopiedTarget = 'cli' | null;
 
 export default function SkillModal() {
   const { close } = useModal();
   const isMobile = useIsMobile();
-  const [copied, setCopied] = useState(false);
+  const [copiedTarget, setCopiedTarget] = useState<CopiedTarget>(null);
   const copiedTimer = useRef<number | null>(null);
-  const [selectedPlatform, setSelectedPlatform] = useState<SkillPlatform>(() => {
-    if (typeof window === 'undefined') return 'macOS';
-    return detectSkillPlatform(window.navigator.platform);
-  });
 
   useEffect(() => {
     return () => {
@@ -37,19 +31,17 @@ export default function SkillModal() {
 
   if (isMobile) return null;
 
-  const command = getSkillInstallCommand(selectedPlatform);
-  const displayCommand = getSkillInstallDisplayCommand(selectedPlatform);
-  const platforms = getSkillPlatformLabels();
+  const cliPrompt = getSkillAgentInstallPrompt();
 
-  const handleCopy = () => {
-    navigator.clipboard.writeText(command).then(() => {
-      setCopied(true);
+  const handleCopy = (target: Exclude<CopiedTarget, null>, text: string) => {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopiedTarget(target);
       if (copiedTimer.current !== null) {
         window.clearTimeout(copiedTimer.current);
       }
-      copiedTimer.current = window.setTimeout(() => setCopied(false), 2000);
+      copiedTimer.current = window.setTimeout(() => setCopiedTarget(null), 2000);
     }).catch(() => {
-      window.prompt('Copy this command:', command);
+      window.prompt('Copy this prompt:', text);
     });
   };
 
@@ -64,40 +56,21 @@ export default function SkillModal() {
           </h2>
 
           <p style={{ fontSize: 13, color: '#aaa9a0', margin: '0 0 18px', lineHeight: 1.55, textAlign: 'center' }}>
-            Choose <code style={{ color: '#c8a050' }}>macOS</code> or <code style={{ color: '#c8a050' }}>Windows</code>.
-            This installs only <code style={{ color: '#c8a050' }}>bury.md</code> and <code style={{ color: '#c8a050' }}>bury-workflow/</code>.
-            First run opens browser approval once, then the CLI stores a local token for later runs.
+            Copy the prompt and paste it into your local AI coding CLI. Your agent will read the docs,
+            pick the right installer for your OS, and set up <code style={{ color: '#c8a050' }}>/bury</code>.
           </p>
-
-          <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginBottom: 14 }}>
-            {platforms.map((platform) => {
-              const active = platform === selectedPlatform;
-
-              return (
-                <button
-                  key={platform}
-                  type="button"
-                  onClick={() => setSelectedPlatform(platform)}
-                  style={{
-                    border: '1px solid rgba(200,160,80,0.35)',
-                    background: active ? 'rgba(200,160,80,0.16)' : 'rgba(20,18,14,0.72)',
-                    color: active ? '#f1e1bb' : '#aaa9a0',
-                    borderRadius: 999,
-                    padding: '8px 14px',
-                    fontSize: 12,
-                    cursor: 'pointer',
-                    minWidth: 92,
-                  }}
-                >
-                  {platform}
-                </button>
-              );
-            })}
-          </div>
 
           <div style={{ marginBottom: 16 }}>
             <InsetBlock>
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: 10 }}>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ color: '#e8d5a3', fontSize: 14, marginBottom: 4 }}>
+                    Claude Code / OpenCode / Cursor
+                  </div>
+                  <div style={{ color: '#77746a', fontSize: 12, lineHeight: 1.45 }}>
+                    Give this to your agent. It will install the CLI skill for you.
+                  </div>
+                </div>
                 <code
                   style={{
                     fontSize: 12,
@@ -109,35 +82,54 @@ export default function SkillModal() {
                     wordBreak: 'break-word',
                   }}
                 >
-                  {displayCommand}
+                  {cliPrompt}
                 </code>
-                <StoneButton onClick={handleCopy}>
-                  {copied ? 'Copied!' : 'Copy install command'}
+                <StoneButton onClick={() => handleCopy('cli', cliPrompt)}>
+                  {copiedTarget === 'cli' ? 'Copied!' : 'Copy Install Command'}
                 </StoneButton>
               </div>
             </InsetBlock>
           </div>
 
           <p style={{ fontSize: 12, color: '#6f6c63', margin: '0 0 16px', lineHeight: 1.5, textAlign: 'center' }}>
-            Run this in your terminal, then restart Claude Code and use <code style={{ color: '#c8a050' }}>/bury</code>.
+            Paste it into your local agent chat. After install, restart your CLI and run <code style={{ color: '#c8a050' }}>/bury</code>.
           </p>
 
-          <ul
-            style={{
-              margin: '0 0 16px',
-              paddingLeft: 20,
-              fontSize: 12,
-              color: '#6a6960',
-              lineHeight: 1.6,
-              listStyle: 'none',
-              padding: 0,
-              textAlign: 'center',
-            }}
-          >
-            <li>Public GitHub script</li>
-            <li>Copies only `bury.md` and `bury-workflow/`</li>
-            <li>Replacement-safe on rerun</li>
-          </ul>
+          <div style={{ marginBottom: 16 }}>
+            <InsetBlock>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: 10 }}>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ color: '#e8d5a3', fontSize: 14, marginBottom: 4 }}>
+                    Hermes / OpenClaw
+                  </div>
+                  <div style={{ color: '#77746a', fontSize: 12, lineHeight: 1.45 }}>
+                    Second skill support is coming soon. These controls are placeholders.
+                  </div>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                  <button
+                    type="button"
+                    disabled
+                    title="Coming soon"
+                    style={{
+                      border: '1px solid rgba(200,160,80,0.22)',
+                      background: 'rgba(20,18,14,0.45)',
+                      color: '#77746a',
+                      borderRadius: 6,
+                      padding: '10px 12px',
+                      fontSize: 12,
+                      cursor: 'not-allowed',
+                    }}
+                  >
+                    Generate Key
+                  </button>
+                  <StoneButton onClick={() => {}} disabled>
+                    Copy Agent Prompt
+                  </StoneButton>
+                </div>
+              </div>
+            </InsetBlock>
+          </div>
 
           <div style={{ textAlign: 'center' }}>
             <a
