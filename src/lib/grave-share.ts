@@ -26,6 +26,12 @@ export interface GraveShareMetadataOptions {
   grave: GraveShareData
 }
 
+export interface GraveTweetIntentOptions {
+  graveUrl: string
+  name: string
+  cause: string | null
+}
+
 function collapseWhitespace(value: string | null | undefined): string {
   return (value ?? '').replace(/\s+/g, ' ').trim()
 }
@@ -56,6 +62,25 @@ export function buildGraveShareCard(opts: {
     cause: collapseWhitespace(opts.grave.cause) || null,
     authorGithub: collapseWhitespace(opts.grave.author_github) || null,
   }
+}
+
+export function buildGraveTweetIntentUrl({ graveUrl, name, cause }: GraveTweetIntentOptions): string {
+  const safeName = truncate(collapseWhitespace(name) || 'a project', 60)
+  const safeCause = truncate(collapseWhitespace(cause) || 'Unknown', 90)
+  const tweetText = [
+    `I buried ${safeName} in VibeCemetery.`,
+    '',
+    `Cause of death: ${safeCause}.`,
+    '',
+    'Pay respects:',
+  ].join('\n')
+
+  const params = new URLSearchParams({
+    text: tweetText,
+    url: graveUrl,
+  })
+
+  return `https://twitter.com/intent/tweet?${params.toString()}`
 }
 
 export function buildGraveShareMetadata(opts: GraveShareMetadataOptions): Metadata {

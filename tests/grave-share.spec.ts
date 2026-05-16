@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test'
 import {
   buildGraveShareCard,
   buildGraveShareMetadata,
+  buildGraveTweetIntentUrl,
   buildNoIndexMetadata,
 } from '../src/lib/grave-share'
 import { confirmFirstGraveShare } from '../src/app/api/graves/[id]/share-confirm/confirmShare'
@@ -78,6 +79,40 @@ test.describe('grave share card', () => {
     expect(metadata.twitter?.images).toEqual([
       'https://vibecemetery.app/grave/33333333-3333-4333-8333-333333333333/opengraph-image',
     ])
+  })
+
+  test('builds X intent text for grave sharing', () => {
+    const intentUrl = buildGraveTweetIntentUrl({
+      graveUrl: 'https://vibecemetery.app/grave/11111111-1111-4111-8111-111111111111',
+      name: 'MYVIBE',
+      cause: 'Zero users',
+    })
+
+    const parsed = new URL(intentUrl)
+
+    expect(parsed.origin + parsed.pathname).toBe('https://twitter.com/intent/tweet')
+    expect(parsed.searchParams.get('text')).toBe([
+      'I buried MYVIBE in VibeCemetery.',
+      '',
+      'Cause of death: Zero users.',
+      '',
+      'Pay respects:',
+    ].join('\n'))
+    expect(parsed.searchParams.get('url')).toBe('https://vibecemetery.app/grave/11111111-1111-4111-8111-111111111111')
+  })
+
+  test('truncates long grave names and causes in X intent text', () => {
+    const intentUrl = buildGraveTweetIntentUrl({
+      graveUrl: 'https://vibecemetery.app/grave/long',
+      name: 'A'.repeat(120),
+      cause: 'B'.repeat(180),
+    })
+
+    const text = new URL(intentUrl).searchParams.get('text') ?? ''
+
+    expect(text).toContain(`${'A'.repeat(59)}...`)
+    expect(text).toContain(`${'B'.repeat(89)}...`)
+    expect(text.length).toBeLessThanOrEqual(240)
   })
 
   test('returns no-index metadata for invalid or unavailable grave routes', () => {

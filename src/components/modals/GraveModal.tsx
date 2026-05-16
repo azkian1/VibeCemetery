@@ -12,6 +12,7 @@ import OrnamentDivider from '@/components/ui/OrnamentDivider';
 import InsetBlock from '@/components/ui/InsetBlock';
 import { cemeteryEvents } from '@/game/events';
 import { epitaphFallback } from '@/gravedigger/epitaphs';
+import { buildGraveTweetIntentUrl } from '@/lib/grave-share';
 
 export default function GraveModal() {
   const { modalData, close, closeAll } = useModal();
@@ -86,21 +87,21 @@ export default function GraveModal() {
   const handleShare = async () => {
     if (!grave) return;
     const url = `${window.location.origin}/grave/${grave.id}`;
-    const title = `${grave.name} · VibeCemetery`;
-    const text = grave.epitaph || epitaphFallback(grave);
+    const intentUrl = buildGraveTweetIntentUrl({ graveUrl: url, name: grave.name, cause: grave.cause });
 
     try {
-      if (navigator.share) {
-        await navigator.share({ title, text, url });
-      } else {
+      const popup = window.open(intentUrl, '_blank', 'noopener,noreferrer');
+      if (!popup) {
         await navigator.clipboard.writeText(url);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+        return;
       }
+
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
       await confirmShareUnlock();
-    } catch (error) {
-      if (error instanceof DOMException && error.name === 'AbortError') return;
-
+    } catch {
       window.prompt('Copy this:', url);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
@@ -416,7 +417,7 @@ export default function GraveModal() {
               style={{ flex: 1 }}
               aria-label="Share grave link"
             >
-              {socialUnlockStatus === 'unlocking' ? 'Sharing...' : copied ? 'Copied. F.' : 'Share Grave'}
+              {socialUnlockStatus === 'unlocking' ? 'Sharing...' : copied ? 'Opened X. F.' : 'Share Grave'}
             </StoneButton>
 
             <StoneButton
@@ -428,7 +429,7 @@ export default function GraveModal() {
             </StoneButton>
 
             <span role="status" aria-live="polite" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0,0,0,0)' }}>
-              {copied ? 'Link copied to clipboard' : ''}
+              {copied ? 'X composer opened' : ''}
             </span>
           </div>
           {socialUnlockStatus === 'unlocked' && (
