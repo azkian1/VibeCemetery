@@ -34,6 +34,9 @@ export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: "VibeCemetery",
   description: "A cemetery for abandoned vibe-coded projects",
+  icons: {
+    icon: "/icon.svg",
+  },
   alternates: {
     canonical: "/",
   },
