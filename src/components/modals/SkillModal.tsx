@@ -68,22 +68,9 @@ export default function SkillModal() {
                     Claude Code / OpenCode / Cursor
                   </div>
                   <div style={{ color: '#77746a', fontSize: 12, lineHeight: 1.45 }}>
-                    Give this to your agent. It will install the CLI skill for you.
+                    The install prompt is built into the button. Click it, then paste into your agent chat.
                   </div>
                 </div>
-                <code
-                  style={{
-                    fontSize: 12,
-                    color: '#c8a050',
-                    fontFamily: "'Consolas', 'Monaco', monospace",
-                    textAlign: 'left',
-                    lineHeight: 1.6,
-                    whiteSpace: 'pre-wrap',
-                    wordBreak: 'break-word',
-                  }}
-                >
-                  {cliPrompt}
-                </code>
                 <StoneButton onClick={() => handleCopy('cli', cliPrompt)}>
                   {copiedTarget === 'cli' ? 'Copied!' : 'Copy Install Command'}
                 </StoneButton>
