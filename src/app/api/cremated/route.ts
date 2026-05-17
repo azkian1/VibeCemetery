@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { isAgentAshEnvelope, isAgentAshIngestToken } from '@/lib/agent-ash-boundary'
 import { resolveCliActor } from '@/lib/cli-auth'
 import { supabaseAdmin } from '@/lib/supabase'
 
@@ -12,6 +13,14 @@ function normalizeGithubRepoUrl(url: string): string {
 }
 
 export async function POST(request: Request) {
+  const bearerToken = request.headers.get('authorization')?.match(/^Bearer\s+(.+)$/i)?.[1]?.trim()
+  if (isAgentAshIngestToken(bearerToken)) {
+    return NextResponse.json(
+      { error: 'Agent Ash ingest tokens cannot access human cremations' },
+      { status: 403 },
+    )
+  }
+
   let body
   try {
     body = await request.json()
@@ -24,6 +33,13 @@ export async function POST(request: Request) {
 
   if (!body || typeof body !== 'object' || Array.isArray(body)) {
     return NextResponse.json({ error: 'Request body must be a JSON object' }, { status: 400 })
+  }
+
+  if (isAgentAshEnvelope(body)) {
+    return NextResponse.json(
+      { error: 'Agent Ash submissions must use /api/agent-ashes' },
+      { status: 403 },
+    )
   }
 
   const actor = await resolveCliActor(request)

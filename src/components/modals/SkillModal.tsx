@@ -9,11 +9,12 @@ import CloseButton from '@/components/ui/CloseButton';
 import StoneButton from '@/components/ui/StoneButton';
 import InsetBlock from '@/components/ui/InsetBlock';
 import {
+  getHermesAgentInstallPath,
   getSkillAgentInstallPrompt,
   getSkillInstallSecondaryLink,
 } from './skillInstall';
 
-type CopiedTarget = 'cli' | null;
+type CopiedTarget = 'cli' | 'hermes' | null;
 
 export default function SkillModal() {
   const { close } = useModal();
@@ -41,9 +42,11 @@ export default function SkillModal() {
       }
       copiedTimer.current = window.setTimeout(() => setCopiedTarget(null), 2000);
     }).catch(() => {
-      window.prompt('Copy this prompt:', text);
+      window.prompt('Copy this:', text);
     });
   };
+
+  const getHermesAgentInstallUrl = () => `${window.location.origin}${getHermesAgentInstallPath()}`;
 
   return (
     <ModalOverlay onClose={close}>
@@ -52,7 +55,7 @@ export default function SkillModal() {
           <CloseButton onClick={close} />
 
           <h2 style={{ margin: '0 0 14px', fontSize: 20, color: '#e8d5a3', textAlign: 'center' }}>
-            Install /bury
+            Install skill
           </h2>
 
           <p style={{ fontSize: 13, color: '#aaa9a0', margin: '0 0 18px', lineHeight: 1.55, textAlign: 'center' }}>
@@ -87,15 +90,18 @@ export default function SkillModal() {
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: 10 }}>
                 <div style={{ textAlign: 'center' }}>
                   <div style={{ color: '#e8d5a3', fontSize: 14, marginBottom: 4 }}>
-                    Hermes / OpenClaw
+                    Hermes / OpenClaw Agent Ashes
                   </div>
                   <div style={{ color: '#77746a', fontSize: 12, lineHeight: 1.45 }}>
-                    Second skill support is coming soon. These controls are placeholders.
+                    Give Hermes one URL. It reads the install contract from the site and sets up Agent Ashes itself.
                   </div>
                 </div>
-                <StoneButton onClick={() => {}} disabled>
-                  COPY AGENT SETUP
+                <StoneButton onClick={() => handleCopy('hermes', getHermesAgentInstallUrl())}>
+                  {copiedTarget === 'hermes' ? 'COPIED!' : 'COPY AGENT URL'}
                 </StoneButton>
+                <div style={{ color: '#77746a', fontSize: 12, lineHeight: 1.4, textAlign: 'center' }}>
+                  Agent Ash uses ash_ ingest tokens. Human vc_cli_ keys stay only in the CLI /bury branch.
+                </div>
               </div>
             </InsetBlock>
           </div>

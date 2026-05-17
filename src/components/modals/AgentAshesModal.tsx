@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { useModal } from '@/context/GameContext';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import ModalOverlay from './ModalOverlay';
@@ -33,9 +34,174 @@ export const AGENT_ASHES_COPY = {
   },
 };
 
+type CountItem = { value: string; count: number };
+type CertificateFetch = (input: string, init?: RequestInit) => Promise<Response>;
+
+export type AgentAshesSummaryRecord = {
+  id: string;
+  subject_name: string;
+  repo_did: string | null;
+  agent_name: string | null;
+  primary_cause: string;
+  failure_pattern: string | null;
+  death_stage: string | null;
+  verification_status: string;
+  verification_url: string | null;
+  declared_dead_at: string | null;
+  created_at: string;
+  resurrection_score?: number | null;
+};
+
+export type AgentAshesSummary = {
+  total_verified_ash: number;
+  sampled_verified_ash: number;
+  analytics_window: 'recent_verified_ash';
+  analytics_window_limit: number;
+  top_primary_causes: CountItem[];
+  top_failure_patterns: CountItem[];
+  common_death_stages: CountItem[];
+  fragile_stacks: CountItem[];
+  top_domains: CountItem[];
+  recent_verified_ash: AgentAshesSummaryRecord[];
+  resurrection_candidates: AgentAshesSummaryRecord[];
+};
+
+function normalizeSummary(value: unknown): AgentAshesSummary | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const summary = value as Partial<AgentAshesSummary>;
+  if (typeof summary.total_verified_ash !== 'number') return null;
+
+  return {
+    total_verified_ash: summary.total_verified_ash,
+    sampled_verified_ash: typeof summary.sampled_verified_ash === 'number' ? summary.sampled_verified_ash : 0,
+    analytics_window: 'recent_verified_ash',
+    analytics_window_limit: typeof summary.analytics_window_limit === 'number' ? summary.analytics_window_limit : 50,
+    top_primary_causes: Array.isArray(summary.top_primary_causes) ? summary.top_primary_causes : [],
+    top_failure_patterns: Array.isArray(summary.top_failure_patterns) ? summary.top_failure_patterns : [],
+    common_death_stages: Array.isArray(summary.common_death_stages) ? summary.common_death_stages : [],
+    fragile_stacks: Array.isArray(summary.fragile_stacks) ? summary.fragile_stacks : [],
+    top_domains: Array.isArray(summary.top_domains) ? summary.top_domains : [],
+    recent_verified_ash: Array.isArray(summary.recent_verified_ash) ? summary.recent_verified_ash : [],
+    resurrection_candidates: Array.isArray(summary.resurrection_candidates) ? summary.resurrection_candidates : [],
+  };
+}
+
+function formatCounts(items: CountItem[], empty: string): string {
+  if (items.length === 0) return empty;
+  return items.map((item) => `${item.value} (${item.count})`).join('\n');
+}
+
+function isValidAshLookupId(id: string): boolean {
+  return id.length > 0 && id.length <= 160 && /^[A-Za-z0-9:_-]+$/.test(id);
+}
+
+export async function loadAgentAshCertificate(id: string, fetchImpl: CertificateFetch = fetch): Promise<Record<string, unknown>> {
+  if (!isValidAshLookupId(id)) throw new Error('Invalid Agent Ash id');
+  const response = await fetchImpl(`/api/agent-ashes/${id}/certificate`, { cache: 'no-store' });
+  if (!response.ok) throw new Error('certificate request failed');
+  const certificate = await response.json();
+  if (!certificate || typeof certificate !== 'object' || Array.isArray(certificate)) throw new Error('invalid certificate');
+  return certificate as Record<string, unknown>;
+}
+
+function getObject(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : null;
+}
+
+function getStringField(value: Record<string, unknown> | null, key: string): string | null {
+  const field = value?.[key];
+  return typeof field === 'string' && field.trim() ? field : null;
+}
+
+export function buildAgentAshesViewModel(summary: AgentAshesSummary | null) {
+  if (!summary || summary.total_verified_ash === 0) {
+    return { ...AGENT_ASHES_COPY, records: [] as AgentAshesSummaryRecord[] };
+  }
+
+  const topFailure = summary.top_failure_patterns[0];
+  const topCandidate = summary.resurrection_candidates[0];
+  const candidateScore = typeof topCandidate?.resurrection_score === 'number'
+    ? topCandidate.resurrection_score.toFixed(2)
+    : null;
+
+  return {
+    ...AGENT_ASHES_COPY,
+    stats: [
+      { label: 'Verified Ash', value: String(summary.total_verified_ash), note: `${summary.sampled_verified_ash} sampled for dashboard` },
+      { label: 'Failure Patterns', value: String(summary.top_failure_patterns.length), note: topFailure ? `Top: ${topFailure.value}` : 'Needs verified data' },
+      { label: 'Resurrection Candidates', value: String(summary.resurrection_candidates.length), note: candidateScore ? `Highest score ${candidateScore}` : 'No candidates yet' },
+      { label: 'Agent API', value: 'Later', note: 'Structured access locked' },
+    ],
+    sections: [
+      { title: 'Top Failure Patterns', body: formatCounts(summary.top_failure_patterns, 'Waiting for verified Ash.') },
+      { title: 'Top Causes of Death', body: formatCounts(summary.top_primary_causes, 'Waiting for verified Ash.') },
+      { title: 'Fragile Stacks', body: formatCounts(summary.fragile_stacks, 'Not enough data yet.') },
+      { title: 'Repeated Domains', body: formatCounts(summary.top_domains, 'Not enough data yet.') },
+      { title: 'Death Stages', body: formatCounts(summary.common_death_stages, 'Not enough data yet.') },
+      {
+        title: 'Resurrection Queue',
+        body: summary.resurrection_candidates.length
+          ? summary.resurrection_candidates
+            .map((record) => `${record.subject_name}${typeof record.resurrection_score === 'number' ? ` (${record.resurrection_score.toFixed(2)})` : ''}`)
+            .join('\n')
+          : 'No candidates yet.',
+      },
+      { title: 'Certificate Trail', body: 'Terminal archive view with repo DIDs, verification logs, proof URLs, and JSON certificates.' },
+    ],
+    records: summary.recent_verified_ash,
+  };
+}
+
 export default function AgentAshesModal() {
   const { close } = useModal();
   const isMobile = useIsMobile();
+  const [summary, setSummary] = useState<AgentAshesSummary | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [selectedRecordId, setSelectedRecordId] = useState<string | null>(null);
+  const [certificate, setCertificate] = useState<Record<string, unknown> | null>(null);
+  const [certificateError, setCertificateError] = useState<string | null>(null);
+  const [certificateLoading, setCertificateLoading] = useState(false);
+  const viewModel = buildAgentAshesViewModel(summary);
+  const subject = getObject(certificate?.subject);
+  const raw = getObject(certificate?.raw);
+  const proofUrl = getStringField(getObject(certificate?.proof), 'verification_url') ?? getStringField(raw, 'verification_url');
+  const gitlawbNodeUrl = getStringField(raw, 'gitlawb_node_url');
+
+  async function openCertificate(record: AgentAshesSummaryRecord) {
+    setSelectedRecordId(record.id);
+    setCertificate(null);
+    setCertificateError(null);
+    setCertificateLoading(true);
+    try {
+      setCertificate(await loadAgentAshCertificate(record.id));
+    } catch {
+      setCertificateError('Certificate JSON is temporarily unavailable.');
+    } finally {
+      setCertificateLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    async function loadSummary() {
+      try {
+        setLoadError(null);
+        const response = await fetch('/api/agent-ashes/summary', { cache: 'no-store', signal: controller.signal });
+        if (!response.ok) throw new Error('summary request failed');
+        const data = normalizeSummary(await response.json());
+        if (!data) throw new Error('invalid summary');
+        setSummary(data);
+      } catch (error) {
+        if ((error as Error).name !== 'AbortError') setLoadError('Agent Ash archive is temporarily unavailable.');
+      }
+    }
+
+    loadSummary();
+    return () => {
+      controller.abort();
+    };
+  }, []);
 
   return (
     <ModalOverlay onClose={close}>
@@ -44,16 +210,16 @@ export default function AgentAshesModal() {
           <CloseButton onClick={close} />
 
           <h2 style={{ margin: '0 0 4px', fontSize: 20, color: '#e8d5a3', textAlign: 'center' }}>
-            {AGENT_ASHES_COPY.title}
+            {viewModel.title}
           </h2>
           <p style={{ color: '#8f8b7e', fontSize: 12, lineHeight: 1.5, textAlign: 'center', margin: '0 0 16px' }}>
-            {AGENT_ASHES_COPY.subtitle}
+            {viewModel.subtitle}
           </p>
 
           <InsetBlock>
             <div style={{ padding: isMobile ? '16px 14px' : '18px 20px', textAlign: 'center' }}>
               <p style={{ color: '#aaa9a0', fontSize: isMobile ? 13 : 14, lineHeight: 1.65, margin: 0 }}>
-                {AGENT_ASHES_COPY.intro}
+                {viewModel.intro}
               </p>
             </div>
           </InsetBlock>
@@ -61,7 +227,7 @@ export default function AgentAshesModal() {
           <OrnamentDivider />
 
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(4, 1fr)', gap: 10, marginBottom: 14 }}>
-            {AGENT_ASHES_COPY.stats.map((stat) => (
+            {viewModel.stats.map((stat) => (
               <InsetBlock key={stat.label}>
                 <div style={{ padding: '13px 10px', textAlign: 'center' }}>
                   <div style={{ color: '#e8d5a3', fontSize: 19, lineHeight: 1.1, marginBottom: 5 }}>
@@ -79,34 +245,115 @@ export default function AgentAshesModal() {
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 10, marginBottom: 14 }}>
-            {AGENT_ASHES_COPY.sections.map((section) => (
+            {viewModel.sections.map((section) => (
               <InsetBlock key={section.title}>
                 <div style={{ padding: '14px 14px 15px' }}>
                   <div style={{ color: '#c8a050', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.4, marginBottom: 8 }}>
                     {section.title}
                   </div>
-                  <div style={{ color: '#8f8b7e', fontSize: 13, lineHeight: 1.5 }}>
-                    {section.body}
+                   <div style={{ color: '#8f8b7e', fontSize: 13, lineHeight: 1.5 }}>
+                    {section.body.split('\n').map((line, index) => <div key={`${section.title}-${index}`}>{line}</div>)}
                   </div>
                 </div>
               </InsetBlock>
             ))}
           </div>
 
+          {viewModel.records.length > 0 && (
+            <InsetBlock>
+              <div style={{ padding: '14px 14px 15px', marginBottom: 14 }}>
+                <div style={{ color: '#c8a050', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.4, marginBottom: 10 }}>
+                  Recent Verified Ash
+                </div>
+                {viewModel.records.slice(0, 3).map((record) => (
+                  <div key={record.id} style={{ borderTop: '1px solid rgba(200, 160, 80, 0.18)', paddingTop: 9, marginTop: 9 }}>
+                    <div style={{ color: '#e8d5a3', fontSize: 13, marginBottom: 3 }}>{record.subject_name}</div>
+                    <div style={{ color: '#8f8b7e', fontSize: 12, lineHeight: 1.45 }}>
+                      {record.primary_cause} · witnessed by {record.agent_name ?? 'unknown agent'}
+                    </div>
+                    <div style={{ color: '#6a6960', fontSize: 11, marginTop: 4 }}>
+                      {record.verification_status} · {record.repo_did ?? 'repo DID pending'}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => { void openCertificate(record); }}
+                      style={{
+                        background: 'transparent',
+                        border: '1px solid rgba(200, 160, 80, 0.35)',
+                        color: '#c8a050',
+                        cursor: 'pointer',
+                        fontFamily: 'inherit',
+                        fontSize: 11,
+                        letterSpacing: 1,
+                        marginTop: 7,
+                        padding: '5px 8px',
+                        textTransform: 'uppercase',
+                      }}
+                    >
+                      Open Certificate
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </InsetBlock>
+          )}
+
+          {selectedRecordId && (
+            <InsetBlock>
+              <div style={{ padding: '14px 14px 15px', marginBottom: 14 }}>
+                <div style={{ color: '#c8a050', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.4, marginBottom: 8 }}>
+                  Certificate Detail
+                </div>
+                {certificateLoading && <div style={{ color: '#8f8b7e', fontSize: 12 }}>Loading certificate JSON...</div>}
+                {certificateError && <div style={{ color: '#8f8b7e', fontSize: 12 }}>{certificateError}</div>}
+                {certificate && (
+                  <>
+                    <div style={{ color: '#e8d5a3', fontSize: 13, marginBottom: 4 }}>
+                      {getStringField(subject, 'name') ?? 'Unknown project'}
+                    </div>
+                    <div style={{ color: '#6a6960', fontSize: 11, lineHeight: 1.5, marginBottom: 8 }}>
+                      {getStringField(subject, 'repo_did') ?? 'repo DID pending'}
+                      {proofUrl ? ` · proof: ${proofUrl}` : ''}
+                      {gitlawbNodeUrl ? ` · node: ${gitlawbNodeUrl}` : ''}
+                    </div>
+                    <pre style={{
+                      background: 'rgba(0, 0, 0, 0.28)',
+                      border: '1px solid rgba(200, 160, 80, 0.16)',
+                      color: '#aaa9a0',
+                      fontSize: 11,
+                      lineHeight: 1.45,
+                      margin: 0,
+                      maxHeight: 260,
+                      overflow: 'auto',
+                      padding: 10,
+                      whiteSpace: 'pre-wrap',
+                    }}>
+                      {JSON.stringify(certificate, null, 2)}
+                    </pre>
+                  </>
+                )}
+              </div>
+            </InsetBlock>
+          )}
+
+          {loadError && (
+            <p style={{ color: '#8f8b7e', fontSize: 12, textAlign: 'center', margin: '0 0 14px' }}>{loadError}</p>
+          )}
+
           <InsetBlock>
             <div style={{ padding: isMobile ? '16px 14px' : '18px 20px', textAlign: 'center' }}>
               <div style={{ color: '#e8d5a3', fontSize: 15, marginBottom: 4 }}>
-                {AGENT_ASHES_COPY.api.title}
+                {viewModel.api.title}
               </div>
               <div style={{ color: '#c8a050', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.4, marginBottom: 8 }}>
-                {AGENT_ASHES_COPY.api.status}
+                {viewModel.api.status}
               </div>
               <p id="agent-ashes-api-note" style={{ color: '#8f8b7e', fontSize: 13, lineHeight: 1.55, margin: '0 0 12px' }}>
-                {AGENT_ASHES_COPY.api.body}
+                {viewModel.api.body}
               </p>
 
               <StoneButton onClick={() => undefined} disabled aria-describedby="agent-ashes-api-note">
-                {AGENT_ASHES_COPY.api.action}
+                {viewModel.api.action}
               </StoneButton>
             </div>
           </InsetBlock>

@@ -1,11 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
+import { isAgentAshEnvelope, isAgentAshIngestToken } from '@/lib/agent-ash-boundary'
 import { supabaseAdmin } from '@/lib/supabase'
+import { checkRateLimit, getClientIp } from '@/lib/rate-limit'
 import { getAutoAssignableGraveSlots, pickRandomFreeSlot } from '@/lib/map-slots'
 import { generateEpitaph } from '@/gravedigger/epitaphs'
 import { insertGraveAtomicallyWithSlotRetry, type AtomicInsertRpcResult } from './atomicInsertWithSlotRetry'
 import { insertOutcomeResponse } from './insertOutcomeResponse'
+import {
+  fetchGitHubRepo,
+  parseGitHubRepoUrl,
+  validateGitHubRepoEligibility,
+} from './githubRepoEligibility'
+
+const GITHUB_REPO_VERIFY_LIMIT = 30
+const GITHUB_REPO_VERIFY_WINDOW_MS = 60_000
 
 /** Strip HTML tags and collapse whitespace — defense-in-depth for stored text */
 function sanitize(str: string): string {
@@ -89,6 +99,14 @@ export async function GET(req: NextRequest) {
 // POST /api/graves — create a new grave (authenticated)
 // ---------------------------------------------------------------------------
 export async function POST(req: NextRequest) {
+  const bearerToken = req.headers.get('authorization')?.match(/^Bearer\s+(.+)$/i)?.[1]?.trim()
+  if (isAgentAshIngestToken(bearerToken)) {
+    return NextResponse.json(
+      { error: 'Agent Ash ingest tokens cannot create graves' },
+      { status: 403 },
+    )
+  }
+
   // 1. Authenticate
   const session = await getServerSession(authOptions)
   if (!session?.user?.github_username) {
@@ -121,6 +139,13 @@ export async function POST(req: NextRequest) {
 
   if (!body || typeof body !== 'object' || Array.isArray(body)) {
     return NextResponse.json({ error: 'Request body must be a JSON object' }, { status: 400 })
+  }
+
+  if (isAgentAshEnvelope(body)) {
+    return NextResponse.json(
+      { error: 'Agent Ash submissions cannot create graves' },
+      { status: 403 },
+    )
   }
 
   const {
@@ -197,6 +222,56 @@ export async function POST(req: NextRequest) {
     if (stack.some((item) => typeof item !== 'string' || item.length > 50)) {
       return NextResponse.json({ error: 'each stack item must be a string ≤ 50 characters' }, { status: 400 })
     }
+  }
+
+  const parsedGithubUrl = parseGitHubRepoUrl(github_url)
+  if (!parsedGithubUrl) {
+    return NextResponse.json(
+      { error: 'Invalid github_url — must be a GitHub repository URL' },
+      { status: 400 },
+    )
+  }
+
+  const verifyRateLimit = await checkRateLimit(
+    `grave-verify:${author_github}:${getClientIp(req)}`,
+    GITHUB_REPO_VERIFY_LIMIT,
+    GITHUB_REPO_VERIFY_WINDOW_MS,
+  )
+  if (!verifyRateLimit.allowed) {
+    return NextResponse.json(
+      { error: 'Too many GitHub repository verification attempts. Please try again later.' },
+      {
+        status: 429,
+        headers: { 'Retry-After': String(Math.ceil(verifyRateLimit.retryAfterMs / 1000)) },
+      },
+    )
+  }
+
+  let githubRepo: unknown
+  try {
+    const githubResponse = await fetchGitHubRepo(parsedGithubUrl.owner, parsedGithubUrl.repo)
+    if (githubResponse.status === 404) {
+      return NextResponse.json({ error: 'GitHub repository not found' }, { status: 404 })
+    }
+    if (githubResponse.status === 403 || githubResponse.status === 429) {
+      return NextResponse.json({ error: 'GitHub API rate limit exceeded. Please try again later.' }, { status: 429 })
+    }
+    if (!githubResponse.ok) {
+      return NextResponse.json({ error: 'Failed to verify GitHub repository' }, { status: 502 })
+    }
+
+    githubRepo = await githubResponse.json()
+  } catch {
+    return NextResponse.json({ error: 'Failed to verify GitHub repository' }, { status: 502 })
+  }
+
+  const eligibility = validateGitHubRepoEligibility({
+    repo: githubRepo && typeof githubRepo === 'object' ? githubRepo : {},
+    expectedRepoId: github_repo_id,
+    authenticatedUsername: author_github,
+  })
+  if (!eligibility.ok) {
+    return NextResponse.json({ error: eligibility.error }, { status: eligibility.status })
   }
 
   // 4.3 Sanitize and normalize whitespace

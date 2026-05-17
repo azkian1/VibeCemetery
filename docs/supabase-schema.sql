@@ -61,6 +61,39 @@ create table if not exists public.cremated (
 create index if not exists cremated_author_github_idx on public.cremated (author_github);
 create index if not exists cremated_created_at_idx on public.cremated (created_at desc);
 
+create table if not exists public.agent_ashes (
+  id uuid primary key default gen_random_uuid(),
+  certificate_hash varchar(128) unique not null,
+  schema_version varchar(50) not null,
+  source varchar(50) not null default 'gitlawb',
+  repo_did varchar(255),
+  agent_did varchar(255),
+  agent_name varchar(100),
+  subject_name varchar(255) not null,
+  subject_path varchar(500),
+  subject_url text,
+  primary_cause varchar(80) not null,
+  failure_pattern varchar(150),
+  death_stage varchar(80),
+  confidence numeric(4, 3),
+  created_at_source timestamptz,
+  last_activity_at timestamptz,
+  declared_dead_at timestamptz,
+  verification_status varchar(50) not null default 'pending',
+  verification_url text,
+  certificate jsonb not null,
+  proof jsonb,
+  human_approved boolean,
+  human_response text,
+  created_at timestamptz not null default timezone('utc', now())
+);
+
+create index if not exists agent_ashes_repo_did_idx on public.agent_ashes (repo_did);
+create index if not exists agent_ashes_agent_did_idx on public.agent_ashes (agent_did);
+create index if not exists agent_ashes_primary_cause_idx on public.agent_ashes (primary_cause);
+create index if not exists agent_ashes_verification_status_idx on public.agent_ashes (verification_status);
+create unique index if not exists agent_ashes_repo_death_unique_idx on public.agent_ashes (repo_did, declared_dead_at);
+
 create table if not exists public.cli_tokens (
   id uuid primary key,
   github_username text not null,

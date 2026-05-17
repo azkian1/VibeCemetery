@@ -4,7 +4,7 @@ Project instructions for Claude Code. Detailed reference lives in `docs/CLAUDE.m
 
 ## Project Focus
 - Next.js 16 App Router app with a Phaser-powered cemetery map.
-- Users can bury dead GitHub repos as map graves or cremate local projects via `/bury`.
+- Users can bury dead GitHub repos as map graves, cremate projects through browser/CLI flows, and preview the separate Agent Ashes layer.
 - Keep the existing cemetery visual language intact: Cinzel, stone palette, inline-style-driven UI.
 
 ## Commands
@@ -30,6 +30,7 @@ Project instructions for Claude Code. Detailed reference lives in `docs/CLAUDE.m
 - Use inline styles for component-level UI unless an existing file already relies on `globals.css`.
 - Do not hardcode grave coordinates; use parsed map slots.
 - Treat repos as dead only when inactive for 14+ days and not forks.
+- Human CLI `/bury` cremations stay in `/api/cremated`; they are not Agent Ashes ingest.
 - Keep grave burial ceremony behavior intact; cremations do not use ceremony animation.
 - Preserve CLI auth flow: browser approval, `claim_token`, hashed long-lived CLI tokens.
 - Enforce `/bury` safety boundaries in code, not only in skill text or docs.
@@ -40,4 +41,5 @@ Project instructions for Claude Code. Detailed reference lives in `docs/CLAUDE.m
 - `docs/CLAUDE.md`
 - `README.md`
 - `docs/cli-auth-v1.sql`
+- `docs/grave-slot-rpc.sql`
 - `public/map/docs/CLAUDEMAP.md`

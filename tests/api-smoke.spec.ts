@@ -261,6 +261,60 @@ test.describe.serial('API smoke', () => {
     }
   })
 
+  test('POST /api/cli/token creates a one-time visible settings token for agent setup', async ({ request }) => {
+    const username = `agt-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
+    await createSmokeUser(username)
+    const sessionHeaders = await createAuthHeaders(username)
+
+    try {
+      const unauthenticatedRes = await request.post('/api/cli/token')
+      expect(unauthenticatedRes.status()).toBe(401)
+      expect(unauthenticatedRes.headers()['cache-control']).toBe('no-store')
+      expect(await unauthenticatedRes.json()).toEqual({ error: 'Unauthorized' })
+
+      const createRes = await request.post('/api/cli/token', { headers: sessionHeaders })
+      expect(createRes.status()).toBe(201)
+      expect(createRes.headers()['cache-control']).toBe('no-store')
+      const createBody = await createRes.json()
+      expect(typeof createBody.cli_token).toBe('string')
+      expect(createBody.cli_token).toMatch(/^vc_cli_[a-f0-9-]+\.[A-Za-z0-9_-]+$/)
+      expect(createBody.token_prefix).toBe(`${createBody.cli_token.slice(0, 18)}...`)
+
+      const secondCreateRes = await request.post('/api/cli/token', { headers: sessionHeaders })
+      expect(secondCreateRes.status()).toBe(201)
+      const secondCreateBody = await secondCreateRes.json()
+
+      const tokensRes = await request.get('/api/cli/tokens', { headers: sessionHeaders })
+      expect(tokensRes.status()).toBe(200)
+      const tokensBody = await tokensRes.json()
+      expect(tokensBody.tokens).toHaveLength(1)
+      expect(tokensBody.tokens[0].token_prefix).toBe(secondCreateBody.token_prefix)
+
+      const revokedTokenRes = await request.post('/api/cremated', {
+        headers: { authorization: `Bearer ${createBody.cli_token}` },
+        data: {
+          name: `Agent Token Revoked ${Date.now()}`,
+          cause: 'Previous settings token should be revoked',
+        },
+      })
+      expect(revokedTokenRes.status()).toBe(401)
+
+      const cremationRes = await request.post('/api/cremated', {
+        headers: { authorization: `Bearer ${secondCreateBody.cli_token}` },
+        data: {
+          name: `Agent Token Smoke ${Date.now()}`,
+          cause: 'Settings-issued agent token smoke test',
+        },
+      })
+      expect(cremationRes.status()).toBe(201)
+      const cremationBody = await cremationRes.json()
+      expect(cremationBody.author_github).toBe(username)
+      expect(cremationBody.source).toBe('skill')
+    } finally {
+      await deleteSmokeCliData(username)
+    }
+  })
+
   test('CLI link approve requires claim-token proof of possession', async ({ request }) => {
     const username = `api-smoke-cli-proof-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
     await createSmokeUser(username)

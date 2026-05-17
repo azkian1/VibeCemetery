@@ -33,7 +33,8 @@ This is a cemetery for vibe-code slop only — projects people generate with AI.
 - **Bury Flow** — 4-step ritual: Scan → Select → Cause of Death → Rest in /dev/null
 - **Crematory** — projects without a GitHub repo go to the crematory (skill cremations and overflow)
 - **The Crypt** — sortable ledger of all graves on the map
-- **Necropolis Leaderboard** — Serial Killers (most burials), top Causes of Death, AI-Bots
+- **Necropolis Leaderboard** — Serial Killers (most burials) and top Causes of Death
+- **Agent Ashes** — placeholder dashboard for future verified autonomous-agent project deaths
 - **Press F** — pay respects to any grave. One F per user per grave. Most mourned projects rise to the top
 - **Gravedigger** — cemetery's resident undertaker voice with dry humor, reacts to burials in the chat log
 - **Deep Links** — shareable links to any grave (`?grave=uuid`) or urn (`?urn=id`)
@@ -227,6 +228,8 @@ GITHUB_TOKEN                  — GitHub PAT (for repo scanning, no special perm
 NEXTAUTH_URL                  — http://localhost:3000 (local) or your domain
 NEXTAUTH_SECRET               — random string for session encryption
 CLI_TOKEN_SECRET              — optional separate secret for long-lived CLI tokens
+AGENT_ASH_INGEST_TOKEN        — server-only ash_[A-Za-z0-9._~-]{16,} token for Agent Ash ingest; never use vc_cli_* here
+GITLAWB_ALLOWED_NODE_URLS     — comma-separated trusted GitLawb node origins
 ```
 
 Then run:

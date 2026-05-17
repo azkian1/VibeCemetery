@@ -3,7 +3,7 @@
 This file is the detailed project reference. The actual Claude Code entrypoint should live at the repo root in `CLAUDE.md`.
 
 ## Project Overview
-VibeCemetery is a Next.js + Phaser web app where users bury abandoned GitHub repositories on a hand-crafted pixel-art cemetery map or cremate local projects through the `/bury` CLI workflow.
+VibeCemetery is a Next.js + Phaser web app where users bury abandoned GitHub repositories on a hand-crafted pixel-art cemetery map, cremate projects through browser/CLI flows, and preview a separate Agent Ashes dashboard for future verified autonomous-agent project deaths.
 
 ## Tech Stack
 - Framework: Next.js 16 (App Router, TypeScript, React 19)
@@ -49,12 +49,16 @@ vibecemetery/
 |   |       |-- github/last-commit/route.ts
 |   |       |-- github/scan/route.ts
 |   |       |-- graves/route.ts
-|   |       |-- graves/insertWithSlotRetry.ts
+|   |       |-- graves/atomicInsertWithSlotRetry.ts
+|   |       |-- graves/insertOutcomeResponse.ts
+|   |       |-- graves/githubRepoEligibility.ts
 |   |       |-- graves/[id]/f/route.ts
+|   |       |-- graves/[id]/share-confirm/route.ts
 |   |       `-- cli/
 |   |           |-- link/start/route.ts
 |   |           |-- link/approve/route.ts
 |   |           |-- link/status/route.ts
+|   |           |-- token/route.ts
 |   |           |-- token/revoke/route.ts
 |   |           `-- tokens/route.ts
 |   |-- components/
@@ -133,13 +137,17 @@ vibecemetery/
 |   |-- Tailes/
 |   `-- og-image.png
 |-- tests/
+|   |-- agent-ashes-ui.spec.ts
 |   |-- api-smoke.spec.ts
 |   |-- bury-skill.spec.ts
 |   |-- ceremony.spec.ts
 |   |-- cli-auth.spec.ts
 |   |-- cli-connect.spec.ts
+|   |-- github-repo-eligibility.spec.ts
+|   |-- grave-og-card.spec.ts
 |   |-- grave-share.spec.ts
 |   |-- graves-write-path.spec.ts
+|   |-- slot-economy.spec.ts
 |   |-- middleware.spec.ts
 |   |-- mobile.spec.ts
 |   |-- rate-limit.spec.ts
@@ -149,8 +157,12 @@ vibecemetery/
 |   |-- commands/bury.md
 |   `-- skills/bury-workflow/
 |-- docs/
+|   |-- atomic-grave-slot-insert-plan.md
 |   |-- CLAUDE.md
-|   `-- cli-auth-v1.sql
+|   |-- cli-auth-v1.sql
+|   |-- grave-slot-rpc.sql
+|   |-- setup.md
+|   `-- supabase-schema.sql
 |-- next.config.ts
 |-- playwright.config.ts
 |-- playwright.unit.config.ts
@@ -173,12 +185,14 @@ vibecemetery/
 - `GET /api/graves` - list graves, optional `?author=username`
 - `POST /api/graves` - create grave for an authenticated user
 - `POST /api/graves/[id]/f` - press F for a grave, one vote per user
+- `POST /api/graves/[id]/share-confirm` - confirm owner first-grave X share and unlock the social slot
 - `GET /api/f-status` - get voted grave ids for current user
 - `GET /api/cremated` - list cremated projects
 - `POST /api/cremated` - create cremation from browser session or CLI token
 - `POST /api/cli/link/start` - create CLI link session and claim token
 - `POST /api/cli/link/approve` - signed-in browser approval for pending CLI link
 - `GET /api/cli/link/status?link_id=...` - CLI polling endpoint, guarded by claim token
+- `POST /api/cli/token` - issue a one-time visible settings token for human-controlled agent setup
 - `GET /api/cli/tokens` - list current user's CLI tokens
 - `POST /api/cli/token/revoke` - revoke a CLI token
 - `GET|POST /api/auth/[...nextauth]` - NextAuth handler
@@ -207,12 +221,14 @@ vibecemetery/
 - Stone palette and Cinzel typography are part of the product identity; new UI should match the established cemetery visual language.
 - Shared modal chrome belongs in `src/components/ui/`; feature modal behavior belongs in `src/components/modals/`.
 - GitHub repos count as dead when they have no commits for 14+ days and are not forks.
+- `POST /api/graves` verifies the GitHub repository before insertion: URL and repo id must match, owner must be the signed-in user, forks are rejected, and pushed_at must be 14+ days old.
 - Grave placement must come from parsed map slots, not hardcoded coordinates.
 - Normal user graves are limited server-side by slot economy before map slot assignment.
 - Auto-assigned user graves can use only `grave` and `grave_tall` slots. `grave_special` is reserved for friends/welcome placements; Tier 2–3 slots are manual Gravedigger upgrades for best ideas.
 - Phaser input uses `windowEvents: false` to prevent pointer bleed-through into HTML overlays.
 - Grave burial ceremony is React-triggered and Phaser-rendered; cremations do not use the ceremony animation.
 - CLI auth uses browser approval plus a one-time `claim_token`; long-lived CLI tokens are server-issued and hashed at rest.
+- Settings-issued CLI tokens from `/api/cli/token` are for human-controlled agent setup and still post human-layer cremations to `/api/cremated`; they are not Agent Ashes ingest credentials.
 
 ## Modal Types
 ```ts
@@ -236,6 +252,8 @@ GITHUB_TOKEN
 NEXTAUTH_URL
 NEXTAUTH_SECRET
 CLI_TOKEN_SECRET
+AGENT_ASH_INGEST_TOKEN
+GITLAWB_ALLOWED_NODE_URLS
 UPSTASH_REDIS_REST_URL
 UPSTASH_REDIS_REST_TOKEN
 ```
@@ -244,6 +262,7 @@ UPSTASH_REDIS_REST_TOKEN
 - Security headers and CSP are defined in `next.config.ts`.
 - When adding a new browser-side external origin, update the relevant CSP directive first.
 - CLI link and token endpoints use `Cache-Control: no-store`.
+- `AGENT_ASH_INGEST_TOKEN` is server-only, must match `ash_[A-Za-z0-9._~-]{16,}`, and must never reuse `vc_cli_*` human cremation tokens. Rotate it if exposed.
 - Shared rate limiting uses Upstash when configured and in-memory fallback otherwise.
 - `/bury` installer and helper safety boundaries must be enforced in code, not only in prompt text or documentation.
 - Quick-install sources must stay pinned to an explicit commit or release artifact; do not point them at floating branches.

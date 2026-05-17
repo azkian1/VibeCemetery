@@ -1,4 +1,5 @@
 import { createHash, createHmac, randomBytes, randomUUID } from 'node:crypto'
+import { isAgentAshIngestToken } from './agent-ash-boundary'
 
 if (typeof window !== 'undefined') {
   throw new Error('cli-auth helpers must only run on the server')
@@ -88,6 +89,11 @@ export function buildCliTokenFromId(tokenId: string): string {
 }
 
 export async function resolveCliActor(request: Request): Promise<CliActor | null> {
+  const bearerToken = extractBearerToken(request)
+  if (isAgentAshIngestToken(bearerToken)) {
+    return null
+  }
+
   const { getServerSession } = await import('next-auth')
   const { authOptions } = await import('@/app/api/auth/[...nextauth]/route')
   const { supabaseAdmin } = await import('@/lib/supabase')
@@ -99,7 +105,6 @@ export async function resolveCliActor(request: Request): Promise<CliActor | null
     }
   }
 
-  const bearerToken = extractBearerToken(request)
   if (!bearerToken) {
     return null
   }
