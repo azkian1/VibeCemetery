@@ -7,6 +7,10 @@ function sanitize(str: string): string {
   return str.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim()
 }
 
+function normalizeGithubRepoUrl(url: string): string {
+  return url.replace(/\/+$/, '')
+}
+
 export async function POST(request: Request) {
   let body
   try {
@@ -97,7 +101,7 @@ export async function POST(request: Request) {
 
   // Validate optional fields
   const trimmedGithubUrl = typeof github_url === 'string' && github_url.trim()
-    ? github_url.trim()
+    ? normalizeGithubRepoUrl(github_url.trim())
     : null
   const trimmedLastCommit = typeof last_commit_message === 'string' && last_commit_message.trim()
     ? sanitize(last_commit_message).slice(0, 200)
@@ -105,6 +109,29 @@ export async function POST(request: Request) {
 
   if (trimmedGithubUrl && !/^https:\/\/github\.com\/[a-zA-Z0-9_-][a-zA-Z0-9_.-]*\/[a-zA-Z0-9_-][a-zA-Z0-9_.-]*\/?$/.test(trimmedGithubUrl)) {
     return NextResponse.json({ error: 'github_url must be a valid GitHub repo URL' }, { status: 400 })
+  }
+
+  if (trimmedGithubUrl) {
+    const { data: existingGrave, error: existingGraveError } = await supabaseAdmin
+      .from('graves')
+      .select('id')
+      .in('github_url', [trimmedGithubUrl, `${trimmedGithubUrl}/`])
+      .limit(1)
+      .maybeSingle()
+
+    if (existingGraveError) {
+      return NextResponse.json(
+        { error: 'Failed to check existing burial' },
+        { status: 500 }
+      )
+    }
+
+    if (existingGrave) {
+      return NextResponse.json(
+        { error: 'This repository has already been buried' },
+        { status: 409 }
+      )
+    }
   }
 
   // Insert record

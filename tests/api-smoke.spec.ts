@@ -76,6 +76,33 @@ async function createSmokeGrave() {
   return { id: data.id }
 }
 
+async function createSmokeGraveFor(username: string, githubUrl: string) {
+  const timestamp = Date.now()
+  const slotId = 910000 + Math.floor(Math.random() * 10000)
+  const repoId = 910000000 + Math.floor(Math.random() * 1000000)
+
+  const { data, error } = await supabaseAdmin
+    .from('graves')
+    .insert({
+      name: `API Smoke Grave ${timestamp}`,
+      cause: 'integration smoke',
+      epitaph: 'Temporary grave for duplicate coverage.',
+      github_url: githubUrl,
+      github_repo_id: repoId,
+      author_github: username,
+      slot_id: slotId,
+      f_count: 0,
+    })
+    .select('id')
+    .single()
+
+  if (error || !data?.id) {
+    throw new Error(`Failed to create smoke grave: ${error?.message ?? 'unknown error'}`)
+  }
+
+  return { id: data.id }
+}
+
 async function deleteSmokeGrave(graveId: string) {
   await supabaseAdmin.from('f_votes').delete().eq('grave_id', graveId)
   await supabaseAdmin.from('graves').delete().eq('id', graveId)
@@ -305,6 +332,31 @@ test.describe.serial('API smoke', () => {
       expect(body.author_github).toBe(username)
       expect(body.source).toBe('github')
     } finally {
+      await deleteSmokeCliData(username)
+    }
+  })
+
+  test('POST /api/cremated rejects GitHub repos that are already buried', async ({ request }) => {
+    const username = `dup-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`
+    const githubUrl = `https://github.com/api-smoke/already-buried-${Date.now()}`
+    await createSmokeUser(username)
+    const grave = await createSmokeGraveFor(username, githubUrl)
+    const sessionHeaders = await createAuthHeaders(username)
+
+    try {
+      const res = await request.post('/api/cremated', {
+        headers: sessionHeaders,
+        data: {
+          name: 'Already Buried Smoke',
+          cause: 'should not get a second funeral',
+          github_url: githubUrl,
+        },
+      })
+
+      expect(res.status()).toBe(409)
+      expect(await res.json()).toEqual({ error: 'This repository has already been buried' })
+    } finally {
+      await deleteSmokeGrave(grave.id)
       await deleteSmokeCliData(username)
     }
   })
