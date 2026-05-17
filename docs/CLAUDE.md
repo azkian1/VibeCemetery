@@ -189,17 +189,18 @@ vibecemetery/
 - `src/components/PhaserCanvas.tsx` embeds Phaser client-side only and bridges React state into the game scene.
 - `src/game/scenes/CemeteryScene.ts` owns map rendering, camera behavior, pinch zoom, day/night cycle, particle effects, lamp rendering, highlights, and the burial ceremony animation.
 - `src/lib/map-slots.ts` and `src/game/utils/slotManager.ts` are the slot source of truth for map placement.
-- `src/lib/slot-economy.ts` is the source of truth for normal user slot progression: 4 max normal slots, 1 default, +1 first-grave X share coming soon, +1 at 30 Souls, +1 at 100 Souls.
+- `src/lib/slot-economy.ts` is the source of truth for normal user slot progression: 4 max normal slots, 1 default, +1 first-grave X share, +1 at 30 Souls, +1 at 100 Souls.
 - `src/proxy.ts` applies shared API CORS handling and read rate limiting for `/api/*` requests.
 
 ## Data Model
-- `users` - GitHub-linked user profile, progression counters, and planned first-grave X share unlock timestamp
+- `users` - GitHub-linked user profile, progression counters, and first-grave X share unlock timestamp
 - `graves` - mapped GitHub burials with slot assignment, epitaph, tier, and `f_count`
 - `cremated` - cremated projects from browser or CLI flow, with `source` and Souls progression
 - `f_votes` - idempotent respect votes keyed per user and grave
 - `cli_link_sessions` - short-lived browser approval sessions for CLI auth
 - `cli_tokens` - hashed long-lived CLI tokens, never stored raw
 - RPC: `increment_cremated_count(username)` for atomic cremation counter updates
+- RPC: `insert_grave_if_user_slot_available(...)` for atomic grave slot economy enforcement and grave insertion
 
 ## Key Conventions
 - Prefer inline styles for UI; `globals.css` is for app-wide base styling, not component-level theme work.
@@ -262,5 +263,6 @@ UPSTASH_REDIS_REST_TOKEN
 ## Related Docs
 - `README.md` - product overview and local setup
 - `docs/cli-auth-v1.sql` - Supabase schema for CLI auth tables
+- `docs/grave-slot-rpc.sql` - Supabase RPC for atomic grave slot inserts
 - `public/map/docs/CLAUDEMAP.md` - map slot and tile reference
 - `public/map/docs/LEVEL_DESIGN_RULES.md` - map design constraints

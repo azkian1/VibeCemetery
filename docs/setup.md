@@ -1,6 +1,6 @@
 # Local Setup
 
-This document is the contributor-facing setup source of truth. Use it together with `.env.example`, `docs/supabase-schema.sql`, and `docs/cli-auth-v1.sql`.
+This document is the contributor-facing setup source of truth. Use it together with `.env.example`, `docs/supabase-schema.sql`, `docs/grave-slot-rpc.sql`, and `docs/cli-auth-v1.sql`.
 
 ## What You Need
 
@@ -56,10 +56,17 @@ Apply the schema file first:
 docs/supabase-schema.sql
 ```
 
-Then apply the CLI auth hardening migration:
+Then apply the atomic grave slot RPC:
 
 ```sql
 -- run after the base schema
+docs/grave-slot-rpc.sql
+```
+
+Then apply the CLI auth hardening migration:
+
+```sql
+-- run after the grave slot RPC
 docs/cli-auth-v1.sql
 ```
 
@@ -73,6 +80,7 @@ The app expects these tables and functions to exist:
 - `cli_tokens`
 - `increment_graves_count(username text)`
 - `increment_cremated_count(username text)`
+- `insert_grave_if_user_slot_available(...)`
 
 ## 4. Configure GitHub OAuth
 

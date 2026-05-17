@@ -86,7 +86,7 @@ Tier 2–3 upgrades are **not purchasable**. They're awarded weekly to the most 
 
 ## Progression
 
-Every user starts with **1 grave slot** on the map. Cremate projects to earn **Souls** and unlock two more. A fourth normal slot is reserved for the upcoming first-grave X share mission.
+Every user starts with **1 grave slot** on the map. Cremate projects to earn **Souls** and unlock two more. Sharing your first grave on X unlocks one additional normal slot.
 
 | Action | Souls Earned |
 |--------|-------------|
@@ -101,10 +101,10 @@ Every user starts with **1 grave slot** on the map. Cremate projects to earn **S
 | Unlock Source | Normal Slots |
 |---------------|--------------|
 | Default | 1 |
-| First grave shared on X | +1 (coming soon) |
+| First grave shared on X | +1 |
 | Souls thresholds | +2 max |
 
-Normal user slots are enforced server-side when creating graves. Until the X share mission ships, users can unlock up to 3 normal slots through default + Souls progression. Extra map presence comes only from reserved friends/welcome slots or manual Tier 2–3 Gravedigger upgrades.
+Normal user slots are enforced server-side when creating graves. Users can unlock up to 4 normal slots through default + first-grave X share + Souls progression. Extra map presence comes only from reserved friends/welcome slots or manual Tier 2–3 Gravedigger upgrades.
 
 **The loop:** set up the `/bury` command → run `/bury` → agent finds dead local projects → cremations earn Souls → your account progresses for the broader cemetery product.
 
@@ -239,12 +239,13 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ### Database setup
 
-Apply both SQL files in Supabase:
+Apply these SQL files in Supabase:
 
 1. `docs/supabase-schema.sql`
-2. `docs/cli-auth-v1.sql`
+2. `docs/grave-slot-rpc.sql`
+3. `docs/cli-auth-v1.sql`
 
-The first file creates the base app tables and counter RPCs. The second applies the CLI auth contract used by `/bury`.
+The first file creates the base app tables and counter RPCs. The grave slot RPC applies the atomic server-side slot economy check used by grave creation. The CLI auth file applies the token contract used by `/bury`.
 
 ## Assets
 
