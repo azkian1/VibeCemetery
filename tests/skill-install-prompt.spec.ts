@@ -2,36 +2,58 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { expect, test } from '@playwright/test'
 import {
-  GITLAWB_SKILL_SOURCE_CONTRACT,
-  getHermesInstallPrompt,
-  getHermesAgentInstallPath,
-  getHermesSkillInstallCommand,
-  getHermesSkillInstallLink,
-  getHermesSkillInstallSource,
-} from '../src/components/modals/skillInstall'
+  AGENT_ASH_SKILL_SOURCE_CONTRACT,
+  GITLAWB_OFFICIAL_SETUP_URL,
+  getAgentAshInstallContract,
+  getAgentAshInstallPath,
+  getAgentAshSkillInstallCommand,
+  getAgentAshSkillInstallLink,
+  getAgentAshSkillInstallSource,
+} from '../src/lib/agent-ash-install'
 import { INSTALLER_CONTRACT } from '../SKILL/install/install-contract.mjs'
 
-test('Hermes install prompt installs the GitLawb Agent Ash skill, not human /bury', () => {
-  const prompt = getHermesInstallPrompt()
+test('Agent Ash install contract points to external GitLawb setup and VibeCemetery skill only', () => {
+  const contract = getAgentAshInstallContract()
 
-  expect(prompt).toContain('SKILL/skills/gitlawb')
-  expect(prompt).toContain(getHermesSkillInstallLink())
-  expect(prompt).toContain(getHermesSkillInstallSource())
-  expect(prompt).toContain(getHermesSkillInstallCommand())
-  expect(getHermesSkillInstallCommand()).toContain(GITLAWB_SKILL_SOURCE_CONTRACT.repoUrl)
-  expect(getHermesSkillInstallCommand()).toContain(`ref=${GITLAWB_SKILL_SOURCE_CONTRACT.installRef}`)
-  expect(getHermesSkillInstallCommand()).toContain(`#${GITLAWB_SKILL_SOURCE_CONTRACT.skillPath}`)
-  expect(GITLAWB_SKILL_SOURCE_CONTRACT.installRef).toMatch(/^[0-9a-f]{40}$/)
-  expect(GITLAWB_SKILL_SOURCE_CONTRACT.installRef).not.toBe(INSTALLER_CONTRACT.installRef)
-  expect(prompt).toContain('~/.config/gitlawb/config.json')
-  expect(prompt).toContain('agent_ash_token')
-  expect(prompt).toContain('/api/agent-ashes')
-  expect(prompt).toContain('Never call /api/cremated')
-  expect(prompt).toContain('ash_')
-  expect(prompt).not.toContain('hermes skills install gitlawb\n')
-  expect(prompt).not.toContain('vibecemetery-bury')
-  expect(prompt).not.toContain('vc_cli_')
-  expect(prompt).not.toContain(INSTALLER_CONTRACT.installRef)
+  expect(contract).toContain('## Task')
+  expect(contract).toContain('## Official GitLawb Setup')
+  expect(contract).toContain('## Install VibeCemetery Agent Ash Skill')
+  expect(contract).toContain('## Config')
+  expect(contract).toContain('## Allowed Actions')
+  expect(contract).toContain('## Forbidden Actions')
+  expect(contract).toContain('## Submission Endpoint')
+  expect(contract).toContain(GITLAWB_OFFICIAL_SETUP_URL)
+  expect(contract).toContain('If GitLawb is not installed or configured, go to https://gitlawb.com/.')
+  expect(contract).toContain('Do not install GitLawb from VibeCemetery.')
+  expect(contract).toContain('VibeCemetery only provides the Agent Ash skill.')
+  expect(contract).toContain('SKILL/skills/gitlawb')
+  expect(contract).toContain(getAgentAshSkillInstallLink())
+  expect(contract).toContain(getAgentAshSkillInstallSource())
+  expect(contract).toContain(getAgentAshSkillInstallCommand())
+  expect(getAgentAshSkillInstallCommand()).toContain(AGENT_ASH_SKILL_SOURCE_CONTRACT.repoUrl)
+  expect(getAgentAshSkillInstallCommand()).toContain(`ref=${AGENT_ASH_SKILL_SOURCE_CONTRACT.installRef}`)
+  expect(getAgentAshSkillInstallCommand()).toContain(`#${AGENT_ASH_SKILL_SOURCE_CONTRACT.skillPath}`)
+  expect(AGENT_ASH_SKILL_SOURCE_CONTRACT.installRef).toMatch(/^[0-9a-f]{40}$/)
+  expect(AGENT_ASH_SKILL_SOURCE_CONTRACT.installRef).toBe('5ebae02499c26ab4dcc9ce6dda635bc9474d6b7b')
+  expect(AGENT_ASH_SKILL_SOURCE_CONTRACT.installRef).not.toBe(INSTALLER_CONTRACT.installRef)
+  expect(AGENT_ASH_SKILL_SOURCE_CONTRACT.skillPath).toBe('SKILL/skills/gitlawb')
+  expect(contract).toContain('~/.config/gitlawb/config.json')
+  expect(contract).toContain('agent_ash_token')
+  expect(contract).toContain('ash_')
+  expect(contract).not.toMatch(/\\p{Script=Cyrillic}/)
+  expect(contract).toContain('Use the GitLawb config created by the official GitLawb setup.')
+  expect(contract).toContain('Do not create or rewrite GitLawb node config from VibeCemetery instructions.')
+  expect(contract).not.toContain('"gitlawb_node_url"')
+  expect(contract).not.toContain('"agent_did"')
+  expect(contract.slice(contract.indexOf('Expected config shape:'), contract.indexOf('agent_ash_token is an authorization credential'))).not.toContain('vc_cli_')
+  expect(contract).toContain('agent_ash_token is an authorization credential, not ERC-20, points, rewards, or SOUL.')
+  expect(contract).toContain('If no real ash_ token is available, install and prepare only; do not submit.')
+  expect(contract).toContain('/api/agent-ashes')
+  expect(contract).toContain('Never call /api/cremated')
+  expect(contract).toContain('Do not request or generate vc_cli_* human CLI credentials for agents.')
+  expect(contract).not.toContain('hermes skills install gitlawb\n')
+  expect(contract).not.toContain('vibecemetery-bury')
+  expect(contract).not.toContain(INSTALLER_CONTRACT.installRef)
 })
 
 test('Skill install modal presents Hermes flow under one button', () => {
@@ -40,18 +62,31 @@ test('Skill install modal presents Hermes flow under one button', () => {
   expect(source).toContain('Install skill')
   expect(source).not.toContain('Install /bury')
   expect(source).not.toContain('Open GitLawb skill source')
-  expect(source).not.toContain('getHermesSkillInstallLink')
-  expect(source).toContain('getHermesAgentInstallPath()')
+  expect(source).not.toContain('getAgentAshSkillInstallLink')
+  expect(source).toContain('getAgentAshInstallPath()')
+  expect(source).toContain('COPY AGENT URL')
+  expect(source).not.toContain("handleCopy('hermes', getAgentAshInstallContract())")
   expect(source).not.toContain("handleCopy('hermes', getHermesInstallPrompt())")
 })
 
 test('Hermes agent install URL points to an agent-readable route', () => {
-  expect(getHermesAgentInstallPath()).toBe('/agents/gitlawb')
+  expect(getAgentAshInstallPath()).toBe('/agents/gitlawb')
 
   const pageSource = readFileSync(join(process.cwd(), 'src', 'app', 'agents', 'gitlawb', 'page.tsx'), 'utf8')
   expect(pageSource).toContain('Hermes / OpenClaw GitLawb Agent Ash install')
-  expect(pageSource).toContain('getHermesInstallPrompt()')
-  expect(pageSource).toContain('getHermesSkillInstallCommand()')
+  expect(pageSource).toContain('getAgentAshInstallContract()')
+  expect(pageSource).toContain('getAgentAshSkillInstallCommand()')
+  expect(pageSource).toContain('https://gitlawb.com/')
+  expect(pageSource).toContain('VibeCemetery does not install GitLawb')
   expect(pageSource).toContain('/api/agent-ashes')
-  expect(pageSource).toContain('Never use vc_cli_ human tokens')
+  expect(pageSource).not.toContain('vc_cli_')
+  expect(pageSource).not.toContain('vibecemetery-bury')
+  expect(pageSource).not.toContain('@/components/modals/skillInstall')
+})
+
+test('Agent Ash install module is separated from the human /bury installer contract', () => {
+  const source = readFileSync(join(process.cwd(), 'src', 'lib', 'agent-ash-install.ts'), 'utf8')
+
+  expect(source).not.toContain('INSTALLER_CONTRACT')
+  expect(source).not.toContain('install-contract.mjs')
 })

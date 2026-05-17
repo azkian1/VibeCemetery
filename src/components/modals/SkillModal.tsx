@@ -9,10 +9,10 @@ import CloseButton from '@/components/ui/CloseButton';
 import StoneButton from '@/components/ui/StoneButton';
 import InsetBlock from '@/components/ui/InsetBlock';
 import {
-  getHermesAgentInstallPath,
   getSkillAgentInstallPrompt,
   getSkillInstallSecondaryLink,
 } from './skillInstall';
+import { getAgentAshInstallPath } from '@/lib/agent-ash-install';
 
 type CopiedTarget = 'cli' | 'hermes' | null;
 
@@ -46,7 +46,7 @@ export default function SkillModal() {
     });
   };
 
-  const getHermesAgentInstallUrl = () => `${window.location.origin}${getHermesAgentInstallPath()}`;
+  const getAgentAshInstallUrl = () => `${window.location.origin}${getAgentAshInstallPath()}`;
 
   return (
     <ModalOverlay onClose={close}>
@@ -96,7 +96,7 @@ export default function SkillModal() {
                     Give Hermes one URL. It reads the install contract from the site and sets up Agent Ashes itself.
                   </div>
                 </div>
-                <StoneButton onClick={() => handleCopy('hermes', getHermesAgentInstallUrl())}>
+                <StoneButton onClick={() => handleCopy('hermes', getAgentAshInstallUrl())}>
                   {copiedTarget === 'hermes' ? 'COPIED!' : 'COPY AGENT URL'}
                 </StoneButton>
                 <div style={{ color: '#77746a', fontSize: 12, lineHeight: 1.4, textAlign: 'center' }}>
