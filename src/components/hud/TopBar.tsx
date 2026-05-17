@@ -5,6 +5,11 @@ import AuthButton from './AuthButton';
 import DayCycleIcon from './DayCycleIcon';
 import { useIsMobile } from '@/hooks/useIsMobile';
 
+export const TOPBAR_ACTIONS = [
+  { modal: 'leaderboard', label: 'Necropolis', ariaLabel: 'Open Necropolis leaderboard' },
+  { modal: 'agentAshes', label: 'Agent Ashes', ariaLabel: 'Open Agent Ashes' },
+] as const;
+
 export default function TopBar() {
   const { open } = useModal();
   const isMobile = useIsMobile();
@@ -41,7 +46,7 @@ export default function TopBar() {
       }} />
 
       {/* Left zone */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, overflowX: 'auto', scrollbarWidth: 'none' }}>
         <button
           onClick={() => open('burger')}
           aria-label="Menu"
@@ -67,35 +72,38 @@ export default function TopBar() {
         >
           ☰
         </button>
-        <button
-          onClick={() => open('leaderboard')}
-          aria-label="Open Necropolis leaderboard"
-          style={{
-            cursor: 'pointer',
-            color: '#aaa9a0',
-            fontSize: 14,
-            padding: '5px 12px',
-            borderRadius: 2,
-            transition: 'all 0.15s',
-            background: 'linear-gradient(180deg, #2a2825 0%, #1e1c18 100%)',
-            border: '1px solid #3a3530',
-            fontFamily: "var(--font-cinzel), 'Cinzel', Georgia, serif",
-            letterSpacing: 0.5,
-            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03), 0 1px 2px rgba(0,0,0,0.3)',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.color = '#e8d5a3';
-            e.currentTarget.style.borderColor = '#5a4a30';
-            e.currentTarget.style.background = 'linear-gradient(180deg, #302e28 0%, #242018 100%)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.color = '#aaa9a0';
-            e.currentTarget.style.borderColor = '#3a3530';
-            e.currentTarget.style.background = 'linear-gradient(180deg, #2a2825 0%, #1e1c18 100%)';
-          }}
-        >
-          Necropolis
-        </button>
+        {TOPBAR_ACTIONS.map((action) => (
+          <button
+            key={action.modal}
+            onClick={() => open(action.modal)}
+            aria-label={action.ariaLabel}
+            style={{
+              cursor: 'pointer',
+              color: '#aaa9a0',
+              fontSize: isMobile ? 12 : 14,
+              padding: isMobile ? '5px 8px' : '5px 12px',
+              borderRadius: 2,
+              transition: 'all 0.15s',
+              background: 'linear-gradient(180deg, #2a2825 0%, #1e1c18 100%)',
+              border: '1px solid #3a3530',
+              fontFamily: "var(--font-cinzel), 'Cinzel', Georgia, serif",
+              letterSpacing: 0.5,
+              boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03), 0 1px 2px rgba(0,0,0,0.3)',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.color = '#e8d5a3';
+              e.currentTarget.style.borderColor = '#5a4a30';
+              e.currentTarget.style.background = 'linear-gradient(180deg, #302e28 0%, #242018 100%)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.color = '#aaa9a0';
+              e.currentTarget.style.borderColor = '#3a3530';
+              e.currentTarget.style.background = 'linear-gradient(180deg, #2a2825 0%, #1e1c18 100%)';
+            }}
+          >
+            {action.label}
+          </button>
+        ))}
       </div>
 
       {/* Center — medallion hanging below HUD */}

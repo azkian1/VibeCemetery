@@ -11,11 +11,10 @@ import InsetBlock from '@/components/ui/InsetBlock';
 import OrnamentDivider from '@/components/ui/OrnamentDivider';
 import LoadErrorState from '@/components/ui/LoadErrorState';
 
-type Tab = 'killers' | 'causes' | 'bots';
-const TABS: { key: Tab; label: string }[] = [
+type Tab = 'killers' | 'causes';
+export const LEADERBOARD_TABS: { key: Tab; label: string }[] = [
   { key: 'killers', label: 'Serial Killers' },
   { key: 'causes', label: 'Causes of Death' },
-  { key: 'bots', label: 'AI-Bots' },
 ];
 
 export default function LeaderboardModal() {
@@ -101,10 +100,10 @@ export default function LeaderboardModal() {
   const handleTabKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
       e.preventDefault();
-      const idx = TABS.findIndex((t) => t.key === tab);
+      const idx = LEADERBOARD_TABS.findIndex((t) => t.key === tab);
       const next = e.key === 'ArrowRight'
-        ? TABS[(idx + 1) % TABS.length].key
-        : TABS[(idx - 1 + TABS.length) % TABS.length].key;
+        ? LEADERBOARD_TABS[(idx + 1) % LEADERBOARD_TABS.length].key
+        : LEADERBOARD_TABS[(idx - 1 + LEADERBOARD_TABS.length) % LEADERBOARD_TABS.length].key;
       setTab(next);
     }
   };
@@ -134,7 +133,7 @@ export default function LeaderboardModal() {
             onKeyDown={handleTabKeyDown}
             style={{ display: 'flex', justifyContent: 'center', borderBottom: '1px solid #3a3935', marginBottom: 12 }}
           >
-            {TABS.map((t) => (
+            {LEADERBOARD_TABS.map((t) => (
               <button
                 key={t.key}
                 role="tab"
@@ -252,21 +251,6 @@ export default function LeaderboardModal() {
                     })}
                   </div>
                 )}
-              </InsetBlock>
-            )}
-
-            {/* AI-Bots */}
-            {!loading && !loadError && tab === 'bots' && (
-              <InsetBlock>
-                <div style={{ padding: '32px 16px', textAlign: 'center' }}>
-                  <div style={{ fontSize: 28, marginBottom: 12, opacity: 0.6 }}>🤖</div>
-                  <p style={{ color: '#6a6960', fontSize: 14, margin: '0 0 6px', fontWeight: 'bold' }}>
-                    AI-Bots Leaderboard
-                  </p>
-                  <p style={{ color: '#6a6960', fontSize: 12, fontStyle: 'italic', margin: 0 }}>
-                    Coming soon. Bots that use /bury will be ranked here.
-                  </p>
-                </div>
               </InsetBlock>
             )}
           </div>

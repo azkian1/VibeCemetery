@@ -81,6 +81,7 @@ vibecemetery/
 |   |   |   |-- MausoleumModal.tsx
 |   |   |   |-- LeaderboardModal.tsx
 |   |   |   |-- BuryFlowModal.tsx
+|   |   |   |-- AgentAshesModal.tsx
 |   |   |   |-- SkillModal.tsx
 |   |   |   `-- bury/
 |   |   |       |-- StepScan.tsx
@@ -214,7 +215,7 @@ vibecemetery/
 
 ## Modal Types
 ```ts
-type ModalType = 'grave' | 'crematory' | 'mausoleum' | 'leaderboard' | 'bury' | 'skill' | 'burger' | 'profile' | 'urn'
+type ModalType = 'grave' | 'crematory' | 'mausoleum' | 'leaderboard' | 'agentAshes' | 'bury' | 'skill' | 'burger' | 'profile' | 'urn'
 ```
 
 ## Deep Links

@@ -21,6 +21,12 @@ const MESSAGE_PREFIXES: Partial<Record<ChatMessage['type'], string>> = {
   gravedigger: 'Gravedigger: ',
 };
 
+export const CHAT_STATUS_ITEMS = [
+  { key: 'souls', label: 'Souls', emoji: '💀' },
+  { key: 'cremated', label: 'Cremated', emoji: '🔥' },
+  { key: 'ashes', label: 'Ashes', emoji: '⚱️' },
+];
+
 function pickRandom<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
 }
@@ -184,10 +190,12 @@ export default function ChatLog() {
         boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03), 0 1px 2px rgba(0,0,0,0.3)',
         flexShrink: 0,
         display: 'flex',
-        gap: 14,
+        gap: 12,
+        flexWrap: 'wrap',
       }}>
-        <span>Souls: {totalSouls} 💀</span>
-        <span>Cremated: {state.cremated.length} 🔥</span>
+        <span>{CHAT_STATUS_ITEMS[0].label}: {totalSouls} {CHAT_STATUS_ITEMS[0].emoji}</span>
+        <span>{CHAT_STATUS_ITEMS[1].label}: {state.cremated.length} {CHAT_STATUS_ITEMS[1].emoji}</span>
+        <span>{CHAT_STATUS_ITEMS[2].label}: 0 {CHAT_STATUS_ITEMS[2].emoji}</span>
       </div>
 
       {/* Chat messages — transparent body with frame border */}

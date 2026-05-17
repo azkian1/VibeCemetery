@@ -20,6 +20,7 @@ export type ModalType =
   | 'crematory'
   | 'mausoleum'
   | 'leaderboard'
+  | 'agentAshes'
   | 'bury'
   | 'skill'
   | 'burger'
