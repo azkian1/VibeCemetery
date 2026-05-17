@@ -1,6 +1,8 @@
 import { epitaphFallback } from '@/gravedigger/epitaphs'
 import type { Metadata } from 'next'
 
+const GRAVE_OG_IMAGE_VERSION = 'social-v2'
+
 export interface GraveShareData {
   id: string
   name: string
@@ -53,12 +55,13 @@ export function buildGraveShareCard(opts: {
   grave: GraveShareData
 }): GraveShareCard {
   const graveUrl = `${opts.siteUrl}/grave/${opts.grave.id}`
+  const imageUrl = `${graveUrl}/opengraph-image?v=${GRAVE_OG_IMAGE_VERSION}`
 
   return {
     title: `${collapseWhitespace(opts.grave.name)} · VibeCemetery`,
     description: getShareDescription(opts.grave),
     url: graveUrl,
-    imageUrl: `${graveUrl}/opengraph-image`,
+    imageUrl,
     cause: collapseWhitespace(opts.grave.cause) || null,
     authorGithub: collapseWhitespace(opts.grave.author_github) || null,
   }
