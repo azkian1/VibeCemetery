@@ -3,7 +3,7 @@ export const AGENT_INSTALL_PATH = '/agents/gitlawb'
 
 const AGENT_ASH_SKILL_SOURCE_CONTRACT = {
   repoUrl: 'https://github.com/azkian1/VibeCemetery.git',
-  installRef: '5ebae02499c26ab4dcc9ce6dda635bc9474d6b7b',
+  installRef: '87222203d7d7c5b55e8694eaf2de5ea9811872c9',
   skillPath: 'SKILL/skills/gitlawb',
 }
 

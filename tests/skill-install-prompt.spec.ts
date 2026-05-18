@@ -34,7 +34,7 @@ test('Agent Ash install contract points to external GitLawb setup and VibeCemete
   expect(getAgentAshSkillInstallCommand()).toContain(`ref=${AGENT_ASH_SKILL_SOURCE_CONTRACT.installRef}`)
   expect(getAgentAshSkillInstallCommand()).toContain(`#${AGENT_ASH_SKILL_SOURCE_CONTRACT.skillPath}`)
   expect(AGENT_ASH_SKILL_SOURCE_CONTRACT.installRef).toMatch(/^[0-9a-f]{40}$/)
-  expect(AGENT_ASH_SKILL_SOURCE_CONTRACT.installRef).toBe('5ebae02499c26ab4dcc9ce6dda635bc9474d6b7b')
+  expect(AGENT_ASH_SKILL_SOURCE_CONTRACT.installRef).toBe('87222203d7d7c5b55e8694eaf2de5ea9811872c9')
   expect(AGENT_ASH_SKILL_SOURCE_CONTRACT.installRef).not.toBe(INSTALLER_CONTRACT.installRef)
   expect(AGENT_ASH_SKILL_SOURCE_CONTRACT.skillPath).toBe('SKILL/skills/gitlawb')
   expect(contract).toContain('~/.config/gitlawb/config.json')
