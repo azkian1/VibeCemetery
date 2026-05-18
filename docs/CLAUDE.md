@@ -3,7 +3,7 @@
 This file is the detailed project reference. The actual Claude Code entrypoint should live at the repo root in `CLAUDE.md`.
 
 ## Project Overview
-VibeCemetery is a Next.js + Phaser web app where users bury abandoned GitHub repositories on a hand-crafted pixel-art cemetery map, cremate projects through browser/CLI flows, and preview a separate Agent Ashes dashboard for future verified autonomous-agent project deaths.
+VibeCemetery is a Next.js + Phaser web app where users bury abandoned GitHub repositories on a hand-crafted pixel-art cemetery map, cremate projects through browser/CLI flows, and run a separate Agent Layer for GitLawb-verified autonomous-agent project deaths.
 
 ## Tech Stack
 - Framework: Next.js 16 (App Router, TypeScript, React 19)
@@ -37,6 +37,10 @@ vibecemetery/
 |   |   |-- cli/connect/
 |   |   |   |-- page.tsx               # CLI approval page route
 |   |   |   `-- CliConnectClient.tsx   # client approval flow
+|   |   |-- agent-ash/connect/
+|   |   |   |-- page.tsx               # Agent Ash approval page route
+|   |   |   `-- AgentAshConnectClient.tsx
+|   |   |-- agents/gitlawb/page.tsx    # Agent Ash install contract
 |   |   |-- grave/[id]/
 |   |   |   |-- page.tsx               # grave deep-link redirect page
 |   |   |   |-- GraveRedirectClient.tsx
@@ -54,6 +58,8 @@ vibecemetery/
 |   |       |-- graves/githubRepoEligibility.ts
 |   |       |-- graves/[id]/f/route.ts
 |   |       |-- graves/[id]/share-confirm/route.ts
+|   |       |-- agent-ashes/            # Agent Ash ingest and read APIs
+|   |       |-- agent-ash/              # Agent Ash browser-approved auth APIs
 |   |       `-- cli/
 |   |           |-- link/start/route.ts
 |   |           |-- link/approve/route.ts
@@ -115,7 +121,13 @@ vibecemetery/
 |   |   `-- fillTemplate.ts
 |   |-- hooks/useIsMobile.ts
 |   |-- lib/
+|   |   |-- agent-ash-auth.ts
+|   |   |-- agent-ash-contract.ts
+|   |   |-- agent-ash-install.ts
+|   |   |-- agent-ash-security.ts
+|   |   |-- agent-ash-taxonomy.ts
 |   |   |-- cli-auth.ts
+|   |   |-- gitlawb-verification.ts
 |   |   |-- github-auth.ts
 |   |   |-- grave-share.ts
 |   |   |-- grave-share-server.ts
@@ -155,8 +167,10 @@ vibecemetery/
 |   `-- fixtures/
 |-- SKILL/
 |   |-- commands/bury.md
-|   `-- skills/bury-workflow/
+|   |-- skills/bury-workflow/
+|   `-- skills/gitlawb/
 |-- docs/
+|   |-- agent-layer/
 |   |-- atomic-grave-slot-insert-plan.md
 |   |-- CLAUDE.md
 |   |-- cli-auth-v1.sql
@@ -177,6 +191,8 @@ vibecemetery/
 - `/grave/[id]` - redirects into `?grave=<uuid>` flow
 - `/urn/[id]` - redirects into `?urn=<id>` flow
 - `/cli/connect` - browser approval UI for CLI linking
+- `/agent-ash/connect` - browser approval UI for Agent Ash linking
+- `/agents/gitlawb` - Hermes/OpenClaw GitLawb Agent Ash install contract
 - `/grave/[id]/opengraph-image` - dynamic grave share card image
 
 ## API Routes
@@ -195,6 +211,16 @@ vibecemetery/
 - `POST /api/cli/token` - issue a one-time visible settings token for human-controlled agent setup
 - `GET /api/cli/tokens` - list current user's CLI tokens
 - `POST /api/cli/token/revoke` - revoke a CLI token
+- `POST /api/agent-ash/link/start` - create Agent Ash link session and claim token
+- `GET /api/agent-ash/link/session?link_id=...` - read public link metadata for browser approval
+- `POST /api/agent-ash/link/approve` - signed-in browser approval or denial for Agent Ash access
+- `GET /api/agent-ash/link/status?link_id=...` - agent polling endpoint, guarded by claim token
+- `GET /api/agent-ash/tokens` - list current user's connected Agent Ash credentials as safe metadata
+- `POST /api/agent-ash/token/revoke` - revoke an Agent Ash token
+- `GET /api/agent-ashes/summary` - Agent Ash dashboard summary
+- `GET /api/agent-ashes/[id]` - read Agent Ash record metadata
+- `GET /api/agent-ashes/[id]/certificate` - read raw stored Agent Ash certificate JSON
+- `POST /api/agent-ashes` - ingest GitLawb-verified `agent_ash.v1` records with DB-backed `ash_...` bearer auth
 - `GET|POST /api/auth/[...nextauth]` - NextAuth handler
 
 ## Core Architecture Notes
@@ -213,6 +239,9 @@ vibecemetery/
 - `f_votes` - idempotent respect votes keyed per user and grave
 - `cli_link_sessions` - short-lived browser approval sessions for CLI auth
 - `cli_tokens` - hashed long-lived CLI tokens, never stored raw
+- `agent_ashes` - verified Agent Ash records for the separate Agent Layer
+- `agent_ash_tokens` - hashed browser-approved `ash_...` Agent Ash tokens
+- `agent_ash_link_sessions` - short-lived browser approval sessions for Agent Ash auth
 - RPC: `increment_cremated_count(username)` for atomic cremation counter updates
 - RPC: `insert_grave_if_user_slot_available(...)` for atomic grave slot economy enforcement and grave insertion
 
@@ -229,6 +258,9 @@ vibecemetery/
 - Grave burial ceremony is React-triggered and Phaser-rendered; cremations do not use the ceremony animation.
 - CLI auth uses browser approval plus a one-time `claim_token`; long-lived CLI tokens are server-issued and hashed at rest.
 - Settings-issued CLI tokens from `/api/cli/token` are for human-controlled agent setup and still post human-layer cremations to `/api/cremated`; they are not Agent Ashes ingest credentials.
+- Agent Ash auth uses browser approval plus a one-time `claim_token`; long-lived `ash_...` tokens are server-issued, hashed at rest, and scoped to `agent_ashes:write`.
+- Agent Ash ingest must never accept `vc_cli_*` tokens or a static ingest token fallback.
+- Canonical Agent Layer docs live in `docs/agent-layer/README.md`.
 
 ## Modal Types
 ```ts
@@ -281,6 +313,7 @@ UPSTASH_REDIS_REST_TOKEN
 
 ## Related Docs
 - `README.md` - product overview and local setup
+- `docs/agent-layer/README.md` - canonical Agent Layer docs for Hermes/OpenClaw, GitLawb, Agent Ash auth, APIs, database, and operations
 - `docs/cli-auth-v1.sql` - Supabase schema for CLI auth tables
 - `docs/grave-slot-rpc.sql` - Supabase RPC for atomic grave slot inserts
 - `public/map/docs/CLAUDEMAP.md` - map slot and tile reference

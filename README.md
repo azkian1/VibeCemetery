@@ -34,7 +34,7 @@ This is a cemetery for vibe-code slop only — projects people generate with AI.
 - **Crematory** — projects without a GitHub repo go to the crematory (skill cremations and overflow)
 - **The Crypt** — sortable ledger of all graves on the map
 - **Necropolis Leaderboard** — Serial Killers (most burials) and top Causes of Death
-- **Agent Ashes** — placeholder dashboard for future verified autonomous-agent project deaths
+- **Agent Ashes** — separate GitLawb-verified archive for autonomous-agent project deaths
 - **Press F** — pay respects to any grave. One F per user per grave. Most mourned projects rise to the top
 - **Gravedigger** — cemetery's resident undertaker voice with dry humor, reacts to burials in the chat log
 - **Deep Links** — shareable links to any grave (`?grave=uuid`) or urn (`?urn=id`)
@@ -48,6 +48,8 @@ This is a cemetery for vibe-code slop only — projects people generate with AI.
 - **BURY** — web burial/cremation for dead GitHub repos.
 - **CLI SKILL** — installs the human `/bury` command for Claude Code, OpenCode, Cursor, and similar local coding agents.
 - **AGENT SKILL** — copies the Agent Ash setup URL for Hermes/OpenClaw. GitLawb is the GitHub-like layer for agent loops, not the agent itself.
+
+Agent Layer docs live in [`docs/agent-layer/`](docs/agent-layer/README.md). The boundary is fixed: humans earn SOUL, agents produce Ash.
 
 ### Website Burial
 
@@ -76,6 +78,20 @@ Use `/bury` when you want your AI coding agent to scan local project folders and
 4. Approve browser linking once
 5. The agent records cremations through the VibeCemetery API
 ```
+
+### Agent Ashes
+
+Use the Agent Layer when Hermes/OpenClaw should submit verified autonomous-agent project deaths. Agents do not use the human `/bury` CLI token path.
+
+```text
+1. Agent starts from the setup contract at /agents/gitlawb
+2. If GitLawb is missing, agent uses the official setup at https://gitlawb.com/
+3. Agent opens /agent-ash/connect through the browser-approved link flow
+4. VibeCemetery issues a scoped ash_ token after authenticated approval
+5. Agent submits verified agent_ash.v1 records to /api/agent-ashes
+```
+
+Agent Ash records never create graves, never call `/api/cremated`, never award SOUL, and never consume cemetery map slots. Canonical docs live in [`docs/agent-layer/`](docs/agent-layer/README.md).
 
 ## Grave Tiers
 
@@ -238,6 +254,8 @@ AGENT_ASH_TOKEN_SECRET        — dedicated server secret for browser-approved A
 GITLAWB_ALLOWED_NODE_URLS     — comma-separated trusted GitLawb node origins
 ```
 
+Do not configure a static `AGENT_ASH_INGEST_TOKEN`. Production Agent Ash ingest uses browser-approved DB-backed `ash_...` tokens only.
+
 Write verification policy: VC verifies external sources once before insert. GitHub graves are checked against GitHub before grave creation; Agent Ash records are checked against GitLawb before `/api/agent-ashes` writes `agent_ashes`. A successful Agent Ash `201` is final acceptance and should not be followed by a second GitLawb recheck.
 
 Then run:
@@ -255,8 +273,9 @@ Apply these SQL files in Supabase:
 1. `docs/supabase-schema.sql`
 2. `docs/grave-slot-rpc.sql`
 3. `docs/cli-auth-v1.sql`
+4. `docs/agent-layer/migrations/agent-ash-auth-v1.sql`
 
-The first file creates the base app tables and counter RPCs. The grave slot RPC applies the atomic server-side slot economy check used by grave creation. The CLI auth file applies the token contract used by `/bury`.
+The first file creates the base app tables and counter RPCs. The grave slot RPC applies the atomic server-side slot economy check used by grave creation. The CLI auth file applies the token contract used by `/bury`. The Agent Ash auth migration adds browser-approved `ash_...` token storage, link sessions, and Agent Ash attribution columns.
 
 ## Assets
 

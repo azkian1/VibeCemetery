@@ -39,6 +39,7 @@ Project instructions for Claude Code. Detailed reference lives in `docs/CLAUDE.m
 
 ## References
 - `docs/CLAUDE.md`
+- `docs/agent-layer/README.md`
 - `README.md`
 - `docs/cli-auth-v1.sql`
 - `docs/grave-slot-rpc.sql`
