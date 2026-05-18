@@ -61,6 +61,10 @@ const SkillModal = dynamic(
   () => import('../components/modals/SkillModal'),
   { ssr: false },
 );
+const AgentSkillModal = dynamic(
+  () => import('../components/modals/AgentSkillModal'),
+  { ssr: false },
+);
 const ProfileModal = dynamic(
   () => import('../components/modals/ProfileModal'),
   { ssr: false },
@@ -211,6 +215,7 @@ const MODAL_MAP: Record<ModalType, React.ComponentType> = {
   burger: BurgerMenu,
   leaderboard: LeaderboardModal,
   agentAshes: AgentAshesModal,
+  agentSkill: AgentSkillModal,
   bury: BuryFlowModal,
   skill: SkillModal,
   profile: ProfileModal,

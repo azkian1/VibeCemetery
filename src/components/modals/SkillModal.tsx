@@ -12,9 +12,8 @@ import {
   getSkillAgentInstallPrompt,
   getSkillInstallSecondaryLink,
 } from './skillInstall';
-import { getAgentAshInstallPath } from '@/lib/agent-ash-install';
 
-type CopiedTarget = 'cli' | 'hermes' | null;
+type CopiedTarget = 'cli' | null;
 
 export default function SkillModal() {
   const { close } = useModal();
@@ -46,19 +45,17 @@ export default function SkillModal() {
     });
   };
 
-  const getAgentAshInstallUrl = () => `${window.location.origin}${getAgentAshInstallPath()}`;
-
   return (
     <ModalOverlay onClose={close}>
-      <StoneFrame isMobile={isMobile}>
-        <div style={{ padding: isMobile ? '20px 16px' : '24px 28px' }}>
+      <StoneFrame isMobile={isMobile} maxWidth={560}>
+        <div style={{ padding: isMobile ? '20px 16px' : '30px 36px' }}>
           <CloseButton onClick={close} />
 
-          <h2 style={{ margin: '0 0 14px', fontSize: 20, color: '#e8d5a3', textAlign: 'center' }}>
+          <h2 style={{ margin: '0 0 16px', fontSize: 22, color: '#e8d5a3', textAlign: 'center' }}>
             Install skill
           </h2>
 
-          <p style={{ fontSize: 13, color: '#aaa9a0', margin: '0 0 18px', lineHeight: 1.55, textAlign: 'center' }}>
+          <p style={{ fontSize: 14, color: '#aaa9a0', margin: '0 0 20px', lineHeight: 1.65, textAlign: 'center' }}>
             Copy the prompt and paste it into your local AI coding CLI. Your agent will read the docs,
             pick the right installer for your OS, and set up <code style={{ color: '#c8a050' }}>/bury</code>.
           </p>
@@ -67,44 +64,23 @@ export default function SkillModal() {
             <InsetBlock>
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: 10 }}>
                 <div style={{ textAlign: 'center' }}>
-                  <div style={{ color: '#e8d5a3', fontSize: 14, marginBottom: 4 }}>
-                    Claude Code / OpenCode / Cursor
+                  <div style={{ color: '#e8d5a3', fontSize: 15, marginBottom: 6 }}>
+                    CLI SKILL
                   </div>
-                  <div style={{ color: '#77746a', fontSize: 12, lineHeight: 1.45 }}>
-                    The install prompt is built into the button. Click it, then paste into your agent chat.
+                  <div style={{ color: '#77746a', fontSize: 13, lineHeight: 1.55 }}>
+                    Claude Code / OpenCode / Cursor. Click the button, then paste into your local agent chat.
                   </div>
                 </div>
                 <StoneButton onClick={() => handleCopy('cli', cliPrompt)}>
-                  {copiedTarget === 'cli' ? 'Copied!' : 'Copy Install Command'}
+                  {copiedTarget === 'cli' ? 'Copied!' : 'Copy /bury Install Prompt'}
                 </StoneButton>
               </div>
             </InsetBlock>
           </div>
 
-          <p style={{ fontSize: 12, color: '#6f6c63', margin: '0 0 16px', lineHeight: 1.5, textAlign: 'center' }}>
+          <p style={{ fontSize: 13, color: '#6f6c63', margin: '0 0 18px', lineHeight: 1.6, textAlign: 'center' }}>
             Paste it into your local agent chat. After install, run <code style={{ color: '#c8a050' }}>/bury</code>.
           </p>
-
-          <div style={{ marginBottom: 16 }}>
-            <InsetBlock>
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: 10 }}>
-                <div style={{ textAlign: 'center' }}>
-                  <div style={{ color: '#e8d5a3', fontSize: 14, marginBottom: 4 }}>
-                    Hermes / OpenClaw Agent Ashes
-                  </div>
-                  <div style={{ color: '#77746a', fontSize: 12, lineHeight: 1.45 }}>
-                    Give Hermes one URL. It reads the install contract from the site and sets up Agent Ashes itself.
-                  </div>
-                </div>
-                <StoneButton onClick={() => handleCopy('hermes', getAgentAshInstallUrl())}>
-                  {copiedTarget === 'hermes' ? 'COPIED!' : 'COPY AGENT URL'}
-                </StoneButton>
-                <div style={{ color: '#77746a', fontSize: 12, lineHeight: 1.4, textAlign: 'center' }}>
-                  Agent Ash uses ash_ ingest tokens. Human vc_cli_ keys stay only in the CLI /bury branch.
-                </div>
-              </div>
-            </InsetBlock>
-          </div>
 
           <div style={{ textAlign: 'center' }}>
             <a

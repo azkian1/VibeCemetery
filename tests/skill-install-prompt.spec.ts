@@ -56,17 +56,45 @@ test('Agent Ash install contract points to external GitLawb setup and VibeCemete
   expect(contract).not.toContain(INSTALLER_CONTRACT.installRef)
 })
 
-test('Skill install modal presents Hermes flow under one button', () => {
+test('Skill install modal is only for the human CLI skill', () => {
   const source = readFileSync(join(process.cwd(), 'src', 'components', 'modals', 'SkillModal.tsx'), 'utf8')
 
   expect(source).toContain('Install skill')
-  expect(source).not.toContain('Install /bury')
-  expect(source).not.toContain('Open GitLawb skill source')
-  expect(source).not.toContain('getAgentAshSkillInstallLink')
-  expect(source).toContain('getAgentAshInstallPath()')
-  expect(source).toContain('COPY AGENT URL')
+  expect(source).toContain('maxWidth={560}')
+  expect(source).toContain('CLI SKILL')
+  expect(source).toContain('/bury')
+  expect(source).not.toContain('Hermes')
+  expect(source).not.toContain('OpenClaw')
+  expect(source).not.toContain('GitLawb')
+  expect(source).not.toContain('Agent Ash')
+  expect(source).not.toContain('getAgentAshInstallPath')
+  expect(source).not.toContain('COPY AGENT')
   expect(source).not.toContain("handleCopy('hermes', getAgentAshInstallContract())")
   expect(source).not.toContain("handleCopy('hermes', getHermesInstallPrompt())")
+})
+
+test('CTA buttons expose BURY, CLI SKILL, and AGENT SKILL separately', () => {
+  const source = readFileSync(join(process.cwd(), 'src', 'components', 'hud', 'CTAButtons.tsx'), 'utf8')
+
+  expect(source).toContain('BURY')
+  expect(source).toContain('CLI SKILL')
+  expect(source).toContain('AGENT SKILL')
+  expect(source).toContain("open('skill')")
+  expect(source).toContain("open('agentSkill')")
+  expect(source).toContain('0 0 18px')
+})
+
+test('Agent skill modal owns the Hermes and GitLawb setup copy', () => {
+  const source = readFileSync(join(process.cwd(), 'src', 'components', 'modals', 'AgentSkillModal.tsx'), 'utf8')
+
+  expect(source).toContain('AGENT SKILL')
+  expect(source).toContain('maxWidth={560}')
+  expect(source).toContain('Hermes')
+  expect(source).toContain('GitLawb')
+  expect(source).toContain('GitHub-like layer for agent loops')
+  expect(source).toContain('COPY AGENT URL')
+  expect(source).toContain('getAgentAshInstallPath')
+  expect(source).toContain('Not the human /bury CLI')
 })
 
 test('Hermes agent install URL points to an agent-readable route', () => {

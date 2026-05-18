@@ -29,7 +29,7 @@ export default function CTAButtons() {
         onClick={() => open('bury')}
         style={{
           width: 160,
-          height: 48,
+          height: 52,
           border: '1px solid #6a3020',
           borderRadius: 2,
           background: 'linear-gradient(180deg, #5a2020 0%, #3a1010 100%)',
@@ -39,7 +39,7 @@ export default function CTAButtons() {
           fontWeight: 'bold',
           letterSpacing: 1,
           cursor: 'pointer',
-          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05), 0 2px 8px rgba(0,0,0,0.4)',
+          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05), 0 2px 8px rgba(0,0,0,0.4), 0 0 18px rgba(200,160,80,0.22)',
           transition: 'all 0.15s',
         }}
         onMouseEnter={(e) => {
@@ -49,13 +49,13 @@ export default function CTAButtons() {
         onMouseLeave={(e) => {
           e.currentTarget.style.background = 'linear-gradient(180deg, #5a2020 0%, #3a1010 100%)';
           e.currentTarget.style.borderColor = '#6a3020';
-          e.currentTarget.style.boxShadow = 'inset 0 1px 0 rgba(255,255,255,0.05), 0 2px 8px rgba(0,0,0,0.4)';
+          e.currentTarget.style.boxShadow = 'inset 0 1px 0 rgba(255,255,255,0.05), 0 2px 8px rgba(0,0,0,0.4), 0 0 18px rgba(200,160,80,0.22)';
         }}
       >
-        ☠️ BURY
+        BURY
       </button>
 
-      {/* SKILL */}
+      {/* CLI SKILL */}
       <button
         onClick={() => open('skill')}
         style={{
@@ -83,7 +83,38 @@ export default function CTAButtons() {
           e.currentTarget.style.background = 'linear-gradient(180deg, #2a2825 0%, #1e1c18 100%)';
         }}
       >
-        ⚡ SKILL
+        CLI SKILL
+      </button>
+
+      {/* AGENT SKILL */}
+      <button
+        onClick={() => open('agentSkill')}
+        style={{
+          width: 160,
+          height: 42,
+          border: '1px solid #30384a',
+          borderRadius: 2,
+          background: 'linear-gradient(180deg, #20242d 0%, #171a20 100%)',
+          color: '#8fa8c0',
+          fontFamily: "var(--font-cinzel), 'Cinzel', Georgia, serif",
+          fontSize: 12,
+          letterSpacing: 1,
+          cursor: 'pointer',
+          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03), 0 2px 6px rgba(0,0,0,0.3)',
+          transition: 'all 0.15s',
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.borderColor = '#52647a';
+          e.currentTarget.style.color = '#c6d8e8';
+          e.currentTarget.style.background = 'linear-gradient(180deg, #252b36 0%, #1b2028 100%)';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.borderColor = '#30384a';
+          e.currentTarget.style.color = '#8fa8c0';
+          e.currentTarget.style.background = 'linear-gradient(180deg, #20242d 0%, #171a20 100%)';
+        }}
+      >
+        AGENT SKILL
       </button>
     </div>
   );

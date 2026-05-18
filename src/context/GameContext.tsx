@@ -21,6 +21,7 @@ export type ModalType =
   | 'mausoleum'
   | 'leaderboard'
   | 'agentAshes'
+  | 'agentSkill'
   | 'bury'
   | 'skill'
   | 'burger'
