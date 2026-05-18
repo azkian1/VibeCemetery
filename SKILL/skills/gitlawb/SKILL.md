@@ -18,7 +18,7 @@ INGEST_ENDPOINT = /api/agent-ashes
 HELPER_SCRIPT = ${CLAUDE_SKILL_DIR}/scripts/gitlawb-helper.mjs
 ```
 
-Use `HELPER_SCRIPT` for browser-approved connect, certificate construction, submission request construction, watchlist reporting, and approval metadata shaping. Do not post Agent Ash to `/api/cremated`.
+Use `HELPER_SCRIPT` for browser-approved connect, certificate construction, canonical submission, watchlist reporting, and approval metadata shaping. Do not post Agent Ash to `/api/cremated`.
 
 ## Local Config
 
@@ -36,11 +36,14 @@ Expected shape:
   "agent_name": "hermes",
   "agent_did": "did:key:z6MkAgentHermes",
   "agent_ash_token": "ash_xxxxxxxxxxxx",
-  "vc_url": "https://vibecemetery.app"
+  "vc_url": "https://vibecemetery.app",
+  "scheduled_approval_policy": "none"
 }
 ```
 
 The `agent_ash_token` is an Agent Layer ingest token only. Never reuse human CLI `/bury` tokens.
+
+`scheduled_approval_policy` controls only scheduled mode and defaults to `none` when omitted. Valid values are `none`, `manual`, and `all`.
 
 ## Browser-Approved Connect Flow
 
@@ -61,8 +64,8 @@ Use this flow when the human explicitly asks to record a death for a public GitL
 1. Read `~/.config/gitlawb/config.json`.
 2. Fetch public repos from `GET {gitlawb_node_url}/api/v1/repos`.
 3. Locate the requested GitLawb repo DID in the public response.
-4. Build an `agent_ash.v1` certificate and `gitlawb_http_node_v1` proof with `gitlawb-helper.mjs`.
-5. Submit to `POST {vc_url}/api/agent-ashes` with `Authorization: Bearer {agent_ash_token}`.
+4. Build an `agent_ash.v1` certificate and `gitlawb_http_node_v1` proof with `buildAgentAshRequest`.
+5. Submit exactly once with `submitAgentAshRequest`, which posts to `POST {vc_url}/api/agent-ashes` with `Authorization: Bearer {agent_ash_token}`.
 6. Report the repo DID, certificate id, and returned VibeCemetery URL to the human/operator.
 
 VibeCemetery verifies GitLawb proof once before accepting the write. Treat a `201` response from `/api/agent-ashes` as the final confirmation and do not recheck GitLawb after the record is accepted.
@@ -100,6 +103,34 @@ Preferred sequence:
 ```text
 Agent scans -> Agent reports -> Human approves -> Agent records verified Ash
 ```
+
+## Scheduled Scan Flow
+
+Use the helper as a bounded local scheduler target. It performs one watchlist scan, writes local state/logs, produces candidates, and exits. It is not a daemon.
+
+Command:
+
+```text
+node ${CLAUDE_SKILL_DIR}/scripts/gitlawb-helper.mjs scheduled-scan
+```
+
+Local state:
+
+```text
+~/.local/state/vibecemetery-agent-ash/state.json
+~/.local/state/vibecemetery-agent-ash/logs.jsonl
+```
+
+Rules:
+
+- Run from cron, systemd timer, launchd, or Windows Task Scheduler every 3 days.
+- The helper uses `~/.local/state/vibecemetery-agent-ash/scan.lock` to avoid overlapping scans.
+- Scheduled scans default to candidate production only. No configured policy behaves like `scheduled_approval_policy = "none"`.
+- `none`: scan and report candidates only. Never submit, even if approval metadata is present.
+- `manual`: scan and report candidates, then submit only when explicit human approval metadata is supplied for the current candidates.
+- `all`: allowed only when explicitly configured as `scheduled_approval_policy = "all"`; it still requires explicit approval metadata and must not silently self-approve.
+- Explicit approval metadata must include an approval mode (`all` or `selective`), `approved_by`, and `approved_at`; submitted certificates store it at `certificate.raw.approval`.
+- Even with approval metadata, scheduled scans do not submit unless `agent_ash_token` is a real `ash_...` token.
 
 ## Certificate Rules
 

@@ -39,6 +39,17 @@ test.describe('gitlawb agent ash skill helpers', () => {
     })
   })
 
+  test('computes Agent Ash scheduler state and log paths under ~/.local/state', async () => {
+    const { computeAgentAshStatePaths } = await loadHelper()
+
+    expect(computeAgentAshStatePaths({ homedir: 'C:\\Users\\example' })).toEqual({
+      stateDir: 'C:\\Users\\example\\.local\\state\\vibecemetery-agent-ash',
+      statePath: 'C:\\Users\\example\\.local\\state\\vibecemetery-agent-ash\\state.json',
+      logsPath: 'C:\\Users\\example\\.local\\state\\vibecemetery-agent-ash\\logs.jsonl',
+      lockPath: 'C:\\Users\\example\\.local\\state\\vibecemetery-agent-ash\\scan.lock',
+    })
+  })
+
   test('builds an agent_ash.v1 GitLawb certificate and proof without human-layer fields', async () => {
     const { AGENT_ASH_INGEST_PATH, buildAgentAshRequest } = await loadHelper()
 
@@ -93,6 +104,116 @@ test.describe('gitlawb agent ash skill helpers', () => {
     expect(JSON.stringify(request)).not.toContain('/api/cremated')
     expect(JSON.stringify(request)).not.toContain('SOUL')
     expect(JSON.stringify(request)).not.toContain('grave')
+  })
+
+  test('builds the exact canonical agent_ash.v1 payload expected by the backend', async () => {
+    const { buildAgentAshRequest } = await loadHelper()
+
+    const request = buildAgentAshRequest({
+      repo: {
+        ...repo,
+        domain: 'agents.example',
+        project_type: 'trading-bot',
+        frameworks: ['FastAPI'],
+        dependencies: ['openai'],
+        runtime: 'python3.12',
+        has_tests: true,
+        has_ci: true,
+        has_deploy_config: false,
+        has_readme: true,
+        readme_quality: 'good',
+        commits: 12,
+        contributors: 2,
+        files: 8,
+      },
+      config,
+      declaredDeadAt: '2026-07-01T00:00:00Z',
+    })
+
+    expect(request).toEqual({
+      certificate: {
+        schema_version: 'agent_ash.v1',
+        identity: {
+          certificate_id: 'ash_7fb3bff634ffa69047a829ef86',
+          kind: 'ash',
+          source: 'gitlawb',
+          visibility: 'public',
+          verification_status: 'gitlawb_http_verified',
+        },
+        subject: {
+          name: 'dead-agent-prototype',
+          repo_did: 'did:gitlawb:z6MkRepoDeadAgentPrototype',
+          path: 'azkian1/dead-agent-prototype',
+          url: 'gitlawb://did:gitlawb:z6MkRepoDeadAgentPrototype',
+          host: 'node.gitlawb.com',
+          description: 'Agent-generated trading prototype',
+          domain: 'agents.example',
+          project_type: 'trading-bot',
+        },
+        lifecycle: {
+          created_at: '2026-03-01T14:22:00Z',
+          last_activity_at: '2026-03-05T09:15:00Z',
+          declared_dead_at: '2026-07-01T00:00:00Z',
+          lifespan_hours: 91,
+          death_stage: 'prototype',
+        },
+        technical_profile: {
+          languages: ['python'],
+          frameworks: ['FastAPI'],
+          dependencies: ['openai'],
+          runtime: 'python3.12',
+          has_tests: true,
+          has_ci: true,
+          has_deploy_config: false,
+          has_readme: true,
+          readme_quality: 'good',
+          commits: 12,
+          contributors: 2,
+          files: 8,
+        },
+        diagnosis: {
+          primary_cause: 'external_api_break',
+          secondary_causes: [],
+          failure_pattern: 'external_api_risk_then_abandonment',
+          confidence: 0.68,
+          preventable: true,
+          severity: 'terminal',
+          summary: 'The project depended on external APIs and then became stale.',
+        },
+        evidence: {
+          signals: [{ type: 'last_activity', value: '2026-03-05T09:15:00Z', source: 'gitlawb_http_node' }],
+          verified_by: 'gitlawb_http_node',
+          verified_at: '2026-07-01T00:00:00Z',
+        },
+        value: {
+          lesson_value: 'medium',
+          reuse_value: 'unknown',
+          resurrection_score: 0,
+          resurrection_recommended: false,
+          estimated_recovery_effort: 'unknown',
+          recommended_prevention: [],
+        },
+        agent: {
+          name: 'hermes',
+          did: 'did:key:z6MkAgentHermes',
+        },
+        raw: {
+          gitlawb_node_url: 'https://node.gitlawb.com',
+          default_branch: 'main',
+          latest_commit: 'abc123deadbeef',
+        },
+      },
+      proof: {
+        type: 'gitlawb_http_node_v1',
+        repo_did: 'did:gitlawb:z6MkRepoDeadAgentPrototype',
+        node_url: 'https://node.gitlawb.com',
+        observed_created_at: '2026-03-01T14:22:00Z',
+        observed_updated_at: '2026-03-05T09:15:00Z',
+        verification_url: 'https://node.gitlawb.com/repo/did%3Agitlawb%3Az6MkRepoDeadAgentPrototype',
+        signature: null,
+        signed_by: 'did:key:z6MkAgentHermes',
+      },
+    })
   })
 
   test('requires a strict v1 GitLawb repo DID for Agent Ash certificate construction', async () => {
@@ -156,6 +277,35 @@ test.describe('gitlawb agent ash skill helpers', () => {
       config: { ...config, agent_ash_token: 'ash_short' },
       request: ashRequest,
     })).toThrow('agent_ash_token must match ash_[A-Za-z0-9._~-]{16,}')
+  })
+
+  test('submits Agent Ash once and does not recheck GitLawb after a 201 response', async () => {
+    const { buildAgentAshRequest, submitAgentAshRequest } = await loadHelper()
+    const ashRequest = buildAgentAshRequest({ repo, config, declaredDeadAt: '2026-03-06T12:11:00Z' })
+    const calls: string[] = []
+    const result = await submitAgentAshRequest({
+      config,
+      request: ashRequest,
+      fetchImpl: async (url: string | URL | Request) => {
+        calls.push(String(url))
+        return Response.json({
+          id: 'ash-row-id',
+          certificate_hash: 'a'.repeat(64),
+          verification_policy: 'external_source_verified_once_before_insert',
+          url: 'https://vibecemetery.app/api/agent-ashes/ash-row-id',
+          certificate_url: 'https://vibecemetery.app/api/agent-ashes/ash-row-id/certificate',
+        }, { status: 201 })
+      },
+    })
+
+    expect(result).toMatchObject({
+      status: 201,
+      body: {
+        verification_policy: 'external_source_verified_once_before_insert',
+      },
+    })
+    expect(calls).toEqual(['https://vibecemetery.app/api/agent-ashes'])
+    expect(calls.some((url) => url.startsWith('https://node.gitlawb.com'))).toBe(false)
   })
 
   test('builds browser-approved Agent Ash link start and status requests', async () => {
@@ -359,6 +509,289 @@ test.describe('gitlawb agent ash skill helpers', () => {
       candidates: [expect.objectContaining({ repo_did: repo.did, primary_cause: 'abandoned' })],
       notification: expect.objectContaining({ requires_approval: true, approval_options: ['all', 'none', 'selective'] }),
     })
+  })
+
+  test('scheduled watchlist scan runs once, writes state and exits without submitting when approval is missing', async () => {
+    const { runScheduledWatchlistScan } = await loadHelper()
+    const home = await mkdtemp(join(tmpdir(), 'gitlawb-scheduled-'))
+    const fetchCalls: string[] = []
+
+    try {
+      const result = await runScheduledWatchlistScan({
+        homedir: home,
+        config,
+        watchlist: { repos: [repo.did] },
+        repos: [repo],
+        now: '2026-07-01T00:00:00Z',
+        fetchImpl: async (url: string | URL | Request) => {
+          fetchCalls.push(String(url))
+          return Response.json({ ok: true }, { status: 201 })
+        },
+      })
+      const state = JSON.parse(await readFile(join(home, '.local', 'state', 'vibecemetery-agent-ash', 'state.json'), 'utf8'))
+      const logs = (await readFile(join(home, '.local', 'state', 'vibecemetery-agent-ash', 'logs.jsonl'), 'utf8')).trim().split('\n')
+
+      expect(result).toMatchObject({ status: 'completed', candidate_count: 1, submitted_count: 0 })
+      expect(result.candidates).toEqual([expect.objectContaining({ repo_did: repo.did })])
+      expect(fetchCalls).toEqual([])
+      expect(state).toMatchObject({ last_status: 'completed', candidate_count: 1, submitted_count: 0 })
+      expect(logs.map((line) => JSON.parse(line).event)).toEqual(['scheduled_scan_started', 'scheduled_scan_completed'])
+    } finally {
+      await rm(home, { recursive: true, force: true })
+    }
+  })
+
+  test('scheduled watchlist scan defaults to no approval policy and never submits with approval metadata alone', async () => {
+    const { runScheduledWatchlistScan } = await loadHelper()
+    const home = await mkdtemp(join(tmpdir(), 'gitlawb-scheduled-default-policy-'))
+    const fetchCalls: string[] = []
+
+    try {
+      const result = await runScheduledWatchlistScan({
+        homedir: home,
+        config,
+        watchlist: { repos: [repo.did] },
+        repos: [repo],
+        approval: { mode: 'all', approved_by: 'human-operator', approved_at: '2026-07-01T01:00:00Z' },
+        now: '2026-07-01T00:00:00Z',
+        fetchImpl: async (url: string | URL | Request) => {
+          fetchCalls.push(String(url))
+          return Response.json({ ok: true }, { status: 201 })
+        },
+      })
+
+      expect(result).toMatchObject({ status: 'blocked_approval_policy_none', candidate_count: 1, submitted_count: 0 })
+      expect(fetchCalls).toEqual([])
+    } finally {
+      await rm(home, { recursive: true, force: true })
+    }
+  })
+
+  test('scheduled approval policy none never submits even with explicit approval metadata', async () => {
+    const { runScheduledWatchlistScan } = await loadHelper()
+    const home = await mkdtemp(join(tmpdir(), 'gitlawb-scheduled-none-policy-'))
+    const fetchCalls: string[] = []
+
+    try {
+      const result = await runScheduledWatchlistScan({
+        homedir: home,
+        config: { ...config, scheduled_approval_policy: 'none' },
+        watchlist: { repos: [repo.did] },
+        repos: [repo],
+        approval: { mode: 'all', approved_by: 'human-operator', approved_at: '2026-07-01T01:00:00Z' },
+        now: '2026-07-01T00:00:00Z',
+        fetchImpl: async (url: string | URL | Request) => {
+          fetchCalls.push(String(url))
+          return Response.json({ ok: true }, { status: 201 })
+        },
+      })
+
+      expect(result).toMatchObject({ status: 'blocked_approval_policy_none', candidate_count: 1, submitted_count: 0 })
+      expect(fetchCalls).toEqual([])
+    } finally {
+      await rm(home, { recursive: true, force: true })
+    }
+  })
+
+  test('scheduled approval policy manual reports candidates and does not submit without human approval metadata', async () => {
+    const { runScheduledWatchlistScan } = await loadHelper()
+    const home = await mkdtemp(join(tmpdir(), 'gitlawb-scheduled-manual-policy-'))
+    const fetchCalls: string[] = []
+
+    try {
+      const result = await runScheduledWatchlistScan({
+        homedir: home,
+        config: { ...config, scheduled_approval_policy: 'manual' },
+        watchlist: { repos: [repo.did] },
+        repos: [repo],
+        now: '2026-07-01T00:00:00Z',
+        fetchImpl: async (url: string | URL | Request) => {
+          fetchCalls.push(String(url))
+          return Response.json({ ok: true }, { status: 201 })
+        },
+      })
+
+      expect(result).toMatchObject({ status: 'completed', candidate_count: 1, submitted_count: 0 })
+      expect(result.candidates).toEqual([expect.objectContaining({ repo_did: repo.did })])
+      expect(fetchCalls).toEqual([])
+    } finally {
+      await rm(home, { recursive: true, force: true })
+    }
+  })
+
+  test('scheduled approval policy manual submits with explicit human approval metadata and stores it in certificate raw approval', async () => {
+    const { runScheduledWatchlistScan } = await loadHelper()
+    const home = await mkdtemp(join(tmpdir(), 'gitlawb-scheduled-manual-submit-'))
+    const submittedBodies: unknown[] = []
+
+    try {
+      const result = await runScheduledWatchlistScan({
+        homedir: home,
+        config: { ...config, scheduled_approval_policy: 'manual' },
+        watchlist: { repos: [repo.did] },
+        repos: [repo],
+        approval: {
+          mode: 'selective',
+          approved_repo_dids: [repo.did],
+          approved_by: 'human-operator',
+          approved_at: '2026-07-01T01:00:00Z',
+          notification_id: 'gitlawb_watch_20260701_010000',
+        },
+        now: '2026-07-01T00:00:00Z',
+        fetchImpl: async (_url: string | URL | Request, init?: RequestInit) => {
+          submittedBodies.push(JSON.parse(String(init?.body)))
+          return Response.json({ ok: true }, { status: 201 })
+        },
+      })
+
+      expect(result).toMatchObject({ status: 'completed', candidate_count: 1, submitted_count: 1 })
+      expect(submittedBodies).toHaveLength(1)
+      expect(submittedBodies[0]).toMatchObject({
+        certificate: {
+          raw: {
+            approval: {
+              mode: 'selective',
+              approved_by: 'human-operator',
+              approved_at: '2026-07-01T01:00:00Z',
+              notification_id: 'gitlawb_watch_20260701_010000',
+            },
+          },
+        },
+      })
+      expect(JSON.stringify(submittedBodies[0])).not.toContain('agent_ash_token')
+    } finally {
+      await rm(home, { recursive: true, force: true })
+    }
+  })
+
+  test('scheduled approval policy all requires explicit configuration and approval metadata before submitting', async () => {
+    const { runScheduledWatchlistScan } = await loadHelper()
+    const home = await mkdtemp(join(tmpdir(), 'gitlawb-scheduled-all-policy-'))
+    const fetchCalls: string[] = []
+
+    try {
+      const blocked = await runScheduledWatchlistScan({
+        homedir: home,
+        config,
+        watchlist: { repos: [repo.did] },
+        repos: [repo],
+        approval: { mode: 'all', approved_by: 'human-operator', approved_at: '2026-07-01T01:00:00Z' },
+        now: '2026-07-01T00:00:00Z',
+        fetchImpl: async (url: string | URL | Request) => {
+          fetchCalls.push(String(url))
+          return Response.json({ ok: true }, { status: 201 })
+        },
+      })
+      const missingMetadata = await runScheduledWatchlistScan({
+        homedir: home,
+        config: { ...config, scheduled_approval_policy: 'all' },
+        watchlist: { repos: [repo.did] },
+        repos: [repo],
+        approval: { mode: 'all' },
+        now: '2026-07-01T00:00:00Z',
+        fetchImpl: async (url: string | URL | Request) => {
+          fetchCalls.push(String(url))
+          return Response.json({ ok: true }, { status: 201 })
+        },
+      })
+      const allowed = await runScheduledWatchlistScan({
+        homedir: home,
+        config: { ...config, scheduled_approval_policy: 'all' },
+        watchlist: { repos: [repo.did] },
+        repos: [repo],
+        approval: { mode: 'all', approved_by: 'human-operator', approved_at: '2026-07-01T01:00:00Z' },
+        now: '2026-07-01T00:00:00Z',
+        fetchImpl: async (url: string | URL | Request) => {
+          fetchCalls.push(String(url))
+          return Response.json({ ok: true }, { status: 201 })
+        },
+      })
+
+      expect(blocked).toMatchObject({ status: 'blocked_approval_policy_none', submitted_count: 0 })
+      expect(missingMetadata).toMatchObject({ status: 'blocked_missing_explicit_approval', submitted_count: 0 })
+      expect(allowed).toMatchObject({ status: 'completed', submitted_count: 1 })
+      expect(fetchCalls).toEqual(['https://vibecemetery.app/api/agent-ashes'])
+    } finally {
+      await rm(home, { recursive: true, force: true })
+    }
+  })
+
+  test('scheduled watchlist scan uses a lock and exits without overlap', async () => {
+    const { computeAgentAshStatePaths, runScheduledWatchlistScan } = await loadHelper()
+    const home = await mkdtemp(join(tmpdir(), 'gitlawb-scheduled-lock-'))
+
+    try {
+      const paths = computeAgentAshStatePaths({ homedir: home })
+      await import('node:fs/promises').then(({ mkdir }) => mkdir(paths.lockPath, { recursive: true }))
+
+      const result = await runScheduledWatchlistScan({
+        homedir: home,
+        config,
+        watchlist: { repos: [repo.did] },
+        repos: [repo],
+        now: '2026-07-01T00:00:00Z',
+      })
+
+      expect(result).toEqual({ status: 'locked', candidates: [], candidate_count: 0, submitted: [], submitted_count: 0 })
+      const state = JSON.parse(await readFile(join(home, '.local', 'state', 'vibecemetery-agent-ash', 'state.json'), 'utf8'))
+      const logs = (await readFile(join(home, '.local', 'state', 'vibecemetery-agent-ash', 'logs.jsonl'), 'utf8')).trim().split('\n')
+      expect(state).toMatchObject({ last_status: 'locked' })
+      expect(logs.map((line) => JSON.parse(line).event)).toEqual(['scheduled_scan_locked'])
+    } finally {
+      await rm(home, { recursive: true, force: true })
+    }
+  })
+
+  test('scheduled watchlist scan requires explicit approval metadata before submitting', async () => {
+    const { runScheduledWatchlistScan } = await loadHelper()
+    const home = await mkdtemp(join(tmpdir(), 'gitlawb-scheduled-approval-'))
+    const fetchCalls: string[] = []
+
+    try {
+      const result = await runScheduledWatchlistScan({
+        homedir: home,
+        config: { ...config, scheduled_approval_policy: 'manual' },
+        watchlist: { repos: [repo.did] },
+        repos: [repo],
+        approval: { mode: 'all' },
+        now: '2026-07-01T00:00:00Z',
+        fetchImpl: async (url: string | URL | Request) => {
+          fetchCalls.push(String(url))
+          return Response.json({ ok: true }, { status: 201 })
+        },
+      })
+
+      expect(result).toMatchObject({ status: 'blocked_missing_explicit_approval', candidate_count: 1, submitted_count: 0 })
+      expect(fetchCalls).toEqual([])
+    } finally {
+      await rm(home, { recursive: true, force: true })
+    }
+  })
+
+  test('scheduled watchlist scan never submits approved candidates without a real ash token', async () => {
+    const { runScheduledWatchlistScan } = await loadHelper()
+    const home = await mkdtemp(join(tmpdir(), 'gitlawb-scheduled-token-'))
+    const fetchCalls: string[] = []
+
+    try {
+      const result = await runScheduledWatchlistScan({
+        homedir: home,
+        config: { ...config, scheduled_approval_policy: 'manual', agent_ash_token: 'vc_cli_12345678-1234-4123-8123-123456789abc.sig' },
+        watchlist: { repos: [repo.did] },
+        repos: [repo],
+        approval: { mode: 'all', approved_by: 'human-operator', approved_at: '2026-07-01T01:00:00Z' },
+        now: '2026-07-01T00:00:00Z',
+        fetchImpl: async (url: string | URL | Request) => {
+          fetchCalls.push(String(url))
+          return Response.json({ ok: true }, { status: 201 })
+        },
+      })
+
+      expect(result).toMatchObject({ status: 'blocked_missing_agent_ash_token', candidate_count: 1, submitted_count: 0 })
+      expect(fetchCalls).toEqual([])
+    } finally {
+      await rm(home, { recursive: true, force: true })
+    }
   })
 
   test('drops invalid watchlist repo DIDs and excludes invalid repo identifiers from candidates', async () => {

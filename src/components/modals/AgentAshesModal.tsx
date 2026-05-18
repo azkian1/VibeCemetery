@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useModal } from '@/context/GameContext';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import ModalOverlay from './ModalOverlay';
@@ -36,6 +36,17 @@ export const AGENT_ASHES_COPY = {
 
 type CountItem = { value: string; count: number };
 type CertificateFetch = (input: string, init?: RequestInit) => Promise<Response>;
+
+export type AgentAshTokenSummary = {
+  id: string;
+  token_prefix: string;
+  agent_name: string;
+  agent_did: string | null;
+  gitlawb_node_url: string;
+  scopes: string[];
+  created_at: string;
+  last_used_at: string | null;
+};
 
 export type AgentAshesSummaryRecord = {
   id: string;
@@ -86,6 +97,45 @@ function normalizeSummary(value: unknown): AgentAshesSummary | null {
   };
 }
 
+function getTokenString(value: Record<string, unknown>, key: string): string | null {
+  const field = value[key];
+  return typeof field === 'string' && field.trim() ? field : null;
+}
+
+function getSafeTokenPrefix(value: Record<string, unknown>): string | null {
+  const tokenPrefix = getTokenString(value, 'token_prefix');
+  if (!tokenPrefix) return null;
+  return /^ash_[A-Za-z0-9._~-]{1,24}\.\.\.$/.test(tokenPrefix) ? tokenPrefix : null;
+}
+
+function normalizeAgentAshTokens(value: unknown): AgentAshTokenSummary[] | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const tokens = (value as { tokens?: unknown }).tokens;
+  if (!Array.isArray(tokens)) return null;
+
+  return tokens.flatMap((token) => {
+    if (!token || typeof token !== 'object' || Array.isArray(token)) return [];
+    const record = token as Record<string, unknown>;
+    const id = getTokenString(record, 'id');
+    const tokenPrefix = getSafeTokenPrefix(record);
+    const agentName = getTokenString(record, 'agent_name');
+    const gitlawbNodeUrl = getTokenString(record, 'gitlawb_node_url');
+    const createdAt = getTokenString(record, 'created_at');
+    if (!id || !tokenPrefix || !agentName || !gitlawbNodeUrl || !createdAt) return [];
+
+    return [{
+      id,
+      token_prefix: tokenPrefix,
+      agent_name: agentName,
+      agent_did: getTokenString(record, 'agent_did'),
+      gitlawb_node_url: gitlawbNodeUrl,
+      scopes: Array.isArray(record.scopes) ? record.scopes.filter((scope): scope is string => typeof scope === 'string') : [],
+      created_at: createdAt,
+      last_used_at: getTokenString(record, 'last_used_at'),
+    }];
+  });
+}
+
 function formatCounts(items: CountItem[], empty: string): string {
   if (items.length === 0) return empty;
   return items.map((item) => `${item.value} (${item.count})`).join('\n');
@@ -102,6 +152,43 @@ export async function loadAgentAshCertificate(id: string, fetchImpl: Certificate
   const certificate = await response.json();
   if (!certificate || typeof certificate !== 'object' || Array.isArray(certificate)) throw new Error('invalid certificate');
   return certificate as Record<string, unknown>;
+}
+
+export async function loadAgentAshTokens(fetchImpl: CertificateFetch = fetch): Promise<AgentAshTokenSummary[]> {
+  const response = await fetchImpl('/api/agent-ash/tokens', { cache: 'no-store' });
+  if (response.status === 401) return [];
+  if (!response.ok) throw new Error('tokens request failed');
+  const tokens = normalizeAgentAshTokens(await response.json());
+  if (!tokens) throw new Error('invalid tokens');
+  return tokens;
+}
+
+export async function revokeAgentAshToken(tokenId: string, fetchImpl: CertificateFetch = fetch): Promise<void> {
+  if (!/^[A-Za-z0-9_-]{3,}$/.test(tokenId)) throw new Error('Invalid Agent Ash token id');
+  const response = await fetchImpl('/api/agent-ash/token/revoke', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token_id: tokenId }),
+  });
+  if (!response.ok) throw new Error('revoke request failed');
+}
+
+function isRawAgentAshTokenLike(value: string): boolean {
+  return /^ash_[A-Za-z0-9._~-]{16,}$/.test(value) && !value.endsWith('...');
+}
+
+export function stringifyAgentAshCertificateForDisplay(certificate: Record<string, unknown>): string {
+  return JSON.stringify(certificate, (_key, value) => {
+    if (typeof value === 'string' && isRawAgentAshTokenLike(value)) return '[redacted_agent_ash_token]';
+    return value;
+  }, 2);
+}
+
+function formatAgentAshDate(value: string | null): string {
+  if (!value) return 'Never';
+  const time = Date.parse(value);
+  if (Number.isNaN(time)) return value;
+  return new Intl.DateTimeFormat('en', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(time));
 }
 
 function getObject(value: unknown): Record<string, unknown> | null {
@@ -161,6 +248,10 @@ export default function AgentAshesModal() {
   const [certificate, setCertificate] = useState<Record<string, unknown> | null>(null);
   const [certificateError, setCertificateError] = useState<string | null>(null);
   const [certificateLoading, setCertificateLoading] = useState(false);
+  const [agentTokens, setAgentTokens] = useState<AgentAshTokenSummary[]>([]);
+  const [tokensError, setTokensError] = useState<string | null>(null);
+  const [revokingTokenId, setRevokingTokenId] = useState<string | null>(null);
+  const mountedRef = useRef(false);
   const viewModel = buildAgentAshesViewModel(summary);
   const subject = getObject(certificate?.subject);
   const raw = getObject(certificate?.raw);
@@ -173,15 +264,41 @@ export default function AgentAshesModal() {
     setCertificateError(null);
     setCertificateLoading(true);
     try {
-      setCertificate(await loadAgentAshCertificate(record.id));
+      const nextCertificate = await loadAgentAshCertificate(record.id);
+      if (mountedRef.current) setCertificate(nextCertificate);
     } catch {
-      setCertificateError('Certificate JSON is temporarily unavailable.');
+      if (mountedRef.current) setCertificateError('Certificate JSON is temporarily unavailable.');
     } finally {
-      setCertificateLoading(false);
+      if (mountedRef.current) setCertificateLoading(false);
+    }
+  }
+
+  async function refreshAgentTokens(signal?: AbortSignal) {
+    try {
+      if (mountedRef.current) setTokensError(null);
+      const tokens = await loadAgentAshTokens((input, init) => fetch(input, { ...init, signal }));
+      if (mountedRef.current) setAgentTokens(tokens);
+    } catch (error) {
+      if (mountedRef.current && (error as Error).name !== 'AbortError') setTokensError('Connected agents are temporarily unavailable.');
+    }
+  }
+
+  async function revokeToken(tokenId: string) {
+    setRevokingTokenId(tokenId);
+    setTokensError(null);
+    try {
+      await revokeAgentAshToken(tokenId);
+      if (mountedRef.current) setAgentTokens((tokens) => tokens.filter((token) => token.id !== tokenId));
+      await refreshAgentTokens();
+    } catch {
+      if (mountedRef.current) setTokensError('Could not revoke this Agent Ash token.');
+    } finally {
+      if (mountedRef.current) setRevokingTokenId(null);
     }
   }
 
   useEffect(() => {
+    mountedRef.current = true;
     const controller = new AbortController();
 
     async function loadSummary() {
@@ -191,14 +308,16 @@ export default function AgentAshesModal() {
         if (!response.ok) throw new Error('summary request failed');
         const data = normalizeSummary(await response.json());
         if (!data) throw new Error('invalid summary');
-        setSummary(data);
+        if (mountedRef.current) setSummary(data);
       } catch (error) {
-        if ((error as Error).name !== 'AbortError') setLoadError('Agent Ash archive is temporarily unavailable.');
+        if (mountedRef.current && (error as Error).name !== 'AbortError') setLoadError('Agent Ash archive is temporarily unavailable.');
       }
     }
 
     loadSummary();
+    void refreshAgentTokens(controller.signal);
     return () => {
+      mountedRef.current = false;
       controller.abort();
     };
   }, []);
@@ -243,6 +362,50 @@ export default function AgentAshesModal() {
               </InsetBlock>
             ))}
           </div>
+
+          <InsetBlock>
+            <div style={{ padding: '14px 14px 15px', marginBottom: 14 }}>
+              <div style={{ color: '#c8a050', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.4, marginBottom: 8 }}>
+                Connected Agents
+              </div>
+              {agentTokens.length === 0 && !tokensError && (
+                <div style={{ color: '#8f8b7e', fontSize: 13, lineHeight: 1.5 }}>
+                  No Hermes or Agent Ash credentials are connected yet.
+                </div>
+              )}
+              {tokensError && <div style={{ color: '#8f8b7e', fontSize: 12 }}>{tokensError}</div>}
+              {agentTokens.map((token) => (
+                <div key={token.id} style={{ borderTop: '1px solid rgba(200, 160, 80, 0.18)', paddingTop: 10, marginTop: 10 }}>
+                  <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', justifyContent: 'space-between', flexDirection: isMobile ? 'column' : 'row' }}>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ color: '#e8d5a3', fontSize: 13, marginBottom: 4 }}>
+                        {token.agent_name}
+                      </div>
+                      <div style={{ color: '#8f8b7e', fontSize: 12, lineHeight: 1.55, wordBreak: 'break-word' }}>
+                        Token prefix: {token.token_prefix}
+                        <br />
+                        DID: {token.agent_did ?? 'Not provided'}
+                        <br />
+                        Node: {token.gitlawb_node_url}
+                        <br />
+                        Last used: {formatAgentAshDate(token.last_used_at)}
+                      </div>
+                      <div style={{ color: '#6a6960', fontSize: 11, marginTop: 5, wordBreak: 'break-word' }}>
+                        Scopes: {token.scopes.join(', ') || 'none'} · Created: {formatAgentAshDate(token.created_at)}
+                      </div>
+                    </div>
+                    <StoneButton
+                      onClick={() => { void revokeToken(token.id); }}
+                      disabled={revokingTokenId === token.id}
+                      style={{ flexShrink: 0, fontSize: 11, padding: '6px 10px' }}
+                    >
+                      {revokingTokenId === token.id ? 'Revoking...' : 'Revoke'}
+                    </StoneButton>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </InsetBlock>
 
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 10, marginBottom: 14 }}>
             {viewModel.sections.map((section) => (
@@ -328,7 +491,7 @@ export default function AgentAshesModal() {
                       padding: 10,
                       whiteSpace: 'pre-wrap',
                     }}>
-                      {JSON.stringify(certificate, null, 2)}
+                      {stringifyAgentAshCertificateForDisplay(certificate)}
                     </pre>
                   </>
                 )}

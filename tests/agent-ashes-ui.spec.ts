@@ -1,5 +1,13 @@
 import { expect, test } from '@playwright/test'
-import { AGENT_ASHES_COPY, buildAgentAshesViewModel, loadAgentAshCertificate, type AgentAshesSummary } from '../src/components/modals/AgentAshesModal'
+import {
+  AGENT_ASHES_COPY,
+  buildAgentAshesViewModel,
+  loadAgentAshCertificate,
+  loadAgentAshTokens,
+  revokeAgentAshToken,
+  stringifyAgentAshCertificateForDisplay,
+  type AgentAshesSummary,
+} from '../src/components/modals/AgentAshesModal'
 import { LEADERBOARD_TABS } from '../src/components/modals/LeaderboardModal'
 import { TOPBAR_ACTIONS } from '../src/components/hud/TopBar'
 
@@ -136,4 +144,86 @@ test('Agent Ashes certificate detail loader fetches raw certificate JSON by id',
 
   await expect(loadAgentAshCertificate('bad id', async () => new Response('{}'))).rejects.toThrow('Invalid Agent Ash id')
   await expect(loadAgentAshCertificate('ash-404', async () => new Response('{}', { status: 404 }))).rejects.toThrow('certificate request failed')
+})
+
+test('Agent Ashes certificate display redacts raw ash tokens', () => {
+  const displayJson = stringifyAgentAshCertificateForDisplay({
+    subject: { name: 'dead-agent-prototype' },
+    raw: {
+      agent_ash_token: 'ash_tokenid.abcdefghijklmnopqrstuvwxyz1234567890',
+      nested: ['safe', 'ash_otherid.abcdefghijklmnopqrstuvwxyz1234567890'],
+      safe_prefix: 'ash_safe...',
+    },
+  })
+
+  expect(displayJson).toContain('[redacted_agent_ash_token]')
+  expect(displayJson).toContain('ash_safe...')
+  expect(displayJson).not.toContain('abcdefghijklmnopqrstuvwxyz1234567890')
+})
+
+test('Agent Ashes connected agents loader exposes only safe token metadata', async () => {
+  const calls: string[] = []
+  const tokens = await loadAgentAshTokens(async (url, init) => {
+    calls.push(`${url} ${init?.cache}`)
+    return new Response(JSON.stringify({
+      tokens: [{
+        id: 'token-owned-new',
+        token_prefix: 'ash_new...',
+        agent_name: 'hermes',
+        agent_did: 'did:key:z6MkAgentHermes',
+        gitlawb_node_url: 'https://node.gitlawb.com',
+        scopes: ['agent_ashes:write'],
+        created_at: '2026-05-18T12:00:00.000Z',
+        last_used_at: '2026-05-18T12:03:00.000Z',
+        agent_ash_token: 'ash_raw_must_not_render',
+      }],
+    }), { status: 200 })
+  })
+
+  expect(calls).toEqual(['/api/agent-ash/tokens no-store'])
+  expect(tokens).toEqual([{
+    id: 'token-owned-new',
+    token_prefix: 'ash_new...',
+    agent_name: 'hermes',
+    agent_did: 'did:key:z6MkAgentHermes',
+    gitlawb_node_url: 'https://node.gitlawb.com',
+    scopes: ['agent_ashes:write'],
+    created_at: '2026-05-18T12:00:00.000Z',
+    last_used_at: '2026-05-18T12:03:00.000Z',
+  }])
+  expect(JSON.stringify(tokens)).not.toContain('ash_raw_must_not_render')
+})
+
+test('Agent Ashes connected agents loader rejects unredacted token prefixes', async () => {
+  const tokens = await loadAgentAshTokens(async () => new Response(JSON.stringify({
+    tokens: [{
+      id: 'token-owned-new',
+      token_prefix: 'ash_tokenid.fullRawSignatureMustNotRender',
+      agent_name: 'hermes',
+      agent_did: null,
+      gitlawb_node_url: 'https://node.gitlawb.com',
+      scopes: ['agent_ashes:write'],
+      created_at: '2026-05-18T12:00:00.000Z',
+      last_used_at: null,
+    }],
+  }), { status: 200 }))
+
+  expect(tokens).toEqual([])
+  expect(JSON.stringify(tokens)).not.toContain('fullRawSignatureMustNotRender')
+})
+
+test('Agent Ashes revoke helper posts token id without raw token material', async () => {
+  const calls: { url: string; init?: RequestInit }[] = []
+  await revokeAgentAshToken('token-owned-new', async (url, init) => {
+    calls.push({ url, init })
+    return new Response(JSON.stringify({ ok: true }), { status: 200 })
+  })
+
+  expect(calls).toHaveLength(1)
+  expect(calls[0].url).toBe('/api/agent-ash/token/revoke')
+  expect(calls[0].init?.method).toBe('POST')
+  expect(JSON.parse(String(calls[0].init?.body))).toEqual({ token_id: 'token-owned-new' })
+  expect(String(calls[0].init?.body)).not.toContain('ash_')
+
+  await expect(revokeAgentAshToken('bad token id', async () => new Response('{}'))).rejects.toThrow('Invalid Agent Ash token id')
 })

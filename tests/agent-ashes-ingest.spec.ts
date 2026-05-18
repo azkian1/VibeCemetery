@@ -18,6 +18,12 @@ import {
   type AgentAshTokenRecord,
 } from '../src/lib/agent-ash-auth'
 
+const helperPath = `${process.cwd().replace(/\\/g, '/')}/SKILL/skills/gitlawb/scripts/gitlawb-helper.mjs`
+
+async function loadGitlawbHelper() {
+  return await import(`file:///${helperPath}`)
+}
+
 const validRequest: AgentAshRequest = {
   certificate: {
     schema_version: 'agent_ash.v1',
@@ -341,6 +347,153 @@ test.describe('Agent Ash ingest API handler', () => {
     })
     expect(didResponse.status).toBe(403)
     await expect(didResponse.json()).resolves.toEqual({ error: 'Agent Ash token does not match certificate agent' })
+  })
+
+  test('accepts the canonical GitLawb helper payload through the real ash token write path', async () => {
+    const { buildAgentAshRequest, buildSubmissionRequest } = await loadGitlawbHelper()
+    const { rawToken, record } = makeTokenRecord()
+    const authStore = makeAuthStore([record])
+    const store = makeStore()
+    const calls: string[] = []
+    const helperPayload = buildAgentAshRequest({
+      repo: {
+        did: 'did:gitlawb:z6MkRepoDeadAgentPrototype',
+        name: 'dead-agent-prototype',
+        path: 'azkian1/dead-agent-prototype',
+        description: 'Agent-generated trading prototype',
+        created_at: '2026-03-01T14:22:00Z',
+        updated_at: '2026-03-05T09:15:00Z',
+        languages: ['python'],
+        default_branch: 'main',
+        latest_commit: 'abc123deadbeef',
+        commits: 12,
+        files: 8,
+      },
+      config: {
+        gitlawb_node_url: 'https://node.gitlawb.com',
+        agent_name: 'hermes',
+        agent_did: 'did:key:z6MkAgentHermes',
+        agent_ash_token: rawToken,
+        vc_url: 'https://vibecemetery.app',
+      },
+      declaredDeadAt: '2026-07-01T00:00:00Z',
+    })
+    const submission = buildSubmissionRequest({
+      config: {
+        gitlawb_node_url: 'https://node.gitlawb.com',
+        agent_name: 'hermes',
+        agent_did: 'did:key:z6MkAgentHermes',
+        agent_ash_token: rawToken,
+        vc_url: 'https://vibecemetery.app',
+      },
+      request: helperPayload,
+    })
+
+    expect(submission).toMatchObject({
+      url: 'https://vibecemetery.app/api/agent-ashes',
+      method: 'POST',
+      headers: { Authorization: `Bearer ${rawToken}` },
+    })
+
+    const response = await handleAgentAshPost(new Request(submission.url, {
+      method: submission.method,
+      headers: submission.headers,
+      body: submission.body,
+    }), {
+      store: {
+        ...store,
+        async findByCertificateHash(certificateHash) {
+          calls.push(`findByCertificateHash:${certificateHash.length}`)
+          return null
+        },
+        async findConflict(repoDid, declaredDeadAt) {
+          calls.push(`findConflict:${repoDid}:${declaredDeadAt}`)
+          return null
+        },
+        async insert(row) {
+          calls.push(`insert:${row.repo_did}:${row.agent_name}`)
+          return await store.insert(row)
+        },
+      },
+      authStore,
+      allowedNodeUrls: ['https://node.gitlawb.com'],
+      rateLimit: async () => ({ allowed: true, retryAfterMs: 0 }),
+      verify: async (request) => {
+        calls.push(`verify:${request.proof.repo_did}:${request.certificate.agent.name}`)
+        return {
+          ok: true,
+          status: 'gitlawb_http_verified',
+          verificationUrl: 'https://node.gitlawb.com/repo/did%3Agitlawb%3Az6MkRepoDeadAgentPrototype',
+          matchedRepo: {},
+        }
+      },
+    })
+
+    expect(response.status).toBe(201)
+    await expect(response.json()).resolves.toMatchObject({
+      id: 'ash-row-id',
+      verification_policy: AGENT_ASH_WRITE_VERIFICATION_POLICY,
+      url: 'http://localhost:3000/api/agent-ashes/ash-row-id',
+      certificate_url: 'http://localhost:3000/api/agent-ashes/ash-row-id/certificate',
+    })
+    expect(authStore.used).toEqual(['ash-token-id'])
+    expect(calls).toEqual([
+      'findByCertificateHash:64',
+      'findConflict:did:gitlawb:z6MkRepoDeadAgentPrototype:2026-07-01T00:00:00Z',
+      'verify:did:gitlawb:z6MkRepoDeadAgentPrototype:hermes',
+      'insert:did:gitlawb:z6MkRepoDeadAgentPrototype:hermes',
+    ])
+    expect(store.inserted[0]).toMatchObject({
+      agent_name: 'hermes',
+      agent_did: 'did:key:z6MkAgentHermes',
+      authorized_agent_name: 'hermes',
+      authorized_agent_did: 'did:key:z6MkAgentHermes',
+      agent_ash_token_id: 'ash-token-id',
+      verification_status: 'gitlawb_http_verified',
+      verification_url: 'https://node.gitlawb.com/repo/did%3Agitlawb%3Az6MkRepoDeadAgentPrototype',
+    })
+  })
+
+  test('rejects canonical helper payload when config agent metadata differs from token metadata', async () => {
+    const { buildAgentAshRequest } = await loadGitlawbHelper()
+    const { rawToken, record } = makeTokenRecord()
+    const helperPayload = buildAgentAshRequest({
+      repo: {
+        did: 'did:gitlawb:z6MkRepoDeadAgentPrototype',
+        name: 'dead-agent-prototype',
+        path: 'azkian1/dead-agent-prototype',
+        created_at: '2026-03-01T14:22:00Z',
+        updated_at: '2026-03-05T09:15:00Z',
+        commits: 12,
+        files: 8,
+      },
+      config: {
+        gitlawb_node_url: 'https://node.gitlawb.com',
+        agent_name: 'openclaw',
+        agent_did: 'did:key:z6MkOtherAgent',
+        agent_ash_token: rawToken,
+        vc_url: 'https://vibecemetery.app',
+      },
+      declaredDeadAt: '2026-07-01T00:00:00Z',
+    })
+
+    const store = makeStore()
+    const verifyCalls: string[] = []
+    const response = await handleAgentAshPost(makeRequest(helperPayload, rawToken), {
+      store,
+      authStore: makeAuthStore([record]),
+      allowedNodeUrls: ['https://node.gitlawb.com'],
+      rateLimit: async () => ({ allowed: true, retryAfterMs: 0 }),
+      verify: async () => {
+        verifyCalls.push('verify')
+        return { ok: false, status: 'rejected', reason: 'must not verify mismatched token metadata' }
+      },
+    })
+
+    expect(response.status).toBe(403)
+    await expect(response.json()).resolves.toEqual({ error: 'Agent Ash token does not match certificate agent' })
+    expect(verifyCalls).toEqual([])
+    expect(store.inserted).toEqual([])
   })
 
   test('ingest route does not import or write human-layer tables or progression RPCs', () => {

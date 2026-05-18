@@ -2,6 +2,7 @@ import crypto from 'node:crypto'
 import fs from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 export const DEFAULT_GITLAWB_NODE_URL = 'https://node.gitlawb.com'
 export const DEFAULT_VC_URL = 'https://vibecemetery.app'
@@ -40,6 +41,9 @@ const STRING_LIMITS = {
   notificationType: 80,
 }
 const MAX_APPROVAL_CANDIDATE_COUNT = 1000
+const MAX_SCHEDULED_REPOS = 1000
+const MAX_SCHEDULED_CANDIDATES = 100
+const SCHEDULED_APPROVAL_POLICIES = new Set(['none', 'manual', 'all'])
 const AGENT_ASH_CAUSES = new Set([
   'empty_repo',
   'single_commit',
@@ -253,6 +257,17 @@ export function computeGitlawbStoragePaths(options = {}) {
   }
 }
 
+export function computeAgentAshStatePaths(options = {}) {
+  const home = asString(options.homedir) || os.homedir()
+  const stateDir = path.join(home, '.local', 'state', 'vibecemetery-agent-ash')
+  return {
+    stateDir,
+    statePath: path.join(stateDir, 'state.json'),
+    logsPath: path.join(stateDir, 'logs.jsonl'),
+    lockPath: path.join(stateDir, 'scan.lock'),
+  }
+}
+
 export function normalizeGitlawbConfig(config = {}) {
   return {
     gitlawb_node_url: normalizeGitlawbNodeUrl(config.gitlawb_node_url),
@@ -261,6 +276,20 @@ export function normalizeGitlawbConfig(config = {}) {
     agent_ash_token: asString(config.agent_ash_token),
     vc_url: normalizeVcUrl(config.vc_url),
   }
+}
+
+function normalizeScheduledApprovalPolicy(options = {}, config = {}) {
+  const policy = asString(
+    options.scheduledApprovalPolicy
+      ?? options.scheduled_approval_policy
+      ?? config.scheduled_approval_policy
+      ?? config.approval_policy
+      ?? config.scheduled?.approval_policy,
+  ) || 'none'
+  if (!SCHEDULED_APPROVAL_POLICIES.has(policy)) {
+    throw new Error(`Invalid scheduled approval policy: ${policy}`)
+  }
+  return policy
 }
 
 export function getRepoDid(repo = {}) {
@@ -474,6 +503,24 @@ export function buildSubmissionRequest(options = {}) {
   }
 }
 
+export async function submitAgentAshRequest(options = {}) {
+  const fetchImpl = options.fetchImpl ?? globalThis.fetch
+  if (typeof fetchImpl !== 'function') {
+    throw new Error('fetch is required to submit Agent Ash')
+  }
+  const request = buildSubmissionRequest(options)
+  const response = await fetchImpl(request.url, {
+    method: request.method,
+    headers: request.headers,
+    body: request.body,
+  })
+  const body = await parseJsonResponse(response, 'Agent Ash submit')
+  return {
+    status: response.status,
+    body,
+  }
+}
+
 export function buildAgentAshLinkStartRequest(options = {}) {
   const config = normalizeGitlawbConfig(options.config ?? {})
   const body = {
@@ -614,6 +661,16 @@ async function readJsonFile(filePath) {
   }
 }
 
+async function writeJsonFile(filePath, value, mode = 0o600) {
+  await fs.mkdir(path.dirname(filePath), { recursive: true, mode: 0o700 })
+  await fs.writeFile(filePath, `${JSON.stringify(value, null, 2)}\n`, { encoding: 'utf8', mode })
+}
+
+async function appendJsonLine(filePath, value) {
+  await fs.mkdir(path.dirname(filePath), { recursive: true, mode: 0o700 })
+  await fs.appendFile(filePath, `${JSON.stringify(value)}\n`, { encoding: 'utf8', mode: 0o600 })
+}
+
 export async function storeAgentAshConfig(options = {}) {
   const approved = options.approved && typeof options.approved === 'object' ? options.approved : {}
   if (approved.status && approved.status !== 'approved') {
@@ -659,6 +716,23 @@ export function buildGitlawbReposRequest(config = {}) {
     method: 'GET',
     headers: { Accept: 'application/json' },
   }
+}
+
+export async function fetchGitlawbRepos(options = {}) {
+  const fetchImpl = options.fetchImpl ?? globalThis.fetch
+  if (typeof fetchImpl !== 'function') {
+    throw new Error('fetch is required to scan GitLawb repos')
+  }
+  const request = buildGitlawbReposRequest(options.config ?? {})
+  const response = await fetchImpl(request.url, {
+    method: request.method,
+    headers: request.headers,
+  })
+  const body = await parseJsonResponse(response, 'GitLawb repos scan')
+  if (Array.isArray(body)) {
+    return body
+  }
+  return Array.isArray(body?.repos) ? body.repos : []
 }
 
 export function normalizeWatchlist(watchlist = {}) {
@@ -764,4 +838,138 @@ export function applyWatchlistApproval(options = {}) {
       },
     }]
   })
+}
+
+async function acquireScheduledScanLock(paths) {
+  await fs.mkdir(paths.stateDir, { recursive: true, mode: 0o700 })
+  try {
+    await fs.mkdir(paths.lockPath, { mode: 0o700 })
+    return true
+  } catch (error) {
+    if (error?.code === 'EEXIST') {
+      return false
+    }
+    throw error
+  }
+}
+
+function hasExplicitScheduledApproval(approval = {}) {
+  if (!approval || typeof approval !== 'object') {
+    return false
+  }
+  const mode = asString(approval.mode)
+  if (mode !== 'all' && mode !== 'selective') {
+    return false
+  }
+  if (!asString(approval.approved_by) || !asString(approval.approved_at)) {
+    return false
+  }
+  try {
+    normalizeIso(approval.approved_at)
+    return true
+  } catch {
+    return false
+  }
+}
+
+export async function runScheduledWatchlistScan(options = {}) {
+  const paths = computeAgentAshStatePaths(options)
+  const now = normalizeIso(options.now ?? new Date().toISOString())
+  const locked = await acquireScheduledScanLock(paths)
+  if (!locked) {
+    await writeJsonFile(paths.statePath, {
+      last_scan_at: now,
+      last_status: 'locked',
+      candidate_count: 0,
+      submitted_count: 0,
+    })
+    await appendJsonLine(paths.logsPath, { event: 'scheduled_scan_locked', at: now, status: 'locked' })
+    return { status: 'locked', candidates: [], candidate_count: 0, submitted: [], submitted_count: 0 }
+  }
+
+  try {
+    await appendJsonLine(paths.logsPath, { event: 'scheduled_scan_started', at: now })
+    const storedConfig = options.config ?? await readJsonFile(computeGitlawbStoragePaths(options).configPath)
+    const config = normalizeGitlawbConfig(storedConfig)
+    const scheduledApprovalPolicy = normalizeScheduledApprovalPolicy(options, storedConfig)
+    const watchlist = options.watchlist ?? await readJsonFile(computeGitlawbStoragePaths(options).watchlistPath)
+    const repos = (Array.isArray(options.repos)
+      ? options.repos
+      : await fetchGitlawbRepos({ config, fetchImpl: options.fetchImpl }))
+      .slice(0, MAX_SCHEDULED_REPOS)
+    const report = buildWatchlistReport({ repos, watchlist, now })
+    report.candidates = report.candidates.slice(0, MAX_SCHEDULED_CANDIDATES)
+    if (report.notification) {
+      report.notification.candidate_count = report.candidates.length
+    }
+    const approval = options.approval ?? { mode: 'none' }
+    const requestedApprovalMode = asString(approval.mode) || 'none'
+    const approved = scheduledApprovalPolicy === 'none'
+      ? []
+      : applyWatchlistApproval({ candidates: report.candidates, approval })
+    const submitted = []
+    let status = 'completed'
+
+    if (scheduledApprovalPolicy === 'none' && report.candidates.length > 0 && requestedApprovalMode !== 'none') {
+      status = 'blocked_approval_policy_none'
+    } else if (approved.length > 0 && !hasExplicitScheduledApproval(approval)) {
+      status = 'blocked_missing_explicit_approval'
+    } else if (approved.length > 0 && !AGENT_ASH_TOKEN_PATTERN.test(config.agent_ash_token)) {
+      status = 'blocked_missing_agent_ash_token'
+    } else {
+      for (const item of approved) {
+        const request = buildAgentAshRequest({
+          repo: item.repo,
+          config,
+          declaredDeadAt: now,
+          diagnosis: item.diagnosis,
+          approvalMetadata: item.approval_metadata,
+        })
+        submitted.push(await submitAgentAshRequest({ config, request, fetchImpl: options.fetchImpl }))
+      }
+    }
+
+    const result = {
+      status,
+      candidates: report.candidates,
+      candidate_count: report.candidates.length,
+      submitted,
+      submitted_count: submitted.length,
+    }
+    await writeJsonFile(paths.statePath, {
+      last_scan_at: now,
+      last_status: status,
+      candidate_count: result.candidate_count,
+      submitted_count: result.submitted_count,
+    })
+    await appendJsonLine(paths.logsPath, {
+      event: 'scheduled_scan_completed',
+      at: now,
+      status,
+      candidate_count: result.candidate_count,
+      submitted_count: result.submitted_count,
+    })
+    return result
+  } finally {
+    await fs.rm(paths.lockPath, { recursive: true, force: true })
+  }
+}
+
+async function runCli() {
+  const command = process.argv[2]
+  if (command !== 'scheduled-scan' && command !== 'scan-watchlist') {
+    return
+  }
+
+  try {
+    const result = await runScheduledWatchlistScan()
+    console.log(JSON.stringify(result, null, 2))
+  } catch (error) {
+    console.error(error instanceof Error ? error.message : String(error))
+    process.exitCode = 1
+  }
+}
+
+if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1])) {
+  await runCli()
 }
