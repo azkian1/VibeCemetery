@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useCallback, useState } from 'react';
+import React, { useMemo, useCallback, useEffect, useState } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import { useModal, useGame, useCremated, useGraves } from '@/context/GameContext';
 import { useIsMobile } from '@/hooks/useIsMobile';
@@ -87,6 +87,11 @@ export default function ProfileModal() {
   const hasSharedFirstGrave = Boolean(user?.x_first_grave_shared_at);
   const loadError = gravesError || crematedError;
   const loading = gravesLoading || crematedLoading;
+
+  useEffect(() => {
+    refetchGraves();
+    refetchCremated();
+  }, [refetchGraves, refetchCremated]);
 
   // Filter user's graves and cremations (case-insensitive — CLI may send different casing)
   const lowerUsername = username?.toLowerCase();
