@@ -67,6 +67,10 @@ function ProgressBar({ percent, label }: { percent: number; label?: string }) {
   );
 }
 
+export function getSlotsAvailableLabel(slotsAvailable: number): string {
+  return `${slotsAvailable} slot${slotsAvailable === 1 ? '' : 's'} available`;
+}
+
 export default function ProfileModal() {
   const { close, open, push } = useModal();
   const { state } = useGame();
@@ -134,6 +138,7 @@ export default function ProfileModal() {
   });
   const unlocked = SOUL_SLOT_THRESHOLDS.filter(t => souls >= t);
   const slotsUnlocked = slotEconomy.slotsUnlocked;
+  const slotsAvailable = slotEconomy.availableSlots;
   const allSlotsMaxed = slotEconomy.allSlotsMaxed;
   const nextThreshold = slotEconomy.nextSoulThreshold;
   const prevThreshold = unlocked.length > 0 ? unlocked[unlocked.length - 1] : 0;
@@ -273,13 +278,27 @@ export default function ProfileModal() {
             <InsetBlock label="Grave Slots" style={{ marginBottom: 10 }}>
               <div style={{
                 display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'baseline',
-                marginBottom: 4,
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                gap: 12,
+                marginBottom: 8,
               }}>
-                <span style={{ fontSize: 13, color: '#aaa9a0' }}>
-                  Used: <strong style={{ color: '#e8d5a3' }}>{slotsUsed}</strong> / {slotsUnlocked}
-                </span>
+                <div>
+                  <div style={{ fontSize: 22, lineHeight: 1, color: slotsAvailable > 0 ? '#e8d5a3' : '#8a8980', fontWeight: 'bold' }}>
+                    {slotsAvailable}
+                  </div>
+                  <div style={{ fontSize: 11, color: '#aaa9a0', marginTop: 3 }}>
+                    {getSlotsAvailableLabel(slotsAvailable).replace(/^\d+\s/, '')}
+                  </div>
+                </div>
+                <div style={{ textAlign: 'right', fontSize: 12, color: '#8a8980' }}>
+                  <div>
+                    Used <strong style={{ color: '#e8d5a3' }}>{slotsUsed}</strong> / {slotsUnlocked}
+                  </div>
+                  <div style={{ color: '#6a6960', marginTop: 3 }}>
+                    grave map slots
+                  </div>
+                </div>
               </div>
               <ProgressBar
                 percent={slotsUnlocked > 0 ? (slotsUsed / slotsUnlocked) * 100 : 0}

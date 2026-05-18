@@ -5,6 +5,8 @@ import { useSession, signIn } from 'next-auth/react';
 import type { DeadRepo, GitHubScanResult } from '@/types/game';
 import { getBuryLoginCallbackUrl } from '@/lib/bury-intent';
 
+export const BURY_GITHUB_CONNECT_LABEL = 'Connect GitHub';
+
 interface StepScanProps {
   repos: DeadRepo[];
   loading: boolean;
@@ -127,7 +129,7 @@ export default function StepScan({
             fontFamily: 'inherit',
           }}
         >
-          Login with GitHub
+          {BURY_GITHUB_CONNECT_LABEL}
         </button>
       </div>
     );
