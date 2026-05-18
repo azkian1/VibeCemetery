@@ -1,3 +1,6 @@
+import { mkdtemp, readFile, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { expect, test } from '@playwright/test'
 
 const helperPath = `${process.cwd().replace(/\\/g, '/')}/SKILL/skills/gitlawb/scripts/gitlawb-helper.mjs`
@@ -153,6 +156,128 @@ test.describe('gitlawb agent ash skill helpers', () => {
       config: { ...config, agent_ash_token: 'ash_short' },
       request: ashRequest,
     })).toThrow('agent_ash_token must match ash_[A-Za-z0-9._~-]{16,}')
+  })
+
+  test('builds browser-approved Agent Ash link start and status requests', async () => {
+    const { buildAgentAshLinkStartRequest, buildAgentAshLinkStatusRequest } = await loadHelper()
+
+    expect(buildAgentAshLinkStartRequest({ config })).toEqual({
+      url: 'https://vibecemetery.app/api/agent-ash/link/start',
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        agent_name: 'hermes',
+        agent_did: 'did:key:z6MkAgentHermes',
+        gitlawb_node_url: 'https://node.gitlawb.com',
+      }),
+    })
+
+    expect(buildAgentAshLinkStatusRequest({
+      vcUrl: 'https://vibecemetery.app',
+      linkId: 'ashlink_abc123456789',
+      claimToken: 'claim_xxxxxxxxxxxxxxxxxxxx',
+    })).toEqual({
+      url: 'https://vibecemetery.app/api/agent-ash/link/status?link_id=ashlink_abc123456789',
+      method: 'GET',
+      headers: { Authorization: 'Bearer claim_xxxxxxxxxxxxxxxxxxxx' },
+    })
+  })
+
+  test('starts and polls browser-approved Agent Ash connect without exposing claim token as ingest auth', async () => {
+    const { pollAgentAshLinkStatus, startAgentAshLink } = await loadHelper()
+    const calls: Array<{ url: string | URL | Request; init?: RequestInit }> = []
+    const fetchImpl = async (url: string | URL | Request, init?: RequestInit) => {
+      calls.push({ url, init })
+      if (String(url).endsWith('/api/agent-ash/link/start')) {
+        return Response.json({
+          link_id: 'ashlink_abc123456789',
+          claim_token: 'claim_xxxxxxxxxxxxxxxxxxxx',
+          approve_url: 'https://vibecemetery.app/agent-ash/connect?link_id=ashlink_abc123456789',
+          expires_at: '2026-05-18T12:10:00.000Z',
+        })
+      }
+      return Response.json({
+        status: 'approved',
+        agent_ash_token: 'ash_test_token_1234567890',
+        scopes: ['agent_ashes:write'],
+        vc_url: 'https://vibecemetery.app',
+        expires_at: null,
+      })
+    }
+
+    const claim = await startAgentAshLink({ config, fetchImpl })
+    const approved = await pollAgentAshLinkStatus({
+      claim,
+      fetchImpl,
+      intervalMs: 0,
+      timeoutMs: 1,
+    })
+
+    expect(claim).toMatchObject({
+      link_id: 'ashlink_abc123456789',
+      claim_token: 'claim_xxxxxxxxxxxxxxxxxxxx',
+      approve_url: 'https://vibecemetery.app/agent-ash/connect?link_id=ashlink_abc123456789',
+    })
+    expect(approved).toMatchObject({ status: 'approved', agent_ash_token: 'ash_test_token_1234567890' })
+    const statusHeaders = calls[1]?.init?.headers as Record<string, string> | undefined
+    expect(statusHeaders?.Authorization).toBe('Bearer claim_xxxxxxxxxxxxxxxxxxxx')
+    expect(statusHeaders?.Authorization).not.toContain('ash_test_token')
+  })
+
+  test('rejects ingest tokens as claim tokens and unsafe approve URLs', async () => {
+    const { buildAgentAshLinkStatusRequest, openAgentAshApproveUrl } = await loadHelper()
+
+    expect(() => buildAgentAshLinkStatusRequest({
+      vcUrl: 'https://vibecemetery.app',
+      linkId: 'ashlink_abc123456789',
+      claimToken: 'ash_test_token_1234567890',
+    })).toThrow('claim_token must match claim_[A-Za-z0-9_-]{20,}')
+
+    expect(() => buildAgentAshLinkStatusRequest({
+      vcUrl: 'https://vibecemetery.app',
+      linkId: 'link_abc123456789',
+      claimToken: 'claim_xxxxxxxxxxxxxxxxxxxx',
+    })).toThrow('link_id must match ashlink_[A-Za-z0-9_-]{12,}')
+
+    await expect(openAgentAshApproveUrl({
+      approveUrl: 'https://evil.example/agent-ash/connect?link_id=ashlink_abc123456789',
+      openImpl: () => {
+        throw new Error('must not open')
+      },
+    })).rejects.toThrow('approve_url must be a VibeCemetery Agent Ash connect URL')
+  })
+
+  test('stores approved Agent Ash token and agent metadata in ~/.config/gitlawb/config.json', async () => {
+    const { storeAgentAshConfig } = await loadHelper()
+    const home = await mkdtemp(join(tmpdir(), 'gitlawb-helper-'))
+
+    try {
+      const stored = await storeAgentAshConfig({
+        homedir: home,
+        config: {
+          gitlawb_node_url: 'https://node.gitlawb.com',
+          agent_name: 'hermes',
+          agent_did: 'did:key:z6MkAgentHermes',
+        },
+        approved: {
+          status: 'approved',
+          agent_ash_token: 'ash_test_token_1234567890',
+          vc_url: 'https://vibecemetery.app',
+        },
+      })
+      const file = JSON.parse(await readFile(join(home, '.config', 'gitlawb', 'config.json'), 'utf8'))
+
+      expect(stored).toEqual(file)
+      expect(file).toEqual({
+        gitlawb_node_url: 'https://node.gitlawb.com',
+        agent_name: 'hermes',
+        agent_did: 'did:key:z6MkAgentHermes',
+        agent_ash_token: 'ash_test_token_1234567890',
+        vc_url: 'https://vibecemetery.app',
+      })
+    } finally {
+      await rm(home, { recursive: true, force: true })
+    }
   })
 
   test('accepts only the canonical GitLawb node origin for verification', async () => {

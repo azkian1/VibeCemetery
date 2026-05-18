@@ -1,14 +1,19 @@
 import crypto from 'node:crypto'
+import fs from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 
 export const DEFAULT_GITLAWB_NODE_URL = 'https://node.gitlawb.com'
 export const DEFAULT_VC_URL = 'https://vibecemetery.app'
 export const AGENT_ASH_INGEST_PATH = '/api/agent-ashes'
+export const AGENT_ASH_LINK_START_PATH = '/api/agent-ash/link/start'
+export const AGENT_ASH_LINK_STATUS_PATH = '/api/agent-ash/link/status'
 export const GITLAWB_REPOS_PATH = '/api/v1/repos'
 export const WATCHLIST_INACTIVITY_DAYS = 90
 export const AGENT_ASH_TOKEN_PREFIX = 'ash_'
 export const AGENT_ASH_TOKEN_PATTERN = /^ash_[A-Za-z0-9._~-]{16,}$/
+export const AGENT_ASH_CLAIM_TOKEN_PATTERN = /^claim_[A-Za-z0-9_-]{20,}$/
+export const AGENT_ASH_LINK_ID_PATTERN = /^ashlink_[A-Za-z0-9_-]{12,}$/
 export const GITLAWB_REPO_DID_PATTERN = /^did:gitlawb:[A-Za-z0-9._~-]{1,148}$/
 
 const CONTROL_CHARS_PATTERN = /[\u0000-\u001f\u007f]/g
@@ -467,6 +472,184 @@ export function buildSubmissionRequest(options = {}) {
     },
     body: JSON.stringify(options.request),
   }
+}
+
+export function buildAgentAshLinkStartRequest(options = {}) {
+  const config = normalizeGitlawbConfig(options.config ?? {})
+  const body = {
+    agent_name: config.agent_name,
+  }
+  if (config.agent_did) {
+    body.agent_did = config.agent_did
+  }
+  body.gitlawb_node_url = config.gitlawb_node_url
+  const publicKey = sanitizeOptionalString(options.publicKey, 512)
+  if (publicKey) {
+    body.public_key = publicKey
+  }
+
+  return {
+    url: `${config.vc_url}${AGENT_ASH_LINK_START_PATH}`,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  }
+}
+
+export function buildAgentAshLinkStatusRequest(options = {}) {
+  const vcUrl = normalizeVcUrl(options.vcUrl)
+  const linkId = sanitizeString(options.linkId, 128)
+  const claimToken = sanitizeString(options.claimToken, 240)
+  if (!AGENT_ASH_LINK_ID_PATTERN.test(linkId)) {
+    throw new Error('link_id must match ashlink_[A-Za-z0-9_-]{12,}')
+  }
+  if (!AGENT_ASH_CLAIM_TOKEN_PATTERN.test(claimToken)) {
+    throw new Error('claim_token must match claim_[A-Za-z0-9_-]{20,}')
+  }
+
+  return {
+    url: `${vcUrl}${AGENT_ASH_LINK_STATUS_PATH}?link_id=${encodeURIComponent(linkId)}`,
+    method: 'GET',
+    headers: { Authorization: `Bearer ${claimToken}` },
+  }
+}
+
+async function parseJsonResponse(response, context) {
+  let body
+  try {
+    body = await response.json()
+  } catch {
+    throw new Error(`${context} returned malformed JSON`)
+  }
+  if (!response.ok) {
+    const message = body && typeof body.error === 'string' ? body.error : response.statusText
+    throw new Error(`${context} failed: ${message}`)
+  }
+  return body
+}
+
+export async function startAgentAshLink(options = {}) {
+  const fetchImpl = options.fetchImpl ?? globalThis.fetch
+  if (typeof fetchImpl !== 'function') {
+    throw new Error('fetch is required to start Agent Ash link')
+  }
+  const request = buildAgentAshLinkStartRequest(options)
+  const response = await fetchImpl(request.url, {
+    method: request.method,
+    headers: request.headers,
+    body: request.body,
+  })
+  const body = await parseJsonResponse(response, 'Agent Ash link start')
+  if (!body?.link_id || !body?.claim_token || !body?.approve_url) {
+    throw new Error('Agent Ash link start response is missing link_id, claim_token, or approve_url')
+  }
+  return body
+}
+
+export async function openAgentAshApproveUrl(options = {}) {
+  const rawApproveUrl = sanitizeString(options.approveUrl ?? options.claim?.approve_url, 2048)
+  let approveUrl
+  try {
+    approveUrl = new URL(rawApproveUrl)
+  } catch {
+    throw new Error('approve_url must be a VibeCemetery Agent Ash connect URL')
+  }
+  if (approveUrl.origin !== DEFAULT_VC_URL || approveUrl.pathname !== '/agent-ash/connect') {
+    throw new Error('approve_url must be a VibeCemetery Agent Ash connect URL')
+  }
+  const normalizedApproveUrl = approveUrl.toString()
+  if (typeof options.openImpl === 'function') {
+    await options.openImpl(normalizedApproveUrl)
+  }
+  return normalizedApproveUrl
+}
+
+function delay(ms) {
+  return ms > 0 ? new Promise((resolve) => setTimeout(resolve, ms)) : Promise.resolve()
+}
+
+export async function pollAgentAshLinkStatus(options = {}) {
+  const fetchImpl = options.fetchImpl ?? globalThis.fetch
+  if (typeof fetchImpl !== 'function') {
+    throw new Error('fetch is required to poll Agent Ash link status')
+  }
+  const claim = options.claim && typeof options.claim === 'object' ? options.claim : {}
+  const vcUrl = options.vcUrl ?? options.config?.vc_url ?? DEFAULT_VC_URL
+  const linkId = options.linkId ?? claim.link_id
+  const claimToken = options.claimToken ?? claim.claim_token
+  const startedAt = Date.now()
+  const timeoutMs = Number.isFinite(options.timeoutMs) ? Math.max(0, options.timeoutMs) : 10 * 60 * 1000
+  const intervalMs = Number.isFinite(options.intervalMs) ? Math.max(0, options.intervalMs) : 2000
+
+  while (Date.now() - startedAt <= timeoutMs) {
+    const request = buildAgentAshLinkStatusRequest({ vcUrl, linkId, claimToken })
+    const response = await fetchImpl(request.url, {
+      method: request.method,
+      headers: request.headers,
+    })
+    const body = await parseJsonResponse(response, 'Agent Ash link status')
+    if (body.status === 'approved') {
+      if (!AGENT_ASH_TOKEN_PATTERN.test(asString(body.agent_ash_token))) {
+        throw new Error('approved Agent Ash link response is missing a valid agent_ash_token')
+      }
+      return body
+    }
+    if (body.status === 'denied' || body.status === 'expired' || body.status === 'claimed') {
+      return body
+    }
+    await delay(intervalMs)
+  }
+
+  throw new Error('Timed out waiting for Agent Ash browser approval')
+}
+
+async function readJsonFile(filePath) {
+  try {
+    return JSON.parse(await fs.readFile(filePath, 'utf8'))
+  } catch (error) {
+    if (error?.code === 'ENOENT') {
+      return {}
+    }
+    throw error
+  }
+}
+
+export async function storeAgentAshConfig(options = {}) {
+  const approved = options.approved && typeof options.approved === 'object' ? options.approved : {}
+  if (approved.status && approved.status !== 'approved') {
+    throw new Error(`Agent Ash link is not approved: ${approved.status}`)
+  }
+  const agentAshToken = asString(approved.agent_ash_token)
+  if (!AGENT_ASH_TOKEN_PATTERN.test(agentAshToken)) {
+    throw new Error('agent_ash_token must match ash_[A-Za-z0-9._~-]{16,}')
+  }
+
+  const paths = computeGitlawbStoragePaths(options)
+  const existing = await readJsonFile(paths.configPath)
+  const baseConfig = normalizeGitlawbConfig({ ...existing, ...(options.config ?? {}) })
+  const nextConfig = {
+    ...existing,
+    gitlawb_node_url: baseConfig.gitlawb_node_url,
+    agent_name: baseConfig.agent_name,
+    agent_did: baseConfig.agent_did,
+    agent_ash_token: agentAshToken,
+    vc_url: normalizeVcUrl(approved.vc_url ?? baseConfig.vc_url),
+  }
+
+  await fs.mkdir(path.dirname(paths.configPath), { recursive: true, mode: 0o700 })
+  await fs.writeFile(paths.configPath, `${JSON.stringify(nextConfig, null, 2)}\n`, { encoding: 'utf8', mode: 0o600 })
+  await fs.chmod(paths.configPath, 0o600)
+  return nextConfig
+}
+
+export async function connectAgentAsh(options = {}) {
+  const claim = await startAgentAshLink(options)
+  await openAgentAshApproveUrl({ claim, openImpl: options.openImpl })
+  const approved = await pollAgentAshLinkStatus({ ...options, claim })
+  if (approved.status !== 'approved') {
+    throw new Error(`Agent Ash link ended with status: ${approved.status}`)
+  }
+  return await storeAgentAshConfig({ ...options, approved })
 }
 
 export function buildGitlawbReposRequest(config = {}) {

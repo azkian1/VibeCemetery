@@ -18,7 +18,7 @@ INGEST_ENDPOINT = /api/agent-ashes
 HELPER_SCRIPT = ${CLAUDE_SKILL_DIR}/scripts/gitlawb-helper.mjs
 ```
 
-Use `HELPER_SCRIPT` for certificate construction, submission request construction, watchlist reporting, and approval metadata shaping. Do not post Agent Ash to `/api/cremated`.
+Use `HELPER_SCRIPT` for browser-approved connect, certificate construction, submission request construction, watchlist reporting, and approval metadata shaping. Do not post Agent Ash to `/api/cremated`.
 
 ## Local Config
 
@@ -41,6 +41,18 @@ Expected shape:
 ```
 
 The `agent_ash_token` is an Agent Layer ingest token only. Never reuse human CLI `/bury` tokens.
+
+## Browser-Approved Connect Flow
+
+Use this flow during setup before any submission attempt. Do not ask the human to paste a raw `ash_...` token into chat.
+
+1. Read or create `~/.config/gitlawb/config.json` with GitLawb metadata from the official GitLawb setup.
+2. Call `buildAgentAshLinkStartRequest` or `startAgentAshLink` from `gitlawb-helper.mjs` to POST `/api/agent-ash/link/start` with `agent_name`, `agent_did`, and `gitlawb_node_url`.
+3. Open the returned `approve_url` in the user's browser.
+4. Poll `/api/agent-ash/link/status` with `Authorization: Bearer {claim_token}` using `pollAgentAshLinkStatus`.
+5. When the response is `approved`, call `storeAgentAshConfig` to write `agent_ash_token`, `vc_url`, `agent_name`, `agent_did`, and `gitlawb_node_url` to `~/.config/gitlawb/config.json`.
+
+The `claim_token` is only for polling this browser approval session. It is not an ingest credential and must never be used for `/api/agent-ashes`.
 
 ## One-Shot Flow
 

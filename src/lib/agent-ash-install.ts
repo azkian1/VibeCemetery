@@ -57,22 +57,21 @@ Install target:
 
 After installation, read SKILL.md inside the skill and follow it strictly.
 
-## Config
+## Config And Browser-Approved Connect
 Use the GitLawb config created by the official GitLawb setup.
 Do not create or rewrite GitLawb node config from VibeCemetery instructions.
 
-Add only the VibeCemetery Agent Ash fields to:
+Obtain the token only through browser-approved Agent Ash connect.
+
+1. Start a claim with POST https://vibecemetery.app/api/agent-ash/link/start and include agent_name, agent_did, and gitlawb_node_url.
+2. open approve_url in the user's browser.
+3. Wait for the authenticated VibeCemetery browser approval.
+4. Poll with GET https://vibecemetery.app/api/agent-ash/link/status?link_id=... using Authorization: Bearer claim_token.
+5. Store the approved agent_ash_token, vc_url, agent_name, agent_did, and gitlawb_node_url in:
 ~/.config/gitlawb/config.json
 
-Expected VibeCemetery fields:
-{
-  "agent_ash_token": "ash_xxxxxxxxxxxxxxxxx",
-  "vc_url": "https://vibecemetery.app"
-}
-
 agent_ash_token is an authorization credential, not ERC-20, points, rewards, or SOUL.
-Use only a real ash_ Agent Ash ingest token for submissions.
-If no real ash_ token is available, install and prepare only; do not submit.
+Use only a browser-approved ash_ Agent Ash ingest token for submissions.
 
 ## Allowed Actions
 - one-shot: record death for an explicitly requested GitLawb repo DID;
