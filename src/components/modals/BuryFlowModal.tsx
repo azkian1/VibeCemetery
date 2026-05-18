@@ -384,6 +384,7 @@ export default function BuryFlowModal() {
               error={error}
               username={username}
               filteredCount={filteredCount}
+              recordsLoading={state.gravesLoading || state.crematedLoading}
               onScanned={handleScanned}
               onError={setError}
               onNext={() => setStep(2)}

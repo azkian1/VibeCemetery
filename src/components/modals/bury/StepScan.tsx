@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useSession, signIn } from 'next-auth/react';
 import type { DeadRepo, GitHubScanResult } from '@/types/game';
+import { getBuryLoginCallbackUrl } from '@/lib/bury-intent';
 
 interface StepScanProps {
   repos: DeadRepo[];
@@ -10,6 +11,7 @@ interface StepScanProps {
   error: string | null;
   username: string | null;
   filteredCount: number;
+  recordsLoading?: boolean;
   onScanned: (repos: DeadRepo[], total: number) => void;
   onError: (err: string) => void;
   onNext: () => void;
@@ -22,6 +24,7 @@ export default function StepScan({
   error,
   username: defaultUsername,
   filteredCount,
+  recordsLoading = false,
   onScanned,
   onError,
   onNext,
@@ -93,8 +96,9 @@ export default function StepScan({
   // Auto-scan own repos on mount (only own GitHub)
   useEffect(() => {
     if (!defaultUsername) return;
+    if (recordsLoading) return;
     return runScanRef.current(false);
-  }, [defaultUsername]);
+  }, [defaultUsername, recordsLoading]);
 
   // Not authenticated
   if (status === 'loading') {
@@ -111,7 +115,7 @@ export default function StepScan({
           Dead repos are non-forks with no pushes for 14+ days.
         </p>
         <button
-          onClick={() => signIn('github')}
+          onClick={() => signIn('github', { callbackUrl: getBuryLoginCallbackUrl() })}
           style={{
             padding: '8px 24px',
             border: '1px solid #3a3530',
@@ -127,6 +131,10 @@ export default function StepScan({
         </button>
       </div>
     );
+  }
+
+  if (recordsLoading) {
+    return <p style={{ color: '#6a6960', textAlign: 'center' }}>Opening cemetery ledger...</p>;
   }
 
   // Loading

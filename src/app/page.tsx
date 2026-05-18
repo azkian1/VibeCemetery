@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { GameProvider, useGame, useGraves, useCremated, useFStatus, useModal, type ModalType } from '@/context/GameContext';
 import { cemeteryEvents } from '@/game/events';
+import { removeBuryModalIntentFromUrl, shouldOpenBuryModalFromSearchParams } from '@/lib/bury-intent';
 
 const PhaserCanvas = dynamic(() => import('../components/PhaserCanvas'), {
   ssr: false,
@@ -98,11 +99,26 @@ function DeepLinkOpener() {
   const { state, dispatch } = useGame();
   const navigatedFor = useRef<string | null>(null);
   const urnHandled = useRef<string | null>(null);
+  const buryIntentHandled = useRef(false);
   const activeModalRef = useRef(state.activeModal);
 
   useEffect(() => {
     activeModalRef.current = state.activeModal;
   }, [state.activeModal]);
+
+  // Continue the BURY flow after GitHub OAuth returns to /?modal=bury.
+  useEffect(() => {
+    if (buryIntentHandled.current) return;
+    if (!shouldOpenBuryModalFromSearchParams(searchParams)) return;
+
+    buryIntentHandled.current = true;
+    dispatch({ type: 'OPEN_MODAL', modal: 'bury' });
+    window.history.replaceState(
+      window.history.state,
+      '',
+      removeBuryModalIntentFromUrl(window.location.href),
+    );
+  }, [searchParams, dispatch]);
 
   // Deep link: ?grave=<uuid>
   useEffect(() => {
