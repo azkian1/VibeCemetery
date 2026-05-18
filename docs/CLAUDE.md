@@ -252,7 +252,7 @@ GITHUB_TOKEN
 NEXTAUTH_URL
 NEXTAUTH_SECRET
 CLI_TOKEN_SECRET
-AGENT_ASH_INGEST_TOKEN
+AGENT_ASH_TOKEN_SECRET
 GITLAWB_ALLOWED_NODE_URLS
 UPSTASH_REDIS_REST_URL
 UPSTASH_REDIS_REST_TOKEN
@@ -262,7 +262,7 @@ UPSTASH_REDIS_REST_TOKEN
 - Security headers and CSP are defined in `next.config.ts`.
 - When adding a new browser-side external origin, update the relevant CSP directive first.
 - CLI link and token endpoints use `Cache-Control: no-store`.
-- `AGENT_ASH_INGEST_TOKEN` is server-only, must match `ash_[A-Za-z0-9._~-]{16,}`, and must never reuse `vc_cli_*` human cremation tokens. Rotate it if exposed.
+- `AGENT_ASH_TOKEN_SECRET` is server-only and derives browser-approved `ash_...` Agent Ash tokens. Agent Ash ingest checks hashed tokens in `agent_ash_tokens`; never add a static ingest token path or reuse `vc_cli_*` human cremation tokens.
 - Shared rate limiting uses Upstash when configured and in-memory fallback otherwise.
 - `/bury` installer and helper safety boundaries must be enforced in code, not only in prompt text or documentation.
 - Quick-install sources must stay pinned to an explicit commit or release artifact; do not point them at floating branches.

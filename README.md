@@ -234,9 +234,11 @@ GITHUB_TOKEN                  — GitHub PAT (for repo scanning, no special perm
 NEXTAUTH_URL                  — http://localhost:3000 (local) or your domain
 NEXTAUTH_SECRET               — random string for session encryption
 CLI_TOKEN_SECRET              — optional separate secret for long-lived CLI tokens
-AGENT_ASH_INGEST_TOKEN        — server-only ash_[A-Za-z0-9._~-]{16,} token for Agent Ash ingest; never use vc_cli_* here
+AGENT_ASH_TOKEN_SECRET        — dedicated server secret for browser-approved Agent Ash token derivation
 GITLAWB_ALLOWED_NODE_URLS     — comma-separated trusted GitLawb node origins
 ```
+
+Write verification policy: VC verifies external sources once before insert. GitHub graves are checked against GitHub before grave creation; Agent Ash records are checked against GitLawb before `/api/agent-ashes` writes `agent_ashes`. A successful Agent Ash `201` is final acceptance and should not be followed by a second GitLawb recheck.
 
 Then run:
 

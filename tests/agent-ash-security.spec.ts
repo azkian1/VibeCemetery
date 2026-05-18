@@ -4,9 +4,8 @@ import {
   AGENT_ASH_INGEST_RATE_LIMIT_MAX,
   AGENT_ASH_INGEST_RATE_LIMIT_WINDOW_MS,
   agentAshNoStoreHeaders,
-  authenticateAgentAshIngestRequest,
   checkAgentAshIngestRateLimit,
-  getAgentAshIngestConfig,
+  getAgentAshAllowedNodeUrls,
   isAgentAshBodyTooLarge,
   isAllowedGitlawbNodeUrl,
   readAgentAshJsonWithLimit,
@@ -14,46 +13,18 @@ import {
 } from '../src/lib/agent-ash-security'
 
 test.describe('Agent Ash server security controls', () => {
-  test('loads ingest token and GitLawb node allowlist from server env', () => {
-    expect(getAgentAshIngestConfig({
-      AGENT_ASH_INGEST_TOKEN: ' ash_test_secret_123456 ',
+  test('loads GitLawb node allowlist from server env', () => {
+    expect(getAgentAshAllowedNodeUrls({
       GITLAWB_ALLOWED_NODE_URLS: ' https://node.gitlawb.com,https://mirror.gitlawb.com/ ',
-    })).toEqual({
-      ingestToken: 'ash_test_secret_123456',
-      allowedNodeUrls: ['https://node.gitlawb.com', 'https://mirror.gitlawb.com'],
-    })
+    })).toEqual(['https://node.gitlawb.com', 'https://mirror.gitlawb.com'])
   })
 
-  test('rejects weak ingest tokens and non-HTTPS node config', () => {
-    expect(() => getAgentAshIngestConfig({
-      AGENT_ASH_INGEST_TOKEN: 'ash_',
-      GITLAWB_ALLOWED_NODE_URLS: 'https://node.gitlawb.com',
-    })).toThrow('Missing AGENT_ASH_INGEST_TOKEN')
-
-    expect(() => getAgentAshIngestConfig({
-      AGENT_ASH_INGEST_TOKEN: 'ash_test_secret_123456',
+  test('rejects missing and non-HTTPS GitLawb node config', () => {
+    expect(() => getAgentAshAllowedNodeUrls({
       GITLAWB_ALLOWED_NODE_URLS: 'http://node.gitlawb.com',
     })).toThrow('Missing GITLAWB_ALLOWED_NODE_URLS')
-  })
 
-  test('requires an ash-prefixed bearer token for ingest', () => {
-    const config = { ingestToken: 'ash_test_secret_123456', allowedNodeUrls: ['https://node.gitlawb.com'] }
-
-    expect(authenticateAgentAshIngestRequest(new Request('http://localhost/api/agent-ashes'), config)).toEqual({
-      ok: false,
-      status: 401,
-      error: 'Missing Agent Ash ingest token',
-    })
-    expect(authenticateAgentAshIngestRequest(new Request('http://localhost/api/agent-ashes', {
-      headers: { authorization: 'Bearer vc_cli_not_allowed' },
-    }), config)).toEqual({
-      ok: false,
-      status: 401,
-      error: 'Invalid Agent Ash ingest token',
-    })
-    expect(authenticateAgentAshIngestRequest(new Request('http://localhost/api/agent-ashes', {
-      headers: { authorization: 'Bearer ash_test_secret_123456' },
-    }), config)).toEqual({ ok: true })
+    expect(() => getAgentAshAllowedNodeUrls({})).toThrow('Missing GITLAWB_ALLOWED_NODE_URLS')
   })
 
   test('matches GitLawb node URLs against the allowlist after normalization', () => {

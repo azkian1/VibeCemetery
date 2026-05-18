@@ -4,15 +4,16 @@ import { validateAgentAshRequest, type AgentAshRequest } from '@/lib/agent-ash-c
 import { getSiteUrl } from '@/lib/site'
 import {
   agentAshNoStoreHeaders,
-  authenticateAgentAshIngestRequest,
   checkAgentAshIngestRateLimit,
-  getAgentAshIngestConfig,
+  getAgentAshAllowedNodeUrls,
   readAgentAshJsonWithLimit,
   validateAgentAshProofSecurity,
-  type AgentAshIngestConfig,
 } from '@/lib/agent-ash-security'
+import { authorizeAgentAshIngestRequest, createSupabaseAgentAshAuthStore, type AgentAshAuthStore, type AgentAshTokenRecord } from '@/lib/agent-ash-auth'
 import { verifyGitlawbHttpProof, type GitlawbVerificationResult } from '@/lib/gitlawb-verification'
 type AgentAshRecordRef = { id: string }
+
+export const AGENT_ASH_WRITE_VERIFICATION_POLICY = 'external_source_verified_once_before_insert'
 
 export interface AgentAshInsertRow {
   certificate_hash: string
@@ -35,6 +36,10 @@ export interface AgentAshInsertRow {
   verification_url?: string
   certificate: AgentAshRequest['certificate']
   proof: AgentAshRequest['proof']
+  agent_ash_token_id?: string
+  authorized_agent_name?: string
+  authorized_agent_did?: string
+  authorized_by_user_id?: string
 }
 
 export interface AgentAshStore {
@@ -45,7 +50,8 @@ export interface AgentAshStore {
 
 interface HandlerDependencies {
   store: AgentAshStore
-  config?: AgentAshIngestConfig
+  authStore?: Pick<AgentAshAuthStore, 'findTokenByHash' | 'markTokenUsed'>
+  allowedNodeUrls?: string[]
   verify?: (request: AgentAshRequest, options: { allowedNodeUrls: string[] }) => Promise<GitlawbVerificationResult>
   rateLimit?: typeof checkAgentAshIngestRateLimit
 }
@@ -88,6 +94,7 @@ export function buildAgentAshInsertRow(
   request: AgentAshRequest,
   certificateHash: string,
   verificationUrl?: string,
+  authToken?: AgentAshTokenRecord | null,
 ): AgentAshInsertRow {
   return {
     certificate_hash: certificateHash,
@@ -110,6 +117,12 @@ export function buildAgentAshInsertRow(
     ...(verificationUrl && { verification_url: verificationUrl }),
     certificate: request.certificate,
     proof: request.proof,
+    ...(authToken && {
+      agent_ash_token_id: authToken.id,
+      authorized_agent_name: authToken.agent_name,
+      ...(authToken.agent_did && { authorized_agent_did: authToken.agent_did }),
+      authorized_by_user_id: authToken.created_by_user_id,
+    }),
   }
 }
 
@@ -117,9 +130,11 @@ export async function handleAgentAshPost(
   request: Request,
   dependencies: HandlerDependencies,
 ): Promise<NextResponse> {
-  const config = dependencies.config ?? getAgentAshIngestConfig()
-  const auth = authenticateAgentAshIngestRequest(request, config)
+  const auth = await authorizeAgentAshIngestRequest(request, dependencies.authStore ?? createSupabaseAgentAshAuthStore())
   if (!auth.ok) return json({ error: auth.error }, { status: auth.status })
+  const authToken = ('token' in auth ? auth.token : null) as AgentAshTokenRecord | null
+
+  const allowedNodeUrls = dependencies.allowedNodeUrls ?? getAgentAshAllowedNodeUrls()
 
   const rateLimit = await (dependencies.rateLimit ?? checkAgentAshIngestRateLimit)(request as NextRequest)
   if (!rateLimit.allowed) {
@@ -135,7 +150,14 @@ export async function handleAgentAshPost(
   const validation = validateAgentAshRequest(body.value)
   if (!validation.ok) return json({ error: validation.error }, { status: 400 })
 
-  const security = validateAgentAshProofSecurity(validation.value.proof, config.allowedNodeUrls)
+  if (authToken && (
+    authToken.agent_name !== validation.value.certificate.agent.name ||
+    (authToken.agent_did && authToken.agent_did !== validation.value.certificate.agent.did)
+  )) {
+    return json({ error: 'Agent Ash token does not match certificate agent' }, { status: 403 })
+  }
+
+  const security = validateAgentAshProofSecurity(validation.value.proof, allowedNodeUrls)
   if (!security.ok) return json({ error: security.error }, { status: security.status })
 
   const certificateHash = computeCertificateHash(validation.value.certificate)
@@ -149,10 +171,10 @@ export async function handleAgentAshPost(
   if (conflict) return json({ error: 'Agent Ash record already exists for this repo death' }, { status: 409 })
 
   const verifier = dependencies.verify ?? verifyGitlawbHttpProof
-  const verification = await verifier(validation.value, { allowedNodeUrls: config.allowedNodeUrls })
+  const verification = await verifier(validation.value, { allowedNodeUrls })
   if (!verification.ok) return json({ error: verification.reason }, { status: 422 })
 
-  const row = buildAgentAshInsertRow(validation.value, certificateHash, verification.verificationUrl)
+  const row = buildAgentAshInsertRow(validation.value, certificateHash, verification.verificationUrl, authToken)
   let inserted: AgentAshRecordRef
   try {
     inserted = await dependencies.store.insert(row)
@@ -166,6 +188,7 @@ export async function handleAgentAshPost(
   return json({
     id: inserted.id,
     certificate_hash: certificateHash,
+    verification_policy: AGENT_ASH_WRITE_VERIFICATION_POLICY,
     url: `${getSiteUrl()}/api/agent-ashes/${inserted.id}`,
     certificate_url: `${getSiteUrl()}/api/agent-ashes/${inserted.id}/certificate`,
   }, { status: 201 })

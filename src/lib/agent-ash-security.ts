@@ -1,18 +1,10 @@
-import { timingSafeEqual } from 'node:crypto'
 import type { NextRequest } from 'next/server'
-import { extractBearerToken } from './cli-auth'
 import { AGENT_ASH_PROOF_TYPE } from './agent-ash-contract'
-import { isAgentAshIngestToken } from './agent-ash-boundary'
 import { checkRateLimit, getClientIp } from './rate-limit'
 
 export const AGENT_ASH_MAX_BODY_BYTES = 256 * 1024
 export const AGENT_ASH_INGEST_RATE_LIMIT_MAX = 30
 export const AGENT_ASH_INGEST_RATE_LIMIT_WINDOW_MS = 60_000
-
-export interface AgentAshIngestConfig {
-  ingestToken: string
-  allowedNodeUrls: string[]
-}
 
 type SecurityResult =
   | { ok: true }
@@ -36,18 +28,9 @@ function normalizeUrl(value: string): string | null {
   }
 }
 
-function safeTokenEquals(left: string, right: string): boolean {
-  const leftBuffer = Buffer.from(left)
-  const rightBuffer = Buffer.from(right)
-  return leftBuffer.length === rightBuffer.length && timingSafeEqual(leftBuffer, rightBuffer)
-}
+type AgentAshEnv = Record<string, string | undefined>
 
-export function getAgentAshIngestConfig(env: NodeJS.ProcessEnv = process.env): AgentAshIngestConfig {
-  const ingestToken = env.AGENT_ASH_INGEST_TOKEN?.trim() ?? ''
-  if (!isAgentAshIngestToken(ingestToken)) {
-    throw new Error('Missing AGENT_ASH_INGEST_TOKEN')
-  }
-
+export function getAgentAshAllowedNodeUrls(env: AgentAshEnv = process.env): string[] {
   const allowedNodeUrls = (env.GITLAWB_ALLOWED_NODE_URLS ?? '')
     .split(',')
     .map((url) => normalizeUrl(url))
@@ -57,23 +40,7 @@ export function getAgentAshIngestConfig(env: NodeJS.ProcessEnv = process.env): A
     throw new Error('Missing GITLAWB_ALLOWED_NODE_URLS')
   }
 
-  return { ingestToken, allowedNodeUrls }
-}
-
-export function authenticateAgentAshIngestRequest(
-  request: Request,
-  config: AgentAshIngestConfig,
-): SecurityResult {
-  const bearerToken = extractBearerToken(request)
-  if (!bearerToken) {
-    return { ok: false, status: 401, error: 'Missing Agent Ash ingest token' }
-  }
-
-  if (!isAgentAshIngestToken(bearerToken) || !safeTokenEquals(bearerToken, config.ingestToken)) {
-    return { ok: false, status: 401, error: 'Invalid Agent Ash ingest token' }
-  }
-
-  return { ok: true }
+  return allowedNodeUrls
 }
 
 export function isAllowedGitlawbNodeUrl(nodeUrl: string, allowedNodeUrls: string[]): boolean {

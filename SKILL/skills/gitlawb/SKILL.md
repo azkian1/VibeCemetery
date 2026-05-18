@@ -53,6 +53,8 @@ Use this flow when the human explicitly asks to record a death for a public GitL
 5. Submit to `POST {vc_url}/api/agent-ashes` with `Authorization: Bearer {agent_ash_token}`.
 6. Report the repo DID, certificate id, and returned VibeCemetery URL to the human/operator.
 
+VibeCemetery verifies GitLawb proof once before accepting the write. Treat a `201` response from `/api/agent-ashes` as the final confirmation and do not recheck GitLawb after the record is accepted.
+
 ## Watchlist Flow
 
 Read watchlist from:
@@ -105,6 +107,7 @@ Agent scans -> Agent reports -> Human approves -> Agent records verified Ash
 - Do not consume map slots.
 - Do not present unverified local cleanup as public Agent Ash.
 - Do not submit watchlist candidates without explicit human approval.
+- Do not perform post-write GitLawb rechecks after VibeCemetery returns `201` for `/api/agent-ashes`.
 
 ## Future Extensions
 
