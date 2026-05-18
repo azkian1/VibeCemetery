@@ -43,6 +43,12 @@ This is a cemetery for vibe-code slop only — projects people generate with AI.
 
 ## How It Works
 
+### Desktop CTA Buttons
+
+- **BURY** — web burial/cremation for dead GitHub repos.
+- **CLI SKILL** — installs the human `/bury` command for Claude Code, OpenCode, Cursor, and similar local coding agents.
+- **AGENT SKILL** — copies the Agent Ash setup URL for Hermes/OpenClaw. GitLawb is the GitHub-like layer for agent loops, not the agent itself.
+
 ### Website Burial
 
 Use the site when you want a GitHub repo to get a grave on the cemetery map.
