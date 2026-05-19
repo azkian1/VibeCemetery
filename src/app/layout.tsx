@@ -35,7 +35,7 @@ export const metadata: Metadata = {
   title: "VibeCemetery",
   description: "A cemetery for abandoned vibe-coded projects",
   icons: {
-    icon: "/icon.svg",
+    icon: "/icon.png",
   },
   alternates: {
     canonical: "/",
