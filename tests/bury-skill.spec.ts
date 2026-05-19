@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test'
 import { createHash } from 'node:crypto'
+import { execFileSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -80,7 +81,7 @@ test.describe('bury skill helpers', () => {
       {
         name: 'LegacyApp',
         path: 'C:/Users/example/Desktop/Projects/_ARCHIVE/../_ARCHIVE/LegacyApp',
-        git_remote: 'https://user:token@github.com/example-owner/LegacyApp.git',
+        git_remote: 'https://user:token@github.com/example-owner/legacy-app.git',
         first_commit: '5a380e438ab0887c70b37908fd1ccc7ea690872e',
         cremated_at: '2026-03-16',
         cause: 'Lost interest',
@@ -91,7 +92,7 @@ test.describe('bury skill helpers', () => {
       {
         name: 'LegacyApp',
         path_fingerprint: `sha256:${createHash('sha256').update(canonicalLegacyPath).digest('hex')}`,
-        git_remote: 'github.com/example-owner/LegacyApp',
+        git_remote: 'github.com/example-owner/legacy-app',
         first_commit: '5a380e438ab0887c70b37908fd1ccc7ea690872e',
         cremated_at: '2026-03-16',
         cause: 'Lost interest',
@@ -105,19 +106,19 @@ test.describe('bury skill helpers', () => {
     expect(buildCremationBody({
       name: 'LegacyApp',
       cause: 'Lost interest',
-      github_url: 'https://user:token@github.com/example-owner/LegacyApp.git',
+      github_url: 'https://user:token@github.com/example-owner/legacy-app.git',
       last_commit_message: 'final commit',
     })).toEqual({
       name: 'LegacyApp',
       cause: 'Lost interest',
-      github_url: 'https://github.com/example-owner/LegacyApp',
+      github_url: 'https://github.com/example-owner/legacy-app',
       last_commit_message: 'final commit',
     })
 
     expect(buildCremationBody({
       name: 'LegacyApp',
       cause: 'Lost interest',
-      github_url: 'https://github.com/example-owner/LegacyApp/issues/1',
+      github_url: 'https://github.com/example-owner/legacy-app/issues/1',
     })).toEqual({
       name: 'LegacyApp',
       cause: 'Lost interest',
@@ -381,5 +382,153 @@ test.describe('bury skill helpers', () => {
     ])
 
     expect(model.acceptedReplies).toEqual(['1,2'])
+  })
+
+  test('inspectProject safely collects git metadata without shell interpolation', async () => {
+    const { inspectProject } = await loadHelper()
+    const fixtureRoot = mkdtempSync(path.join(tmpdir(), 'bury-inspect-'))
+    const projectDir = path.join(fixtureRoot, 'repo;touch-pwned')
+    const pwnedPath = path.join(fixtureRoot, 'pwned')
+
+    try {
+      mkdirSync(projectDir)
+      writeFileSync(path.join(projectDir, 'package.json'), '{"name":"repo"}')
+      execFileSync('git', ['init'], { cwd: projectDir, stdio: 'ignore' })
+      execFileSync('git', ['remote', 'add', 'origin', 'https://user:token@github.com/owner/repo.git'], { cwd: projectDir, stdio: 'ignore' })
+      execFileSync('git', ['add', 'package.json'], { cwd: projectDir, stdio: 'ignore' })
+      execFileSync('git', ['-c', 'user.email=test@example.com', '-c', 'user.name=Tester', 'commit', '-m', 'initial commit'], {
+        cwd: projectDir,
+        env: {
+          ...process.env,
+          GIT_AUTHOR_DATE: '2020-01-01T00:00:00Z',
+          GIT_COMMITTER_DATE: '2020-01-01T00:00:00Z',
+        },
+        stdio: 'ignore',
+      })
+
+      const inspected = inspectProject(projectDir)
+
+      expect(inspected).toMatchObject({
+        name: 'repo;touch-pwned',
+        status: 'Dead',
+        main_language: 'JavaScript/TypeScript',
+        git_remote: 'github.com/owner/repo',
+        github_url: 'https://github.com/owner/repo',
+        last_commit_subject: 'initial commit',
+      })
+      expect(inspected.path_fingerprint).toMatch(/^sha256:[a-f0-9]{64}$/)
+      expect(inspected.last_commit_timestamp).toBeGreaterThan(0)
+      expect(inspected.first_commit).toMatch(/^[a-f0-9]{40}$/)
+      expect(inspected).not.toHaveProperty('path')
+      expect(readFileSync(path.join(projectDir, 'package.json'), 'utf8')).toContain('repo')
+      expect(() => readFileSync(pwnedPath, 'utf8')).toThrow()
+    } finally {
+      rmSync(fixtureRoot, { recursive: true, force: true })
+    }
+  })
+
+  test('inspectProject returns untracked metadata for non-git project directories', async () => {
+    const { inspectProject } = await loadHelper()
+    const fixtureRoot = mkdtempSync(path.join(tmpdir(), 'bury-inspect-plain-'))
+    const projectDir = path.join(fixtureRoot, 'PlainProject')
+
+    try {
+      mkdirSync(projectDir)
+      writeFileSync(path.join(projectDir, 'index.html'), '<html></html>')
+
+      expect(inspectProject(projectDir)).toMatchObject({
+        name: 'PlainProject',
+        status: 'Untracked',
+        git_remote: '',
+        github_url: '',
+        first_commit: '',
+        last_commit_subject: '',
+        last_commit_timestamp: null,
+      })
+    } finally {
+      rmSync(fixtureRoot, { recursive: true, force: true })
+    }
+  })
+
+  test('inspectProject does not inherit git metadata from an ancestor repository', async () => {
+    const { inspectProject } = await loadHelper()
+    const fixtureRoot = mkdtempSync(path.join(tmpdir(), 'bury-parent-git-'))
+    const childProject = path.join(fixtureRoot, 'ChildProject')
+
+    try {
+      execFileSync('git', ['init'], { cwd: fixtureRoot, stdio: 'ignore' })
+      execFileSync('git', ['remote', 'add', 'origin', 'https://github.com/parent/repo.git'], { cwd: fixtureRoot, stdio: 'ignore' })
+      writeFileSync(path.join(fixtureRoot, 'README.md'), 'parent repo')
+      execFileSync('git', ['add', 'README.md'], { cwd: fixtureRoot, stdio: 'ignore' })
+      execFileSync('git', ['-c', 'user.email=test@example.com', '-c', 'user.name=Tester', 'commit', '-m', 'parent commit'], {
+        cwd: fixtureRoot,
+        stdio: 'ignore',
+      })
+
+      mkdirSync(childProject)
+      writeFileSync(path.join(childProject, 'index.html'), '<html></html>')
+
+      expect(inspectProject(childProject)).toMatchObject({
+        name: 'ChildProject',
+        status: 'Untracked',
+        git_remote: '',
+        github_url: '',
+        first_commit: '',
+        last_commit_subject: '',
+        last_commit_timestamp: null,
+      })
+    } finally {
+      rmSync(fixtureRoot, { recursive: true, force: true })
+    }
+  })
+
+  test('inspectProject ignores ambient GIT_DIR and GIT_WORK_TREE environment overrides', async () => {
+    const { inspectProject } = await loadHelper()
+    const fixtureRoot = mkdtempSync(path.join(tmpdir(), 'bury-git-env-'))
+    const childProject = path.join(fixtureRoot, 'ChildProject')
+    const previousGitDir = process.env.GIT_DIR
+    const previousGitWorkTree = process.env.GIT_WORK_TREE
+
+    try {
+      execFileSync('git', ['init'], { cwd: fixtureRoot, stdio: 'ignore' })
+      writeFileSync(path.join(fixtureRoot, 'README.md'), 'parent repo')
+      execFileSync('git', ['add', 'README.md'], { cwd: fixtureRoot, stdio: 'ignore' })
+      execFileSync('git', ['-c', 'user.email=test@example.com', '-c', 'user.name=Tester', 'commit', '-m', 'parent commit'], {
+        cwd: fixtureRoot,
+        stdio: 'ignore',
+      })
+
+      mkdirSync(childProject)
+      writeFileSync(path.join(childProject, 'index.html'), '<html></html>')
+      process.env.GIT_DIR = path.join(fixtureRoot, '.git')
+      process.env.GIT_WORK_TREE = childProject
+
+      expect(inspectProject(childProject)).toMatchObject({
+        name: 'ChildProject',
+        status: 'Untracked',
+        git_remote: '',
+        github_url: '',
+        first_commit: '',
+        last_commit_subject: '',
+        last_commit_timestamp: null,
+      })
+    } finally {
+      if (previousGitDir === undefined) delete process.env.GIT_DIR
+      else process.env.GIT_DIR = previousGitDir
+      if (previousGitWorkTree === undefined) delete process.env.GIT_WORK_TREE
+      else process.env.GIT_WORK_TREE = previousGitWorkTree
+      rmSync(fixtureRoot, { recursive: true, force: true })
+    }
+  })
+
+  test('workflow requires inspect-project helper instead of direct git -C commands', () => {
+    const workflow = readFileSync(`${process.cwd()}/SKILL/skills/bury-workflow/SKILL.md`, 'utf8')
+    const helper = readFileSync(`${process.cwd()}/SKILL/skills/bury-workflow/scripts/bury-helper.mjs`, 'utf8')
+
+    expect(workflow).toContain('inspect-project')
+    expect(workflow).toContain('Never run `git -C` directly')
+    expect(workflow).not.toContain('git -C "<path>"')
+    expect(helper).toContain('resolveTrustedGitBinary')
+    expect(helper).not.toContain("execFileSync('git'")
   })
 })

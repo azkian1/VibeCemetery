@@ -1,11 +1,12 @@
-import { access, lstat, mkdir, mkdtemp, realpath, rm, writeFile, copyFile, readdir } from 'node:fs/promises'
+import { createHash, timingSafeEqual } from 'node:crypto'
+import { access, lstat, mkdir, mkdtemp, realpath, rm, writeFile, copyFile, readdir, readFile } from 'node:fs/promises'
 import path from 'node:path'
 import os from 'node:os'
 import { pathToFileURL } from 'node:url'
 import { INSTALLER_CONTRACT } from './install-contract.mjs'
 
 function parseArgs(argv) {
-  const args = { homeDir: '', rawBaseUrl: '' }
+  const args = { homeDir: '', rawBaseUrl: '', manifestPath: '', dryRun: false }
 
   for (let i = 0; i < argv.length; i += 1) {
     const value = argv[i]
@@ -13,6 +14,13 @@ function parseArgs(argv) {
       args.homeDir = argv[++i] ?? ''
     } else if (value === '--raw-base-url') {
       args.rawBaseUrl = argv[++i] ?? ''
+    } else if (value === '--manifest') {
+      const manifestPath = argv[++i] ?? ''
+      if (!args.manifestPath) {
+        args.manifestPath = manifestPath
+      }
+    } else if (value === '--dry-run') {
+      args.dryRun = true
     }
   }
 
@@ -106,13 +114,14 @@ function resolveRawBaseUrl(value) {
     return INSTALLER_CONTRACT.rawBaseUrl
   }
 
-  if (trimmed === INSTALLER_CONTRACT.rawBaseUrl) {
-    return trimmed
+  const normalized = trimmed.replace(/\/+$/, '')
+  if (normalized === INSTALLER_CONTRACT.rawBaseUrl) {
+    return normalized
   }
 
   let parsedUrl
   try {
-    parsedUrl = new URL(trimmed)
+    parsedUrl = new URL(normalized)
   } catch {
     throw new Error('Installer source override must be a valid URL')
   }
@@ -121,7 +130,7 @@ function resolveRawBaseUrl(value) {
     throw new Error('Installer source override is restricted to localhost or 127.0.0.1 test origins')
   }
 
-  return trimmed.replace(/\/+$/, '')
+  return normalized
 }
 
 async function downloadToFile(sourceUrl, targetPath) {
@@ -133,6 +142,94 @@ async function downloadToFile(sourceUrl, targetPath) {
   const text = await response.text()
   await mkdir(path.dirname(targetPath), { recursive: true })
   await writeFile(targetPath, text)
+}
+
+function assertValidSha256(value, sourcePath) {
+  if (typeof value !== 'string' || !/^[a-f0-9]{64}$/i.test(value)) {
+    throw new Error(`Invalid sha256 manifest entry for ${sourcePath}`)
+  }
+}
+
+function compareSha256(actualHash, expectedHash) {
+  const actual = Buffer.from(actualHash.toLowerCase(), 'hex')
+  const expected = Buffer.from(expectedHash.toLowerCase(), 'hex')
+  return actual.length === expected.length && timingSafeEqual(actual, expected)
+}
+
+async function hashFile(targetPath) {
+  return createHash('sha256').update(await readFile(targetPath)).digest('hex')
+}
+
+function buildManifestMap(manifest) {
+  const files = Array.isArray(manifest?.files) ? manifest.files : []
+  const map = new Map()
+
+  for (const file of files) {
+    if (typeof file?.source !== 'string') continue
+    assertValidSha256(file.sha256, file.source)
+    map.set(file.source, file.sha256.toLowerCase())
+  }
+
+  return map
+}
+
+async function loadManifest(rawBaseUrl, manifestPath) {
+  const text = manifestPath
+    ? await readFile(manifestPath, 'utf8')
+    : await (async () => {
+      const response = await fetch(`${rawBaseUrl}/manifest.json`)
+      if (!response.ok) {
+        throw new Error(`Failed to download manifest.json: ${response.status} ${response.statusText}`)
+      }
+      return await response.text()
+    })()
+
+  let manifest
+  try {
+    manifest = JSON.parse(text)
+  } catch {
+    throw new Error('Installer manifest is not valid JSON')
+  }
+
+  const manifestMap = buildManifestMap(manifest)
+  for (const file of INSTALLER_CONTRACT.files) {
+    if (!manifestMap.has(file.source)) {
+      throw new Error(`Installer manifest is missing sha256 for ${file.source}`)
+    }
+  }
+
+  return manifestMap
+}
+
+async function verifyDownloadedFile(targetPath, sourcePath, manifestMap) {
+  const expectedHash = manifestMap.get(sourcePath)
+  if (!expectedHash) {
+    throw new Error(`Installer manifest is missing sha256 for ${sourcePath}`)
+  }
+
+  const actualHash = await hashFile(targetPath)
+  if (!compareSha256(actualHash, expectedHash)) {
+    throw new Error(`Downloaded file failed sha256 integrity check: ${sourcePath}`)
+  }
+}
+
+function getInstallTargetForFile(file, targets) {
+  if (file.source === 'SKILL/commands/bury.md') {
+    return targets.commandFile
+  }
+
+  return path.join(targets.skillsDir, file.destination)
+}
+
+async function printDryRun(homeDir, manifestMap) {
+  const targets = getTargetPaths(homeDir)
+  await assertSafeInstallTargets(targets)
+
+  console.log('Dry run: no files written.')
+  console.log('Planned target files:')
+  for (const file of INSTALLER_CONTRACT.files) {
+    console.log(`${getInstallTargetForFile(file, targets)} sha256=${manifestMap.get(file.source)}`)
+  }
 }
 
 async function copyTree(sourceRoot, targetRoot) {
@@ -186,15 +283,24 @@ async function restoreBackups(targets, backups) {
   }
 }
 
-async function installFiles(rawBaseUrl, homeDir) {
+async function installFiles(rawBaseUrl, homeDir, manifestPath = '', options = {}) {
+  const resolvedBaseUrl = resolveRawBaseUrl(rawBaseUrl)
+  const manifestMap = await loadManifest(resolvedBaseUrl, manifestPath)
+
+  if (options.dryRun) {
+    await printDryRun(homeDir, manifestMap)
+    return
+  }
+
   const tempDir = await mkdtemp(path.join(os.tmpdir(), 'vibecemetery-install-'))
   const backupDir = await mkdtemp(path.join(os.tmpdir(), 'vibecemetery-backup-'))
-  const resolvedBaseUrl = resolveRawBaseUrl(rawBaseUrl)
   const shouldFailAfterCommandCopy = process.env.VIBECEMETERY_INSTALL_TEST_FAIL_AFTER_COMMAND_COPY === '1'
 
   try {
     for (const file of INSTALLER_CONTRACT.files) {
-      await downloadToFile(`${resolvedBaseUrl}/${file.source}`, path.join(tempDir, file.source))
+      const targetPath = path.join(tempDir, file.source)
+      await downloadToFile(`${resolvedBaseUrl}/${file.source}`, targetPath)
+      await verifyDownloadedFile(targetPath, file.source, manifestMap)
     }
 
       const targets = getTargetPaths(homeDir)
@@ -229,7 +335,11 @@ async function main() {
   const homeDir = getHomeDir(args.homeDir)
   const rawBaseUrl = resolveRawBaseUrl(args.rawBaseUrl || process.env.VIBECEMETERY_INSTALL_RAW_BASE_URL)
 
-  await installFiles(rawBaseUrl, homeDir)
+  await installFiles(rawBaseUrl, homeDir, args.manifestPath, { dryRun: args.dryRun })
+  if (args.dryRun) {
+    return
+  }
+
   console.log('Restart Claude Code.')
   console.log('Then run /bury.')
 }

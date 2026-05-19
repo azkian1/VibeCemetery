@@ -2,6 +2,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import crypto from 'node:crypto'
+import { execFileSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 
 export const API_BASE_URL = 'https://vibecemetery.app'
@@ -393,6 +394,107 @@ export function sanitizeGitHubRemote(remote) {
   }
 }
 
+let trustedGitBinary = ''
+
+function resolveTrustedGitBinary() {
+  if (trustedGitBinary) return trustedGitBinary
+
+  const lookupCommand = process.platform === 'win32' ? 'where.exe' : 'which'
+  const result = execFileSync(lookupCommand, ['git'], {
+    cwd: os.homedir(),
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'ignore'],
+    windowsHide: true,
+  }).split(/\r?\n/).map((line) => line.trim()).find(Boolean)
+
+  if (!result) {
+    throw new Error('git executable not found')
+  }
+
+  trustedGitBinary = result
+  return trustedGitBinary
+}
+
+function runGit(projectPath, args) {
+  try {
+    const env = { ...process.env }
+    for (const key of Object.keys(env)) {
+      if (key === 'GIT_DIR' || key === 'GIT_WORK_TREE' || key === 'GIT_INDEX_FILE' || key.startsWith('GIT_CONFIG')) {
+        delete env[key]
+      }
+    }
+
+    return execFileSync(resolveTrustedGitBinary(), args, {
+      cwd: projectPath,
+      env,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+      timeout: 5000,
+      windowsHide: true,
+    }).trim()
+  } catch {
+    return ''
+  }
+}
+
+function isOwnGitRepository(projectPath) {
+  const repoRoot = runGit(projectPath, ['rev-parse', '--show-toplevel'])
+  if (!repoRoot) return false
+
+  try {
+    return fs.realpathSync.native(repoRoot) === projectPath
+  } catch {
+    return false
+  }
+}
+
+function inferMainLanguage(classification) {
+  const markers = classification.strongMatches || []
+  if (markers.some((marker) => marker.toLowerCase() === 'package.json')) return 'JavaScript/TypeScript'
+  if (markers.some((marker) => marker.toLowerCase() === 'cargo.toml')) return 'Rust'
+  if (markers.some((marker) => marker.toLowerCase() === 'go.mod')) return 'Go'
+  if (markers.some((marker) => ['requirements.txt', 'pyproject.toml'].includes(marker.toLowerCase()))) return 'Python'
+  if (markers.some((marker) => ['pom.xml', 'build.gradle'].includes(marker.toLowerCase()))) return 'Java'
+  if (classification.codeLikeFiles?.some((file) => ['.js', '.ts', '.tsx', '.jsx'].includes(path.extname(file.toLowerCase())))) return 'JavaScript/TypeScript'
+  if (classification.codeLikeFiles?.some((file) => path.extname(file.toLowerCase()) === '.py')) return 'Python'
+  if (classification.codeLikeFiles?.some((file) => path.extname(file.toLowerCase()) === '.go')) return 'Go'
+  if (classification.codeLikeFiles?.some((file) => path.extname(file.toLowerCase()) === '.rs')) return 'Rust'
+  return ''
+}
+
+export function inspectProject(projectPath) {
+  const resolvedProjectPath = assertSafeScanPath(projectPath)
+  const entries = readProjectRootEntries(resolvedProjectPath)
+  const classification = classifyProjectRootEntries(entries)
+  const hasOwnGitRepository = isOwnGitRepository(resolvedProjectPath)
+  const lastCommitTimestampRaw = hasOwnGitRepository ? runGit(resolvedProjectPath, ['log', '-1', '--format=%ct']) : ''
+  const lastCommitTimestamp = /^\d+$/.test(lastCommitTimestampRaw) ? Number(lastCommitTimestampRaw) : null
+  const lastCommitSubject = lastCommitTimestamp === null ? '' : sanitizeDisplayText(runGit(resolvedProjectPath, ['log', '-1', '--format=%s']), 200)
+  const lastCommitDisplay = lastCommitTimestamp === null ? '' : sanitizeDisplayText(runGit(resolvedProjectPath, ['log', '-1', '--format=%ar · %s']), 240)
+  const remote = hasOwnGitRepository
+    ? sanitizeGitHubRemote(runGit(resolvedProjectPath, ['remote', 'get-url', 'origin']))
+    : { registryValue: '', githubUrl: '' }
+  const firstCommit = lastCommitTimestamp === null
+    ? ''
+    : sanitizeDisplayText(runGit(resolvedProjectPath, ['rev-list', '--max-parents=0', 'HEAD']).split(/\r?\n/)[0] || '', 80)
+  const ageSeconds = lastCommitTimestamp === null ? null : Math.floor(Date.now() / 1000) - lastCommitTimestamp
+  const status = lastCommitTimestamp === null ? 'Untracked' : ageSeconds >= 14 * 24 * 60 * 60 ? 'Dead' : 'Alive'
+
+  return {
+    name: sanitizeDisplayText(path.basename(resolvedProjectPath), 120),
+    last_commit_display: lastCommitDisplay,
+    last_commit_timestamp: lastCommitTimestamp,
+    last_commit_subject: lastCommitSubject,
+    main_language: inferMainLanguage(classification),
+    status,
+    path_fingerprint: computePathFingerprint(resolvedProjectPath),
+    git_remote: remote.registryValue,
+    github_url: remote.githubUrl,
+    first_commit: /^[a-f0-9]{40}$/i.test(firstCommit) ? firstCommit.toLowerCase() : '',
+    classification,
+  }
+}
+
 function canonicalizeLegacyPath(rawPath) {
   const resolved = path.resolve(rawPath)
 
@@ -631,6 +733,12 @@ async function main() {
     const scanPath = process.argv[3]
     const { entries } = loadRegistry()
     process.stdout.write(`${JSON.stringify(detectProjectCandidates(scanPath, { registryEntries: entries }))}\n`)
+    return
+  }
+
+  if (command === 'inspect-project') {
+    const projectPath = process.argv[3]
+    process.stdout.write(`${JSON.stringify(inspectProject(projectPath))}\n`)
   }
 }
 

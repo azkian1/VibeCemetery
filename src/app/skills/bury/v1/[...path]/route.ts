@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
@@ -85,15 +86,24 @@ function notFound() {
   return new Response('Not found', { status: 404 });
 }
 
-function getManifest() {
+async function sha256File(sourceFile: string) {
+  const body = await readFile(sourceFile, 'utf8');
+  return createHash('sha256').update(body).digest('hex');
+}
+
+async function getManifest() {
+  const manifestFiles = [...INSTALLER_FILES, ...FILES];
+
   return {
     name: 'bury',
     version: '1.0.0',
     base_url: PUBLIC_BASE_URL,
-    files: FILES.map((file) => ({
+    files: await Promise.all(manifestFiles.map(async (file) => ({
       url: `/skills/bury/v1/${file.publicPath}`,
-      target: file.target,
-    })),
+      source: file.sourcePath,
+      ...('target' in file ? { target: file.target } : {}),
+      sha256: await sha256File(file.sourceFile),
+    }))),
   };
 }
 
@@ -106,7 +116,7 @@ async function GET(_request: Request, context: { params: Promise<{ path?: string
   }
 
   if (requestPath === 'manifest.json') {
-    return Response.json(getManifest());
+    return Response.json(await getManifest());
   }
 
   const file = SERVED_FILES.get(requestPath);

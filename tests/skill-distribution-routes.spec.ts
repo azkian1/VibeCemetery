@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs'
+import { createHash } from 'node:crypto'
 import { join } from 'node:path'
 import { expect, test } from '@playwright/test'
 import { GET } from '../src/app/skills/bury/v1/[...path]/route'
@@ -8,6 +9,10 @@ async function readResponseText(path: string[]) {
     params: Promise.resolve({ path }),
   })
   return { response, text: await response.text() }
+}
+
+function sha256(text: string) {
+  return createHash('sha256').update(text).digest('hex')
 }
 
 test('/skills/bury/v1 page renders install commands and source sections', () => {
@@ -53,6 +58,37 @@ test('skill distribution route serves installer scripts and manifest', async () 
     base_url: 'https://vibecemetery.app/skills/bury/v1',
   })
   expect(manifest.text).toContain('/skills/bury/v1/files/commands/bury.md')
+})
+
+test('skill manifest includes sha256 for every served distribution file', async () => {
+  const manifest = await readResponseText(['manifest.json'])
+  const body = JSON.parse(manifest.text) as {
+    files: Array<{ url: string; target?: string; source: string; sha256: string }>
+  }
+  const expectedUrls = [
+    '/skills/bury/v1/install.sh',
+    '/skills/bury/v1/install.ps1',
+    '/skills/bury/v1/SKILL/install/install-contract.mjs',
+    '/skills/bury/v1/SKILL/install/install-runner.mjs',
+    '/skills/bury/v1/files/commands/bury.md',
+    '/skills/bury/v1/files/skills/bury-workflow/SKILL.md',
+    '/skills/bury/v1/files/skills/bury-workflow/scripts/bury-helper.mjs',
+    '/skills/bury/v1/files/skills/bury-workflow/references/contract.md',
+    '/skills/bury/v1/files/skills/bury-workflow/references/security.md',
+    '/skills/bury/v1/files/skills/bury-workflow/references/character.md',
+  ]
+
+  expect(body.files.map((file) => file.url)).toEqual(expectedUrls)
+
+  for (const file of body.files) {
+    expect(file.source).toMatch(/^SKILL\//)
+    expect(file.sha256).toMatch(/^[a-f0-9]{64}$/)
+
+    const routePath = file.url.replace('/skills/bury/v1/', '').split('/')
+    const served = await readResponseText(routePath)
+    expect(served.response.status).toBe(200)
+    expect(sha256(served.text)).toBe(file.sha256)
+  }
 })
 
 test('skill distribution route serves public source files and rejects unknown paths', async () => {

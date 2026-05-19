@@ -148,22 +148,24 @@ Skip these directory names when traversing child directories: `node_modules`, `v
 
 ### 5. Gather info for each project
 
-For each found project directory, collect:
-- **Name**: folder name
-- **Last commit display**: `git -C "<path>" log -1 --format="%ar · %s"` (if .git exists)
-- **Last commit timestamp**: `git -C "<path>" log -1 --format="%ct"` (if .git exists)
-- **Last commit subject**: `git -C "<path>" log -1 --format="%s"` (if .git exists)
-- **Main language**: infer from markers (package.json = JS/TS, Cargo.toml = Rust, etc.)
-- **Status**: if git exists, compute inactivity from the absolute commit timestamp in Node. Mark as `Dead` if inactivity is >= 14 * 24 hours, `Alive` otherwise
-- **Fingerprints** (for deduplication, collect if .git exists):
-  - `git_remote`: `git -C "<path>" remote get-url origin 2>/dev/null` (may be empty if no remote)
-  - `first_commit`: `git -C "<path>" rev-list --max-parents=0 HEAD 2>/dev/null` (hash of the very first commit, unique repo ID, survives renames)
-- **Fallback fingerprint** (for non-git projects):
-  - `path_fingerprint`: hash of the canonical absolute project path computed in Node after normalizing path separators to `/`. Never display the raw canonical path to the user.
+For each found project directory, call `node "${CLAUDE_SKILL_DIR}/scripts/bury-helper.mjs" inspect-project "<projectPath>"` and treat the returned JSON as the source of truth for project metadata.
+
+Never run `git -C` directly for untrusted project paths. Do not build ad hoc git shell commands. All git metadata collection must go through `inspect-project`, which uses helper-controlled path validation and non-shell `git` argv calls.
+
+The helper returns:
+- **Name**: sanitized folder name
+- **Last commit display**: sanitized relative display and subject when git metadata exists
+- **Last commit timestamp**: numeric Unix seconds or `null`
+- **Last commit subject**: sanitized `%s` subject only
+- **Main language**: inferred from project markers
+- **Status**: `Dead` when git inactivity is >= 14 * 24 hours, `Alive` when newer, `Untracked` when git metadata is unavailable
+- **Fingerprints**: sanitized `git_remote`, `first_commit`, and `path_fingerprint`
+
+Never display raw canonical paths. Use `path_fingerprint` for non-git deduplication.
 
 When handling `git_remote`, parse it and strip any username, password, or token before storing or displaying it. Only keep it if it resolves to a GitHub remote on `github.com` or `www.github.com`. Store the sanitized registry value as `github.com/owner/repo`. Derive `github_url` for the API payload as `https://github.com/owner/repo`. Otherwise store an empty `git_remote` and omit `github_url` later.
 
-Preferred implementation: use the helper script's remote sanitization logic so registry entries and payloads never keep raw credentials or full unsafe URLs.
+Required implementation: use the helper script's `inspect-project` output so registry entries and payloads never keep raw credentials or full unsafe URLs.
 
 Then check each project against the cremation registry loaded in step 3. A project is **already cremated** if any of these match a registry entry:
 - `git_remote` matches (non-empty)
