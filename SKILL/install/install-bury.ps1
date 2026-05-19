@@ -1,7 +1,6 @@
 $ErrorActionPreference = 'Stop'
 
-$installRef = if ($env:VIBECEMETERY_INSTALL_REF) { $env:VIBECEMETERY_INSTALL_REF } else { 'ba4d1a0765b81d071b2824e92460687537786dd6' }
-$rawBase = "https://raw.githubusercontent.com/azkian1/VibeCemetery/$installRef"
+$rawBase = 'https://vibecemetery.app/skills/bury/v1'
 $tmpDir = New-Item -ItemType Directory -Force -Path ([System.IO.Path]::Combine([System.IO.Path]::GetTempPath(), [System.IO.Path]::GetRandomFileName()))
 
 try {

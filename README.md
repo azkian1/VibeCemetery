@@ -108,30 +108,28 @@ GitHub repos are verified on the server before grave creation. The repo owner mu
 
 It does not scan GitHub. It does not create graves. It writes human cremations to `/api/cremated` and uses `vc_cli_*` credentials after browser approval.
 
-Quick install for Claude Code:
+Quick install for Claude Code, OpenCode, or Cursor:
 
-Current pinned installer source: commit `ba4d1a0765b81d071b2824e92460687537786dd6`.
+Canonical installer page: <https://vibecemetery.app/skills/bury/v1>.
 
 <details>
-<summary>Show pinned install commands</summary>
+<summary>Show install commands</summary>
 
 macOS:
 
 ```bash
-curl -fsSL \
-  https://raw.githubusercontent.com/azkian1/VibeCemetery/ba4d1a0765b81d071b2824e92460687537786dd6/SKILL/install/install-bury.sh | VIBECEMETERY_INSTALL_REF=ba4d1a0765b81d071b2824e92460687537786dd6 bash
+curl -fsSL https://vibecemetery.app/skills/bury/v1/install.sh | bash
 ```
 
 Windows PowerShell:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -Command \
-  "$env:VIBECEMETERY_INSTALL_REF='ba4d1a0765b81d071b2824e92460687537786dd6'; iwr https://raw.githubusercontent.com/azkian1/VibeCemetery/ba4d1a0765b81d071b2824e92460687537786dd6/SKILL/install/install-bury.ps1 -UseBasicParsing | iex"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "iwr https://vibecemetery.app/skills/bury/v1/install.ps1 -UseBasicParsing | iex"
 ```
 
 </details>
 
-Quick install downloads and executes a remote installer. The source is pinned to an explicit commit instead of a floating branch. For the highest-control path, inspect files under [`SKILL/`](SKILL/) and install manually.
+Quick install downloads and executes the site-hosted installer. The site page shows what files will be installed, direct source links, target paths, and manual install notes.
 
 ## Agentic Setup
 

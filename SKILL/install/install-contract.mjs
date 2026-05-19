@@ -1,8 +1,8 @@
 const owner = 'azkian1'
 const repo = 'VibeCemetery'
-const installRef = process.env.VIBECEMETERY_INSTALL_REF || 'ba4d1a0765b81d071b2824e92460687537786dd6'
+const publicBaseUrl = 'https://vibecemetery.app/skills/bury/v1'
 
-const rawBaseUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${installRef}`
+const rawBaseUrl = publicBaseUrl
 
 const files = [
   {
@@ -34,7 +34,7 @@ const files = [
 const INSTALLER_CONTRACT = {
   repoUrl: `https://github.com/${owner}/${repo}.git`,
   rawBaseUrl,
-  installRef,
+  publicBaseUrl,
   platforms: ['macOS', 'Windows'],
   targets: {
     macOS: {
@@ -56,11 +56,11 @@ function getInstallerSourceUrl(sourcePath) {
 
 function getInstallerCommand(platform) {
   if (platform === 'macOS') {
-    return `curl -fsSL ${getInstallerSourceUrl('SKILL/install/install-bury.sh')} | VIBECEMETERY_INSTALL_REF=${installRef} bash`
+    return `curl -fsSL ${publicBaseUrl}/install.sh | bash`
   }
 
   if (platform === 'Windows') {
-    return `powershell -NoProfile -ExecutionPolicy Bypass -Command "$env:VIBECEMETERY_INSTALL_REF='${installRef}'; iwr ${getInstallerSourceUrl('SKILL/install/install-bury.ps1')} -UseBasicParsing | iex"`
+    return `powershell -NoProfile -ExecutionPolicy Bypass -Command "iwr ${publicBaseUrl}/install.ps1 -UseBasicParsing | iex"`
   }
 
   throw new Error(`Unsupported installer platform: ${platform}`)

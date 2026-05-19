@@ -9,11 +9,11 @@ import CloseButton from '@/components/ui/CloseButton';
 import StoneButton from '@/components/ui/StoneButton';
 import InsetBlock from '@/components/ui/InsetBlock';
 import {
-  getSkillAgentInstallPrompt,
-  getSkillInstallSecondaryLink,
+  getSkillContentsUrl,
+  getSkillInstallCommand,
 } from './skillInstall';
 
-type CopiedTarget = 'cli' | null;
+type CopiedTarget = 'macOS' | 'Windows' | null;
 
 export default function SkillModal() {
   const { close } = useModal();
@@ -30,8 +30,6 @@ export default function SkillModal() {
   }, []);
 
   if (isMobile) return null;
-
-  const cliPrompt = getSkillAgentInstallPrompt();
 
   const handleCopy = (target: Exclude<CopiedTarget, null>, text: string) => {
     navigator.clipboard.writeText(text).then(() => {
@@ -56,8 +54,7 @@ export default function SkillModal() {
           </h2>
 
           <p style={{ fontSize: 14, color: '#aaa9a0', margin: '0 0 20px', lineHeight: 1.65, textAlign: 'center' }}>
-            Copy the prompt and paste it into your local AI coding CLI. Your agent will read the docs,
-            pick the right installer for your OS, and set up <code style={{ color: '#c8a050' }}>/bury</code>.
+            Install <code style={{ color: '#c8a050' }}>/bury</code> locally for Claude Code, OpenCode, or Cursor.
           </p>
 
           <div style={{ marginBottom: 16 }}>
@@ -68,23 +65,27 @@ export default function SkillModal() {
                     CLI SKILL
                   </div>
                   <div style={{ color: '#77746a', fontSize: 13, lineHeight: 1.55 }}>
-                    Claude Code / OpenCode / Cursor. Click the button, then paste into your local agent chat.
+                    Copy the terminal command for your operating system.
                   </div>
                 </div>
-                <StoneButton onClick={() => handleCopy('cli', cliPrompt)}>
-                  {copiedTarget === 'cli' ? 'Copied!' : 'Copy /bury Install Prompt'}
+                <StoneButton onClick={() => handleCopy('macOS', getSkillInstallCommand('macOS'))}>
+                  {copiedTarget === 'macOS' ? 'Copied!' : 'Copy macOS/Linux command'}
+                </StoneButton>
+                <StoneButton onClick={() => handleCopy('Windows', getSkillInstallCommand('Windows'))}>
+                  {copiedTarget === 'Windows' ? 'Copied!' : 'Copy Windows command'}
                 </StoneButton>
               </div>
             </InsetBlock>
           </div>
 
           <p style={{ fontSize: 13, color: '#6f6c63', margin: '0 0 18px', lineHeight: 1.6, textAlign: 'center' }}>
-            Paste it into your local agent chat. After install, run <code style={{ color: '#c8a050' }}>/bury</code>.
+            Paste it into your terminal. After install, restart Claude Code and run <code style={{ color: '#c8a050' }}>/bury</code>.
           </p>
 
           <div style={{ textAlign: 'center' }}>
             <a
-              href={getSkillInstallSecondaryLink()}
+              href={getSkillContentsUrl()}
+              aria-label="View /skills/bury/v1 contents"
               target="_blank"
               rel="noopener noreferrer"
               style={{
@@ -103,7 +104,7 @@ export default function SkillModal() {
                 e.currentTarget.style.borderColor = 'rgba(120,152,184,0.3)';
               }}
             >
-              Manual install on GitHub ↗
+              View what will be installed
             </a>
           </div>
         </div>

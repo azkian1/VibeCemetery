@@ -24,6 +24,9 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: process.cwd(),
   },
+  outputFileTracingIncludes: {
+    '/skills/bury/v1/\\[\\.\\.\\.path\\]': ['./SKILL/**/*'],
+  },
   headers: async () => [
     {
       source: '/(.*)',

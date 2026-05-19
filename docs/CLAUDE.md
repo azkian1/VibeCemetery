@@ -297,14 +297,14 @@ UPSTASH_REDIS_REST_TOKEN
 - `AGENT_ASH_TOKEN_SECRET` is server-only and derives browser-approved `ash_...` Agent Ash tokens. Agent Ash ingest checks hashed tokens in `agent_ash_tokens`; never add a static ingest token path or reuse `vc_cli_*` human cremation tokens.
 - Shared rate limiting uses Upstash when configured and in-memory fallback otherwise.
 - `/bury` installer and helper safety boundaries must be enforced in code, not only in prompt text or documentation.
-- Quick-install sources must stay pinned to an explicit commit or release artifact; do not point them at floating branches.
+- Quick-install sources are served from `https://vibecemetery.app/skills/bury/v1`; GitHub can mirror later, but production install must not require GitHub raw URLs.
 - Installer source overrides are test-only and must stay limited to localhost-style origins.
 
 ## CLI Workflow
 - User-facing command: `SKILL/commands/bury.md`
 - Workflow implementation: `SKILL/skills/bury-workflow/`
 - Installer flow: `SKILL/install/install-bury.sh` and `SKILL/install/install-bury.ps1`
-- Install source: GitHub raw URLs pinned to installer commit `ba4d1a0765b81d071b2824e92460687537786dd6`
+- Install source: canonical site page `https://vibecemetery.app/skills/bury/v1` with `install.sh`, `install.ps1`, `manifest.json`, and direct file links.
 - `/bury` is for local project cremation only; it does not scan GitHub repos and does not create map graves.
 - First run opens browser approval at `/cli/connect`; later runs use a stored bearer token.
 - Local deduplication uses an external per-user `cremated-registry.json`, not a repo file.

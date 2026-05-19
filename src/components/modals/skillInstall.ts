@@ -4,10 +4,10 @@ type SkillPlatform = 'macOS' | 'Windows'
 
 function getSkillAgentInstallPrompt() {
   return `Install the VibeCemetery /bury command for Claude Code, OpenCode, or Cursor from:
-https://github.com/azkian1/VibeCemetery
+${INSTALLER_CONTRACT.publicBaseUrl}
 
 Detect my operating system.
-Run exactly one official pinned installer for my OS:
+Run exactly one official versioned installer for my OS:
 
 macOS/Linux:
 ${getInstallerCommand('macOS')}
@@ -32,7 +32,11 @@ function getSkillInstallDisplayCommand(platform: SkillPlatform) {
 }
 
 function getSkillInstallSecondaryLink() {
-  return `${INSTALLER_CONTRACT.repoUrl.replace(/\.git$/, '')}/blob/${INSTALLER_CONTRACT.installRef}/README.md#command-cli`
+  return getSkillContentsUrl()
+}
+
+function getSkillContentsUrl() {
+  return '/skills/bury/v1'
 }
 
 function getSkillPlatformLabels() {
@@ -44,6 +48,7 @@ export {
   getSkillAgentInstallPrompt,
   getSkillInstallCommand,
   getSkillInstallDisplayCommand,
+  getSkillContentsUrl,
   getSkillInstallSecondaryLink,
   getSkillPlatformLabels,
 }

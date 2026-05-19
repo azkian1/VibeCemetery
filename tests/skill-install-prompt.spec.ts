@@ -10,6 +10,11 @@ import {
   getAgentAshSkillInstallLink,
   getAgentAshSkillInstallSource,
 } from '../src/lib/agent-ash-install'
+import {
+  getSkillContentsUrl,
+  getSkillInstallCommand,
+  getSkillPlatformLabels,
+} from '../src/components/modals/skillInstall'
 import { INSTALLER_CONTRACT } from '../SKILL/install/install-contract.mjs'
 
 test('Agent Ash install contract points to external GitLawb setup and VibeCemetery skill only', () => {
@@ -58,7 +63,7 @@ test('Agent Ash install contract points to external GitLawb setup and VibeCemete
   expect(contract).toContain('Do not request or generate vc_cli_* human CLI credentials for agents.')
   expect(contract).not.toContain('hermes skills install gitlawb\n')
   expect(contract).not.toContain('vibecemetery-bury')
-  expect(contract).not.toContain(INSTALLER_CONTRACT.installRef)
+  expect(INSTALLER_CONTRACT).not.toHaveProperty('installRef')
 })
 
 test('Skill install modal is only for the human CLI skill', () => {
@@ -68,6 +73,13 @@ test('Skill install modal is only for the human CLI skill', () => {
   expect(source).toContain('maxWidth={560}')
   expect(source).toContain('CLI SKILL')
   expect(source).toContain('/bury')
+  expect(source).toContain('macOS/Linux')
+  expect(source).toContain('Windows')
+  expect(source).toContain('View what will be installed')
+  expect(source).toContain('/skills/bury/v1')
+  expect(source).not.toContain('Copy /bury Install Prompt')
+  expect(source).not.toContain('Manual install on GitHub')
+  expect(source).not.toContain('pinned installer')
   expect(source).not.toContain('Hermes')
   expect(source).not.toContain('OpenClaw')
   expect(source).not.toContain('GitLawb')
@@ -76,6 +88,13 @@ test('Skill install modal is only for the human CLI skill', () => {
   expect(source).not.toContain('COPY AGENT')
   expect(source).not.toContain("handleCopy('hermes', getAgentAshInstallContract())")
   expect(source).not.toContain("handleCopy('hermes', getHermesInstallPrompt())")
+})
+
+test('human /bury install helpers point to the site-hosted skill page', () => {
+  expect(getSkillInstallCommand('macOS')).toBe('curl -fsSL https://vibecemetery.app/skills/bury/v1/install.sh | bash')
+  expect(getSkillInstallCommand('Windows')).toBe('powershell -NoProfile -ExecutionPolicy Bypass -Command "iwr https://vibecemetery.app/skills/bury/v1/install.ps1 -UseBasicParsing | iex"')
+  expect(getSkillContentsUrl()).toBe('/skills/bury/v1')
+  expect(getSkillPlatformLabels()).toEqual(['macOS', 'Windows'])
 })
 
 test('CTA buttons expose BURY, CLI SKILL, and AGENT SKILL separately', () => {
