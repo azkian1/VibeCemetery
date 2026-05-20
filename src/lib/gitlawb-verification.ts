@@ -2,6 +2,8 @@ import { AGENT_ASH_PROOF_TYPE, type AgentAshRequest } from './agent-ash-contract
 import { isAllowedGitlawbNodeUrl } from './agent-ash-security'
 
 export const GITLAWB_TIMESTAMP_TOLERANCE_MS = 5 * 60 * 1000
+export const GITLAWB_VERIFY_TIMEOUT_MS = 10_000
+export const GITLAWB_VERIFY_MAX_BODY_BYTES = 256 * 1024
 
 export type GitlawbVerificationResult =
   | {
@@ -67,6 +69,36 @@ function parseRepos(value: unknown): RepoLike[] {
   return []
 }
 
+async function readJsonWithLimit(response: Response): Promise<unknown | null> {
+  const contentLength = Number(response.headers.get('content-length'))
+  if (Number.isFinite(contentLength) && contentLength > GITLAWB_VERIFY_MAX_BODY_BYTES) return null
+
+  const reader = response.body?.getReader()
+  if (!reader) return null
+
+  const chunks: Uint8Array[] = []
+  let totalBytes = 0
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+    totalBytes += value.byteLength
+    if (totalBytes > GITLAWB_VERIFY_MAX_BODY_BYTES) return null
+    chunks.push(value)
+  }
+
+  try {
+    return JSON.parse(new TextDecoder().decode(Buffer.concat(chunks)))
+  } catch {
+    return null
+  }
+}
+
+function timeoutSignal(): AbortSignal | undefined {
+  return typeof AbortSignal.timeout === 'function'
+    ? AbortSignal.timeout(GITLAWB_VERIFY_TIMEOUT_MS)
+    : undefined
+}
+
 function timestampsMatch(...timestamps: string[]): boolean {
   const parsed = timestamps.map((timestamp) => Date.parse(timestamp))
   if (parsed.some((timestamp) => Number.isNaN(timestamp))) return false
@@ -114,7 +146,7 @@ export async function verifyGitlawbHttpProof(
   const fetchImpl = options.fetchImpl ?? fetch
   let response: Response
   try {
-    response = await fetchImpl(`${nodeUrl}/api/v1/repos`, { cache: 'no-store' })
+    response = await fetchImpl(`${nodeUrl}/api/v1/repos`, { cache: 'no-store', signal: timeoutSignal() })
   } catch {
     return { ok: false, status: 'rejected', reason: 'Cannot verify GitLawb HTTP node proof' }
   }
@@ -123,10 +155,8 @@ export async function verifyGitlawbHttpProof(
     return { ok: false, status: 'rejected', reason: 'Cannot verify GitLawb HTTP node proof' }
   }
 
-  let body: unknown
-  try {
-    body = await response.json()
-  } catch {
+  const body = await readJsonWithLimit(response)
+  if (body === null) {
     return { ok: false, status: 'rejected', reason: 'Cannot verify GitLawb HTTP node proof' }
   }
 

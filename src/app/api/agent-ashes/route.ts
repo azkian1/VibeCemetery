@@ -74,6 +74,18 @@ function isUniqueViolation(error: unknown): boolean {
   return isRecord(error) && error.code === '23505'
 }
 
+function normalizeHttpsUrl(value: string): string | null {
+  try {
+    const url = new URL(value.trim())
+    if (url.protocol !== 'https:') return null
+    url.hash = ''
+    url.search = ''
+    return url.toString().replace(/\/$/, '')
+  } catch {
+    return null
+  }
+}
+
 export function stableJsonStringify(value: unknown): string {
   if (Array.isArray(value)) {
     return `[${value.map((item) => stableJsonStringify(item)).join(',')}]`
@@ -155,6 +167,10 @@ export async function handleAgentAshPost(
     (authToken.agent_did && authToken.agent_did !== validation.value.certificate.agent.did)
   )) {
     return json({ error: 'Agent Ash token does not match certificate agent' }, { status: 403 })
+  }
+
+  if (authToken && normalizeHttpsUrl(authToken.gitlawb_node_url) !== normalizeHttpsUrl(validation.value.proof.node_url)) {
+    return json({ error: 'Agent Ash token does not match approved GitLawb node' }, { status: 403 })
   }
 
   const security = validateAgentAshProofSecurity(validation.value.proof, allowedNodeUrls)

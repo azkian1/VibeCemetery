@@ -13,7 +13,7 @@ test.describe('grave share card', () => {
       siteUrl: 'https://vibecemetery.app',
       grave: {
         id: '11111111-1111-4111-8111-111111111111',
-        name: 'LegacyApp',
+        name: 'DemoCast',
         cause: 'Lost interest',
         epitaph: 'It shipped one demo and never returned.',
         born_at: '2026-01-10T00:00:00.000Z',
@@ -23,7 +23,7 @@ test.describe('grave share card', () => {
       },
     })
 
-    expect(card.title).toBe('LegacyApp · VibeCemetery')
+    expect(card.title).toBe('DemoCast · VibeCemetery')
     expect(card.description).toBe('It shipped one demo and never returned.')
     expect(card.url).toBe('https://vibecemetery.app/grave/11111111-1111-4111-8111-111111111111')
     expect(card.imageUrl).toBe('https://vibecemetery.app/grave/11111111-1111-4111-8111-111111111111/opengraph-image?v=social-v2')

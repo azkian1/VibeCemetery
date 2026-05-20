@@ -85,6 +85,10 @@ function timestampError(parent: JsonObject, key: string, path: string): string |
     : `${path} must be a valid ISO timestamp`
 }
 
+function timestampMs(parent: JsonObject, key: string): number {
+  return Date.parse(parent[key] as string)
+}
+
 function optionalStringError(parent: JsonObject, key: string, path: string): string | null {
   const value = parent[key]
   return value === undefined || typeof value === 'string' ? null : `${path} must be a string`
@@ -177,6 +181,13 @@ export function validateAgentAshRequest(value: unknown): AgentAshValidationResul
     if (error) return fail(error)
   }
 
+  if (timestampMs(lifecycle, 'last_activity_at') < timestampMs(lifecycle, 'created_at')) {
+    return fail('certificate.lifecycle.last_activity_at must not be before certificate.lifecycle.created_at')
+  }
+  if (timestampMs(lifecycle, 'declared_dead_at') < timestampMs(lifecycle, 'last_activity_at')) {
+    return fail('certificate.lifecycle.declared_dead_at must not be before certificate.lifecycle.last_activity_at')
+  }
+
   const signals = requireArray(evidence, 'signals', 'certificate.evidence.signals')
   if (typeof signals === 'string') return fail(signals)
 
@@ -200,6 +211,11 @@ export function validateAgentAshRequest(value: unknown): AgentAshValidationResul
   }
   if (!isAgentAshPrimaryCause(diagnosis.primary_cause)) {
     return fail('certificate.diagnosis.primary_cause must be a supported Agent Ash cause')
+  }
+  if (diagnosis.confidence !== undefined) {
+    if (typeof diagnosis.confidence !== 'number' || diagnosis.confidence < 0 || diagnosis.confidence > 1) {
+      return fail('certificate.diagnosis.confidence must be between 0 and 1')
+    }
   }
   if (diagnosis.secondary_causes !== undefined) {
     if (!Array.isArray(diagnosis.secondary_causes) || !diagnosis.secondary_causes.every(isAgentAshSecondaryCause)) {

@@ -48,6 +48,26 @@ function isObject(value: unknown): value is JsonObject {
   return Boolean(value && typeof value === 'object' && !Array.isArray(value))
 }
 
+function isSecretLikeKey(key: string): boolean {
+  return /token|secret|password|authorization|api[_-]?key|private[_-]?key/i.test(key)
+}
+
+function isSecretLikeString(value: string): boolean {
+  return /\bBearer\s+(?:ash_|vc_cli_)[A-Za-z0-9._~-]+|\b(?:ash_|vc_cli_)[A-Za-z0-9._~-]{16,}/.test(value)
+}
+
+function redactPublicCertificateValue(value: unknown, key = ''): unknown {
+  if (typeof value === 'string') {
+    return isSecretLikeKey(key) || isSecretLikeString(value) ? '[redacted]' : value
+  }
+  if (Array.isArray(value)) return value.map((item) => redactPublicCertificateValue(item))
+  if (!isObject(value)) return value
+
+  return Object.fromEntries(
+    Object.entries(value).map(([entryKey, entryValue]) => [entryKey, redactPublicCertificateValue(entryValue, entryKey)]),
+  )
+}
+
 function countValues(values: Array<string | null | undefined>, limit = 5): CountItem[] {
   const counts = new Map<string, number>()
   for (const value of values) {
@@ -149,7 +169,7 @@ export function createAgentAshReadHandlers(store: AgentAshReadStore) {
       if (!isValidAshLookupId(id)) return json({ error: 'Invalid Agent Ash id' }, { status: 400 })
       const record = await store.findVerifiedById(id)
       if (!record) return json({ error: 'Agent Ash record not found' }, { status: 404 })
-      return json({ ...record.certificate, ...(record.proof && { proof: record.proof }) })
+      return json(redactPublicCertificateValue({ ...record.certificate, ...(record.proof && { proof: record.proof }) }))
     },
   }
 }

@@ -46,6 +46,12 @@ function makeStore(): AgentAshAuthStore & {
       Object.assign(link, updates)
       return true
     },
+    async approveLinkSession(linkId, updates) {
+      const link = links.find((item) => item.id === linkId)
+      if (!link || link.approved_at || link.denied_at || link.claimed_at) return false
+      Object.assign(link, updates)
+      return true
+    },
     async claimLinkSession(linkId, claimedAt) {
       const link = links.find((item) => item.id === linkId)
       if (!link || link.claimed_at) return false
@@ -221,6 +227,44 @@ test.describe('Agent Ash auth v1', () => {
       headers: { authorization: `Bearer ${claim.claim_token}` },
     }), { store, secret: 'agent-secret', now: Date.parse('2026-05-18T12:02:00.000Z') })
     await expect(claimed.json()).resolves.toEqual({ status: 'claimed' })
+  })
+
+  test('concurrent browser approvals mint only one Agent Ash token', async () => {
+    const store = makeStore()
+    const pendingLink: AgentAshLinkSession = {
+      id: 'ashlink_concurrentapproval1',
+      claim_token_hash: hashAgentAshClaimToken('claim_' + 'x'.repeat(43)),
+      agent_name: 'hermes',
+      gitlawb_node_url: 'https://node.gitlawb.com',
+      scopes: [AGENT_ASH_SCOPE_WRITE],
+      created_at: '2026-05-18T12:00:00.000Z',
+      expires_at: '2026-05-18T12:10:00.000Z',
+    }
+    await store.insertLinkSession(pendingLink)
+
+    let staleReads = 0
+    const originalGetLinkSession = store.getLinkSession.bind(store)
+    store.getLinkSession = async (linkId) => {
+      if (linkId === pendingLink.id && staleReads < 2) {
+        staleReads += 1
+        return structuredClone(pendingLink)
+      }
+      return originalGetLinkSession(linkId)
+    }
+
+    const first = handleAgentAshLinkApprove(jsonRequest('http://localhost/api/agent-ash/link/approve', {
+      link_id: 'ashlink_concurrentapproval1',
+      decision: 'approve',
+    }), { store, username: 'azkian1', secret: 'agent-secret', now: Date.parse('2026-05-18T12:01:00.000Z') })
+    const second = handleAgentAshLinkApprove(jsonRequest('http://localhost/api/agent-ash/link/approve', {
+      link_id: 'ashlink_concurrentapproval1',
+      decision: 'approve',
+    }), { store, username: 'azkian1', secret: 'agent-secret', now: Date.parse('2026-05-18T12:01:00.000Z') })
+
+    const responses = await Promise.all([first, second])
+
+    expect(responses.map((response) => response.status)).toEqual([200, 200])
+    expect(store.tokens).toHaveLength(1)
   })
 
   test('requires dedicated AGENT_ASH_TOKEN_SECRET instead of falling back to NEXTAUTH_SECRET', async () => {

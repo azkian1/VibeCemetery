@@ -104,6 +104,36 @@ test.describe('Agent Ash read API helpers', () => {
     })
   })
 
+  test('redacts secret-like values from public certificate responses', async () => {
+    const handlers = createAgentAshReadHandlers({
+      async countVerified() { return 1 },
+      async listVerified() { return [] },
+      async findVerifiedById() {
+        return {
+          ...records[0],
+          certificate: {
+            ...records[0].certificate,
+            raw: {
+              agent_ash_token: 'ash_secret_token_material_1234567890',
+              nested: { authorization: 'Bearer vc_cli_secret_token_material_1234567890' },
+              harmless: 'public metadata',
+            },
+          },
+        }
+      },
+    })
+
+    const certificate = await handlers.certificate('ash-1')
+
+    await expect(certificate.json()).resolves.toMatchObject({
+      raw: {
+        agent_ash_token: '[redacted]',
+        nested: { authorization: '[redacted]' },
+        harmless: 'public metadata',
+      },
+    })
+  })
+
   test('returns 400 for invalid lookup ids before querying the store', async () => {
     let queried = false
     const handlers = createAgentAshReadHandlers({

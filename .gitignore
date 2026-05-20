@@ -85,5 +85,5 @@ tome.md
 postcss.config.mjs
 
 # Local settings
-.claude/settings.local.json
+/.claude/
 SKILL/settings.local.json

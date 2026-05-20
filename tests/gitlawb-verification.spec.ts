@@ -105,6 +105,19 @@ test.describe('GitLawb HTTP verification adapter', () => {
     })).resolves.toEqual({ ok: false, status: 'rejected', reason: 'Cannot verify GitLawb HTTP node proof' })
   })
 
+  test('uses a timeout signal and rejects oversized node responses', async () => {
+    let sawAbortSignal = false
+    await expect(verifyGitlawbHttpProof(request, {
+      allowedNodeUrls: ['https://node.gitlawb.com'],
+      fetchImpl: async (_url, init) => {
+        sawAbortSignal = init?.signal instanceof AbortSignal
+        return new Response(JSON.stringify({ repos: 'x'.repeat(300_000) }), { status: 200 })
+      },
+    })).resolves.toEqual({ ok: false, status: 'rejected', reason: 'Cannot verify GitLawb HTTP node proof' })
+
+    expect(sawAbortSignal).toBe(true)
+  })
+
   test('computes verification URL from the verified node instead of trusting proof input', async () => {
     const result = await verifyGitlawbHttpProof({
       ...request,

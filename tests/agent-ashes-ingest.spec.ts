@@ -349,6 +349,23 @@ test.describe('Agent Ash ingest API handler', () => {
     await expect(didResponse.json()).resolves.toEqual({ error: 'Agent Ash token does not match certificate agent' })
   })
 
+  test('production authStore rejects GitLawb node mismatches for the approved token', async () => {
+    const { rawToken, record } = makeTokenRecord({ gitlawb_node_url: 'https://node.gitlawb.com' })
+    const request = structuredClone(validRequest)
+    request.proof.node_url = 'https://mirror.gitlawb.com'
+
+    const response = await handleAgentAshPost(makeRequest(request, rawToken), {
+      store: makeStore(),
+      authStore: makeAuthStore([record]),
+      allowedNodeUrls: ['https://node.gitlawb.com', 'https://mirror.gitlawb.com'],
+      rateLimit: async () => ({ allowed: true, retryAfterMs: 0 }),
+      verify: async () => ({ ok: true, status: 'gitlawb_http_verified', matchedRepo: {} }),
+    })
+
+    expect(response.status).toBe(403)
+    await expect(response.json()).resolves.toEqual({ error: 'Agent Ash token does not match approved GitLawb node' })
+  })
+
   test('accepts the canonical GitLawb helper payload through the real ash token write path', async () => {
     const { buildAgentAshRequest, buildSubmissionRequest } = await loadGitlawbHelper()
     const { rawToken, record } = makeTokenRecord()

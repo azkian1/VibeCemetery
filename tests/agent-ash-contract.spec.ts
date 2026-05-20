@@ -167,4 +167,24 @@ test.describe('agent_ash.v1 contract', () => {
       error: 'certificate.lifecycle.declared_dead_at must be a valid ISO timestamp',
     })
   })
+
+  test('rejects lifecycle timestamps that move backwards', () => {
+    const invalid = structuredClone(validAgentAshRequest)
+    invalid.certificate.lifecycle.last_activity_at = '2026-02-28T09:15:00Z'
+
+    expect(validateAgentAshRequest(invalid)).toEqual({
+      ok: false,
+      error: 'certificate.lifecycle.last_activity_at must not be before certificate.lifecycle.created_at',
+    })
+  })
+
+  test('rejects diagnosis confidence outside the public 0 to 1 range', () => {
+    const invalid = structuredClone(validAgentAshRequest)
+    invalid.certificate.diagnosis.confidence = 8.2
+
+    expect(validateAgentAshRequest(invalid)).toEqual({
+      ok: false,
+      error: 'certificate.diagnosis.confidence must be between 0 and 1',
+    })
+  })
 })

@@ -49,6 +49,7 @@ export interface AgentAshAuthStore {
   insertLinkSession(link: AgentAshLinkSession): Promise<void>
   getLinkSession(linkId: string): Promise<AgentAshLinkSession | null>
   updateLinkSession(linkId: string, updates: Partial<AgentAshLinkSession>): Promise<boolean>
+  approveLinkSession(linkId: string, updates: Pick<AgentAshLinkSession, 'approved_at' | 'created_by_user_id'>): Promise<boolean>
   claimLinkSession(linkId: string, claimedAt: string): Promise<boolean>
   insertToken(token: AgentAshTokenRecord): Promise<void>
   revokeToken(tokenId: string): Promise<boolean>
@@ -223,6 +224,12 @@ export async function handleAgentAshLinkApprove(
 
   const tokenId = createAgentAshTokenId()
   const token = createAgentAshTokenRecord({ tokenId, secret: getAgentAshTokenSecret(options.secret) })
+  const approved = await options.store.approveLinkSession(linkId, {
+    approved_at: now,
+    created_by_user_id: options.username,
+  })
+  if (!approved) return noStoreJson({ status: 'approved' })
+
   await options.store.insertToken({
     id: tokenId,
     token_hash: token.tokenHash,
@@ -236,11 +243,7 @@ export async function handleAgentAshLinkApprove(
     created_at: now,
   })
 
-  await options.store.updateLinkSession(linkId, {
-    approved_at: now,
-    token_id: tokenId,
-    created_by_user_id: options.username,
-  })
+  await options.store.updateLinkSession(linkId, { token_id: tokenId })
 
   return noStoreJson({ status: 'approved' })
 }
@@ -391,6 +394,19 @@ export function createSupabaseAgentAshAuthStore(): AgentAshAuthStore {
         .from('agent_ash_link_sessions')
         .update(updates)
         .eq('id', linkId)
+        .select('id')
+      if (error) throw error
+      return Boolean(data?.length)
+    },
+    async approveLinkSession(linkId, updates) {
+      const { supabaseAdmin } = await import('@/lib/supabase')
+      const { data, error } = await supabaseAdmin
+        .from('agent_ash_link_sessions')
+        .update(updates)
+        .eq('id', linkId)
+        .is('approved_at', null)
+        .is('denied_at', null)
+        .is('claimed_at', null)
         .select('id')
       if (error) throw error
       return Boolean(data?.length)

@@ -108,7 +108,8 @@ test.describe('Desktop (1440×900)', () => {
 
   test('CTA buttons are visible on desktop', async ({ page }) => {
     await expect(page.getByRole('button', { name: /BURY/ })).toBeVisible();
-    await expect(page.getByRole('button', { name: /SKILL/ })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'CLI SKILL' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'AGENT SKILL' })).toBeVisible();
   });
 
   test('Login button is visible on desktop', async ({ page }) => {
