@@ -5,6 +5,9 @@ import { join } from 'node:path';
 const PUBLIC_BASE_URL = 'https://vibecemetery.app/agents/gitlawb/v1';
 const SKILL_ROOT = join(process.cwd(), 'SKILL');
 const PAYLOAD_SHA256_PLACEHOLDER = '__AGENT_ASH_PAYLOAD_SHA256__';
+const DISTRIBUTION_HEADERS = {
+  'cache-control': 'no-store',
+};
 
 const FILES = [
   {
@@ -108,7 +111,7 @@ async function GET(_request: Request, context: { params: Promise<{ path?: string
   }
 
   if (requestPath === 'manifest.json') {
-    return Response.json(await getManifest());
+    return Response.json(await getManifest(), { headers: DISTRIBUTION_HEADERS });
   }
 
   const file = SERVED_FILES.get(requestPath);
@@ -120,8 +123,8 @@ async function GET(_request: Request, context: { params: Promise<{ path?: string
   const body = await renderServedBody(file, manifest.payload_sha256);
   return new Response(body, {
     headers: {
+      ...DISTRIBUTION_HEADERS,
       'content-type': file.contentType,
-      'cache-control': 'public, max-age=300',
     },
   });
 }

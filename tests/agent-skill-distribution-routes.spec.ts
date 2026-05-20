@@ -51,12 +51,14 @@ test('agent skill distribution route serves manifest', async () => {
   const shell = await readResponseText(['install.sh'])
   expect(shell.response.status).toBe(200)
   expect(shell.response.headers.get('content-type')).toContain('text/x-shellscript')
+  expect(shell.response.headers.get('cache-control')).toContain('no-store')
   expect(shell.text).toContain('#!/usr/bin/env bash')
   expect(shell.text).toContain('https://vibecemetery.app/agents/gitlawb/v1')
 
   const powershell = await readResponseText(['install.ps1'])
   expect(powershell.response.status).toBe(200)
   expect(powershell.response.headers.get('content-type')).toContain('text/plain')
+  expect(powershell.response.headers.get('cache-control')).toContain('no-store')
   expect(powershell.text).toContain("$ErrorActionPreference = 'Stop'")
   expect(powershell.text).toContain('https://vibecemetery.app/agents/gitlawb/v1')
 
@@ -64,6 +66,7 @@ test('agent skill distribution route serves manifest', async () => {
 
   expect(manifest.response.status).toBe(200)
   expect(manifest.response.headers.get('content-type')).toContain('application/json')
+  expect(manifest.response.headers.get('cache-control')).toContain('no-store')
   expect(JSON.parse(manifest.text)).toMatchObject({
     name: 'gitlawb',
     version: '1.0.0',
@@ -105,6 +108,7 @@ test('agent skill manifest includes exact source file URLs and hashes', async ()
     const routePath = file.url.replace('/agents/gitlawb/v1/', '').split('/')
     const served = await readResponseText(routePath)
     expect(served.response.status).toBe(200)
+    expect(served.response.headers.get('cache-control')).toContain('no-store')
     expect(sha256(served.text)).toBe(file.sha256)
   }
 })
