@@ -91,19 +91,33 @@ async function sha256File(sourceFile: string) {
   return createHash('sha256').update(body).digest('hex');
 }
 
+function sha256Text(value: string) {
+  return createHash('sha256').update(value).digest('hex');
+}
+
+function getPayloadSha256(files: Array<{ source: string; sha256: string }>) {
+  const payloadFiles = files
+    .filter((file) => !['SKILL/install/install-bury.sh', 'SKILL/install/install-bury.ps1'].includes(file.source))
+    .map((file) => ({ source: file.source, sha256: file.sha256 }));
+
+  return sha256Text(JSON.stringify({ files: payloadFiles }));
+}
+
 async function getManifest() {
   const manifestFiles = [...INSTALLER_FILES, ...FILES];
+  const files = await Promise.all(manifestFiles.map(async (file) => ({
+    url: `/skills/bury/v1/${file.publicPath}`,
+    source: file.sourcePath,
+    ...('target' in file ? { target: file.target } : {}),
+    sha256: await sha256File(file.sourceFile),
+  })));
 
   return {
     name: 'bury',
     version: '1.0.0',
     base_url: PUBLIC_BASE_URL,
-    files: await Promise.all(manifestFiles.map(async (file) => ({
-      url: `/skills/bury/v1/${file.publicPath}`,
-      source: file.sourcePath,
-      ...('target' in file ? { target: file.target } : {}),
-      sha256: await sha256File(file.sourceFile),
-    }))),
+    payload_sha256: getPayloadSha256(files),
+    files,
   };
 }
 

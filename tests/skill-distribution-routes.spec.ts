@@ -15,6 +15,13 @@ function sha256(text: string) {
   return createHash('sha256').update(text).digest('hex')
 }
 
+function canonicalPayloadHash(files: Array<{ source: string; sha256: string }>) {
+  const payloadFiles = files
+    .filter((file) => !['SKILL/install/install-bury.sh', 'SKILL/install/install-bury.ps1'].includes(file.source))
+    .map((file) => ({ source: file.source, sha256: file.sha256 }))
+  return sha256(JSON.stringify({ files: payloadFiles }))
+}
+
 test('/skills/bury/v1 page renders install commands and source sections', () => {
   const source = readFileSync(join(process.cwd(), 'src', 'app', 'skills', 'bury', 'v1', 'page.tsx'), 'utf8')
 
@@ -63,6 +70,7 @@ test('skill distribution route serves installer scripts and manifest', async () 
 test('skill manifest includes sha256 for every served distribution file', async () => {
   const manifest = await readResponseText(['manifest.json'])
   const body = JSON.parse(manifest.text) as {
+    payload_sha256: string
     files: Array<{ url: string; target?: string; source: string; sha256: string }>
   }
   const expectedUrls = [
@@ -79,6 +87,8 @@ test('skill manifest includes sha256 for every served distribution file', async 
   ]
 
   expect(body.files.map((file) => file.url)).toEqual(expectedUrls)
+  expect(body.payload_sha256).toMatch(/^[a-f0-9]{64}$/)
+  expect(body.payload_sha256).toBe(canonicalPayloadHash(body.files))
 
   for (const file of body.files) {
     expect(file.source).toMatch(/^SKILL\//)
