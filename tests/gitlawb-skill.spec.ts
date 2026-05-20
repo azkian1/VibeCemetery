@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { expect, test } from '@playwright/test'
 
 const helperPath = `${process.cwd().replace(/\\/g, '/')}/SKILL/skills/gitlawb/scripts/gitlawb-helper.mjs`
+const skillPath = `${process.cwd().replace(/\\/g, '/')}/SKILL/skills/gitlawb/SKILL.md`
 
 async function loadHelper() {
   return await import(`file:///${helperPath}`)
@@ -30,6 +31,21 @@ const config = {
 }
 
 test.describe('gitlawb agent ash skill helpers', () => {
+  test('installable skill contract stays aligned with canonical Agent Ash v1', async () => {
+    const skill = await readFile(skillPath, 'utf8')
+
+    expect(skill).toContain('HELPER_SCRIPT = ${CLAUDE_SKILL_DIR}/scripts/gitlawb-helper.mjs')
+    expect(skill).toContain('agent_ash_token')
+    expect(skill).toContain('POST {vc_url}/api/agent-ashes')
+    expect(skill).toContain('scheduled_approval_policy')
+    expect(skill).toContain('Do not call `/api/cremated`.')
+    expect(skill).toContain('Do not use human CLI `/bury` tokens.')
+    expect(skill).not.toContain('gitlab_token')
+    expect(skill).not.toContain('/api/gitlawb/deaths')
+    expect(skill).not.toContain('did:gitlawb:{base58')
+    expect(skill).not.toContain('user-invocable')
+  })
+
   test('computes local config and watchlist paths under ~/.config/gitlawb', async () => {
     const { computeGitlawbStoragePaths } = await loadHelper()
 

@@ -14,6 +14,13 @@ async function readManifestPayloadSha256() {
   return body.payload_sha256
 }
 
+async function readRouteText(path: string[]) {
+  const response = await GET(new Request(`https://vibecemetery.app/agents/gitlawb/v1/${path.join('/')}`), {
+    params: Promise.resolve({ path }),
+  })
+  return response.text()
+}
+
 test('shell GitLawb installer follows the Agent Ash contract', async () => {
   const script = readFileSync(shellScriptPath, 'utf8')
 
@@ -34,7 +41,10 @@ test('shell GitLawb installer follows the Agent Ash contract', async () => {
   expect(script).not.toContain('VIBECEMETERY_INSTALL_REF')
   expect(script).toContain('node "$tmp_dir/install-gitlawb-runner.mjs" --manifest "$tmp_dir/manifest.json" "$@"')
 
-  const pinnedHash = script.match(/EXPECTED_MANIFEST_PAYLOAD_SHA256="([a-f0-9]{64})"/)?.[1]
+  expect(script).toContain('EXPECTED_MANIFEST_PAYLOAD_SHA256="__AGENT_ASH_PAYLOAD_SHA256__"')
+
+  const routeScript = await readRouteText(['install.sh'])
+  const pinnedHash = routeScript.match(/EXPECTED_MANIFEST_PAYLOAD_SHA256="([a-f0-9]{64})"/)?.[1]
   expect(pinnedHash).toBe(await readManifestPayloadSha256())
 })
 
@@ -59,6 +69,9 @@ test('PowerShell GitLawb installer follows the Agent Ash contract', async () => 
   expect(script).not.toContain('VIBECEMETERY_INSTALL_REF')
   expect(script).toContain("& node (Join-Path $tmpDir.FullName 'install-gitlawb-runner.mjs') --manifest (Join-Path $tmpDir.FullName 'manifest.json') @args")
 
-  const pinnedHash = script.match(/\$expectedManifestPayloadSha256 = '([a-f0-9]{64})'/)?.[1]
+  expect(script).toContain("$expectedManifestPayloadSha256 = '__AGENT_ASH_PAYLOAD_SHA256__'")
+
+  const routeScript = await readRouteText(['install.ps1'])
+  const pinnedHash = routeScript.match(/\$expectedManifestPayloadSha256 = '([a-f0-9]{64})'/)?.[1]
   expect(pinnedHash).toBe(await readManifestPayloadSha256())
 })

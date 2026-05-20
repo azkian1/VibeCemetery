@@ -1,7 +1,6 @@
 ---
 name: gitlawb
 description: Hermes GitLawb Agent Ash producer. Discovers dead public GitLawb repos, waits for human approval in watchlist mode, and submits verified agent_ash.v1 certificates to VibeCemetery.
-user-invocable: true
 ---
 
 # Hermes GitLawb Agent Ash Producer

@@ -4,6 +4,7 @@ import { join } from 'node:path';
 
 const PUBLIC_BASE_URL = 'https://vibecemetery.app/agents/gitlawb/v1';
 const SKILL_ROOT = join(process.cwd(), 'SKILL');
+const PAYLOAD_SHA256_PLACEHOLDER = '__AGENT_ASH_PAYLOAD_SHA256__';
 
 const FILES = [
   {
@@ -50,8 +51,7 @@ function notFound() {
 }
 
 async function sha256File(sourceFile: string) {
-  const body = await readFile(sourceFile, 'utf8');
-  return createHash('sha256').update(body).digest('hex');
+  return sha256Text(await readFile(sourceFile, 'utf8'));
 }
 
 function sha256Text(value: string) {
@@ -65,13 +65,28 @@ function getPayloadSha256(files: Array<{ source: string; sha256: string }>) {
   return sha256Text(JSON.stringify({ files: payloadFiles }));
 }
 
+async function renderServedBody(file: { sourceFile: string; sourcePath: string }, payloadSha256: string) {
+  const body = await readFile(file.sourceFile, 'utf8');
+  if (file.sourcePath === 'SKILL/agent-install/install-gitlawb.sh' || file.sourcePath === 'SKILL/agent-install/install-gitlawb.ps1') {
+    return body.replace(PAYLOAD_SHA256_PLACEHOLDER, payloadSha256);
+  }
+  return body;
+}
+
 async function getManifest() {
-  const files = await Promise.all([...INSTALLER_FILES, ...FILES].map(async (file) => ({
+  const payloadEntries = await Promise.all([...INSTALLER_FILES.slice(2), ...FILES].map(async (file) => ({
     url: `/agents/gitlawb/v1/${file.publicPath}`,
     source: file.sourcePath,
     ...('target' in file ? { target: file.target } : {}),
     sha256: await sha256File(file.sourceFile),
   })));
+  const payloadSha256 = getPayloadSha256(payloadEntries);
+  const installerEntries = await Promise.all(INSTALLER_FILES.slice(0, 2).map(async (file) => ({
+    url: `/agents/gitlawb/v1/${file.publicPath}`,
+    source: file.sourcePath,
+    sha256: sha256Text(await renderServedBody(file, payloadSha256)),
+  })));
+  const files = [...installerEntries, ...payloadEntries];
 
   return {
     name: 'gitlawb',
@@ -79,7 +94,7 @@ async function getManifest() {
     kind: 'agent-ash-skill',
     base_url: PUBLIC_BASE_URL,
     target_root: '~/.hermes/skills/gitlawb',
-    payload_sha256: getPayloadSha256(files),
+    payload_sha256: payloadSha256,
     files,
   };
 }
@@ -101,7 +116,8 @@ async function GET(_request: Request, context: { params: Promise<{ path?: string
     return notFound();
   }
 
-  const body = await readFile(file.sourceFile, 'utf8');
+  const manifest = await getManifest();
+  const body = await renderServedBody(file, manifest.payload_sha256);
   return new Response(body, {
     headers: {
       'content-type': file.contentType,
