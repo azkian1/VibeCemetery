@@ -1,9 +1,11 @@
+import { createHash } from 'node:crypto'
 import { AGENT_ASH_PROOF_TYPE, type AgentAshRequest } from './agent-ash-contract'
 import { isAllowedGitlawbNodeUrl } from './agent-ash-security'
 
 export const GITLAWB_TIMESTAMP_TOLERANCE_MS = 5 * 60 * 1000
 export const GITLAWB_VERIFY_TIMEOUT_MS = 10_000
 export const GITLAWB_VERIFY_MAX_BODY_BYTES = 256 * 1024
+const GITLAWB_REPO_DID_PATTERN = /^did:gitlawb:[A-Za-z0-9._~-]+$/
 
 export type GitlawbVerificationResult =
   | {
@@ -26,11 +28,29 @@ interface VerifyOptions {
 type RepoLike = Record<string, unknown>
 
 function getString(value: unknown): string | null {
-  return typeof value === 'string' && value.trim() ? value : null
+  if (typeof value !== 'string') return null
+  const trimmed = value.trim()
+  return trimmed ? trimmed : null
 }
 
 function getRepoDid(repo: RepoLike): string | null {
-  return getString(repo.repo_did) ?? getString(repo.did) ?? getString(repo.id)
+  return validRepoDid(repo.repo_did) ?? validRepoDid(repo.did) ?? deriveRepoDidFromOwnerAndName(repo) ?? validRepoDid(repo.id)
+}
+
+function validRepoDid(value: unknown): string | null {
+  const text = getString(value)
+  return text && GITLAWB_REPO_DID_PATTERN.test(text) ? text : null
+}
+
+function normalizeDerivedRepoName(value: unknown): string {
+  return getString(value)?.toLowerCase().replace(/[^a-z0-9._~-]+/g, '-').replace(/^-+|-+$/g, '') ?? ''
+}
+
+function deriveRepoDidFromOwnerAndName(repo: RepoLike): string | null {
+  const ownerDid = getString(repo.owner_did)
+  const name = normalizeDerivedRepoName(repo.name)
+  if (!ownerDid?.startsWith('did:key:') || !name) return null
+  return `did:gitlawb:${createHash('sha256').update(`${ownerDid}|${name}`).digest('hex').slice(0, 32)}`
 }
 
 function getRepoPath(repo: RepoLike): string | null {

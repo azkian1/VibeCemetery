@@ -299,7 +299,20 @@ function normalizeScheduledApprovalPolicy(options = {}, config = {}) {
 }
 
 export function getRepoDid(repo = {}) {
-  return [repo.did, repo.repo_did, repo.id].map(asString).find((value) => GITLAWB_REPO_DID_PATTERN.test(value)) || ''
+  return [repo.did, repo.repo_did, repo.id].map(asString).find((value) => GITLAWB_REPO_DID_PATTERN.test(value)) || deriveRepoDidFromOwnerAndName(repo)
+}
+
+function normalizeDerivedRepoName(value) {
+  return asString(value).toLowerCase().replace(/[^a-z0-9._~-]+/g, '-').replace(/^-+|-+$/g, '')
+}
+
+function deriveRepoDidFromOwnerAndName(repo = {}) {
+  const ownerDid = asString(repo.owner_did)
+  const name = normalizeDerivedRepoName(repo.name)
+  if (!ownerDid.startsWith('did:key:') || !name) {
+    return ''
+  }
+  return `did:gitlawb:${sha256(`${ownerDid}|${name}`).slice(0, 32)}`
 }
 
 function getRepoPath(repo = {}) {

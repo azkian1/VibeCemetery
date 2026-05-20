@@ -30,6 +30,16 @@ const config = {
   vc_url: 'https://vibecemetery.app',
 }
 
+const gitlawbV038Repo = {
+  id: '35912a4c-d435-4f7f-a5d6-71abc39bed0e',
+  owner_did: 'did:key:z6MkpqHermesOwner',
+  name: 'hermes-test',
+  created_at: '2026-06-01T00:00:00Z',
+  updated_at: '2026-06-01T00:00:00Z',
+}
+
+const derivedGitlawbV038RepoDid = 'did:gitlawb:34deff7b47100b8febd5c935bf152124'
+
 test.describe('gitlawb agent ash skill helpers', () => {
   test('installable skill contract stays aligned with canonical Agent Ash v1', async () => {
     const skill = await readFile(skillPath, 'utf8')
@@ -40,6 +50,8 @@ test.describe('gitlawb agent ash skill helpers', () => {
     expect(skill).toContain('scheduled_approval_policy')
     expect(skill).toContain('Do not call `/api/cremated`.')
     expect(skill).toContain('Do not use human CLI `/bury` tokens.')
+    expect(skill).toContain('owner_did')
+    expect(skill).toContain('sha256(owner_did|normalized_name)')
     expect(skill).not.toContain('gitlab_token')
     expect(skill).not.toContain('/api/gitlawb/deaths')
     expect(skill).not.toContain('did:gitlawb:{base58')
@@ -263,6 +275,28 @@ test.describe('gitlawb agent ash skill helpers', () => {
     })).toThrow('GitLawb repo DID must match did:gitlawb:<safe-id>')
 
     expect(getRepoDid({ id: repo.did })).toBe(repo.did)
+  })
+
+  test('derives a stable repo DID from GitLawb node v0.3.8 owner_did and name fields', async () => {
+    const { buildAgentAshRequest, getRepoDid } = await loadHelper()
+
+    expect(getRepoDid(gitlawbV038Repo)).toBe(derivedGitlawbV038RepoDid)
+    expect(getRepoDid({ ...gitlawbV038Repo, name: ' Hermes Test ' })).toBe(derivedGitlawbV038RepoDid)
+    expect(getRepoDid({ ...gitlawbV038Repo, owner_did: 'did:web:not-supported' })).toBe('')
+
+    const request = buildAgentAshRequest({
+      repo: gitlawbV038Repo,
+      config,
+      declaredDeadAt: '2026-06-02T00:00:00Z',
+    })
+
+    expect(request.certificate.subject).toMatchObject({
+      name: 'hermes-test',
+      repo_did: derivedGitlawbV038RepoDid,
+      path: 'hermes-test',
+      url: `gitlawb://${derivedGitlawbV038RepoDid}`,
+    })
+    expect(request.proof.repo_did).toBe(derivedGitlawbV038RepoDid)
   })
 
   test('builds a bearer-authenticated VibeCemetery ingest request only for Agent Ashes', async () => {
@@ -492,6 +526,55 @@ test.describe('gitlawb agent ash skill helpers', () => {
       })
       expect(JSON.stringify(output)).not.toContain('agent_ash_token')
       expect(JSON.stringify(output)).not.toContain('ash_test_token')
+    } finally {
+      await rm(home, { recursive: true, force: true })
+    }
+  })
+
+  test('one-shot CLI finds GitLawb node v0.3.8 repos by derived owner/name DID', async () => {
+    const { runOneShotSubmit } = await loadHelper()
+    const home = await mkdtemp(join(tmpdir(), 'gitlawb-cli-submit-derived-'))
+    const fetchCalls: Array<{ url: string | URL | Request; init?: RequestInit }> = []
+
+    try {
+      await mkdir(join(home, '.config', 'gitlawb'), { recursive: true })
+      await writeFile(join(home, '.config', 'gitlawb', 'config.json'), `${JSON.stringify(config)}\n`, 'utf8')
+
+      const fetchImpl = async (url: string | URL | Request, init?: RequestInit) => {
+        fetchCalls.push({ url, init })
+        if (String(url) === 'https://node.gitlawb.com/api/v1/repos') {
+          return Response.json({ repos: [gitlawbV038Repo] })
+        }
+        return Response.json({
+          id: 'ash-row-id-derived',
+          certificate_hash: 'b'.repeat(64),
+          verification_policy: 'external_source_verified_once_before_insert',
+          url: 'https://vibecemetery.app/api/agent-ashes/ash-row-id-derived',
+        }, { status: 201 })
+      }
+
+      const result = await runOneShotSubmit({
+        repoDid: derivedGitlawbV038RepoDid,
+        homedir: home,
+        fetchImpl,
+        now: '2026-06-02T00:00:00Z',
+      })
+      const submittedBody = JSON.parse(String(fetchCalls[1].init?.body))
+
+      expect(result).toMatchObject({
+        status: 201,
+        repo_did: derivedGitlawbV038RepoDid,
+        url: 'https://vibecemetery.app/api/agent-ashes/ash-row-id-derived',
+      })
+      expect(submittedBody).toMatchObject({
+        certificate: {
+          subject: {
+            name: 'hermes-test',
+            repo_did: derivedGitlawbV038RepoDid,
+          },
+        },
+        proof: { repo_did: derivedGitlawbV038RepoDid },
+      })
     } finally {
       await rm(home, { recursive: true, force: true })
     }

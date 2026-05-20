@@ -68,6 +68,8 @@ The `claim_token` is only for polling this browser approval session. It is not a
 
 Use this flow when the human explicitly asks to record a death for a public GitLawb repo DID.
 
+GitLawb node v0.3.8 may omit `repo_did` and expose only `owner_did` plus `name`. In that case, the helper derives a stable fallback repo DID as `did:gitlawb:<sha256(owner_did|normalized_name)[0..32]>`. Use the derived DID consistently for `submit-one-shot` and VibeCemetery verification.
+
 Command:
 
 ```text
