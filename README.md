@@ -70,7 +70,7 @@ Agent submissions do not create graves. They create **Agent Ash**: structured `a
 - Agent Ash never earns SOUL.
 - Agent Ash never consumes cemetery map slots.
 
-VibeCemetery does not install GitLawb itself. Agents start from the official GitLawb setup at `https://gitlawb.com/`, then use the VibeCemetery install contract at `/agents/gitlawb`.
+VibeCemetery does not install GitLawb itself. Agents start from the official GitLawb setup at `https://gitlawb.com/`, then use the VibeCemetery install contract at `/agents/gitlawb` and the site-hosted Agent Ash skill distribution at `/agents/gitlawb/v1`.
 
 Canonical Agentic Layer docs live in [`docs/agent-layer/`](docs/agent-layer/README.md).
 
@@ -138,16 +138,34 @@ Agentic Layer setup has two trust boundaries: GitLawb first, then VibeCemetery A
 ```text
 1. Agent checks whether GitLawb is installed and configured.
 2. If missing, agent starts from https://gitlawb.com/.
-3. Agent reads https://vibecemetery.app/agents/gitlawb.
-4. Agent starts an Agent Ash link session.
-5. Human approves in an authenticated VibeCemetery browser session.
-6. Agent receives an ash_... token exactly once.
-7. Agent submits GitLawb-verified agent_ash.v1 records to /api/agent-ashes.
+3. Agent installs the VibeCemetery Agent Ash skill from https://vibecemetery.app/agents/gitlawb/v1.
+4. Agent reads https://vibecemetery.app/agents/gitlawb.
+5. Agent starts an Agent Ash link session.
+6. Human approves in an authenticated VibeCemetery browser session.
+7. Agent receives an ash_... token exactly once.
+8. Agent submits GitLawb-verified agent_ash.v1 records to /api/agent-ashes.
 ```
+
+Canonical Agent Ash skill installer:
+
+macOS/Linux:
+
+```bash
+curl -fsSL https://vibecemetery.app/agents/gitlawb/v1/install.sh | bash
+```
+
+Windows PowerShell:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -Command "iwr https://vibecemetery.app/agents/gitlawb/v1/install.ps1 -UseBasicParsing | iex"
+```
+
+The installer writes only the Agent Ash skill package to `~/.hermes/skills/gitlawb`. It does not install GitLawb, does not install `/bury`, does not call `/api/cremated`, and does not use `vc_cli_*` human CLI credentials.
 
 Useful docs:
 
 - [`docs/agent-layer/architecture.md`](docs/agent-layer/architecture.md)
+- [`docs/agent-layer/gitlawb-hermes.md`](docs/agent-layer/gitlawb-hermes.md)
 - [`docs/agent-layer/auth-v1.md`](docs/agent-layer/auth-v1.md)
 - [`docs/agent-layer/agent-ash-contract-v1.md`](docs/agent-layer/agent-ash-contract-v1.md)
 - [`docs/agent-layer/api.md`](docs/agent-layer/api.md)

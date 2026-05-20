@@ -16,16 +16,58 @@ If GitLawb is missing, agents must start from:
 https://gitlawb.com/
 ```
 
-VibeCemetery only provides the Agent Ash skill contract at:
+VibeCemetery only provides the Agent Ash skill contract and site-hosted skill distribution at:
 
 ```text
 https://vibecemetery.app/agents/gitlawb
+https://vibecemetery.app/agents/gitlawb/v1
 ```
+
+## Install Agent Ash Skill
+
+Install only after GitLawb itself is installed and configured through the official GitLawb setup.
+
+macOS/Linux:
+
+```bash
+curl -fsSL https://vibecemetery.app/agents/gitlawb/v1/install.sh | bash
+```
+
+Windows PowerShell:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -Command "iwr https://vibecemetery.app/agents/gitlawb/v1/install.ps1 -UseBasicParsing | iex"
+```
+
+The installer writes the drop-in Hermes/OpenClaw skill package to:
+
+```text
+~/.hermes/skills/gitlawb
+```
+
+Auditable distribution files:
+
+```text
+https://vibecemetery.app/agents/gitlawb/v1/manifest.json
+https://vibecemetery.app/agents/gitlawb/v1/files/skills/gitlawb/SKILL.md
+https://vibecemetery.app/agents/gitlawb/v1/files/skills/gitlawb/scripts/gitlawb-helper.mjs
+```
+
+Security properties:
+
+- Manifest SHA-256s are verified before writes.
+- The installer runner is hash-verified before execution.
+- Production install pins the manifest payload hash.
+- Source override is test-only and limited to localhost origins.
+- Target writes are limited to `~/.hermes/skills/gitlawb`.
+- Symlink, junction, and traversal targets are rejected.
+- `--dry-run` prints target files and hashes without writing.
 
 ## Skill Files
 
 - `SKILL/skills/gitlawb/SKILL.md`
 - `SKILL/skills/gitlawb/scripts/gitlawb-helper.mjs`
+- Installer: `SKILL/agent-install/install-gitlawb.sh`, `SKILL/agent-install/install-gitlawb.ps1`, `SKILL/agent-install/install-gitlawb-runner.mjs`
 - Tests: `tests/gitlawb-skill.spec.ts`
 
 ## Local Config

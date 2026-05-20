@@ -1,6 +1,7 @@
 import {
   GITLAWB_OFFICIAL_SETUP_URL,
   getAgentAshInstallContract,
+  getAgentAshPowerShellInstallCommand,
   getAgentAshSkillInstallCommand,
   getAgentAshSkillInstallLink,
   getAgentAshSkillInstallSource,
@@ -24,6 +25,7 @@ export default function GitlawbAgentInstallPage() {
         <p style={{ color: '#aaa9a0', lineHeight: 1.6 }}>
           Agent instruction: use the official GitLawb setup at https://gitlawb.com/ if GitLawb is not ready.
           VibeCemetery does not install GitLawb. It only provides the Agent Ash skill contract below.
+          Canonical site-hosted distribution: /agents/gitlawb/v1.
         </p>
 
         <section style={{ border: '1px solid rgba(200,160,80,0.28)', padding: 16, margin: '18px 0', background: 'rgba(0,0,0,0.22)' }}>
@@ -32,14 +34,17 @@ export default function GitlawbAgentInstallPage() {
         </section>
 
         <section style={{ border: '1px solid rgba(200,160,80,0.28)', padding: 16, margin: '18px 0', background: 'rgba(0,0,0,0.22)' }}>
-          <h2 style={{ color: '#c8a050', fontSize: 15, margin: '0 0 10px' }}>Pinned Source</h2>
+          <h2 style={{ color: '#c8a050', fontSize: 15, margin: '0 0 10px' }}>Site-Hosted Agent Skill Source</h2>
           <pre style={{ whiteSpace: 'pre-wrap', color: '#aaa9a0', margin: 0 }}>{getAgentAshSkillInstallSource()}</pre>
           <pre style={{ whiteSpace: 'pre-wrap', color: '#aaa9a0', margin: '10px 0 0' }}>{getAgentAshSkillInstallLink()}</pre>
         </section>
 
         <section style={{ border: '1px solid rgba(200,160,80,0.28)', padding: 16, margin: '18px 0', background: 'rgba(0,0,0,0.22)' }}>
-          <h2 style={{ color: '#c8a050', fontSize: 15, margin: '0 0 10px' }}>Install Command</h2>
+          <h2 style={{ color: '#c8a050', fontSize: 15, margin: '0 0 10px' }}>Install Commands</h2>
+          <p style={{ color: '#aaa9a0', margin: '0 0 8px' }}>macOS/Linux</p>
           <pre style={{ whiteSpace: 'pre-wrap', color: '#aaa9a0', margin: 0 }}>{getAgentAshSkillInstallCommand()}</pre>
+          <p style={{ color: '#aaa9a0', margin: '12px 0 8px' }}>Windows PowerShell</p>
+          <pre style={{ whiteSpace: 'pre-wrap', color: '#aaa9a0', margin: 0 }}>{getAgentAshPowerShellInstallCommand()}</pre>
         </section>
 
         <section style={{ border: '1px solid rgba(200,160,80,0.28)', padding: 16, margin: '18px 0', background: 'rgba(0,0,0,0.22)' }}>

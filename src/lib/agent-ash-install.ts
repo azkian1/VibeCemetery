@@ -2,13 +2,8 @@ export const GITLAWB_OFFICIAL_SETUP_URL = 'https://gitlawb.com/'
 export const AGENT_INSTALL_PATH = '/agents/gitlawb'
 
 const AGENT_ASH_SKILL_SOURCE_CONTRACT = {
-  repoUrl: 'https://github.com/azkian1/VibeCemetery.git',
-  installRef: '87222203d7d7c5b55e8694eaf2de5ea9811872c9',
-  skillPath: 'SKILL/skills/gitlawb',
-}
-
-function getRepoWebUrl(repoUrl: string) {
-  return repoUrl.replace(/\.git$/, '')
+  siteBaseUrl: 'https://vibecemetery.app/agents/gitlawb/v1',
+  skillPath: '~/.hermes/skills/gitlawb',
 }
 
 function getAgentAshInstallPath() {
@@ -16,17 +11,19 @@ function getAgentAshInstallPath() {
 }
 
 function getAgentAshSkillInstallSource() {
-  const { repoUrl, installRef, skillPath } = AGENT_ASH_SKILL_SOURCE_CONTRACT
-  return `${repoUrl}?ref=${installRef}#${skillPath}`
+  return AGENT_ASH_SKILL_SOURCE_CONTRACT.siteBaseUrl
 }
 
 function getAgentAshSkillInstallLink() {
-  const { repoUrl, installRef, skillPath } = AGENT_ASH_SKILL_SOURCE_CONTRACT
-  return `${getRepoWebUrl(repoUrl)}/tree/${installRef}/${skillPath}`
+  return `${AGENT_ASH_SKILL_SOURCE_CONTRACT.siteBaseUrl}/manifest.json`
 }
 
 function getAgentAshSkillInstallCommand() {
-  return `hermes skills install '${getAgentAshSkillInstallSource()}'`
+  return `curl -fsSL ${AGENT_ASH_SKILL_SOURCE_CONTRACT.siteBaseUrl}/install.sh | bash`
+}
+
+function getAgentAshPowerShellInstallCommand() {
+  return `powershell -NoProfile -ExecutionPolicy Bypass -Command "iwr ${AGENT_ASH_SKILL_SOURCE_CONTRACT.siteBaseUrl}/install.ps1 -UseBasicParsing | iex"`
 }
 
 function getAgentAshInstallContract() {
@@ -40,20 +37,20 @@ VibeCemetery does not install GitLawb, configure GitLawb nodes, or replace the o
 VibeCemetery only provides the Agent Ash skill.
 
 ## Install VibeCemetery Agent Ash Skill
-Skill source link:
-${getAgentAshSkillInstallLink()}
-
-Source path:
-${AGENT_ASH_SKILL_SOURCE_CONTRACT.skillPath}
-
-Pinned source:
+Site-hosted source mirror:
 ${getAgentAshSkillInstallSource()}
 
-Install command:
+Manifest:
+${getAgentAshSkillInstallLink()}
+
+macOS/Linux install command:
 ${getAgentAshSkillInstallCommand()}
 
+Windows PowerShell install command:
+${getAgentAshPowerShellInstallCommand()}
+
 Install target:
-~/.hermes/skills/gitlawb
+${AGENT_ASH_SKILL_SOURCE_CONTRACT.skillPath}
 
 After installation, read SKILL.md inside the skill and follow it strictly.
 
@@ -93,6 +90,7 @@ export {
   AGENT_ASH_SKILL_SOURCE_CONTRACT,
   getAgentAshInstallContract,
   getAgentAshInstallPath,
+  getAgentAshPowerShellInstallCommand,
   getAgentAshSkillInstallCommand,
   getAgentAshSkillInstallLink,
   getAgentAshSkillInstallSource,

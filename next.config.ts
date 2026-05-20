@@ -26,6 +26,12 @@ const nextConfig: NextConfig = {
   },
   outputFileTracingIncludes: {
     '/skills/bury/v1/\\[\\.\\.\\.path\\]': ['./SKILL/**/*'],
+    '/agents/gitlawb/v1/\\[\\.\\.\\.path\\]': [
+      './SKILL/skills/gitlawb/**/*',
+      './SKILL/agent-install/install-gitlawb.sh',
+      './SKILL/agent-install/install-gitlawb.ps1',
+      './SKILL/agent-install/install-gitlawb-runner.mjs',
+    ],
   },
   headers: async () => [
     {
