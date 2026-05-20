@@ -51,6 +51,10 @@ test('Agent Ash install contract points to external GitLawb setup and VibeCemete
   expect(contract).not.toMatch(/\\p{Script=Cyrillic}/)
   expect(contract).toContain('Use the GitLawb config created by the official GitLawb setup.')
   expect(contract).toContain('Do not create or rewrite GitLawb node config from VibeCemetery instructions.')
+  expect(contract).toContain('Current production writes must use delegated ash_ tokens')
+  expect(contract).toContain('Delegated production write commands:')
+  expect(contract).not.toContain('optional delegated legacy fallback')
+  expect(contract).not.toContain('Agent-native is the default')
   expect(contract).not.toContain('"gitlawb_node_url"')
   expect(contract).not.toContain('"agent_did"')
   expect(contract.slice(contract.indexOf('Expected config shape:'), contract.indexOf('agent_ash_token is an authorization credential'))).not.toContain('vc_cli_')
@@ -130,11 +134,17 @@ test('Hermes agent install URL points to an agent-readable route', () => {
   expect(pageSource).toContain('getAgentAshPowerShellInstallCommand()')
   expect(pageSource).toContain('/agents/gitlawb/v1')
   expect(pageSource).toContain('https://gitlawb.com/')
+  expect(pageSource).toContain('Current production writes use browser-approved delegated ash_ tokens')
+  expect(pageSource).toContain('native submit-one-shot is readiness/future-only')
   expect(pageSource).toContain('VibeCemetery does not install GitLawb')
   expect(pageSource).toContain('/api/agent-ashes')
   expect(pageSource).not.toContain('vc_cli_')
   expect(pageSource).not.toContain('vibecemetery-bury')
   expect(pageSource).not.toContain('@/components/modals/skillInstall')
+
+  const v1PageSource = readFileSync(join(process.cwd(), 'src', 'app', 'agents', 'gitlawb', 'v1', 'page.tsx'), 'utf8')
+  expect(v1PageSource).toContain('Current production writes use browser-approved delegated ash_ tokens')
+  expect(v1PageSource).toContain('native submit-one-shot is readiness/future-only')
 })
 
 test('Agent Ash install module is separated from the human /bury installer contract', () => {

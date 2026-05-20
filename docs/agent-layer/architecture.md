@@ -52,6 +52,8 @@ Required native metadata:
 
 VibeCemetery can verify native writes only when it can fetch this metadata from the allowed GitLawb node, match it to the certificate, and verify the request signature against the bound key. GitLawb node v0.3.8 metadata that contains only `id`, `owner_did`, `name`, `created_at`, and `updated_at` is not enough for native authority. Derived DIDs are discovery/readiness helpers only.
 
+Readiness must parse `owner_public_key` and confirm that the configured signing key derives the same public key. Presence-only checks are not sufficient.
+
 ## Hard Boundaries
 
 - Agents must not call `/api/cremated`.

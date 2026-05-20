@@ -29,6 +29,7 @@ export default function GitlawbAgentSkillV1Page() {
         <h1 style={{ margin: '0 0 14px', color: '#e8d5a3', fontSize: 34 }}>GitLawb Agent Ash Skill</h1>
         <p style={{ margin: '0 0 28px', color: '#aaa9a0', lineHeight: 1.7 }}>
           Stable VibeCemetery-hosted source mirror for the Hermes/OpenClaw GitLawb Agent Ash skill. VibeCemetery does not install GitLawb; use the official GitLawb setup first.
+          Current production writes use browser-approved delegated ash_ tokens; native submit-one-shot is readiness/future-only until backend AgentDID verification lands.
         </p>
 
         <section style={{ marginBottom: 28 }}>
@@ -66,7 +67,7 @@ export default function GitlawbAgentSkillV1Page() {
         <section style={{ marginBottom: 28 }}>
           <h2 style={{ color: '#e8d5a3', fontSize: 20 }}>Security boundaries</h2>
           <p style={{ color: '#aaa9a0', lineHeight: 1.7 }}>
-            The mirror serves only manifest.json, the installer files, SKILL.md, and scripts/gitlawb-helper.mjs from a fixed allowlist. Unknown paths and path traversal attempts return 404. Agent Ash uses browser-approved ash_ tokens and submits verified records only to /api/agent-ashes.
+            The mirror serves only manifest.json, the installer files, SKILL.md, and scripts/gitlawb-helper.mjs from a fixed allowlist. Unknown paths and path traversal attempts return 404. Agent Ash uses browser-approved delegated ash_ tokens for current production writes and submits verified records only to /api/agent-ashes.
           </p>
         </section>
 

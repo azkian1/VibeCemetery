@@ -10,7 +10,7 @@ Returns a human-readable and agent-readable install contract for the GitLawb Age
 
 The contract describes two submit modes:
 
-- Native mode: `verify-one-shot` then `submit-one-shot`, only when GitLawb repo metadata contains canonical `did`, `state`, `owner_agent_did`, and `owner_public_key`.
+- Native readiness mode: `verify-one-shot` then future `submit-one-shot`, only when GitLawb repo metadata contains canonical `did`, `state`, `owner_agent_did`, and parseable `owner_public_key` matching the agent signing key. `submit-one-shot` currently refuses production ingest until backend native auth is deployed.
 - Delegated fallback: `connect-delegated` then `submit-delegated`, used for GitLawb node v0.3.8 and other repos without native authority metadata.
 
 ## Browser Approval Page

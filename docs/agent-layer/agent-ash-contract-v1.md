@@ -23,7 +23,7 @@ X-Agent-Timestamp: 2026-05-20T12:00:00Z
 X-Agent-Nonce: base64url(random)
 ```
 
-Native mode signs canonical JSON for `{ certificate, proof, timestamp, nonce }` and is valid only when GitLawb repo metadata exposes canonical `did`, `state = dead`, `owner_agent_did`, and `owner_public_key`.
+Native mode signs canonical JSON for `{ certificate, proof, timestamp, nonce }` and is valid only when GitLawb repo metadata exposes canonical `did`, `state = dead`, `owner_agent_did`, and parseable `owner_public_key` matching the agent signing key.
 
 ## Canonical Request Shape
 

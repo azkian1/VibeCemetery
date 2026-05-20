@@ -281,6 +281,7 @@ export function normalizeGitlawbConfig(config = {}) {
     agent_did: sanitizeString(config.agent_did, STRING_LIMITS.agentDid),
     agent_ash_token: asString(config.agent_ash_token),
     agent_private_key: asString(config.agent_private_key ?? config.private_key),
+    experimental_native_submit: config.experimental_native_submit === true,
     vc_url: normalizeVcUrl(config.vc_url),
   }
 }
@@ -378,22 +379,54 @@ function getCanonicalRepoDid(repo = {}) {
   return asString(repo.did)
 }
 
+function publicKeyFingerprint(value) {
+  try {
+    const key = crypto.createPublicKey(value)
+    const der = key.export({ type: 'spki', format: 'der' })
+    return sha256(der)
+  } catch {
+    return ''
+  }
+}
+
+function publicKeyFingerprintFromPrivateKey(value) {
+  try {
+    const key = crypto.createPublicKey(crypto.createPrivateKey(value))
+    const der = key.export({ type: 'spki', format: 'der' })
+    return sha256(der)
+  } catch {
+    return ''
+  }
+}
+
 export function getNativeReadiness(repo = {}, config = {}) {
   const normalizedConfig = normalizeGitlawbConfig(config)
   const missing = []
+  const invalid = []
   const canonicalRepoDid = getCanonicalRepoDid(repo)
   const ownerAgentDid = getRepoOwnerAgentDid(repo)
-  const ownerPublicKey = sanitizeString(repo.owner_public_key, 2048)
+  const ownerPublicKey = asString(repo.owner_public_key)
   const state = sanitizeString(repo.state, STRING_LIMITS.deathStage).toLowerCase()
+  const ownerPublicKeyFingerprint = ownerPublicKey ? publicKeyFingerprint(ownerPublicKey) : ''
+  const signerPublicKeyFingerprint = normalizedConfig.agent_private_key
+    ? publicKeyFingerprintFromPrivateKey(normalizedConfig.agent_private_key)
+    : ''
 
   if (!GITLAWB_REPO_DID_PATTERN.test(canonicalRepoDid)) missing.push('did')
   if (!ownerAgentDid) missing.push('owner_agent_did')
   if (!ownerPublicKey) missing.push('owner_public_key')
+  if (!normalizedConfig.agent_private_key) missing.push('agent_private_key')
   if (!state) missing.push('state')
+  if (ownerPublicKey && !ownerPublicKeyFingerprint) invalid.push('owner_public_key')
+  if (normalizedConfig.agent_private_key && !signerPublicKeyFingerprint) invalid.push('agent_private_key')
+  if (ownerPublicKeyFingerprint && signerPublicKeyFingerprint && ownerPublicKeyFingerprint !== signerPublicKeyFingerprint) {
+    invalid.push('owner_public_key_mismatch')
+  }
 
   return {
-    native_ready: missing.length === 0 && state === 'dead' && ownerAgentDid === normalizedConfig.agent_did,
+    native_ready: missing.length === 0 && invalid.length === 0 && state === 'dead' && ownerAgentDid === normalizedConfig.agent_did,
     missing,
+    invalid,
     state,
     owner_agent_did: ownerAgentDid || undefined,
     owner_public_key: ownerPublicKey || undefined,
@@ -404,6 +437,9 @@ function validateNativeRepoMetadata(repo, config) {
   const readiness = getNativeReadiness(repo, config)
   if (readiness.missing.length > 0) {
     throw new Error('GitLawb repo metadata does not support agent-native submit; use connect-delegated/submit-delegated')
+  }
+  if (readiness.invalid.length > 0) {
+    throw new Error('GitLawb repo native key metadata is invalid; use connect-delegated/submit-delegated')
   }
   if (readiness.state !== 'dead') {
     throw new Error('GitLawb repo state must be dead for native Agent Ash submit')
@@ -922,6 +958,9 @@ export async function runOneShotSubmit(options = {}) {
     throw new Error(`GitLawb repo not found: ${repoDid}`)
   }
   validateNativeRepoMetadata(repo, config)
+  if (options.experimentalNativeSubmit !== true && config.experimental_native_submit !== true) {
+    throw new Error('Agent-native submit is not enabled on VibeCemetery backend; use submit-delegated')
+  }
 
   const request = buildAgentAshRequest({
     repo,
@@ -1002,6 +1041,7 @@ export async function runOneShotVerify(options = {}) {
       repo_did: repoDid,
       native_ready: false,
       missing: readiness.missing,
+      invalid: readiness.invalid,
       fallback: 'connect-delegated',
     }
   }
@@ -1011,6 +1051,7 @@ export async function runOneShotVerify(options = {}) {
     repo_did: repoDid,
     native_ready: true,
     missing: [],
+    invalid: [],
     fallback: null,
   }
 }

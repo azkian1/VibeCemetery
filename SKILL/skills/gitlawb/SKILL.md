@@ -1,6 +1,6 @@
 ---
 name: gitlawb
-description: Hermes GitLawb Agent Ash producer. Submits repo-bound, agent-signed agent_ash.v1 certificates from GitLawb to VibeCemetery without default browser approval.
+description: Hermes GitLawb Agent Ash producer. Produces repo-bound agent_ash.v1 certificates from GitLawb; production writes currently use delegated Agent Ash auth.
 ---
 
 # Hermes GitLawb Agent Ash Producer
@@ -42,7 +42,7 @@ Expected shape:
 }
 ```
 
-Agent-native is the default. No GitHub login is required. No VibeCemetery browser connect is required. No human `/bury` credentials are used. No `ash_` token is required for native submit.
+Current production writes use delegated `ash_...` bearer tokens from browser-approved Agent Ash connect. Native readiness does not require GitHub login, but Native `submit-one-shot` is readiness/future-only until backend AgentDID verification is deployed. Production writes currently require delegated browser-approved Agent Ash connect. No human `/bury` credentials are used.
 
 Prefer the official GitLawb agent DID/key reference. Do not create a VibeCemetery-specific identity when GitLawb already exposes the agent DID and key material. Never print private keys, copy private keys into certificates, or include private keys in `certificate.raw`.
 
@@ -57,13 +57,15 @@ Native submit also requires GitLawb repo metadata to expose all authority fields
 }
 ```
 
+`owner_public_key` must be parseable public-key material, and local readiness requires the configured signing key to derive the same public key. A non-empty string is not enough.
+
 GitLawb node v0.3.8 repos that expose only `id`, `owner_did`, `name`, `created_at`, and `updated_at` are delegated-only. The helper may derive a DID for discovery, but derived DIDs are not authoritative for native Agent Ash ingest.
 
 `scheduled_approval_policy` controls only scheduled mode and defaults to `none` when omitted. Valid values are `none`, `manual`, and `all`.
 
-## Delegated Mode / Legacy Fallback
+## Delegated Mode / Production Write Path
 
-Browser connect is optional delegated mode only. Do not open VibeCemetery/GitHub browser auth for agent-native Agent Ash. Do not ask the human to paste a raw `ash_...` token into chat.
+Browser-approved Agent Ash connect is the current production write path. Do not open GitHub browser auth for Agent Ash. Do not ask the human to paste a raw `ash_...` token into chat.
 
 Command:
 
@@ -96,18 +98,18 @@ node ${CLAUDE_SKILL_DIR}/scripts/gitlawb-helper.mjs verify-one-shot did:gitlawb:
 1. Read `~/.config/gitlawb/config.json`.
 2. Fetch public repos from `GET {gitlawb_node_url}/api/v1/repos`.
 3. Locate the requested GitLawb repo DID in the public response.
-4. Validate GitLawb repo metadata includes canonical `did`, `state = dead`, `owner_agent_did`, and `owner_public_key`.
+4. Validate GitLawb repo metadata includes canonical `did`, `state = dead`, `owner_agent_did`, and a parseable `owner_public_key` matching the configured signing key.
 5. Build an `agent_ash.v1` certificate and `gitlawb_http_node_v1` proof with `buildAgentAshRequest`.
-6. Canonicalize `{ certificate, proof, timestamp, nonce }`, sign it with the agent private key, and submit exactly once with `Authorization: AgentDID {agent_did}` plus `X-Agent-Signature`, `X-Agent-Timestamp`, and `X-Agent-Nonce`.
-7. Report the repo DID, certificate id, and returned VibeCemetery URL to the human/operator.
+6. Stop before production ingest until VibeCemetery backend native auth is deployed. Current `/api/agent-ashes` production ingest accepts delegated `ash_...` bearer tokens only.
+7. Use `submit-delegated` for production writes.
 
-Agent-native Agent Ash does not require GitHub OAuth, VibeCemetery login, or browser approval. GitLawb repo metadata binds the repo DID to the submitting agent DID. VibeCemetery verifies GitLawb evidence and agent signature before accepting the Ash.
+Agent-native Agent Ash does not require GitHub OAuth, VibeCemetery login, or browser approval, but it is backend-disabled until server-side `AgentDID` signature verification, nonce replay protection, timestamp freshness, and GitLawb public-key checks are deployed.
 
-If `verify-one-shot` returns `native_ready: false`, do not call native `submit-one-shot`; use delegated fallback instead.
+If `verify-one-shot` returns `native_ready: false`, do not call native `submit-one-shot`; use delegated fallback instead. If `verify-one-shot` returns `native_ready: true`, native `submit-one-shot` still refuses production ingest until backend native auth is enabled.
 
 VibeCemetery verifies GitLawb proof once before accepting the write. Treat a `201` response from `/api/agent-ashes` as the final confirmation and do not recheck GitLawb after the record is accepted.
 
-Use `GITLAWB_NODE=https://node.gitlawb.com` for GitLawb push/delete operations when GitLawb needs an explicit node. Do not confuse GitLawb node writes with VibeCemetery ingest; the VibeCemetery write is only `POST https://vibecemetery.app/api/agent-ashes` through `submit-one-shot` or an approved watchlist submission.
+Use `GITLAWB_NODE=https://node.gitlawb.com` for GitLawb push/delete operations when GitLawb needs an explicit node. Do not confuse GitLawb node writes with VibeCemetery ingest; current production VibeCemetery writes are only `POST https://vibecemetery.app/api/agent-ashes` through delegated `submit-delegated` or an approved watchlist submission.
 
 ## Watchlist Flow
 
@@ -169,7 +171,7 @@ Rules:
 - `manual`: scan and report candidates, then submit only when explicit human approval metadata is supplied for the current candidates.
 - `all`: allowed only when explicitly configured as `scheduled_approval_policy = "all"`; it still requires explicit approval metadata and must not silently self-approve.
 - Explicit approval metadata must include an approval mode (`all` or `selective`), `approved_by`, and `approved_at`; submitted certificates store it at `certificate.raw.approval`.
-- Scheduled scans currently submit only through delegated legacy fallback and require a real `ash_...` token. Do not use scheduled native submit until backend native auth and GitLawb native metadata are deployed.
+- Scheduled scans currently submit only through delegated production auth and require a real `ash_...` token. Do not use scheduled native submit until backend native auth and GitLawb native metadata are deployed.
 
 ## Certificate Rules
 
@@ -179,7 +181,7 @@ Rules:
 - Use the public node `created_at` as `certificate.lifecycle.created_at` and `proof.observed_created_at`.
 - Use the public node `updated_at` as `certificate.lifecycle.last_activity_at` and `proof.observed_updated_at`.
 - Include `agent.name` and optional `agent.did`.
-- Require `state = dead`, `owner_agent_did`, and `owner_public_key` for native one-shot submit.
+- Require `state = dead`, `owner_agent_did`, and parseable `owner_public_key` matching the configured signing key for native one-shot submit.
 - Include raw GitLawb node metadata only under `certificate.raw`.
 
 ## Prohibited Actions

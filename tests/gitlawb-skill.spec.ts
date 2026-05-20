@@ -11,6 +11,9 @@ async function loadHelper() {
   return await import(`file:///${helperPath}`)
 }
 
+const nativeKeyPair = generateKeyPairSync('ed25519')
+const nativePublicKey = nativeKeyPair.publicKey.export({ type: 'spki', format: 'pem' })
+
 const repo = {
   did: 'did:gitlawb:z6MkRepoDeadAgentPrototype',
   name: 'dead-agent-prototype',
@@ -23,7 +26,7 @@ const repo = {
   latest_commit: 'abc123deadbeef',
   state: 'dead',
   owner_agent_did: 'did:key:z6MkAgentHermes',
-  owner_public_key: 'test-public-key',
+  owner_public_key: nativePublicKey,
 }
 
 const config = {
@@ -42,7 +45,6 @@ const gitlawbV038Repo = {
   updated_at: '2026-06-01T00:00:00Z',
 }
 
-const nativeKeyPair = generateKeyPairSync('ed25519')
 const nativeConfig = {
   ...config,
   agent_private_key: nativeKeyPair.privateKey.export({ type: 'pkcs8', format: 'pem' }),
@@ -55,11 +57,13 @@ test.describe('gitlawb agent ash skill helpers', () => {
     const skill = await readFile(skillPath, 'utf8')
 
     expect(skill).toContain('HELPER_SCRIPT = ${CLAUDE_SKILL_DIR}/scripts/gitlawb-helper.mjs')
-    expect(skill).toContain('Agent-native is the default')
-    expect(skill).toContain('No GitHub login is required')
-    expect(skill).toContain('No VibeCemetery browser connect is required')
+    expect(skill).toContain('Current production writes use delegated `ash_...` bearer tokens')
+    expect(skill).not.toContain('Agent-native is the default')
+    expect(skill).not.toContain('delegated legacy fallback')
+    expect(skill).toContain('Native readiness does not require GitHub login')
+    expect(skill).toContain('Production writes currently require delegated browser-approved Agent Ash connect')
     expect(skill).toContain('No human `/bury` credentials are used')
-    expect(skill).toContain('No `ash_` token is required for native submit')
+    expect(skill).toContain('Native `submit-one-shot` is readiness/future-only until backend AgentDID verification is deployed')
     expect(skill).toContain('POST https://vibecemetery.app/api/agent-ashes')
     expect(skill).toContain('scheduled_approval_policy')
     expect(skill).toContain('Do not call `/api/cremated`.')
@@ -498,10 +502,9 @@ test.describe('gitlawb agent ash skill helpers', () => {
     }
   })
 
-  test('one-shot CLI submits exactly one GitLawb DID and reports certificate and URL', async () => {
+  test('one-shot CLI verifies native readiness but refuses production ingest until backend native auth exists', async () => {
     const { runCliCommand, runOneShotSubmit } = await loadHelper()
     const home = await mkdtemp(join(tmpdir(), 'gitlawb-cli-submit-'))
-    const printed: string[] = []
     const fetchCalls: Array<{ url: string | URL | Request; init?: RequestInit }> = []
 
     try {
@@ -513,51 +516,20 @@ test.describe('gitlawb agent ash skill helpers', () => {
         if (String(url) === 'https://node.gitlawb.com/api/v1/repos') {
           return Response.json({ repos: [repo] })
         }
-        return Response.json({
-          id: 'ash-row-id',
-          certificate_hash: 'a'.repeat(64),
-          verification_policy: 'external_source_verified_once_before_insert',
-          url: 'https://vibecemetery.app/api/agent-ashes/ash-row-id',
-          certificate_url: 'https://vibecemetery.app/api/agent-ashes/ash-row-id/certificate',
-        }, { status: 201 })
+        throw new Error('native production submit must not call ingest yet')
       }
 
-      const direct = await runOneShotSubmit({ repoDid: repo.did, homedir: home, fetchImpl, now: '2026-07-01T00:00:00Z' })
-      const cli = await runCliCommand(['submit-one-shot', repo.did], {
+      await expect(runOneShotSubmit({ repoDid: repo.did, homedir: home, fetchImpl, now: '2026-07-01T00:00:00Z' }))
+        .rejects.toThrow('Agent-native submit is not enabled on VibeCemetery backend; use submit-delegated')
+      await expect(runCliCommand(['submit-one-shot', repo.did], {
         homedir: home,
         fetchImpl,
         now: '2026-07-01T00:00:00Z',
-        log: (line: string) => printed.push(line),
-      })
-      const output = JSON.parse(printed[0])
-      const submittedBody = JSON.parse(String(fetchCalls[1].init?.body))
-
-      expect(direct).toMatchObject({
-        status: 201,
-        repo_did: repo.did,
-        certificate_id: 'ash_7fb3bff634ffa69047a829ef86',
-        url: 'https://vibecemetery.app/api/agent-ashes/ash-row-id',
-      })
-      expect(cli).toMatchObject(direct)
-      expect(output).toMatchObject(direct)
+      })).rejects.toThrow('Agent-native submit is not enabled on VibeCemetery backend; use submit-delegated')
       expect(fetchCalls.map((call) => String(call.url))).toEqual([
         'https://node.gitlawb.com/api/v1/repos',
-        'https://vibecemetery.app/api/agent-ashes',
         'https://node.gitlawb.com/api/v1/repos',
-        'https://vibecemetery.app/api/agent-ashes',
       ])
-      expect(submittedBody).toMatchObject({
-        certificate: { schema_version: 'agent_ash.v1', subject: { repo_did: repo.did } },
-        proof: { type: 'gitlawb_http_node_v1', repo_did: repo.did },
-      })
-      const submittedHeaders = fetchCalls[1].init?.headers as Record<string, string>
-      expect(submittedHeaders.Authorization).toBe('AgentDID did:key:z6MkAgentHermes')
-      expect(submittedHeaders['X-Agent-Signature']).toMatch(/^[A-Za-z0-9_-]+$/)
-      expect(submittedHeaders['X-Agent-Timestamp']).toBeTruthy()
-      expect(submittedHeaders['X-Agent-Nonce']).toBeTruthy()
-      expect(JSON.stringify(output)).not.toContain('agent_ash_token')
-      expect(JSON.stringify(output)).not.toContain('ash_test_token')
-      expect(JSON.stringify(output)).not.toContain(String(nativeConfig.agent_private_key))
     } finally {
       await rm(home, { recursive: true, force: true })
     }
@@ -609,6 +581,7 @@ test.describe('gitlawb agent ash skill helpers', () => {
         repo_did: derivedGitlawbV038RepoDid,
         native_ready: false,
         missing: ['did', 'owner_agent_did', 'owner_public_key', 'state'],
+        invalid: [],
         fallback: 'connect-delegated',
       })
       expect(cli).toEqual(direct)
@@ -620,6 +593,50 @@ test.describe('gitlawb agent ash skill helpers', () => {
     } finally {
       await rm(home, { recursive: true, force: true })
     }
+  })
+
+  test('verify-one-shot rejects malformed or mismatched native owner public keys', async () => {
+    const { runOneShotVerify } = await loadHelper()
+    const otherKeyPair = generateKeyPairSync('ed25519')
+    const otherPublicKey = otherKeyPair.publicKey.export({ type: 'spki', format: 'pem' })
+
+    await expect(runOneShotVerify({
+      repoDid: repo.did,
+      config,
+      repos: [repo],
+    })).resolves.toMatchObject({
+      native_ready: false,
+      missing: ['agent_private_key'],
+    })
+
+    await expect(runOneShotVerify({
+      repoDid: repo.did,
+      config: nativeConfig,
+      repos: [{ ...repo, owner_public_key: 'not-a-public-key' }],
+    })).resolves.toMatchObject({
+      native_ready: false,
+      invalid: ['owner_public_key'],
+    })
+
+    await expect(runOneShotVerify({
+      repoDid: repo.did,
+      config: nativeConfig,
+      repos: [{ ...repo, owner_public_key: otherPublicKey }],
+    })).resolves.toMatchObject({
+      native_ready: false,
+      invalid: ['owner_public_key_mismatch'],
+    })
+
+    await expect(runOneShotVerify({
+      repoDid: repo.did,
+      config: nativeConfig,
+      repos: [repo],
+    })).resolves.toMatchObject({
+      status: 'native_ready',
+      native_ready: true,
+      missing: [],
+      invalid: [],
+    })
   })
 
   test('submit-delegated keeps GitLawb node v0.3.8 fallback on browser-approved ash token auth', async () => {
@@ -711,6 +728,7 @@ test.describe('gitlawb agent ash skill helpers', () => {
       await expect(runOneShotSubmit({
         repoDid: repo.did,
         homedir: home,
+        experimentalNativeSubmit: true,
         fetchImpl: async (url: string | URL | Request) => String(url).startsWith('https://node.gitlawb.com')
           ? Response.json({ repos: [repo] })
           : Response.json({ error: 'verification failed' }, { status: 422 }),
@@ -718,6 +736,7 @@ test.describe('gitlawb agent ash skill helpers', () => {
       await expect(runOneShotSubmit({
         repoDid: repo.did,
         homedir: home,
+        experimentalNativeSubmit: true,
         fetchImpl: async (url: string | URL | Request) => String(url).startsWith('https://node.gitlawb.com')
           ? Response.json({ repos: [repo] })
           : Response.json({ id: 'accepted-later' }, { status: 202 }),
@@ -727,6 +746,7 @@ test.describe('gitlawb agent ash skill helpers', () => {
         await runOneShotSubmit({
           repoDid: repo.did,
           homedir: home,
+          experimentalNativeSubmit: true,
           fetchImpl: async (url: string | URL | Request) => String(url).startsWith('https://node.gitlawb.com')
             ? Response.json({ repos: [repo] })
             : Response.json({ error: `bad ${config.agent_ash_token} claim_xxxxxxxxxxxxxxxxxxxx vc_cli_12345678-1234-4123-8123-123456789abc.sig` }, { status: 422 }),

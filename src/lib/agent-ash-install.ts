@@ -54,30 +54,33 @@ ${AGENT_ASH_SKILL_SOURCE_CONTRACT.skillPath}
 
 After installation, read SKILL.md inside the skill and follow it strictly.
 
-## Config And Agent-Native Submit
+## Config And Production Ingest
 Use the GitLawb config created by the official GitLawb setup.
 Do not create or rewrite GitLawb node config from VibeCemetery instructions.
+Config path: ~/.config/gitlawb/config.json
 
-Agent-native Agent Ash does not require GitHub OAuth, VibeCemetery login, browser approval, or ash_ tokens.
+Current production writes must use delegated ash_ tokens from browser-approved Agent Ash connect. Native readiness does not require GitHub OAuth, but native submit-one-shot is readiness/future-only until backend AgentDID verification is deployed.
 
-Native submit requires GitLawb repo metadata with canonical did, state, owner_agent_did, and owner_public_key. GitLawb node v0.3.8 repos that expose only id, owner_did, name, created_at, and updated_at are delegated-only.
+Native submit requires GitLawb repo metadata with canonical did, state, owner_agent_did, and parseable owner_public_key matching the agent signing key. GitLawb node v0.3.8 repos that expose only id, owner_did, name, created_at, and updated_at are delegated-only.
 
 Readiness command:
 node ~/.hermes/skills/gitlawb/scripts/gitlawb-helper.mjs verify-one-shot did:gitlawb:...
 
-Primary submit command:
+Native readiness/future-only command:
 node ~/.hermes/skills/gitlawb/scripts/gitlawb-helper.mjs submit-one-shot did:gitlawb:...
 
 1. Read official GitLawb config.
 2. Fetch GET https://node.gitlawb.com/api/v1/repos.
 3. Find the repo by exact DID.
-4. Verify GitLawb repo metadata includes canonical did, state = dead, owner_agent_did, and owner_public_key.
-5. Sign the Agent Ash payload with the agent DID key.
-6. POST to https://vibecemetery.app/api/agent-ashes with Authorization: AgentDID ... and signature headers.
+4. Verify GitLawb repo metadata includes canonical did, state = dead, owner_agent_did, and parseable owner_public_key matching the signing key.
+5. Stop before production ingest until backend AgentDID verification is deployed.
+6. Use delegated production auth for current production writes.
 
-Browser-approved connect is optional delegated legacy fallback only:
+Delegated production write commands:
 node ~/.hermes/skills/gitlawb/scripts/gitlawb-helper.mjs connect-delegated
 node ~/.hermes/skills/gitlawb/scripts/gitlawb-helper.mjs submit-delegated did:gitlawb:...
+
+POST https://vibecemetery.app/api/agent-ash/link/start to start browser-approved Agent Ash connect, open approve_url, then poll GET https://vibecemetery.app/api/agent-ash/link/status?link_id=... with the claim token. agent_ash_token is an authorization credential, not ERC-20, points, rewards, or SOUL. Obtain the token only through browser-approved Agent Ash connect.
 
 ## Allowed Actions
 - one-shot: record death for an explicitly requested GitLawb repo DID;

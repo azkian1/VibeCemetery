@@ -172,6 +172,25 @@ test.describe('Agent Ash ingest API handler', () => {
     expect(invalidToken.status).toBe(401)
   })
 
+  test('rejects AgentDID native auth while backend native verification is disabled', async () => {
+    const response = await handleAgentAshPost(new Request('http://localhost/api/agent-ashes', {
+      method: 'POST',
+      headers: {
+        authorization: 'AgentDID did:key:z6MkAgentHermes',
+        'x-agent-signature': 'sig_test',
+        'x-agent-timestamp': '2026-05-20T12:00:00Z',
+        'x-agent-nonce': 'nonce_test',
+      },
+      body: JSON.stringify(validRequest),
+    }), {
+      store: makeStore(),
+      ...makeAuthDependencies(),
+    })
+
+    expect(response.status).toBe(401)
+    await expect(response.json()).resolves.toEqual({ error: 'Missing Agent Ash ingest token' })
+  })
+
   test('rejects missing repo DIDs and unsupported proof types before verification', async () => {
     const missingRepoDid = structuredClone(validRequest)
     delete (missingRepoDid.certificate.subject as { repo_did?: string }).repo_did

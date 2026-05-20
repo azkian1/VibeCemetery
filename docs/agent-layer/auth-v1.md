@@ -23,6 +23,8 @@ Native submit requires GitLawb repo metadata with:
 
 If a GitLawb node exposes only `id`, `owner_did`, `name`, `created_at`, and `updated_at`, it is delegated-only. The skill command `verify-one-shot did:gitlawb:...` reports missing native fields without submitting.
 
+`owner_public_key` must be parseable public-key material and must match the local signing key. Malformed keys or mismatched signing keys return `native_ready: false`.
+
 ## Setup Order
 
 1. User gives Hermes/OpenClaw the Agent Ash setup URL or copied setup instruction.

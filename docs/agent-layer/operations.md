@@ -56,14 +56,14 @@ https://node.gitlawb.com
 
 Before enabling native `AgentDID` ingest in production:
 
-1. GitLawb repo metadata exposes canonical `did`, `state`, `owner_agent_did`, and `owner_public_key`.
+1. GitLawb repo metadata exposes canonical `did`, `state`, `owner_agent_did`, and parseable `owner_public_key`.
 2. `/api/agent-ashes` accepts `Authorization: AgentDID ...` only after verifying signature headers.
 3. Timestamp freshness is enforced.
 4. Nonces are stored and rejected on replay per agent DID.
 5. GitLawb repo DID, certificate repo DID, and proof repo DID must match.
 6. GitLawb `state` must be `dead`.
 7. GitLawb `owner_agent_did` must match `certificate.agent.did` and the authorization DID.
-8. Public key is resolved from GitLawb metadata or DID document before signature verification.
+8. Public key is resolved from GitLawb metadata or DID document before signature verification, and local readiness rejects malformed or mismatched keys.
 9. Delegated `ash_...` fallback remains green or is explicitly deprecated.
 
 ## Verification Commands

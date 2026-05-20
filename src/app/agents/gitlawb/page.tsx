@@ -26,6 +26,7 @@ export default function GitlawbAgentInstallPage() {
           Agent instruction: use the official GitLawb setup at https://gitlawb.com/ if GitLawb is not ready.
           VibeCemetery does not install GitLawb. It only provides the Agent Ash skill contract below.
           Canonical site-hosted distribution: /agents/gitlawb/v1.
+          Current production writes use browser-approved delegated ash_ tokens; native submit-one-shot is readiness/future-only until backend AgentDID verification lands.
         </p>
 
         <section style={{ border: '1px solid rgba(200,160,80,0.28)', padding: 16, margin: '18px 0', background: 'rgba(0,0,0,0.22)' }}>
