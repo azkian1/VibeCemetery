@@ -1,5 +1,5 @@
 import { createHash, timingSafeEqual } from 'node:crypto'
-import { access, copyFile, lstat, mkdir, mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises'
+import { access, copyFile, lstat, mkdir, mkdtemp, readFile, readdir, realpath, rm, writeFile } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
@@ -272,15 +272,29 @@ async function printDryRun(homeDir, manifestMap) {
 
 async function backupExistingTarget(targetRoot, backupRoot) {
   if (!await pathExists(targetRoot)) return false
+  await assertNoSymlinkTree(targetRoot)
   await mkdir(path.dirname(backupRoot), { recursive: true })
   await rm(backupRoot, { recursive: true, force: true })
   await copyDirectory(targetRoot, backupRoot)
   return true
 }
 
+async function assertNoSymlinkTree(rootPath) {
+  const entries = await readdir(rootPath, { withFileTypes: true })
+  for (const entry of entries) {
+    const entryPath = path.join(rootPath, entry.name)
+    const stats = await lstat(entryPath)
+    if (stats.isSymbolicLink()) {
+      throw new Error(`Existing install contains a symlink or junction: ${entryPath}`)
+    }
+    if (stats.isDirectory()) {
+      await assertNoSymlinkTree(entryPath)
+    }
+  }
+}
+
 async function copyDirectory(sourceRoot, targetRoot) {
   await mkdir(targetRoot, { recursive: true })
-  const { readdir } = await import('node:fs/promises')
   const entries = await readdir(sourceRoot, { withFileTypes: true })
   for (const entry of entries) {
     const sourcePath = path.join(sourceRoot, entry.name)

@@ -66,7 +66,7 @@ export default function GitlawbAgentSkillV1Page() {
         <section style={{ marginBottom: 28 }}>
           <h2 style={{ color: '#e8d5a3', fontSize: 20 }}>Security boundaries</h2>
           <p style={{ color: '#aaa9a0', lineHeight: 1.7 }}>
-            The mirror serves only SKILL.md and scripts/gitlawb-helper.mjs from a fixed allowlist. Unknown paths and path traversal attempts return 404. Agent Ash uses browser-approved ash_ tokens and submits verified records only to /api/agent-ashes.
+            The mirror serves only manifest.json, the installer files, SKILL.md, and scripts/gitlawb-helper.mjs from a fixed allowlist. Unknown paths and path traversal attempts return 404. Agent Ash uses browser-approved ash_ tokens and submits verified records only to /api/agent-ashes.
           </p>
         </section>
 

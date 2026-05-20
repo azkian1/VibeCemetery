@@ -1,6 +1,6 @@
 $ErrorActionPreference = 'Stop'
 
-$expectedManifestPayloadSha256 = '456f4bbdbb4ba7729d1eaf023d5aa352679842988e8a68265636f7e4a0de0326'
+$expectedManifestPayloadSha256 = '710e667056ed823c281617534593efcabc87ed08a3482395e5beb709ddd9e002'
 $rawBase = if ($env:VIBECEMETERY_AGENT_SKILL_INSTALL_BASE_URL) { $env:VIBECEMETERY_AGENT_SKILL_INSTALL_BASE_URL } else { 'https://vibecemetery.app/agents/gitlawb/v1' }
 $rawBase = $rawBase.TrimEnd('/')
 $tmpDir = New-Item -ItemType Directory -Force -Path ([System.IO.Path]::Combine([System.IO.Path]::GetTempPath(), [System.IO.Path]::GetRandomFileName()))

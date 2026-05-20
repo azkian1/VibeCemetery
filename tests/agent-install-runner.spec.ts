@@ -248,3 +248,23 @@ test('runner rejects symlink redirected target paths', async () => {
     rmSync(redirectedDir, { recursive: true, force: true })
   }
 })
+
+test('runner rejects symlinks inside an existing install before backup', async () => {
+  const homeDir = mkdtempSync(path.join(tmpdir(), 'vibecemetery-hermes-home-'))
+  const redirectedDir = mkdtempSync(path.join(tmpdir(), 'vibecemetery-hermes-existing-redirected-'))
+  const targetScriptsDir = path.join(homeDir, '.hermes', 'skills', 'gitlawb', 'scripts')
+  const { server, port } = await startFixtureServer()
+
+  mkdirSync(targetScriptsDir, { recursive: true })
+  writeFileSync(path.join(homeDir, '.hermes', 'skills', 'gitlawb', 'SKILL.md'), 'existing skill')
+  symlinkSync(redirectedDir, path.join(targetScriptsDir, 'redirected'), 'junction')
+
+  try {
+    await expect(runRunner(['--raw-base-url', `http://127.0.0.1:${port}`], homeDir)).rejects.toThrow(/symlink|junction/i)
+    expect(existsSync(path.join(redirectedDir, 'SKILL.md'))).toBe(false)
+  } finally {
+    server.close()
+    rmSync(homeDir, { recursive: true, force: true })
+    rmSync(redirectedDir, { recursive: true, force: true })
+  }
+})
