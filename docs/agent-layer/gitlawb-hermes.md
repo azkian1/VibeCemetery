@@ -85,11 +85,13 @@ Shape:
   "gitlawb_node_url": "https://node.gitlawb.com",
   "agent_name": "hermes",
   "agent_did": "did:key:z6MkAgentHermes",
-  "agent_ash_token": "ash_xxxxxxxxxxxx",
+  "agent_private_key": "<GitLawb-managed key reference or local key>",
   "vc_url": "https://vibecemetery.app",
   "scheduled_approval_policy": "none"
 }
 ```
+
+Native submit requires GitLawb repo metadata to expose canonical authority fields: `did`, `state`, `owner_agent_did`, and `owner_public_key`. GitLawb node v0.3.8 responses that expose only `id`, `owner_did`, `name`, `created_at`, and `updated_at` are delegated-only; derived DIDs are for discovery/readiness checks, not native authority.
 
 ## One-Shot Flow
 
@@ -97,24 +99,33 @@ Use this when the human explicitly asks to record a death for a public GitLawb r
 
 GitLawb push/delete only changes GitLawb. VibeCemetery Agent Ash appears only after successful `/api/agent-ashes` ingest.
 
-Setup command:
-
-```text
-node ${CLAUDE_SKILL_DIR}/scripts/gitlawb-helper.mjs connect
-```
+Agent-native Agent Ash does not require GitHub OAuth, VibeCemetery login, browser approval, or an `ash_` token. Browser-approved connect is optional delegated legacy fallback only.
 
 Submit command:
 
 ```text
 node ${CLAUDE_SKILL_DIR}/scripts/gitlawb-helper.mjs submit-one-shot did:gitlawb:...
+node ${CLAUDE_SKILL_DIR}/scripts/gitlawb-helper.mjs verify-one-shot did:gitlawb:...
 ```
 
 1. Read local config.
 2. Fetch public repos from `GET {gitlawb_node_url}/api/v1/repos`.
 3. Locate the requested repo DID.
-4. Build `agent_ash.v1` certificate and `gitlawb_http_node_v1` proof with `buildAgentAshRequest`.
-5. Submit exactly once with `submitAgentAshRequest` to `POST {vc_url}/api/agent-ashes`.
-6. Report repo DID, certificate id, and returned VibeCemetery URL.
+4. Validate GitLawb repo metadata includes canonical `did`, `state = dead`, `owner_agent_did`, and `owner_public_key`.
+5. Build `agent_ash.v1` certificate and `gitlawb_http_node_v1` proof with `buildAgentAshRequest`.
+6. Sign canonical `{ certificate, proof, timestamp, nonce }` and submit exactly once to `POST {vc_url}/api/agent-ashes` with `Authorization: AgentDID ...`.
+7. Report repo DID, certificate id, and returned VibeCemetery URL.
+
+GitLawb repo metadata binds the repo DID to the submitting agent DID. VibeCemetery verifies GitLawb evidence and agent signature before accepting the Ash.
+
+If `verify-one-shot` returns `native_ready: false`, use delegated fallback instead of native submit.
+
+Delegated fallback commands:
+
+```text
+node ${CLAUDE_SKILL_DIR}/scripts/gitlawb-helper.mjs connect-delegated
+node ${CLAUDE_SKILL_DIR}/scripts/gitlawb-helper.mjs submit-delegated did:gitlawb:...
+```
 
 Treat a `201` response as final acceptance. Do not recheck GitLawb after accepted write.
 
@@ -184,7 +195,7 @@ Explicit approval metadata must include:
 - `approved_by`
 - `approved_at`
 
-Even with approval metadata, scheduled scans must not submit unless `agent_ash_token` is a real `ash_...` token.
+Scheduled scans currently submit only through delegated legacy fallback and require a real `ash_...` token. Do not use scheduled native submit until backend native auth and GitLawb native metadata are deployed.
 
 ## Prohibited Actions
 

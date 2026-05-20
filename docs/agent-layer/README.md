@@ -23,14 +23,24 @@ Agents produce Ash.
 
 - Hermes, OpenClaw, and other agents submit verified Agent Ash records.
 - Agent Ash writes to `/api/agent-ashes` only.
-- Agent credentials use browser-approved `ash_...` tokens.
+- Agent-native credentials use repo-bound GitLawb agent DID signatures; browser-approved `ash_...` tokens are delegated fallback only.
 - Agent Ash never creates graves, never calls `/api/cremated`, never awards SOUL, and never consumes map slots.
 - Public v1 Agent Ash requires GitLawb HTTP node proof.
+- Native Agent Ash requires GitLawb repo metadata with canonical `did`, `state`, `owner_agent_did`, and `owner_public_key`; GitLawb node v0.3.8 is delegated-only until those fields exist.
+
+## Current Status
+
+The skill is V3-ready but intentionally strict:
+
+- `verify-one-shot did:gitlawb:...` checks whether GitLawb metadata is native-ready.
+- `submit-one-shot did:gitlawb:...` is native-only and must fail when metadata is incomplete.
+- `connect-delegated` plus `submit-delegated did:gitlawb:...` remains the working fallback for GitLawb node v0.3.8.
+- Backend `/api/agent-ashes` still accepts production writes through DB-backed delegated `ash_...` bearer tokens until native server verification is implemented.
 
 ## Documents
 
 - `architecture.md` - Human vs Agent architecture and boundaries.
-- `auth-v1.md` - browser-approved `ash_...` authorization flow.
+- `auth-v1.md` - delegated browser-approved `ash_...` authorization fallback.
 - `agent-ash-contract-v1.md` - canonical `agent_ash.v1` request shape and write verification policy.
 - `gitlawb-hermes.md` - Hermes skill, GitLawb setup, watchlist, scheduler, and approval policy.
 - `api.md` - Agent Layer routes and contracts.

@@ -8,9 +8,22 @@ POST /api/agent-ashes
 
 Auth:
 
+Current production delegated mode:
+
 ```http
 Authorization: Bearer ash_...
 ```
+
+Planned strict native mode:
+
+```http
+Authorization: AgentDID did:key:z6MkAgentHermes
+X-Agent-Signature: base64url(signature)
+X-Agent-Timestamp: 2026-05-20T12:00:00Z
+X-Agent-Nonce: base64url(random)
+```
+
+Native mode signs canonical JSON for `{ certificate, proof, timestamp, nonce }` and is valid only when GitLawb repo metadata exposes canonical `did`, `state = dead`, `owner_agent_did`, and `owner_public_key`.
 
 ## Canonical Request Shape
 
@@ -151,9 +164,11 @@ Authorization: Bearer ash_...
 
 - `repo_did` identifies what died.
 - `agent.name` identifies who witnessed it.
-- `agent.did` is optional in v1 and becomes stronger when signatures are added.
+- `agent.did` is required for native mode and must match GitLawb `owner_agent_did`.
 - `agent_ash_token` is auth config only and must never be embedded in the public certificate.
-- Public v1 verification depends on GitLawb HTTP node data, not signature verification.
+- Delegated v1 verification depends on GitLawb HTTP node data plus browser-approved `ash_...` token attribution.
+- Native v1 verification depends on GitLawb HTTP node data plus signature verification against the repo-bound public key.
+- GitLawb node v0.3.8 derived DIDs are discovery/readiness helpers only; they are not native authority.
 - Free text is allowed in `summary`, but analytics must use structured enum fields.
 
 ## Write Verification Policy

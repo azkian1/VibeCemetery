@@ -63,7 +63,7 @@ Hermes, OpenClaw, and future agents can submit verified project-death records fr
 Agent submissions do not create graves. They create **Agent Ash**: structured `agent_ash.v1` certificates backed by GitLawb HTTP node proof.
 
 - Agent Ash writes only to `/api/agent-ashes`.
-- Agent credentials use browser-approved `ash_...` tokens.
+- Agent-native submissions use repo-bound GitLawb agent DID signatures.
 - Agent Ash requires `gitlawb_http_node_v1` proof.
 - Agent Ash never calls `/api/cremated`.
 - Agent Ash never creates graves.
@@ -133,26 +133,35 @@ Quick install downloads and executes the site-hosted installer. The site page sh
 
 ## Agentic Setup
 
-Agentic Layer setup has two trust boundaries: GitLawb first, then VibeCemetery Agent Ash approval.
+Agentic Layer setup has two trust boundaries: GitLawb first, then VibeCemetery Agent Ash verification.
 
 ```text
 1. Agent checks whether GitLawb is installed and configured.
 2. If missing, agent starts from https://gitlawb.com/.
 3. Agent installs the VibeCemetery Agent Ash skill from https://vibecemetery.app/agents/gitlawb/v1.
 4. Agent reads https://vibecemetery.app/agents/gitlawb.
-5. Agent starts an Agent Ash link session.
-6. Human approves in an authenticated VibeCemetery browser session.
-7. Agent receives an ash_... token exactly once.
-8. After GitLawb-side death is visible, agent explicitly submits GitLawb-verified agent_ash.v1 records to /api/agent-ashes.
+5. Agent reads its GitLawb-managed DID/key reference.
+6. After GitLawb-side death is visible, agent signs and submits GitLawb-verified agent_ash.v1 records to /api/agent-ashes.
 ```
+
+Agent-native Agent Ash does not require GitHub OAuth, VibeCemetery login, browser approval, or `ash_` tokens. GitLawb repo metadata binds the repo DID to the submitting agent DID. VibeCemetery verifies GitLawb evidence and agent signature before accepting the Ash.
+
+Native submit requires GitLawb repo metadata with canonical `did`, `state`, `owner_agent_did`, and `owner_public_key`. GitLawb node v0.3.8 metadata that exposes only `id`, `owner_did`, `name`, `created_at`, and `updated_at` is delegated-only; derived DIDs are not native authority.
 
 GitLawb push/delete only changes GitLawb. VibeCemetery Agent Ash appears only after successful `/api/agent-ashes` ingest.
 
 Operational commands:
 
 ```bash
-node ~/.hermes/skills/gitlawb/scripts/gitlawb-helper.mjs connect
+node ~/.hermes/skills/gitlawb/scripts/gitlawb-helper.mjs verify-one-shot did:gitlawb:...
 node ~/.hermes/skills/gitlawb/scripts/gitlawb-helper.mjs submit-one-shot did:gitlawb:...
+```
+
+Optional delegated fallback:
+
+```bash
+node ~/.hermes/skills/gitlawb/scripts/gitlawb-helper.mjs connect-delegated
+node ~/.hermes/skills/gitlawb/scripts/gitlawb-helper.mjs submit-delegated did:gitlawb:...
 ```
 
 Canonical Agent Ash skill installer:
@@ -223,7 +232,7 @@ Useful docs:
     "Agent Ash never calls /api/cremated.",
     "Agent Ash never creates graves.",
     "Human /bury uses vc_cli_* tokens, not ash_* tokens.",
-    "Agent Ash ingest requires browser-approved ash_* tokens.",
+    "Agent-native Agent Ash ingest uses repo-bound DID signatures, not browser-approved ash_* tokens.",
     "GitHub graves are verified before insertion.",
     "GitLawb Agent Ash proof is verified once before insertion."
   ],

@@ -280,6 +280,7 @@ export function normalizeGitlawbConfig(config = {}) {
     agent_name: sanitizeString(config.agent_name, STRING_LIMITS.agentName, 'hermes'),
     agent_did: sanitizeString(config.agent_did, STRING_LIMITS.agentDid),
     agent_ash_token: asString(config.agent_ash_token),
+    agent_private_key: asString(config.agent_private_key ?? config.private_key),
     vc_url: normalizeVcUrl(config.vc_url),
   }
 }
@@ -329,6 +330,88 @@ function getRepoName(repo = {}) {
 
 function getNodeHost(nodeUrl) {
   return new URL(nodeUrl).host
+}
+
+export function stableJsonStringify(value) {
+  if (Array.isArray(value)) {
+    return `[${value.map((item) => stableJsonStringify(item)).join(',')}]`
+  }
+  if (value && typeof value === 'object') {
+    return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${stableJsonStringify(value[key])}`).join(',')}}`
+  }
+  return JSON.stringify(value)
+}
+
+function base64Url(buffer) {
+  return Buffer.from(buffer).toString('base64url')
+}
+
+function createNativeSignature(options = {}) {
+  const config = normalizeGitlawbConfig(options.config ?? {})
+  if (!config.agent_did) {
+    throw new Error('agent_did is required for native Agent Ash submit')
+  }
+  if (!config.agent_private_key) {
+    throw new Error('agent_private_key is required for native Agent Ash submit')
+  }
+  const timestamp = normalizeIso(options.timestamp ?? new Date().toISOString())
+  const nonce = sanitizeString(options.nonce ?? base64Url(crypto.randomBytes(18)), 128)
+  if (!nonce) {
+    throw new Error('nonce is required for native Agent Ash submit')
+  }
+  const canonical = stableJsonStringify({
+    certificate: options.request?.certificate,
+    proof: options.request?.proof,
+    timestamp,
+    nonce,
+  })
+  const digest = crypto.createHash('sha256').update(canonical).digest()
+  const signature = crypto.sign(null, digest, config.agent_private_key)
+  return { timestamp, nonce, signature: base64Url(signature) }
+}
+
+function getRepoOwnerAgentDid(repo = {}) {
+  return sanitizeString(repo.owner_agent_did, STRING_LIMITS.agentDid)
+}
+
+function getCanonicalRepoDid(repo = {}) {
+  return asString(repo.did)
+}
+
+export function getNativeReadiness(repo = {}, config = {}) {
+  const normalizedConfig = normalizeGitlawbConfig(config)
+  const missing = []
+  const canonicalRepoDid = getCanonicalRepoDid(repo)
+  const ownerAgentDid = getRepoOwnerAgentDid(repo)
+  const ownerPublicKey = sanitizeString(repo.owner_public_key, 2048)
+  const state = sanitizeString(repo.state, STRING_LIMITS.deathStage).toLowerCase()
+
+  if (!GITLAWB_REPO_DID_PATTERN.test(canonicalRepoDid)) missing.push('did')
+  if (!ownerAgentDid) missing.push('owner_agent_did')
+  if (!ownerPublicKey) missing.push('owner_public_key')
+  if (!state) missing.push('state')
+
+  return {
+    native_ready: missing.length === 0 && state === 'dead' && ownerAgentDid === normalizedConfig.agent_did,
+    missing,
+    state,
+    owner_agent_did: ownerAgentDid || undefined,
+    owner_public_key: ownerPublicKey || undefined,
+  }
+}
+
+function validateNativeRepoMetadata(repo, config) {
+  const readiness = getNativeReadiness(repo, config)
+  if (readiness.missing.length > 0) {
+    throw new Error('GitLawb repo metadata does not support agent-native submit; use connect-delegated/submit-delegated')
+  }
+  if (readiness.state !== 'dead') {
+    throw new Error('GitLawb repo state must be dead for native Agent Ash submit')
+  }
+  const ownerAgentDid = getRepoOwnerAgentDid(repo)
+  if (ownerAgentDid !== config.agent_did) {
+    throw new Error('GitLawb repo owner_agent_did must match agent_did')
+  }
 }
 
 function defaultDiagnosis(repo, now) {
@@ -522,12 +605,56 @@ export function buildSubmissionRequest(options = {}) {
   }
 }
 
+export function buildNativeSubmissionRequest(options = {}) {
+  const config = normalizeGitlawbConfig(options.config ?? {})
+  const signed = createNativeSignature({
+    config,
+    request: options.request,
+    timestamp: options.timestamp,
+    nonce: options.nonce,
+  })
+
+  return {
+    url: `${config.vc_url}${AGENT_ASH_INGEST_PATH}`,
+    method: 'POST',
+    headers: {
+      Authorization: `AgentDID ${config.agent_did}`,
+      'X-Agent-Signature': signed.signature,
+      'X-Agent-Timestamp': signed.timestamp,
+      'X-Agent-Nonce': signed.nonce,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(options.request),
+  }
+}
+
 export async function submitAgentAshRequest(options = {}) {
   const fetchImpl = options.fetchImpl ?? globalThis.fetch
   if (typeof fetchImpl !== 'function') {
     throw new Error('fetch is required to submit Agent Ash')
   }
   const request = buildSubmissionRequest(options)
+  const response = await fetchImpl(request.url, {
+    method: request.method,
+    headers: request.headers,
+    body: request.body,
+  })
+  const body = await parseJsonResponse(response, 'Agent Ash submit')
+  if (response.status !== 201) {
+    throw new Error(`Agent Ash submit must return 201, received ${response.status}`)
+  }
+  return {
+    status: response.status,
+    body,
+  }
+}
+
+export async function submitAgentAshNativeRequest(options = {}) {
+  const fetchImpl = options.fetchImpl ?? globalThis.fetch
+  if (typeof fetchImpl !== 'function') {
+    throw new Error('fetch is required to submit Agent Ash')
+  }
+  const request = buildNativeSubmissionRequest(options)
   const response = await fetchImpl(request.url, {
     method: request.method,
     headers: request.headers,
@@ -794,6 +921,43 @@ export async function runOneShotSubmit(options = {}) {
   if (!repo) {
     throw new Error(`GitLawb repo not found: ${repoDid}`)
   }
+  validateNativeRepoMetadata(repo, config)
+
+  const request = buildAgentAshRequest({
+    repo,
+    config,
+    declaredDeadAt: options.now ?? options.declaredDeadAt ?? new Date().toISOString(),
+    diagnosis: options.diagnosis,
+  })
+  const submitted = await submitAgentAshNativeRequest({ config, request, fetchImpl: options.fetchImpl })
+  return {
+    status: submitted.status,
+    repo_did: repoDid,
+    certificate_id: request.certificate.identity.certificate_id,
+    id: submitted.body?.id,
+    certificate_hash: submitted.body?.certificate_hash,
+    url: submitted.body?.url,
+    certificate_url: submitted.body?.certificate_url,
+    verification_policy: submitted.body?.verification_policy,
+  }
+}
+
+export async function runDelegatedSubmit(options = {}) {
+  const repoDid = asString(options.repoDid ?? options.repo_did)
+  if (!repoDid) {
+    throw new Error('submit-delegated requires a repo DID')
+  }
+  if (!GITLAWB_REPO_DID_PATTERN.test(repoDid)) {
+    throw new Error('repo DID must match did:gitlawb:<safe-id>')
+  }
+
+  const storedConfig = options.config ?? await readJsonFile(computeGitlawbStoragePaths(options).configPath)
+  const config = normalizeGitlawbConfig(storedConfig)
+  const repos = Array.isArray(options.repos) ? options.repos : await fetchGitlawbRepos({ config, fetchImpl: options.fetchImpl })
+  const repo = findGitlawbRepoByDid(repos, repoDid)
+  if (!repo) {
+    throw new Error(`GitLawb repo not found: ${repoDid}`)
+  }
 
   const request = buildAgentAshRequest({
     repo,
@@ -811,6 +975,43 @@ export async function runOneShotSubmit(options = {}) {
     url: submitted.body?.url,
     certificate_url: submitted.body?.certificate_url,
     verification_policy: submitted.body?.verification_policy,
+  }
+}
+
+export async function runOneShotVerify(options = {}) {
+  const repoDid = asString(options.repoDid ?? options.repo_did)
+  if (!repoDid) {
+    throw new Error('verify-one-shot requires a repo DID')
+  }
+  if (!GITLAWB_REPO_DID_PATTERN.test(repoDid)) {
+    throw new Error('repo DID must match did:gitlawb:<safe-id>')
+  }
+
+  const storedConfig = options.config ?? await readJsonFile(computeGitlawbStoragePaths(options).configPath)
+  const config = normalizeGitlawbConfig(storedConfig)
+  const repos = Array.isArray(options.repos) ? options.repos : await fetchGitlawbRepos({ config, fetchImpl: options.fetchImpl })
+  const repo = findGitlawbRepoByDid(repos, repoDid)
+  if (!repo) {
+    throw new Error(`GitLawb repo not found: ${repoDid}`)
+  }
+
+  const readiness = getNativeReadiness(repo, config)
+  if (!readiness.native_ready) {
+    return {
+      status: 'blocked_delegated_only',
+      repo_did: repoDid,
+      native_ready: false,
+      missing: readiness.missing,
+      fallback: 'connect-delegated',
+    }
+  }
+
+  return {
+    status: 'native_ready',
+    repo_did: repoDid,
+    native_ready: true,
+    missing: [],
+    fallback: null,
   }
 }
 
@@ -1042,10 +1243,10 @@ export function parseCliArgs(argv = []) {
   if (command === 'scheduled-scan' || command === 'scan-watchlist') {
     return { command: 'scheduled-scan' }
   }
-  if (command === 'connect') {
+  if (command === 'connect' || command === 'connect-delegated') {
     return { command: 'connect' }
   }
-  if (command === 'submit-one-shot' || command === 'submit') {
+  if (command === 'submit-one-shot' || command === 'verify-one-shot' || command === 'submit-delegated') {
     const repoDid = asString(argv[1])
     if (!repoDid) {
       throw new Error(`${command} requires a repo DID`)
@@ -1053,7 +1254,7 @@ export function parseCliArgs(argv = []) {
     if (!GITLAWB_REPO_DID_PATTERN.test(repoDid)) {
       throw new Error('repo DID must match did:gitlawb:<safe-id>')
     }
-    return { command: 'submit-one-shot', repoDid }
+    return { command, repoDid }
   }
   throw new Error(`Unknown gitlawb-helper command: ${command}`)
 }
@@ -1109,6 +1310,18 @@ export async function runCliCommand(argv = [], options = {}) {
 
   if (parsed.command === 'submit-one-shot') {
     const result = await runOneShotSubmit({ ...options, repoDid: parsed.repoDid })
+    log(JSON.stringify(result, null, 2))
+    return result
+  }
+
+  if (parsed.command === 'verify-one-shot') {
+    const result = await runOneShotVerify({ ...options, repoDid: parsed.repoDid })
+    log(JSON.stringify(result, null, 2))
+    return result
+  }
+
+  if (parsed.command === 'submit-delegated') {
+    const result = await runDelegatedSubmit({ ...options, repoDid: parsed.repoDid })
     log(JSON.stringify(result, null, 2))
     return result
   }

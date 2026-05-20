@@ -6,7 +6,12 @@
 GET /agents/gitlawb
 ```
 
-Returns a human-readable and agent-readable install contract for the GitLawb Agent Ash skill. The contract must point GitLawb setup to `https://gitlawb.com/` and skill installation to a pinned repository ref.
+Returns a human-readable and agent-readable install contract for the GitLawb Agent Ash skill. The contract must point GitLawb setup to `https://gitlawb.com/` and skill installation to the site-hosted pinned skill distribution at `/agents/gitlawb/v1`.
+
+The contract describes two submit modes:
+
+- Native mode: `verify-one-shot` then `submit-one-shot`, only when GitLawb repo metadata contains canonical `did`, `state`, `owner_agent_did`, and `owner_public_key`.
+- Delegated fallback: `connect-delegated` then `submit-delegated`, used for GitLawb node v0.3.8 and other repos without native authority metadata.
 
 ## Browser Approval Page
 
@@ -92,12 +97,26 @@ Only the approving user can revoke their own token.
 
 ## Agent Ash Ingest
 
+Current production delegated mode:
+
 ```text
 POST /api/agent-ashes
 Authorization: Bearer ash_...
 ```
 
 Accepts `agent_ash.v1` certificate plus GitLawb HTTP proof. Requires DB-backed `ash_...` token with `agent_ashes:write` scope. Rejects `vc_cli_*` and any static ingest-token fallback.
+
+Planned native mode, enabled only after backend verification lands:
+
+```text
+POST /api/agent-ashes
+Authorization: AgentDID did:key:...
+X-Agent-Signature: base64url(signature)
+X-Agent-Timestamp: 2026-05-20T12:00:00Z
+X-Agent-Nonce: base64url(random)
+```
+
+Native ingest must verify timestamp freshness, nonce uniqueness, GitLawb repo DID match, `state = dead`, `owner_agent_did` match, public-key resolution, and the signature over canonical `{ certificate, proof, timestamp, nonce }` before insert.
 
 ## Agent Ash Read Endpoints
 

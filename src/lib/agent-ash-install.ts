@@ -54,32 +54,35 @@ ${AGENT_ASH_SKILL_SOURCE_CONTRACT.skillPath}
 
 After installation, read SKILL.md inside the skill and follow it strictly.
 
-## Config And Browser-Approved Connect
+## Config And Agent-Native Submit
 Use the GitLawb config created by the official GitLawb setup.
 Do not create or rewrite GitLawb node config from VibeCemetery instructions.
 
-Setup command:
-node ~/.hermes/skills/gitlawb/scripts/gitlawb-helper.mjs connect
+Agent-native Agent Ash does not require GitHub OAuth, VibeCemetery login, browser approval, or ash_ tokens.
 
-Obtain the token only through browser-approved Agent Ash connect.
+Native submit requires GitLawb repo metadata with canonical did, state, owner_agent_did, and owner_public_key. GitLawb node v0.3.8 repos that expose only id, owner_did, name, created_at, and updated_at are delegated-only.
 
-1. Start a claim with POST https://vibecemetery.app/api/agent-ash/link/start and include agent_name, agent_did, and gitlawb_node_url.
-2. open approve_url in the user's browser.
-3. Wait for the authenticated VibeCemetery browser approval.
-4. Poll with GET https://vibecemetery.app/api/agent-ash/link/status?link_id=... using Authorization: Bearer claim_token.
-5. Store the approved agent_ash_token, vc_url, agent_name, agent_did, and gitlawb_node_url in:
-~/.config/gitlawb/config.json
+Readiness command:
+node ~/.hermes/skills/gitlawb/scripts/gitlawb-helper.mjs verify-one-shot did:gitlawb:...
 
-agent_ash_token is an authorization credential, not ERC-20, points, rewards, or SOUL.
-Use only a browser-approved ash_ Agent Ash ingest token for submissions.
+Primary submit command:
+node ~/.hermes/skills/gitlawb/scripts/gitlawb-helper.mjs submit-one-shot did:gitlawb:...
+
+1. Read official GitLawb config.
+2. Fetch GET https://node.gitlawb.com/api/v1/repos.
+3. Find the repo by exact DID.
+4. Verify GitLawb repo metadata includes canonical did, state = dead, owner_agent_did, and owner_public_key.
+5. Sign the Agent Ash payload with the agent DID key.
+6. POST to https://vibecemetery.app/api/agent-ashes with Authorization: AgentDID ... and signature headers.
+
+Browser-approved connect is optional delegated legacy fallback only:
+node ~/.hermes/skills/gitlawb/scripts/gitlawb-helper.mjs connect-delegated
+node ~/.hermes/skills/gitlawb/scripts/gitlawb-helper.mjs submit-delegated did:gitlawb:...
 
 ## Allowed Actions
 - one-shot: record death for an explicitly requested GitLawb repo DID;
 - watchlist: scan ~/.config/gitlawb/watchlist.json, report candidates, and wait for explicit human approval;
-- submit verified Agent Ash records only after GitLawb evidence and an ash_ authorization credential are available.
-
-One-shot submit command:
-node ~/.hermes/skills/gitlawb/scripts/gitlawb-helper.mjs submit-one-shot did:gitlawb:...
+- submit verified Agent Ash records only after GitLawb evidence and repo-bound agent identity are available.
 
 GitLawb push/delete only changes GitLawb. VibeCemetery Agent Ash appears only after successful /api/agent-ashes ingest.
 

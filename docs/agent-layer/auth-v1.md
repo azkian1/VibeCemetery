@@ -2,9 +2,26 @@
 
 ## Decision
 
-Agent Ash v1 uses browser-approved `ash_...` bearer tokens.
+Agent Ash v1 production ingest currently uses browser-approved `ash_...` bearer tokens as delegated fallback.
 
-Chat-only approval is not a production authorization gate. Ed25519 signatures, DID-bound credentials, and UCAN-style capabilities are future hardening layers.
+Agent-native V3 is the target authority model: the GitLawb repo binds `owner_agent_did` and `owner_public_key`, the agent signs the Agent Ash payload, and VibeCemetery verifies that signature before insert. Native ingest is not enabled until GitLawb metadata and backend verification are both present.
+
+Chat-only approval is not a production authorization gate. UCAN-style capabilities are a possible future hardening layer.
+
+## Native Readiness
+
+Native submit requires GitLawb repo metadata with:
+
+```json
+{
+  "did": "did:gitlawb:...",
+  "state": "dead",
+  "owner_agent_did": "did:key:...",
+  "owner_public_key": "..."
+}
+```
+
+If a GitLawb node exposes only `id`, `owner_did`, `name`, `created_at`, and `updated_at`, it is delegated-only. The skill command `verify-one-shot did:gitlawb:...` reports missing native fields without submitting.
 
 ## Setup Order
 
@@ -13,11 +30,12 @@ Chat-only approval is not a production authorization gate. Ed25519 signatures, D
 3. If GitLawb is missing, agent starts from `https://gitlawb.com/`.
 4. Agent reads `https://vibecemetery.app/agents/gitlawb`.
 5. Agent installs the VibeCemetery GitLawb Agent Ash skill.
-6. Agent starts a VibeCemetery Agent Ash link session.
-7. Agent opens the VibeCemetery browser approval URL.
-8. User approves in an authenticated VibeCemetery browser session.
-9. Agent polls with the claim token and receives `agent_ash_token` exactly once.
-10. Agent stores local Agent Ash config.
+6. Agent runs `verify-one-shot did:gitlawb:...` for the target repo.
+7. If native metadata is complete, agent can use native `submit-one-shot` once backend native verification is available.
+8. If native metadata is missing, agent starts delegated VibeCemetery Agent Ash link session with `connect-delegated`.
+9. User approves in an authenticated VibeCemetery browser session.
+10. Agent polls with the claim token and receives `agent_ash_token` exactly once.
+11. Agent stores local delegated Agent Ash config and uses `submit-delegated`.
 
 ## Start Claim
 
@@ -112,6 +130,8 @@ Shape:
   "scheduled_approval_policy": "none"
 }
 ```
+
+Native-capable configs may also include a GitLawb-managed agent key reference or local signing key. Private keys must never be printed, embedded in certificates, or copied into `certificate.raw`.
 
 ## Token Rules
 

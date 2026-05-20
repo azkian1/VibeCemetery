@@ -1,4 +1,5 @@
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { generateKeyPairSync } from 'node:crypto'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, test } from '@playwright/test'
@@ -20,6 +21,9 @@ const repo = {
   languages: ['python'],
   default_branch: 'main',
   latest_commit: 'abc123deadbeef',
+  state: 'dead',
+  owner_agent_did: 'did:key:z6MkAgentHermes',
+  owner_public_key: 'test-public-key',
 }
 
 const config = {
@@ -38,6 +42,12 @@ const gitlawbV038Repo = {
   updated_at: '2026-06-01T00:00:00Z',
 }
 
+const nativeKeyPair = generateKeyPairSync('ed25519')
+const nativeConfig = {
+  ...config,
+  agent_private_key: nativeKeyPair.privateKey.export({ type: 'pkcs8', format: 'pem' }),
+}
+
 const derivedGitlawbV038RepoDid = 'did:gitlawb:34deff7b47100b8febd5c935bf152124'
 
 test.describe('gitlawb agent ash skill helpers', () => {
@@ -45,8 +55,12 @@ test.describe('gitlawb agent ash skill helpers', () => {
     const skill = await readFile(skillPath, 'utf8')
 
     expect(skill).toContain('HELPER_SCRIPT = ${CLAUDE_SKILL_DIR}/scripts/gitlawb-helper.mjs')
-    expect(skill).toContain('agent_ash_token')
-    expect(skill).toContain('POST {vc_url}/api/agent-ashes')
+    expect(skill).toContain('Agent-native is the default')
+    expect(skill).toContain('No GitHub login is required')
+    expect(skill).toContain('No VibeCemetery browser connect is required')
+    expect(skill).toContain('No human `/bury` credentials are used')
+    expect(skill).toContain('No `ash_` token is required for native submit')
+    expect(skill).toContain('POST https://vibecemetery.app/api/agent-ashes')
     expect(skill).toContain('scheduled_approval_policy')
     expect(skill).toContain('Do not call `/api/cremated`.')
     expect(skill).toContain('Do not use human CLI `/bury` tokens.')
@@ -299,34 +313,46 @@ test.describe('gitlawb agent ash skill helpers', () => {
     expect(request.proof.repo_did).toBe(derivedGitlawbV038RepoDid)
   })
 
-  test('builds a bearer-authenticated VibeCemetery ingest request only for Agent Ashes', async () => {
-    const { buildAgentAshRequest, buildSubmissionRequest } = await loadHelper()
+  test('builds an agent-native signed VibeCemetery ingest request without ash token auth', async () => {
+    const { buildAgentAshRequest, buildNativeSubmissionRequest } = await loadHelper()
     const ashRequest = buildAgentAshRequest({ repo, config, declaredDeadAt: '2026-03-06T12:11:00Z' })
 
-    expect(buildSubmissionRequest({ config, request: ashRequest })).toEqual({
+    const submission = buildNativeSubmissionRequest({
+      config: { ...nativeConfig, agent_ash_token: undefined },
+      request: ashRequest,
+      timestamp: '2026-05-20T12:00:00Z',
+      nonce: 'nonce_test_123',
+    })
+
+    expect(submission).toMatchObject({
       url: 'https://vibecemetery.app/api/agent-ashes',
       method: 'POST',
       headers: {
-        Authorization: 'Bearer ash_test_token_1234567890',
+        Authorization: 'AgentDID did:key:z6MkAgentHermes',
+        'X-Agent-Timestamp': '2026-05-20T12:00:00Z',
+        'X-Agent-Nonce': 'nonce_test_123',
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(ashRequest),
     })
+    expect(submission.headers['X-Agent-Signature']).toMatch(/^[A-Za-z0-9_-]+$/)
+    expect(JSON.stringify(submission)).not.toContain('ash_test_token')
+    expect(JSON.stringify(submission)).not.toContain(String(nativeConfig.agent_private_key))
 
-    expect(() => buildSubmissionRequest({
+    expect(() => buildNativeSubmissionRequest({
       config: { ...config, vc_url: 'https://evil.example' },
       request: ashRequest,
     })).toThrow('vc_url must be https://vibecemetery.app')
 
-    expect(() => buildSubmissionRequest({
-      config: { ...config, agent_ash_token: 'vc_cli_12345678-1234-4123-8123-123456789abc.sig' },
+    expect(() => buildNativeSubmissionRequest({
+      config: { ...config, agent_private_key: nativeConfig.agent_private_key, agent_did: '' },
       request: ashRequest,
-    })).toThrow('agent_ash_token must match ash_[A-Za-z0-9._~-]{16,}')
+    })).toThrow('agent_did is required for native Agent Ash submit')
 
-    expect(() => buildSubmissionRequest({
-      config: { ...config, agent_ash_token: 'ash_short' },
+    expect(() => buildNativeSubmissionRequest({
+      config,
       request: ashRequest,
-    })).toThrow('agent_ash_token must match ash_[A-Za-z0-9._~-]{16,}')
+    })).toThrow('agent_private_key is required for native Agent Ash submit')
   })
 
   test('submits Agent Ash once and does not recheck GitLawb after a 201 response', async () => {
@@ -480,7 +506,7 @@ test.describe('gitlawb agent ash skill helpers', () => {
 
     try {
       await mkdir(join(home, '.config', 'gitlawb'), { recursive: true })
-      await writeFile(join(home, '.config', 'gitlawb', 'config.json'), `${JSON.stringify(config)}\n`, 'utf8')
+      await writeFile(join(home, '.config', 'gitlawb', 'config.json'), `${JSON.stringify(nativeConfig)}\n`, 'utf8')
 
       const fetchImpl = async (url: string | URL | Request, init?: RequestInit) => {
         fetchCalls.push({ url, init })
@@ -524,69 +550,135 @@ test.describe('gitlawb agent ash skill helpers', () => {
         certificate: { schema_version: 'agent_ash.v1', subject: { repo_did: repo.did } },
         proof: { type: 'gitlawb_http_node_v1', repo_did: repo.did },
       })
+      const submittedHeaders = fetchCalls[1].init?.headers as Record<string, string>
+      expect(submittedHeaders.Authorization).toBe('AgentDID did:key:z6MkAgentHermes')
+      expect(submittedHeaders['X-Agent-Signature']).toMatch(/^[A-Za-z0-9_-]+$/)
+      expect(submittedHeaders['X-Agent-Timestamp']).toBeTruthy()
+      expect(submittedHeaders['X-Agent-Nonce']).toBeTruthy()
       expect(JSON.stringify(output)).not.toContain('agent_ash_token')
       expect(JSON.stringify(output)).not.toContain('ash_test_token')
+      expect(JSON.stringify(output)).not.toContain(String(nativeConfig.agent_private_key))
     } finally {
       await rm(home, { recursive: true, force: true })
     }
   })
 
-  test('one-shot CLI finds GitLawb node v0.3.8 repos by derived owner/name DID', async () => {
+  test('one-shot CLI rejects GitLawb node v0.3.8 repos as delegated-only when native metadata is missing', async () => {
     const { runOneShotSubmit } = await loadHelper()
     const home = await mkdtemp(join(tmpdir(), 'gitlawb-cli-submit-derived-'))
+
+    try {
+      await mkdir(join(home, '.config', 'gitlawb'), { recursive: true })
+      await writeFile(join(home, '.config', 'gitlawb', 'config.json'), `${JSON.stringify(nativeConfig)}\n`, 'utf8')
+
+      await expect(runOneShotSubmit({
+        repoDid: derivedGitlawbV038RepoDid,
+        homedir: home,
+        fetchImpl: async () => Response.json({ repos: [gitlawbV038Repo] }),
+        now: '2026-06-02T00:00:00Z',
+      })).rejects.toThrow('GitLawb repo metadata does not support agent-native submit; use connect-delegated/submit-delegated')
+    } finally {
+      await rm(home, { recursive: true, force: true })
+    }
+  })
+
+  test('verify-one-shot reports missing native GitLawb metadata without submitting', async () => {
+    const { runCliCommand, runOneShotVerify } = await loadHelper()
+    const home = await mkdtemp(join(tmpdir(), 'gitlawb-cli-verify-'))
+    const printed: string[] = []
+    const fetchCalls: string[] = []
+
+    try {
+      await mkdir(join(home, '.config', 'gitlawb'), { recursive: true })
+      await writeFile(join(home, '.config', 'gitlawb', 'config.json'), `${JSON.stringify(nativeConfig)}\n`, 'utf8')
+      const fetchImpl = async (url: string | URL | Request) => {
+        fetchCalls.push(String(url))
+        return Response.json({ repos: [gitlawbV038Repo] })
+      }
+
+      const direct = await runOneShotVerify({ repoDid: derivedGitlawbV038RepoDid, homedir: home, fetchImpl })
+      const cli = await runCliCommand(['verify-one-shot', derivedGitlawbV038RepoDid], {
+        homedir: home,
+        fetchImpl,
+        log: (line: string) => printed.push(line),
+      })
+      const output = JSON.parse(printed[0])
+
+      expect(direct).toEqual({
+        status: 'blocked_delegated_only',
+        repo_did: derivedGitlawbV038RepoDid,
+        native_ready: false,
+        missing: ['did', 'owner_agent_did', 'owner_public_key', 'state'],
+        fallback: 'connect-delegated',
+      })
+      expect(cli).toEqual(direct)
+      expect(output).toEqual(direct)
+      expect(fetchCalls).toEqual([
+        'https://node.gitlawb.com/api/v1/repos',
+        'https://node.gitlawb.com/api/v1/repos',
+      ])
+    } finally {
+      await rm(home, { recursive: true, force: true })
+    }
+  })
+
+  test('submit-delegated keeps GitLawb node v0.3.8 fallback on browser-approved ash token auth', async () => {
+    const { runCliCommand, runDelegatedSubmit } = await loadHelper()
+    const home = await mkdtemp(join(tmpdir(), 'gitlawb-cli-submit-delegated-'))
+    const printed: string[] = []
     const fetchCalls: Array<{ url: string | URL | Request; init?: RequestInit }> = []
 
     try {
       await mkdir(join(home, '.config', 'gitlawb'), { recursive: true })
       await writeFile(join(home, '.config', 'gitlawb', 'config.json'), `${JSON.stringify(config)}\n`, 'utf8')
-
       const fetchImpl = async (url: string | URL | Request, init?: RequestInit) => {
         fetchCalls.push({ url, init })
         if (String(url) === 'https://node.gitlawb.com/api/v1/repos') {
           return Response.json({ repos: [gitlawbV038Repo] })
         }
         return Response.json({
-          id: 'ash-row-id-derived',
-          certificate_hash: 'b'.repeat(64),
+          id: 'ash-row-id-delegated',
+          certificate_hash: 'c'.repeat(64),
           verification_policy: 'external_source_verified_once_before_insert',
-          url: 'https://vibecemetery.app/api/agent-ashes/ash-row-id-derived',
+          url: 'https://vibecemetery.app/api/agent-ashes/ash-row-id-delegated',
         }, { status: 201 })
       }
 
-      const result = await runOneShotSubmit({
-        repoDid: derivedGitlawbV038RepoDid,
+      const direct = await runDelegatedSubmit({ repoDid: derivedGitlawbV038RepoDid, homedir: home, fetchImpl, now: '2026-06-02T00:00:00Z' })
+      const cli = await runCliCommand(['submit-delegated', derivedGitlawbV038RepoDid], {
         homedir: home,
         fetchImpl,
         now: '2026-06-02T00:00:00Z',
+        log: (line: string) => printed.push(line),
       })
-      const submittedBody = JSON.parse(String(fetchCalls[1].init?.body))
+      const output = JSON.parse(printed[0])
+      const delegatedHeaders = fetchCalls[1].init?.headers as Record<string, string>
 
-      expect(result).toMatchObject({
+      expect(direct).toMatchObject({
         status: 201,
         repo_did: derivedGitlawbV038RepoDid,
-        url: 'https://vibecemetery.app/api/agent-ashes/ash-row-id-derived',
+        url: 'https://vibecemetery.app/api/agent-ashes/ash-row-id-delegated',
       })
-      expect(submittedBody).toMatchObject({
-        certificate: {
-          subject: {
-            name: 'hermes-test',
-            repo_did: derivedGitlawbV038RepoDid,
-          },
-        },
-        proof: { repo_did: derivedGitlawbV038RepoDid },
+      expect(cli).toMatchObject(direct)
+      expect(output).toMatchObject({
+        status: 201,
+        repo_did: derivedGitlawbV038RepoDid,
+        url: 'https://vibecemetery.app/api/agent-ashes/ash-row-id-delegated',
       })
+      expect(delegatedHeaders.Authorization).toBe('Bearer ash_test_token_1234567890')
+      expect(JSON.stringify(output)).not.toContain('ash_test_token')
     } finally {
       await rm(home, { recursive: true, force: true })
     }
   })
 
-  test('one-shot submit rejects missing or invalid DID, missing repo, bad token, and ingest failures', async () => {
+  test('one-shot submit rejects missing or invalid DID, missing repo, bad binding, and ingest failures', async () => {
     const { parseCliArgs, runOneShotSubmit } = await loadHelper()
     const home = await mkdtemp(join(tmpdir(), 'gitlawb-cli-submit-fail-'))
 
     try {
       await mkdir(join(home, '.config', 'gitlawb'), { recursive: true })
-      await writeFile(join(home, '.config', 'gitlawb', 'config.json'), `${JSON.stringify(config)}\n`, 'utf8')
+      await writeFile(join(home, '.config', 'gitlawb', 'config.json'), `${JSON.stringify(nativeConfig)}\n`, 'utf8')
 
       expect(() => parseCliArgs(['submit-one-shot'])).toThrow('submit-one-shot requires a repo DID')
       expect(() => parseCliArgs(['submit-one-shot', 'azkian1/dead-agent-prototype'])).toThrow('repo DID must match did:gitlawb:<safe-id>')
@@ -601,14 +693,21 @@ test.describe('gitlawb agent ash skill helpers', () => {
         fetchImpl: async () => Response.json({ repos: [] }),
       })).rejects.toThrow(`GitLawb repo not found: ${repo.did}`)
 
-      await writeFile(join(home, '.config', 'gitlawb', 'config.json'), `${JSON.stringify({ ...config, agent_ash_token: 'vc_cli_12345678-1234-4123-8123-123456789abc.sig' })}\n`, 'utf8')
+      await writeFile(join(home, '.config', 'gitlawb', 'config.json'), `${JSON.stringify({ ...nativeConfig, agent_did: 'did:key:z6MkOtherAgent' })}\n`, 'utf8')
       await expect(runOneShotSubmit({
         repoDid: repo.did,
         homedir: home,
         fetchImpl: async () => Response.json({ repos: [repo] }),
-      })).rejects.toThrow('agent_ash_token must match ash_[A-Za-z0-9._~-]{16,}')
+      })).rejects.toThrow('GitLawb repo owner_agent_did must match agent_did')
 
-      await writeFile(join(home, '.config', 'gitlawb', 'config.json'), `${JSON.stringify(config)}\n`, 'utf8')
+      await writeFile(join(home, '.config', 'gitlawb', 'config.json'), `${JSON.stringify(nativeConfig)}\n`, 'utf8')
+      await expect(runOneShotSubmit({
+        repoDid: repo.did,
+        homedir: home,
+        fetchImpl: async () => Response.json({ repos: [{ ...repo, owner_agent_did: undefined }] }),
+      })).rejects.toThrow('GitLawb repo metadata does not support agent-native submit; use connect-delegated/submit-delegated')
+
+      await writeFile(join(home, '.config', 'gitlawb', 'config.json'), `${JSON.stringify(nativeConfig)}\n`, 'utf8')
       await expect(runOneShotSubmit({
         repoDid: repo.did,
         homedir: home,
