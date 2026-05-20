@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test'
 import {
   GITLAWB_TIMESTAMP_TOLERANCE_MS,
+  GITLAWB_VERIFY_TIMEOUT_MS,
   verifyGitlawbHttpProof,
 } from '../src/lib/gitlawb-verification'
 import { AGENT_ASH_PROOF_TYPE, type AgentAshRequest } from '../src/lib/agent-ash-contract'
@@ -41,6 +42,10 @@ function reposResponse(repos: unknown[], ok = true): Response {
 }
 
 test.describe('GitLawb HTTP verification adapter', () => {
+  test('allows slow GitLawb repo list responses enough time for public node verification', async () => {
+    expect(GITLAWB_VERIFY_TIMEOUT_MS).toBe(60_000)
+  })
+
   test('verifies a public repo DID and timestamp proof from the node repo list', async () => {
     const fetches: string[] = []
     const result = await verifyGitlawbHttpProof(request, {

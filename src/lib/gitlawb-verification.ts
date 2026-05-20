@@ -3,7 +3,7 @@ import { AGENT_ASH_PROOF_TYPE, type AgentAshRequest } from './agent-ash-contract
 import { isAllowedGitlawbNodeUrl } from './agent-ash-security'
 
 export const GITLAWB_TIMESTAMP_TOLERANCE_MS = 5 * 60 * 1000
-export const GITLAWB_VERIFY_TIMEOUT_MS = 10_000
+export const GITLAWB_VERIFY_TIMEOUT_MS = 60_000
 export const GITLAWB_VERIFY_MAX_BODY_BYTES = 256 * 1024
 const GITLAWB_REPO_DID_PATTERN = /^did:gitlawb:[A-Za-z0-9._~-]+$/
 
