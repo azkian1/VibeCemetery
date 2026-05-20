@@ -1,4 +1,5 @@
 import crypto from 'node:crypto'
+import { execFile } from 'node:child_process'
 import fs from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
@@ -18,6 +19,7 @@ export const AGENT_ASH_LINK_ID_PATTERN = /^ashlink_[A-Za-z0-9_-]{12,}$/
 export const GITLAWB_REPO_DID_PATTERN = /^did:gitlawb:[A-Za-z0-9._~-]{1,148}$/
 
 const CONTROL_CHARS_PATTERN = /[\u0000-\u001f\u007f]/g
+const SECRET_LIKE_PATTERN = /(ash_[A-Za-z0-9._~-]{8,}|claim_[A-Za-z0-9_-]{8,}|vc_cli_[A-Za-z0-9._~-]+)/g
 const STRING_LIMITS = {
   subjectName: 120,
   subjectPath: 240,
@@ -72,6 +74,10 @@ function sanitizeString(value, maxLength, fallback = '') {
 function sanitizeOptionalString(value, maxLength) {
   const sanitized = sanitizeString(value, maxLength)
   return sanitized || undefined
+}
+
+function redactSecretLikeText(value) {
+  return String(value).replace(SECRET_LIKE_PATTERN, '[redacted]')
 }
 
 function sanitizeStringArray(value, maxItems = STRING_LIMITS.arrayItems, maxLength = STRING_LIMITS.arrayItem) {
@@ -515,6 +521,9 @@ export async function submitAgentAshRequest(options = {}) {
     body: request.body,
   })
   const body = await parseJsonResponse(response, 'Agent Ash submit')
+  if (response.status !== 201) {
+    throw new Error(`Agent Ash submit must return 201, received ${response.status}`)
+  }
   return {
     status: response.status,
     body,
@@ -570,7 +579,7 @@ async function parseJsonResponse(response, context) {
   }
   if (!response.ok) {
     const message = body && typeof body.error === 'string' ? body.error : response.statusText
-    throw new Error(`${context} failed: ${message}`)
+    throw new Error(`${context} failed: ${redactSecretLikeText(message)}`)
   }
   return body
 }
@@ -605,10 +614,23 @@ export async function openAgentAshApproveUrl(options = {}) {
     throw new Error('approve_url must be a VibeCemetery Agent Ash connect URL')
   }
   const normalizedApproveUrl = approveUrl.toString()
-  if (typeof options.openImpl === 'function') {
-    await options.openImpl(normalizedApproveUrl)
-  }
+  await (typeof options.openImpl === 'function' ? options.openImpl : openUrlWithSystemBrowser)(normalizedApproveUrl)
   return normalizedApproveUrl
+}
+
+function openUrlWithSystemBrowser(url) {
+  const command = process.platform === 'win32' ? 'cmd.exe' : process.platform === 'darwin' ? 'open' : 'xdg-open'
+  const args = process.platform === 'win32' ? ['/c', 'start', '', url] : [url]
+  return new Promise((resolve, reject) => {
+    const child = execFile(command, args, { windowsHide: true }, (error) => {
+      if (error) {
+        reject(error)
+      } else {
+        resolve()
+      }
+    })
+    child.unref?.()
+  })
 }
 
 function delay(ms) {
@@ -733,6 +755,50 @@ export async function fetchGitlawbRepos(options = {}) {
     return body
   }
   return Array.isArray(body?.repos) ? body.repos : []
+}
+
+export function findGitlawbRepoByDid(repos, repoDid) {
+  const normalizedRepoDid = asString(repoDid)
+  if (!GITLAWB_REPO_DID_PATTERN.test(normalizedRepoDid)) {
+    throw new Error('repo DID must match did:gitlawb:<safe-id>')
+  }
+  return (Array.isArray(repos) ? repos : []).find((repo) => getRepoDid(repo) === normalizedRepoDid) ?? null
+}
+
+export async function runOneShotSubmit(options = {}) {
+  const repoDid = asString(options.repoDid ?? options.repo_did)
+  if (!repoDid) {
+    throw new Error('submit-one-shot requires a repo DID')
+  }
+  if (!GITLAWB_REPO_DID_PATTERN.test(repoDid)) {
+    throw new Error('repo DID must match did:gitlawb:<safe-id>')
+  }
+
+  const storedConfig = options.config ?? await readJsonFile(computeGitlawbStoragePaths(options).configPath)
+  const config = normalizeGitlawbConfig(storedConfig)
+  const repos = Array.isArray(options.repos) ? options.repos : await fetchGitlawbRepos({ config, fetchImpl: options.fetchImpl })
+  const repo = findGitlawbRepoByDid(repos, repoDid)
+  if (!repo) {
+    throw new Error(`GitLawb repo not found: ${repoDid}`)
+  }
+
+  const request = buildAgentAshRequest({
+    repo,
+    config,
+    declaredDeadAt: options.now ?? options.declaredDeadAt ?? new Date().toISOString(),
+    diagnosis: options.diagnosis,
+  })
+  const submitted = await submitAgentAshRequest({ config, request, fetchImpl: options.fetchImpl })
+  return {
+    status: submitted.status,
+    repo_did: repoDid,
+    certificate_id: request.certificate.identity.certificate_id,
+    id: submitted.body?.id,
+    certificate_hash: submitted.body?.certificate_hash,
+    url: submitted.body?.url,
+    certificate_url: submitted.body?.certificate_url,
+    verification_policy: submitted.body?.verification_policy,
+  }
 }
 
 export function normalizeWatchlist(watchlist = {}) {
@@ -955,17 +1021,95 @@ export async function runScheduledWatchlistScan(options = {}) {
   }
 }
 
-async function runCli() {
-  const command = process.argv[2]
-  if (command !== 'scheduled-scan' && command !== 'scan-watchlist') {
-    return
+export function parseCliArgs(argv = []) {
+  const command = asString(argv[0])
+  if (!command) {
+    return { command: 'noop' }
+  }
+  if (command === 'scheduled-scan' || command === 'scan-watchlist') {
+    return { command: 'scheduled-scan' }
+  }
+  if (command === 'connect') {
+    return { command: 'connect' }
+  }
+  if (command === 'submit-one-shot' || command === 'submit') {
+    const repoDid = asString(argv[1])
+    if (!repoDid) {
+      throw new Error(`${command} requires a repo DID`)
+    }
+    if (!GITLAWB_REPO_DID_PATTERN.test(repoDid)) {
+      throw new Error('repo DID must match did:gitlawb:<safe-id>')
+    }
+    return { command: 'submit-one-shot', repoDid }
+  }
+  throw new Error(`Unknown gitlawb-helper command: ${command}`)
+}
+
+function toCliPrintableResult(result) {
+  if (!result || typeof result !== 'object') {
+    return result
+  }
+  return {
+    status: result.status,
+    candidate_count: result.candidate_count,
+    submitted_count: result.submitted_count,
+    candidates: (Array.isArray(result.candidates) ? result.candidates : []).map((candidate) => ({
+      repo_did: candidate?.repo_did,
+      name: candidate?.name,
+      last_activity_at: candidate?.last_activity_at,
+      inactive_days: candidate?.inactive_days,
+      primary_cause: candidate?.primary_cause,
+      summary: candidate?.summary,
+    })),
+    submitted: (Array.isArray(result.submitted) ? result.submitted : []).map((item) => ({
+      status: item?.status,
+      id: item?.body?.id,
+      certificate_hash: item?.body?.certificate_hash,
+      verification_policy: item?.body?.verification_policy,
+      url: item?.body?.url,
+      certificate_url: item?.body?.certificate_url,
+    })),
+  }
+}
+
+export async function runCliCommand(argv = [], options = {}) {
+  const parsed = parseCliArgs(argv)
+  const log = typeof options.log === 'function' ? options.log : console.log
+
+  if (parsed.command === 'noop') {
+    return null
   }
 
+  if (parsed.command === 'connect') {
+    const storedConfig = options.config ?? await readJsonFile(computeGitlawbStoragePaths(options).configPath)
+    const stored = await connectAgentAsh({ ...options, config: storedConfig })
+    const result = {
+      status: 'connected',
+      vc_url: normalizeVcUrl(stored.vc_url),
+      gitlawb_node_url: normalizeGitlawbNodeUrl(stored.gitlawb_node_url),
+      agent_name: sanitizeString(stored.agent_name, STRING_LIMITS.agentName, 'hermes'),
+      agent_did: sanitizeString(stored.agent_did, STRING_LIMITS.agentDid) || undefined,
+    }
+    log(JSON.stringify(result, null, 2))
+    return result
+  }
+
+  if (parsed.command === 'submit-one-shot') {
+    const result = await runOneShotSubmit({ ...options, repoDid: parsed.repoDid })
+    log(JSON.stringify(result, null, 2))
+    return result
+  }
+
+  const result = await runScheduledWatchlistScan(options)
+  log(JSON.stringify(toCliPrintableResult(result), null, 2))
+  return result
+}
+
+async function runCli() {
   try {
-    const result = await runScheduledWatchlistScan()
-    console.log(JSON.stringify(result, null, 2))
+    await runCliCommand(process.argv.slice(2))
   } catch (error) {
-    console.error(error instanceof Error ? error.message : String(error))
+    console.error(redactSecretLikeText(error instanceof Error ? error.message : String(error)))
     process.exitCode = 1
   }
 }

@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, test } from '@playwright/test'
@@ -390,6 +390,187 @@ test.describe('gitlawb agent ash skill helpers', () => {
     expect(statusHeaders?.Authorization).not.toContain('ash_test_token')
   })
 
+  test('connect CLI command runs browser-approved connect flow and stores approved config', async () => {
+    const { runCliCommand } = await loadHelper()
+    const home = await mkdtemp(join(tmpdir(), 'gitlawb-cli-connect-'))
+    const openedUrls: string[] = []
+    const printed: string[] = []
+    const calls: Array<{ url: string | URL | Request; init?: RequestInit }> = []
+
+    try {
+      const result = await runCliCommand(['connect'], {
+        homedir: home,
+        log: (line: string) => printed.push(line),
+        openImpl: async (url: string) => openedUrls.push(url),
+        fetchImpl: async (url: string | URL | Request, init?: RequestInit) => {
+          calls.push({ url, init })
+          if (String(url).endsWith('/api/agent-ash/link/start')) {
+            return Response.json({
+              link_id: 'ashlink_abc123456789',
+              claim_token: 'claim_xxxxxxxxxxxxxxxxxxxx',
+              approve_url: 'https://vibecemetery.app/agent-ash/connect?link_id=ashlink_abc123456789',
+            })
+          }
+          return Response.json({
+            status: 'approved',
+            agent_ash_token: 'ash_test_token_1234567890',
+            vc_url: 'https://vibecemetery.app',
+          })
+        },
+        intervalMs: 0,
+        timeoutMs: 1,
+      })
+      const stored = JSON.parse(await readFile(join(home, '.config', 'gitlawb', 'config.json'), 'utf8'))
+      const output = JSON.parse(printed[0])
+
+      expect(result.status).toBe('connected')
+      expect(openedUrls).toEqual(['https://vibecemetery.app/agent-ash/connect?link_id=ashlink_abc123456789'])
+      expect(calls.map((call) => String(call.url))).toEqual([
+        'https://vibecemetery.app/api/agent-ash/link/start',
+        'https://vibecemetery.app/api/agent-ash/link/status?link_id=ashlink_abc123456789',
+      ])
+      expect(stored.agent_ash_token).toBe('ash_test_token_1234567890')
+      expect(output).toMatchObject({ status: 'connected', vc_url: 'https://vibecemetery.app', gitlawb_node_url: 'https://node.gitlawb.com' })
+      expect(JSON.stringify(output)).not.toContain('ash_test_token')
+      expect(JSON.stringify(output)).not.toContain('claim_xxxxxxxxx')
+    } finally {
+      await rm(home, { recursive: true, force: true })
+    }
+  })
+
+  test('one-shot CLI submits exactly one GitLawb DID and reports certificate and URL', async () => {
+    const { runCliCommand, runOneShotSubmit } = await loadHelper()
+    const home = await mkdtemp(join(tmpdir(), 'gitlawb-cli-submit-'))
+    const printed: string[] = []
+    const fetchCalls: Array<{ url: string | URL | Request; init?: RequestInit }> = []
+
+    try {
+      await mkdir(join(home, '.config', 'gitlawb'), { recursive: true })
+      await writeFile(join(home, '.config', 'gitlawb', 'config.json'), `${JSON.stringify(config)}\n`, 'utf8')
+
+      const fetchImpl = async (url: string | URL | Request, init?: RequestInit) => {
+        fetchCalls.push({ url, init })
+        if (String(url) === 'https://node.gitlawb.com/api/v1/repos') {
+          return Response.json({ repos: [repo] })
+        }
+        return Response.json({
+          id: 'ash-row-id',
+          certificate_hash: 'a'.repeat(64),
+          verification_policy: 'external_source_verified_once_before_insert',
+          url: 'https://vibecemetery.app/api/agent-ashes/ash-row-id',
+          certificate_url: 'https://vibecemetery.app/api/agent-ashes/ash-row-id/certificate',
+        }, { status: 201 })
+      }
+
+      const direct = await runOneShotSubmit({ repoDid: repo.did, homedir: home, fetchImpl, now: '2026-07-01T00:00:00Z' })
+      const cli = await runCliCommand(['submit-one-shot', repo.did], {
+        homedir: home,
+        fetchImpl,
+        now: '2026-07-01T00:00:00Z',
+        log: (line: string) => printed.push(line),
+      })
+      const output = JSON.parse(printed[0])
+      const submittedBody = JSON.parse(String(fetchCalls[1].init?.body))
+
+      expect(direct).toMatchObject({
+        status: 201,
+        repo_did: repo.did,
+        certificate_id: 'ash_7fb3bff634ffa69047a829ef86',
+        url: 'https://vibecemetery.app/api/agent-ashes/ash-row-id',
+      })
+      expect(cli).toMatchObject(direct)
+      expect(output).toMatchObject(direct)
+      expect(fetchCalls.map((call) => String(call.url))).toEqual([
+        'https://node.gitlawb.com/api/v1/repos',
+        'https://vibecemetery.app/api/agent-ashes',
+        'https://node.gitlawb.com/api/v1/repos',
+        'https://vibecemetery.app/api/agent-ashes',
+      ])
+      expect(submittedBody).toMatchObject({
+        certificate: { schema_version: 'agent_ash.v1', subject: { repo_did: repo.did } },
+        proof: { type: 'gitlawb_http_node_v1', repo_did: repo.did },
+      })
+      expect(JSON.stringify(output)).not.toContain('agent_ash_token')
+      expect(JSON.stringify(output)).not.toContain('ash_test_token')
+    } finally {
+      await rm(home, { recursive: true, force: true })
+    }
+  })
+
+  test('one-shot submit rejects missing or invalid DID, missing repo, bad token, and ingest failures', async () => {
+    const { parseCliArgs, runOneShotSubmit } = await loadHelper()
+    const home = await mkdtemp(join(tmpdir(), 'gitlawb-cli-submit-fail-'))
+
+    try {
+      await mkdir(join(home, '.config', 'gitlawb'), { recursive: true })
+      await writeFile(join(home, '.config', 'gitlawb', 'config.json'), `${JSON.stringify(config)}\n`, 'utf8')
+
+      expect(() => parseCliArgs(['submit-one-shot'])).toThrow('submit-one-shot requires a repo DID')
+      expect(() => parseCliArgs(['submit-one-shot', 'azkian1/dead-agent-prototype'])).toThrow('repo DID must match did:gitlawb:<safe-id>')
+      expect(() => parseCliArgs(['submit-oneshot', repo.did])).toThrow('Unknown gitlawb-helper command: submit-oneshot')
+      await expect(runOneShotSubmit({
+        repoDid: 'azkian1/dead-agent-prototype',
+        homedir: home,
+      })).rejects.toThrow('repo DID must match did:gitlawb:<safe-id>')
+      await expect(runOneShotSubmit({
+        repoDid: repo.did,
+        homedir: home,
+        fetchImpl: async () => Response.json({ repos: [] }),
+      })).rejects.toThrow(`GitLawb repo not found: ${repo.did}`)
+
+      await writeFile(join(home, '.config', 'gitlawb', 'config.json'), `${JSON.stringify({ ...config, agent_ash_token: 'vc_cli_12345678-1234-4123-8123-123456789abc.sig' })}\n`, 'utf8')
+      await expect(runOneShotSubmit({
+        repoDid: repo.did,
+        homedir: home,
+        fetchImpl: async () => Response.json({ repos: [repo] }),
+      })).rejects.toThrow('agent_ash_token must match ash_[A-Za-z0-9._~-]{16,}')
+
+      await writeFile(join(home, '.config', 'gitlawb', 'config.json'), `${JSON.stringify(config)}\n`, 'utf8')
+      await expect(runOneShotSubmit({
+        repoDid: repo.did,
+        homedir: home,
+        fetchImpl: async (url: string | URL | Request) => String(url).startsWith('https://node.gitlawb.com')
+          ? Response.json({ repos: [repo] })
+          : Response.json({ error: 'verification failed' }, { status: 422 }),
+      })).rejects.toThrow('Agent Ash submit failed: verification failed')
+      await expect(runOneShotSubmit({
+        repoDid: repo.did,
+        homedir: home,
+        fetchImpl: async (url: string | URL | Request) => String(url).startsWith('https://node.gitlawb.com')
+          ? Response.json({ repos: [repo] })
+          : Response.json({ id: 'accepted-later' }, { status: 202 }),
+      })).rejects.toThrow('Agent Ash submit must return 201')
+
+      try {
+        await runOneShotSubmit({
+          repoDid: repo.did,
+          homedir: home,
+          fetchImpl: async (url: string | URL | Request) => String(url).startsWith('https://node.gitlawb.com')
+            ? Response.json({ repos: [repo] })
+            : Response.json({ error: `bad ${config.agent_ash_token} claim_xxxxxxxxxxxxxxxxxxxx vc_cli_12345678-1234-4123-8123-123456789abc.sig` }, { status: 422 }),
+        })
+        throw new Error('expected one-shot submit failure')
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error)
+        expect(message).toContain('[redacted]')
+        expect(message).not.toContain(config.agent_ash_token)
+        expect(message).not.toContain('claim_xxxxxxxxxxxxxxxxxxxx')
+        expect(message).not.toContain('vc_cli_12345678-1234-4123-8123-123456789abc.sig')
+      }
+    } finally {
+      await rm(home, { recursive: true, force: true })
+    }
+  })
+
+  test('GitLawb push/delete alone is not documented as creating VibeCemetery Ash', async () => {
+    const skill = await readFile(skillPath, 'utf8')
+
+    expect(skill).toContain('GitLawb push/delete only changes GitLawb')
+    expect(skill).toContain('VibeCemetery Agent Ash appears only after successful `/api/agent-ashes` ingest')
+    expect(skill).toContain('submit-one-shot did:gitlawb:')
+    expect(skill).not.toContain('GitLawb push creates VibeCemetery Ash')
+  })
+
   test('rejects ingest tokens as claim tokens and unsafe approve URLs', async () => {
     const { buildAgentAshLinkStatusRequest, openAgentAshApproveUrl } = await loadHelper()
 
@@ -619,7 +800,12 @@ test.describe('gitlawb agent ash skill helpers', () => {
         homedir: home,
         config: { ...config, scheduled_approval_policy: 'manual' },
         watchlist: { repos: [repo.did] },
-        repos: [repo],
+        repos: [{
+          ...repo,
+          leaked_agent_ash_token: config.agent_ash_token,
+          leaked_claim_token: 'claim_xxxxxxxxxxxxxxxxxxxx',
+          leaked_human_token: 'vc_cli_12345678-1234-4123-8123-123456789abc.sig',
+        }],
         now: '2026-07-01T00:00:00Z',
         fetchImpl: async (url: string | URL | Request) => {
           fetchCalls.push(String(url))
@@ -675,6 +861,57 @@ test.describe('gitlawb agent ash skill helpers', () => {
         },
       })
       expect(JSON.stringify(submittedBodies[0])).not.toContain('agent_ash_token')
+    } finally {
+      await rm(home, { recursive: true, force: true })
+    }
+  })
+
+  test('scheduled-scan CLI prints only allowlisted submission response fields', async () => {
+    const { runCliCommand } = await loadHelper()
+    const home = await mkdtemp(join(tmpdir(), 'gitlawb-scheduled-cli-output-'))
+    const printed: string[] = []
+
+    try {
+      await runCliCommand(['scheduled-scan'], {
+        homedir: home,
+        config: { ...config, scheduled_approval_policy: 'manual' },
+        watchlist: { repos: [repo.did] },
+        repos: [repo],
+        approval: { mode: 'all', approved_by: 'human-operator', approved_at: '2026-07-01T01:00:00Z' },
+        now: '2026-07-01T00:00:00Z',
+        log: (line: string) => printed.push(line),
+        fetchImpl: async () => Response.json({
+          id: 'ash-row-id',
+          certificate_hash: 'a'.repeat(64),
+          verification_policy: 'external_source_verified_once_before_insert',
+          url: 'https://vibecemetery.app/api/agent-ashes/ash-row-id',
+          certificate_url: 'https://vibecemetery.app/api/agent-ashes/ash-row-id/certificate',
+          agent_ash_token: config.agent_ash_token,
+          claim_token: 'claim_xxxxxxxxxxxxxxxxxxxx',
+          human_token: 'vc_cli_12345678-1234-4123-8123-123456789abc.sig',
+        }, { status: 201 }),
+      })
+      const output = JSON.parse(printed[0])
+
+      expect(output.candidates).toEqual([{
+        repo_did: repo.did,
+        name: 'dead-agent-prototype',
+        last_activity_at: '2026-03-05T09:15:00Z',
+        inactive_days: 117,
+        primary_cause: 'abandoned',
+        summary: 'No public GitLawb activity for 117 days.',
+      }])
+      expect(output.submitted).toEqual([{
+        status: 201,
+        id: 'ash-row-id',
+        certificate_hash: 'a'.repeat(64),
+        verification_policy: 'external_source_verified_once_before_insert',
+        url: 'https://vibecemetery.app/api/agent-ashes/ash-row-id',
+        certificate_url: 'https://vibecemetery.app/api/agent-ashes/ash-row-id/certificate',
+      }])
+      expect(JSON.stringify(output)).not.toContain(config.agent_ash_token)
+      expect(JSON.stringify(output)).not.toContain('claim_xxxxxxxxxxxxxxxxxxxx')
+      expect(JSON.stringify(output)).not.toContain('vc_cli_12345678-1234-4123-8123-123456789abc.sig')
     } finally {
       await rm(home, { recursive: true, force: true })
     }

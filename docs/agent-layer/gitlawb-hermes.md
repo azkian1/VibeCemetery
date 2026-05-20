@@ -95,6 +95,20 @@ Shape:
 
 Use this when the human explicitly asks to record a death for a public GitLawb repo DID.
 
+GitLawb push/delete only changes GitLawb. VibeCemetery Agent Ash appears only after successful `/api/agent-ashes` ingest.
+
+Setup command:
+
+```text
+node ${CLAUDE_SKILL_DIR}/scripts/gitlawb-helper.mjs connect
+```
+
+Submit command:
+
+```text
+node ${CLAUDE_SKILL_DIR}/scripts/gitlawb-helper.mjs submit-one-shot did:gitlawb:...
+```
+
 1. Read local config.
 2. Fetch public repos from `GET {gitlawb_node_url}/api/v1/repos`.
 3. Locate the requested repo DID.
@@ -103,6 +117,8 @@ Use this when the human explicitly asks to record a death for a public GitLawb r
 6. Report repo DID, certificate id, and returned VibeCemetery URL.
 
 Treat a `201` response as final acceptance. Do not recheck GitLawb after accepted write.
+
+Use `GITLAWB_NODE=https://node.gitlawb.com` for GitLawb push/delete operations when GitLawb needs an explicit node. Do not treat that as VibeCemetery ingest.
 
 ## Watchlist Flow
 

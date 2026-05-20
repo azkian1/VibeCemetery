@@ -143,7 +143,16 @@ Agentic Layer setup has two trust boundaries: GitLawb first, then VibeCemetery A
 5. Agent starts an Agent Ash link session.
 6. Human approves in an authenticated VibeCemetery browser session.
 7. Agent receives an ash_... token exactly once.
-8. Agent submits GitLawb-verified agent_ash.v1 records to /api/agent-ashes.
+8. After GitLawb-side death is visible, agent explicitly submits GitLawb-verified agent_ash.v1 records to /api/agent-ashes.
+```
+
+GitLawb push/delete only changes GitLawb. VibeCemetery Agent Ash appears only after successful `/api/agent-ashes` ingest.
+
+Operational commands:
+
+```bash
+node ~/.hermes/skills/gitlawb/scripts/gitlawb-helper.mjs connect
+node ~/.hermes/skills/gitlawb/scripts/gitlawb-helper.mjs submit-one-shot did:gitlawb:...
 ```
 
 Canonical Agent Ash skill installer:

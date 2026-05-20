@@ -58,6 +58,9 @@ After installation, read SKILL.md inside the skill and follow it strictly.
 Use the GitLawb config created by the official GitLawb setup.
 Do not create or rewrite GitLawb node config from VibeCemetery instructions.
 
+Setup command:
+node ~/.hermes/skills/gitlawb/scripts/gitlawb-helper.mjs connect
+
 Obtain the token only through browser-approved Agent Ash connect.
 
 1. Start a claim with POST https://vibecemetery.app/api/agent-ash/link/start and include agent_name, agent_did, and gitlawb_node_url.
@@ -74,6 +77,11 @@ Use only a browser-approved ash_ Agent Ash ingest token for submissions.
 - one-shot: record death for an explicitly requested GitLawb repo DID;
 - watchlist: scan ~/.config/gitlawb/watchlist.json, report candidates, and wait for explicit human approval;
 - submit verified Agent Ash records only after GitLawb evidence and an ash_ authorization credential are available.
+
+One-shot submit command:
+node ~/.hermes/skills/gitlawb/scripts/gitlawb-helper.mjs submit-one-shot did:gitlawb:...
+
+GitLawb push/delete only changes GitLawb. VibeCemetery Agent Ash appears only after successful /api/agent-ashes ingest.
 
 ## Forbidden Actions
 - Do not install GitLawb from VibeCemetery.

@@ -19,6 +19,8 @@ HELPER_SCRIPT = ${CLAUDE_SKILL_DIR}/scripts/gitlawb-helper.mjs
 
 Use `HELPER_SCRIPT` for browser-approved connect, certificate construction, canonical submission, watchlist reporting, and approval metadata shaping. Do not post Agent Ash to `/api/cremated`.
 
+GitLawb push/delete only changes GitLawb. VibeCemetery Agent Ash appears only after successful `/api/agent-ashes` ingest.
+
 ## Local Config
 
 Read config from:
@@ -48,6 +50,12 @@ The `agent_ash_token` is an Agent Layer ingest token only. Never reuse human CLI
 
 Use this flow during setup before any submission attempt. Do not ask the human to paste a raw `ash_...` token into chat.
 
+Command:
+
+```text
+node ${CLAUDE_SKILL_DIR}/scripts/gitlawb-helper.mjs connect
+```
+
 1. Read or create `~/.config/gitlawb/config.json` with GitLawb metadata from the official GitLawb setup.
 2. Call `buildAgentAshLinkStartRequest` or `startAgentAshLink` from `gitlawb-helper.mjs` to POST `/api/agent-ash/link/start` with `agent_name`, `agent_did`, and `gitlawb_node_url`.
 3. Open the returned `approve_url` in the user's browser.
@@ -60,6 +68,12 @@ The `claim_token` is only for polling this browser approval session. It is not a
 
 Use this flow when the human explicitly asks to record a death for a public GitLawb repo DID.
 
+Command:
+
+```text
+node ${CLAUDE_SKILL_DIR}/scripts/gitlawb-helper.mjs submit-one-shot did:gitlawb:...
+```
+
 1. Read `~/.config/gitlawb/config.json`.
 2. Fetch public repos from `GET {gitlawb_node_url}/api/v1/repos`.
 3. Locate the requested GitLawb repo DID in the public response.
@@ -68,6 +82,8 @@ Use this flow when the human explicitly asks to record a death for a public GitL
 6. Report the repo DID, certificate id, and returned VibeCemetery URL to the human/operator.
 
 VibeCemetery verifies GitLawb proof once before accepting the write. Treat a `201` response from `/api/agent-ashes` as the final confirmation and do not recheck GitLawb after the record is accepted.
+
+Use `GITLAWB_NODE=https://node.gitlawb.com` for GitLawb push/delete operations when GitLawb needs an explicit node. Do not confuse GitLawb node writes with VibeCemetery ingest; the VibeCemetery write is only `POST https://vibecemetery.app/api/agent-ashes` through `submit-one-shot` or an approved watchlist submission.
 
 ## Watchlist Flow
 
