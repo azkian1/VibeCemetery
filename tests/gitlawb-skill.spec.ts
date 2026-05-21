@@ -327,6 +327,40 @@ test.describe('gitlawb agent ash skill helpers', () => {
     })
   })
 
+  test('normalizes bare z6Mk owners in GitLawb v0.3.8 id paths for HTTP proof', async () => {
+    const { buildAgentAshRequest } = await loadHelper()
+
+    const request = buildAgentAshRequest({
+      repo: {
+        ...gitlawbV038Repo,
+        id: 'z6MkOwner/repo-name',
+      },
+      config,
+      declaredDeadAt: '2026-06-02T00:00:00Z',
+    })
+
+    expect(request.certificate.subject.path).toBe('did:key:z6MkOwner/repo-name')
+    expect(request.proof.verification_url).toBe('https://node.gitlawb.com/api/v1/repos/did%3Akey%3Az6MkOwner/repo-name')
+  })
+
+  test('keeps repo name as the subject path when GitLawb id is opaque', async () => {
+    const { buildAgentAshRequest } = await loadHelper()
+
+    const request = buildAgentAshRequest({
+      repo: {
+        ...repo,
+        path: undefined,
+        full_name: undefined,
+        id: 'plain-repo-id',
+        name: 'repo-name',
+      },
+      config,
+      declaredDeadAt: '2026-06-02T00:00:00Z',
+    })
+
+    expect(request.certificate.subject.path).toBe('repo-name')
+  })
+
   test('builds an agent-native signed VibeCemetery ingest request without ash token auth', async () => {
     const { buildAgentAshRequest, buildNativeSubmissionRequest } = await loadHelper()
     const ashRequest = buildAgentAshRequest({ repo, config, declaredDeadAt: '2026-03-06T12:11:00Z' })
@@ -486,6 +520,43 @@ test.describe('gitlawb agent ash skill helpers', () => {
       owner_did: 'did:web:not-derivable',
     })
     expect(findGitlawbRepoByDid(repos, 'did:gitlawb:z6MkCanonicalRepo')).toMatchObject({ name: 'canonical-repo' })
+  })
+
+  test('hydrates GitLawb HTTP list repos with targeted per-repo metadata', async () => {
+    const { fetchGitlawbRepos } = await loadHelper()
+    const fetchCalls: string[] = []
+
+    const repos = await fetchGitlawbRepos({
+      config,
+      fetchImpl: async (url: string | URL | Request) => {
+        fetchCalls.push(String(url))
+        if (String(url) === 'https://node.gitlawb.com/api/v1/repos') {
+          return Response.json({ repos: [{
+            id: 'z6MkOwner/hermes-test',
+            owner_did: 'z6MkOwner',
+            name: 'hermes-test',
+            created_at: '2026-05-19T00:00:00Z',
+            updated_at: '2026-05-21T00:00:00Z',
+          }] })
+        }
+        return Response.json({
+          id: 'z6MkOwner/hermes-test',
+          owner_did: 'z6MkOwner',
+          name: 'hermes-test',
+          created_at: '2026-05-17T00:00:00Z',
+          updated_at: '2026-05-20T00:00:00Z',
+        })
+      },
+    })
+
+    expect(fetchCalls).toEqual([
+      'https://node.gitlawb.com/api/v1/repos',
+      'https://node.gitlawb.com/api/v1/repos/did%3Akey%3Az6MkOwner/hermes-test',
+    ])
+    expect(repos[0]).toMatchObject({
+      created_at: '2026-05-17T00:00:00Z',
+      updated_at: '2026-05-20T00:00:00Z',
+    })
   })
 
   test('builds browser-approved Agent Ash link start and status requests', async () => {
@@ -683,7 +754,9 @@ test.describe('gitlawb agent ash skill helpers', () => {
       })).rejects.toThrow('Agent-native submit is not enabled on VibeCemetery backend; use submit-delegated')
       expect(fetchCalls.map((call) => String(call.url))).toEqual([
         'https://node.gitlawb.com/api/v1/repos',
+        'https://node.gitlawb.com/api/v1/repos/azkian1/dead-agent-prototype',
         'https://node.gitlawb.com/api/v1/repos',
+        'https://node.gitlawb.com/api/v1/repos/azkian1/dead-agent-prototype',
       ])
     } finally {
       await rm(home, { recursive: true, force: true })
@@ -743,7 +816,9 @@ test.describe('gitlawb agent ash skill helpers', () => {
       expect(output).toEqual(direct)
       expect(fetchCalls).toEqual([
         'https://node.gitlawb.com/api/v1/repos',
+        'https://node.gitlawb.com/api/v1/repos/owner/repo-name',
         'https://node.gitlawb.com/api/v1/repos',
+        'https://node.gitlawb.com/api/v1/repos/owner/repo-name',
       ])
     } finally {
       await rm(home, { recursive: true, force: true })
@@ -808,6 +883,9 @@ test.describe('gitlawb agent ash skill helpers', () => {
         if (String(url) === 'https://node.gitlawb.com/api/v1/repos') {
           return Response.json({ repos: [gitlawbV038Repo] })
         }
+        if (String(url) === 'https://node.gitlawb.com/api/v1/repos/owner/repo-name') {
+          return Response.json(gitlawbV038Repo)
+        }
         return Response.json({
           id: 'ash-row-id-delegated',
           certificate_hash: 'c'.repeat(64),
@@ -824,7 +902,8 @@ test.describe('gitlawb agent ash skill helpers', () => {
         log: (line: string) => printed.push(line),
       })
       const output = JSON.parse(printed[0])
-      const delegatedHeaders = fetchCalls[1].init?.headers as Record<string, string>
+      const delegatedCall = fetchCalls.find((call) => String(call.url) === 'https://vibecemetery.app/api/agent-ashes')
+      const delegatedHeaders = delegatedCall?.init?.headers as Record<string, string>
 
       expect(direct).toMatchObject({
         status: 201,

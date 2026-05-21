@@ -325,10 +325,16 @@ function deriveRepoDidFromOwnerAndName(repo = {}) {
 
 function getRepoPath(repo = {}) {
   const id = sanitizeString(repo.id, STRING_LIMITS.subjectPath)
-  return sanitizeString(repo.path, STRING_LIMITS.subjectPath)
+  const path = sanitizeString(repo.path, STRING_LIMITS.subjectPath)
     || sanitizeString(repo.full_name, STRING_LIMITS.subjectPath)
-    || (id.includes('/') ? id : '')
-    || sanitizeString(repo.name, STRING_LIMITS.subjectPath)
+  if (path && path.includes('/')) return path
+  if (id && id.includes('/')) {
+    const slash = id.indexOf('/')
+    const owner = normalizeOwnerDid(id.slice(0, slash))
+    const name = id.slice(slash + 1)
+    return `${owner}/${name}`
+  }
+  return path || sanitizeString(repo.name, STRING_LIMITS.subjectPath)
 }
 
 function parseOwnerNamePath(value) {
@@ -960,6 +966,36 @@ export function buildGitlawbReposRequest(config = {}) {
   }
 }
 
+async function hydrateGitlawbRepoFromTarget(repo, config, fetchImpl) {
+  const repoPath = getRepoPath(repo)
+  const request = buildGitlawbReposRequest(config)
+  const url = buildRepoVerificationUrl(config.gitlawb_node_url, repoPath)
+  if (url === request.url) return repo
+
+  try {
+    const response = await fetchImpl(url, {
+      method: request.method,
+      headers: request.headers,
+    })
+    if (!response.ok) return repo
+    const body = await parseJsonResponse(response, 'GitLawb repo metadata')
+    const hydrated = body?.repo ?? body
+    return hydrated && typeof hydrated === 'object' && !Array.isArray(hydrated)
+      ? { ...repo, ...hydrated }
+      : repo
+  } catch {
+    return repo
+  }
+}
+
+async function hydrateGitlawbReposFromTargets(repos, config, fetchImpl) {
+  const hydrated = []
+  for (const repo of repos) {
+    hydrated.push(await hydrateGitlawbRepoFromTarget(repo, config, fetchImpl))
+  }
+  return hydrated
+}
+
 export async function fetchGitlawbRepos(options = {}) {
   const fetchImpl = options.fetchImpl ?? globalThis.fetch
   if (typeof fetchImpl === 'function') {
@@ -978,10 +1014,8 @@ export async function fetchGitlawbRepos(options = {}) {
     }
 
     const body = await parseJsonResponse(response, 'GitLawb repos scan')
-    if (Array.isArray(body)) {
-      return body
-    }
-    return Array.isArray(body?.repos) ? body.repos : []
+    const repos = Array.isArray(body) ? body : Array.isArray(body?.repos) ? body.repos : []
+    return await hydrateGitlawbReposFromTargets(repos, normalizeGitlawbConfig(options.config ?? {}), fetchImpl)
   }
 
   return await fetchGitlawbReposWithCli(options)
