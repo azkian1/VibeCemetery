@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useState } from 'react';
 import { useChat, useGame } from '@/context/GameContext';
 import type { ChatMessage } from '@/context/GameContext';
 import {
@@ -27,6 +27,12 @@ export const CHAT_STATUS_ITEMS = [
   { key: 'ashes', label: 'Ashes', emoji: '⚱️' },
 ];
 
+export function getAgentAshCountFromSummary(summary: unknown): number {
+  if (!summary || typeof summary !== 'object' || Array.isArray(summary)) return 0;
+  const total = (summary as { total_verified_ash?: unknown }).total_verified_ash;
+  return typeof total === 'number' && Number.isSafeInteger(total) && total > 0 ? total : 0;
+}
+
 function pickRandom<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
 }
@@ -39,6 +45,7 @@ export default function ChatLog() {
   const isMobile = useIsMobile();
   const { messages, addMessage } = useChat();
   const { state } = useGame();
+  const [agentAshCount, setAgentAshCount] = useState(0);
   const totalSouls = state.cremated.reduce(
     (acc, cremated) => acc + (cremated.source === 'skill' ? 1 : 3),
     0,
@@ -54,6 +61,28 @@ export default function ChatLog() {
   // Keep refs in sync without resetting idle timer
   useEffect(() => { messagesRef.current = messages; }, [messages]);
   useEffect(() => { stateRef.current = state; }, [state]);
+
+  useEffect(() => {
+    if (isMobile) return;
+    const controller = new AbortController();
+
+    async function loadAgentAshCount() {
+      try {
+        const response = await fetch('/api/agent-ashes/summary', { cache: 'no-store', signal: controller.signal });
+        if (!response.ok) return;
+        setAgentAshCount(getAgentAshCountFromSummary(await response.json()));
+      } catch (error) {
+        if ((error as Error).name !== 'AbortError') setAgentAshCount(0);
+      }
+    }
+
+    const interval = window.setInterval(loadAgentAshCount, 60000);
+    void loadAgentAshCount();
+    return () => {
+      controller.abort();
+      window.clearInterval(interval);
+    };
+  }, [isMobile]);
 
   // On mount: system greeting + gravedigger greeting (skip on mobile)
   useEffect(() => {
@@ -195,7 +224,7 @@ export default function ChatLog() {
       }}>
         <span>{CHAT_STATUS_ITEMS[0].label}: {totalSouls} {CHAT_STATUS_ITEMS[0].emoji}</span>
         <span>{CHAT_STATUS_ITEMS[1].label}: {state.cremated.length} {CHAT_STATUS_ITEMS[1].emoji}</span>
-        <span>{CHAT_STATUS_ITEMS[2].label}: 0 {CHAT_STATUS_ITEMS[2].emoji}</span>
+        <span>{CHAT_STATUS_ITEMS[2].label}: {agentAshCount} {CHAT_STATUS_ITEMS[2].emoji}</span>
       </div>
 
       {/* Chat messages — transparent body with frame border */}

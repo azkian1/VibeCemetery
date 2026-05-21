@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test'
 import {
   AGENT_ASHES_COPY,
+  CERTIFICATE_JSON_STYLE,
   buildAgentAshesViewModel,
   loadAgentAshCertificate,
   loadAgentAshTokens,
@@ -8,6 +9,7 @@ import {
   stringifyAgentAshCertificateForDisplay,
   type AgentAshesSummary,
 } from '../src/components/modals/AgentAshesModal'
+import { CLOSE_BUTTON_STICKY_STYLE, CLOSE_BUTTON_STYLE } from '../src/components/ui/CloseButton'
 import { LEADERBOARD_TABS } from '../src/components/modals/LeaderboardModal'
 import { TOPBAR_ACTIONS } from '../src/components/hud/TopBar'
 
@@ -25,29 +27,20 @@ test('top bar exposes Agent Ashes next to Necropolis', () => {
   ])
 })
 
-test('Agent Ashes modal describes the dashboard placeholder and future API', () => {
+test('Agent Ashes modal describes the dashboard placeholder', () => {
   expect(AGENT_ASHES_COPY).toEqual({
     title: 'Agent Ashes',
     subtitle: 'Failure intelligence from autonomous project deaths.',
-    intro: 'Hermes and other agents will submit verified Ash here. Once enough records exist, this dashboard will surface repeated failure patterns, stack risks, resurrection candidates, and prevention guardrails.',
+    intro: 'Hermes and other agents will submit verified Ash here. Once enough records exist, this dashboard will surface repeated failure patterns, stack risks, recovery signals, and prevention guardrails.',
     stats: [
       { label: 'Verified Ash', value: '0', note: 'Awaiting Hermes certificates' },
       { label: 'Failure Patterns', value: 'Soon', note: 'Needs verified data' },
-      { label: 'Resurrection Candidates', value: 'Soon', note: 'Scored after ingestion' },
-      { label: 'Agent API', value: 'Later', note: 'Structured access locked' },
     ],
     sections: [
       { title: 'Top Failure Patterns', body: 'Waiting for verified Ash.' },
       { title: 'Fragile Stacks', body: 'Not enough data yet.' },
-      { title: 'Resurrection Queue', body: 'No candidates yet.' },
       { title: 'Raw Certificates', body: 'Expandable records will appear after Hermes submissions.' },
     ],
-    api: {
-      title: 'Agent API',
-      status: 'Coming later.',
-      body: 'Structured access will open after the archive has enough verified data.',
-      action: 'Request Early Access',
-    },
   })
 })
 
@@ -56,13 +49,10 @@ test('Agent Ashes view model preserves empty archive copy', () => {
     stats: [
       { label: 'Verified Ash', value: '0', note: 'Awaiting Hermes certificates' },
       { label: 'Failure Patterns', value: 'Soon', note: 'Needs verified data' },
-      { label: 'Resurrection Candidates', value: 'Soon', note: 'Scored after ingestion' },
-      { label: 'Agent API', value: 'Later', note: 'Structured access locked' },
     ],
     sections: [
       { title: 'Top Failure Patterns', body: 'Waiting for verified Ash.' },
       { title: 'Fragile Stacks', body: 'Not enough data yet.' },
-      { title: 'Resurrection Queue', body: 'No candidates yet.' },
       { title: 'Raw Certificates', body: 'Expandable records will appear after Hermes submissions.' },
     ],
     records: [],
@@ -113,8 +103,6 @@ test('Agent Ashes view model renders verified summary data', () => {
     stats: [
       { label: 'Verified Ash', value: '7', note: '5 sampled for dashboard' },
       { label: 'Failure Patterns', value: '1', note: 'Top: api changed before launch' },
-      { label: 'Resurrection Candidates', value: '1', note: 'Highest score 0.64' },
-      { label: 'Agent API', value: 'Later', note: 'Structured access locked' },
     ],
     sections: [
       { title: 'Top Failure Patterns', body: 'api changed before launch (3)' },
@@ -122,10 +110,36 @@ test('Agent Ashes view model renders verified summary data', () => {
       { title: 'Fragile Stacks', body: 'python (5)' },
       { title: 'Repeated Domains', body: 'crypto (4)' },
       { title: 'Death Stages', body: 'prototype (6)' },
-      { title: 'Resurrection Queue', body: 'dead-agent-prototype (0.64)' },
       { title: 'Certificate Trail', body: 'Terminal archive view with repo DIDs, verification logs, proof URLs, and JSON certificates.' },
     ],
     records: [expect.objectContaining({ subject_name: 'dead-agent-prototype', verification_status: 'gitlawb_http_verified' })],
+  })
+})
+
+test('Agent Ashes certificate JSON wraps inside the modal', () => {
+  expect(CERTIFICATE_JSON_STYLE).toMatchObject({
+    overflowWrap: 'anywhere',
+    whiteSpace: 'pre-wrap',
+    wordBreak: 'break-word',
+  })
+})
+
+test('modal close button keeps absolute positioning by default', () => {
+  expect(CLOSE_BUTTON_STYLE).toMatchObject({
+    position: 'absolute',
+    right: 12,
+  })
+  expect(CLOSE_BUTTON_STYLE).not.toHaveProperty('marginLeft')
+  expect(CLOSE_BUTTON_STYLE).not.toHaveProperty('display')
+  expect(CLOSE_BUTTON_STYLE).not.toHaveProperty('position', 'sticky')
+})
+
+test('modal close button supports opt-in sticky positioning', () => {
+  expect(CLOSE_BUTTON_STICKY_STYLE).toMatchObject({
+    position: 'sticky',
+    top: 10,
+    marginLeft: 'auto',
+    display: 'block',
   })
 })
 

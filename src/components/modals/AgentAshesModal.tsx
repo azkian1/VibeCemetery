@@ -8,30 +8,36 @@ import StoneFrame from '@/components/ui/StoneFrame';
 import CloseButton from '@/components/ui/CloseButton';
 import InsetBlock from '@/components/ui/InsetBlock';
 import OrnamentDivider from '@/components/ui/OrnamentDivider';
-import StoneButton from '@/components/ui/StoneButton';
+import type { CSSProperties } from 'react';
 
 export const AGENT_ASHES_COPY = {
   title: 'Agent Ashes',
   subtitle: 'Failure intelligence from autonomous project deaths.',
-  intro: 'Hermes and other agents will submit verified Ash here. Once enough records exist, this dashboard will surface repeated failure patterns, stack risks, resurrection candidates, and prevention guardrails.',
+  intro: 'Hermes and other agents will submit verified Ash here. Once enough records exist, this dashboard will surface repeated failure patterns, stack risks, recovery signals, and prevention guardrails.',
   stats: [
     { label: 'Verified Ash', value: '0', note: 'Awaiting Hermes certificates' },
     { label: 'Failure Patterns', value: 'Soon', note: 'Needs verified data' },
-    { label: 'Resurrection Candidates', value: 'Soon', note: 'Scored after ingestion' },
-    { label: 'Agent API', value: 'Later', note: 'Structured access locked' },
   ],
   sections: [
     { title: 'Top Failure Patterns', body: 'Waiting for verified Ash.' },
     { title: 'Fragile Stacks', body: 'Not enough data yet.' },
-    { title: 'Resurrection Queue', body: 'No candidates yet.' },
     { title: 'Raw Certificates', body: 'Expandable records will appear after Hermes submissions.' },
   ],
-  api: {
-    title: 'Agent API',
-    status: 'Coming later.',
-    body: 'Structured access will open after the archive has enough verified data.',
-    action: 'Request Early Access',
-  },
+};
+
+export const CERTIFICATE_JSON_STYLE: CSSProperties = {
+  background: 'rgba(0, 0, 0, 0.28)',
+  border: '1px solid rgba(200, 160, 80, 0.16)',
+  color: '#aaa9a0',
+  fontSize: 11,
+  lineHeight: 1.45,
+  margin: 0,
+  maxHeight: 260,
+  overflow: 'auto',
+  overflowWrap: 'anywhere',
+  padding: 10,
+  whiteSpace: 'pre-wrap',
+  wordBreak: 'break-word',
 };
 
 type CountItem = { value: string; count: number };
@@ -184,13 +190,6 @@ export function stringifyAgentAshCertificateForDisplay(certificate: Record<strin
   }, 2);
 }
 
-function formatAgentAshDate(value: string | null): string {
-  if (!value) return 'Never';
-  const time = Date.parse(value);
-  if (Number.isNaN(time)) return value;
-  return new Intl.DateTimeFormat('en', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(time));
-}
-
 function getObject(value: unknown): Record<string, unknown> | null {
   return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : null;
 }
@@ -206,18 +205,12 @@ export function buildAgentAshesViewModel(summary: AgentAshesSummary | null) {
   }
 
   const topFailure = summary.top_failure_patterns[0];
-  const topCandidate = summary.resurrection_candidates[0];
-  const candidateScore = typeof topCandidate?.resurrection_score === 'number'
-    ? topCandidate.resurrection_score.toFixed(2)
-    : null;
 
   return {
     ...AGENT_ASHES_COPY,
     stats: [
       { label: 'Verified Ash', value: String(summary.total_verified_ash), note: `${summary.sampled_verified_ash} sampled for dashboard` },
       { label: 'Failure Patterns', value: String(summary.top_failure_patterns.length), note: topFailure ? `Top: ${topFailure.value}` : 'Needs verified data' },
-      { label: 'Resurrection Candidates', value: String(summary.resurrection_candidates.length), note: candidateScore ? `Highest score ${candidateScore}` : 'No candidates yet' },
-      { label: 'Agent API', value: 'Later', note: 'Structured access locked' },
     ],
     sections: [
       { title: 'Top Failure Patterns', body: formatCounts(summary.top_failure_patterns, 'Waiting for verified Ash.') },
@@ -225,14 +218,6 @@ export function buildAgentAshesViewModel(summary: AgentAshesSummary | null) {
       { title: 'Fragile Stacks', body: formatCounts(summary.fragile_stacks, 'Not enough data yet.') },
       { title: 'Repeated Domains', body: formatCounts(summary.top_domains, 'Not enough data yet.') },
       { title: 'Death Stages', body: formatCounts(summary.common_death_stages, 'Not enough data yet.') },
-      {
-        title: 'Resurrection Queue',
-        body: summary.resurrection_candidates.length
-          ? summary.resurrection_candidates
-            .map((record) => `${record.subject_name}${typeof record.resurrection_score === 'number' ? ` (${record.resurrection_score.toFixed(2)})` : ''}`)
-            .join('\n')
-          : 'No candidates yet.',
-      },
       { title: 'Certificate Trail', body: 'Terminal archive view with repo DIDs, verification logs, proof URLs, and JSON certificates.' },
     ],
     records: summary.recent_verified_ash,
@@ -248,9 +233,6 @@ export default function AgentAshesModal() {
   const [certificate, setCertificate] = useState<Record<string, unknown> | null>(null);
   const [certificateError, setCertificateError] = useState<string | null>(null);
   const [certificateLoading, setCertificateLoading] = useState(false);
-  const [agentTokens, setAgentTokens] = useState<AgentAshTokenSummary[]>([]);
-  const [tokensError, setTokensError] = useState<string | null>(null);
-  const [revokingTokenId, setRevokingTokenId] = useState<string | null>(null);
   const mountedRef = useRef(false);
   const viewModel = buildAgentAshesViewModel(summary);
   const subject = getObject(certificate?.subject);
@@ -273,30 +255,6 @@ export default function AgentAshesModal() {
     }
   }
 
-  async function refreshAgentTokens(signal?: AbortSignal) {
-    try {
-      if (mountedRef.current) setTokensError(null);
-      const tokens = await loadAgentAshTokens((input, init) => fetch(input, { ...init, signal }));
-      if (mountedRef.current) setAgentTokens(tokens);
-    } catch (error) {
-      if (mountedRef.current && (error as Error).name !== 'AbortError') setTokensError('Connected agents are temporarily unavailable.');
-    }
-  }
-
-  async function revokeToken(tokenId: string) {
-    setRevokingTokenId(tokenId);
-    setTokensError(null);
-    try {
-      await revokeAgentAshToken(tokenId);
-      if (mountedRef.current) setAgentTokens((tokens) => tokens.filter((token) => token.id !== tokenId));
-      await refreshAgentTokens();
-    } catch {
-      if (mountedRef.current) setTokensError('Could not revoke this Agent Ash token.');
-    } finally {
-      if (mountedRef.current) setRevokingTokenId(null);
-    }
-  }
-
   useEffect(() => {
     mountedRef.current = true;
     const controller = new AbortController();
@@ -315,7 +273,6 @@ export default function AgentAshesModal() {
     }
 
     loadSummary();
-    void refreshAgentTokens(controller.signal);
     return () => {
       mountedRef.current = false;
       controller.abort();
@@ -326,7 +283,7 @@ export default function AgentAshesModal() {
     <ModalOverlay onClose={close}>
       <StoneFrame isMobile={isMobile} maxWidth={720}>
         <div style={{ padding: isMobile ? '20px 16px' : '24px 28px', position: 'relative', maxHeight: '82vh', overflowY: 'auto' }}>
-          <CloseButton onClick={close} />
+          <CloseButton onClick={close} sticky />
 
           <h2 style={{ margin: '0 0 4px', fontSize: 20, color: '#e8d5a3', textAlign: 'center' }}>
             {viewModel.title}
@@ -345,7 +302,7 @@ export default function AgentAshesModal() {
 
           <OrnamentDivider />
 
-          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(4, 1fr)', gap: 10, marginBottom: 14 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)', gap: 10, marginBottom: 14 }}>
             {viewModel.stats.map((stat) => (
               <InsetBlock key={stat.label}>
                 <div style={{ padding: '13px 10px', textAlign: 'center' }}>
@@ -362,50 +319,6 @@ export default function AgentAshesModal() {
               </InsetBlock>
             ))}
           </div>
-
-          <InsetBlock>
-            <div style={{ padding: '14px 14px 15px', marginBottom: 14 }}>
-              <div style={{ color: '#c8a050', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.4, marginBottom: 8 }}>
-                Connected Agents
-              </div>
-              {agentTokens.length === 0 && !tokensError && (
-                <div style={{ color: '#8f8b7e', fontSize: 13, lineHeight: 1.5 }}>
-                  No Hermes or Agent Ash credentials are connected yet.
-                </div>
-              )}
-              {tokensError && <div style={{ color: '#8f8b7e', fontSize: 12 }}>{tokensError}</div>}
-              {agentTokens.map((token) => (
-                <div key={token.id} style={{ borderTop: '1px solid rgba(200, 160, 80, 0.18)', paddingTop: 10, marginTop: 10 }}>
-                  <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', justifyContent: 'space-between', flexDirection: isMobile ? 'column' : 'row' }}>
-                    <div style={{ minWidth: 0 }}>
-                      <div style={{ color: '#e8d5a3', fontSize: 13, marginBottom: 4 }}>
-                        {token.agent_name}
-                      </div>
-                      <div style={{ color: '#8f8b7e', fontSize: 12, lineHeight: 1.55, wordBreak: 'break-word' }}>
-                        Token prefix: {token.token_prefix}
-                        <br />
-                        DID: {token.agent_did ?? 'Not provided'}
-                        <br />
-                        Node: {token.gitlawb_node_url}
-                        <br />
-                        Last used: {formatAgentAshDate(token.last_used_at)}
-                      </div>
-                      <div style={{ color: '#6a6960', fontSize: 11, marginTop: 5, wordBreak: 'break-word' }}>
-                        Scopes: {token.scopes.join(', ') || 'none'} · Created: {formatAgentAshDate(token.created_at)}
-                      </div>
-                    </div>
-                    <StoneButton
-                      onClick={() => { void revokeToken(token.id); }}
-                      disabled={revokingTokenId === token.id}
-                      style={{ flexShrink: 0, fontSize: 11, padding: '6px 10px' }}
-                    >
-                      {revokingTokenId === token.id ? 'Revoking...' : 'Revoke'}
-                    </StoneButton>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </InsetBlock>
 
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 10, marginBottom: 14 }}>
             {viewModel.sections.map((section) => (
@@ -479,18 +392,7 @@ export default function AgentAshesModal() {
                       {proofUrl ? ` · proof: ${proofUrl}` : ''}
                       {gitlawbNodeUrl ? ` · node: ${gitlawbNodeUrl}` : ''}
                     </div>
-                    <pre style={{
-                      background: 'rgba(0, 0, 0, 0.28)',
-                      border: '1px solid rgba(200, 160, 80, 0.16)',
-                      color: '#aaa9a0',
-                      fontSize: 11,
-                      lineHeight: 1.45,
-                      margin: 0,
-                      maxHeight: 260,
-                      overflow: 'auto',
-                      padding: 10,
-                      whiteSpace: 'pre-wrap',
-                    }}>
+                    <pre style={CERTIFICATE_JSON_STYLE}>
                       {stringifyAgentAshCertificateForDisplay(certificate)}
                     </pre>
                   </>
@@ -503,23 +405,6 @@ export default function AgentAshesModal() {
             <p style={{ color: '#8f8b7e', fontSize: 12, textAlign: 'center', margin: '0 0 14px' }}>{loadError}</p>
           )}
 
-          <InsetBlock>
-            <div style={{ padding: isMobile ? '16px 14px' : '18px 20px', textAlign: 'center' }}>
-              <div style={{ color: '#e8d5a3', fontSize: 15, marginBottom: 4 }}>
-                {viewModel.api.title}
-              </div>
-              <div style={{ color: '#c8a050', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.4, marginBottom: 8 }}>
-                {viewModel.api.status}
-              </div>
-              <p id="agent-ashes-api-note" style={{ color: '#8f8b7e', fontSize: 13, lineHeight: 1.55, margin: '0 0 12px' }}>
-                {viewModel.api.body}
-              </p>
-
-              <StoneButton onClick={() => undefined} disabled aria-describedby="agent-ashes-api-note">
-                {viewModel.api.action}
-              </StoneButton>
-            </div>
-          </InsetBlock>
         </div>
       </StoneFrame>
     </ModalOverlay>
