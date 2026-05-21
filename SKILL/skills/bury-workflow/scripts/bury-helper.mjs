@@ -478,7 +478,7 @@ export function inspectProject(projectPath) {
     ? ''
     : sanitizeDisplayText(runGit(resolvedProjectPath, ['rev-list', '--max-parents=0', 'HEAD']).split(/\r?\n/)[0] || '', 80)
   const ageSeconds = lastCommitTimestamp === null ? null : Math.floor(Date.now() / 1000) - lastCommitTimestamp
-  const status = lastCommitTimestamp === null ? 'Untracked' : ageSeconds >= 14 * 24 * 60 * 60 ? 'Dead' : 'Alive'
+  const status = lastCommitTimestamp === null ? 'Untracked' : ageSeconds >= 7 * 24 * 60 * 60 ? 'Dead' : 'Alive'
 
   return {
     name: sanitizeDisplayText(path.basename(resolvedProjectPath), 120),

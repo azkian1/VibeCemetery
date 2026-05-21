@@ -29,7 +29,7 @@ Project instructions for Claude Code. Detailed reference lives in `docs/CLAUDE.m
 ## Rules
 - Use inline styles for component-level UI unless an existing file already relies on `globals.css`.
 - Do not hardcode grave coordinates; use parsed map slots.
-- Treat repos as dead only when inactive for 14+ days and not forks.
+- Treat repos as dead only when inactive for 7+ days and not forks.
 - Human CLI `/bury` cremations stay in `/api/cremated`; they are not Agent Ashes ingest.
 - Keep grave burial ceremony behavior intact; cremations do not use ceremony animation.
 - Preserve CLI auth flow: browser approval, `claim_token`, hashed long-lived CLI tokens.

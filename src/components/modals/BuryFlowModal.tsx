@@ -373,7 +373,7 @@ export default function BuryFlowModal() {
 
           {step === 1 && (
             <p style={{ color: '#aaa9a0', fontSize: 13, lineHeight: 1.5, margin: '-6px 0 18px', textAlign: 'center' }}>
-              The Gravedigger scans your GitHub for non-fork repos with no pushes for 14+ days. Pick which ones become graves or cremations.
+              The Gravedigger scans your GitHub for non-fork repos with no pushes for 7+ days. Pick which ones become graves or cremations.
             </p>
           )}
 

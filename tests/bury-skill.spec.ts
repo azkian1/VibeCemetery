@@ -450,6 +450,34 @@ test.describe('bury skill helpers', () => {
     }
   })
 
+  test('inspectProject marks git projects dead after 7 days of inactivity', async () => {
+    const { inspectProject } = await loadHelper()
+    const fixtureRoot = mkdtempSync(path.join(tmpdir(), 'bury-seven-day-'))
+    const deadCommitDate = new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString()
+
+    try {
+      writeFileSync(path.join(fixtureRoot, 'package.json'), '{"name":"seven-day-project"}')
+      execFileSync('git', ['init'], { cwd: fixtureRoot, stdio: 'ignore' })
+      execFileSync('git', ['add', 'package.json'], { cwd: fixtureRoot, stdio: 'ignore' })
+      execFileSync('git', ['-c', 'user.email=test@example.com', '-c', 'user.name=Tester', 'commit', '-m', 'initial commit'], {
+        cwd: fixtureRoot,
+        env: {
+          ...process.env,
+          GIT_AUTHOR_DATE: deadCommitDate,
+          GIT_COMMITTER_DATE: deadCommitDate,
+        },
+        stdio: 'ignore',
+      })
+
+      expect(inspectProject(fixtureRoot)).toMatchObject({
+        name: path.basename(fixtureRoot),
+        status: 'Dead',
+      })
+    } finally {
+      rmSync(fixtureRoot, { recursive: true, force: true })
+    }
+  })
+
   test('inspectProject does not inherit git metadata from an ancestor repository', async () => {
     const { inspectProject } = await loadHelper()
     const fixtureRoot = mkdtempSync(path.join(tmpdir(), 'bury-parent-git-'))

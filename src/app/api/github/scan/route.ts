@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import {
+  fetchGitHubRepoRootContents,
+  parseGitHubRepoUrl,
+  validateGitHubRootContentsEligibility,
+} from "@/app/api/graves/githubRepoEligibility";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 
 interface GitHubRepo {
@@ -29,9 +34,18 @@ interface CachedScan {
   expiresAt: number;
 }
 
+interface CachedContentEligibility {
+  ok: boolean;
+  expiresAt: number;
+}
+
 const scanCache = new Map<string, CachedScan>();
+const contentEligibilityCache = new Map<string, CachedContentEligibility>();
 const CACHE_TTL = 24 * 60 * 60 * 1000;
+const CONTENT_ELIGIBILITY_CACHE_TTL = 6 * 60 * 60 * 1000;
 const MAX_CACHE_SIZE = 500;
+const MAX_CONTENT_ELIGIBILITY_CACHE_SIZE = 2000;
+const MAX_CONTENT_CHECKS_PER_SCAN = 75;
 
 function ghHeaders(): Record<string, string> {
   return {
@@ -45,7 +59,24 @@ function ghHeaders(): Record<string, string> {
 
 // 10 requests per minute per IP
 const SCAN_RATE_LIMIT = 10;
+const EXPENSIVE_SCAN_RATE_LIMIT = 3;
 const SCAN_WINDOW_MS = 60_000;
+
+function pruneContentEligibilityCache() {
+  const now = Date.now();
+  for (const [key, cached] of contentEligibilityCache) {
+    if (now >= cached.expiresAt) contentEligibilityCache.delete(key);
+  }
+
+  if (contentEligibilityCache.size >= MAX_CONTENT_ELIGIBILITY_CACHE_SIZE) {
+    const excess = contentEligibilityCache.size - MAX_CONTENT_ELIGIBILITY_CACHE_SIZE + 1;
+    const iter = contentEligibilityCache.keys();
+    for (let i = 0; i < excess; i++) {
+      const key = iter.next().value;
+      if (key) contentEligibilityCache.delete(key);
+    }
+  }
+}
 
 export async function GET(request: NextRequest) {
   /* ── Auth: only logged-in user can scan, and only their own GitHub ── */
@@ -138,12 +169,83 @@ export async function GET(request: NextRequest) {
   }
 
   const cutoffDate = new Date();
-  cutoffDate.setDate(cutoffDate.getDate() - 14);
+  cutoffDate.setDate(cutoffDate.getDate() - 7);
 
   const nonForkRepos = allRepos.filter((repo) => !repo.fork);
 
-  const deadRepos = nonForkRepos
-    .filter((repo) => new Date(repo.pushed_at) < cutoffDate)
+  const deadRepoCandidates = nonForkRepos
+    .filter((repo) => new Date(repo.pushed_at) <= cutoffDate)
+
+  const reposToCheck = deadRepoCandidates.slice(0, MAX_CONTENT_CHECKS_PER_SCAN);
+  const needsUncachedContentChecks = reposToCheck.some((repo) => {
+    const parsedGithubUrl = parseGitHubRepoUrl(repo.html_url);
+    if (!parsedGithubUrl) return false;
+    const cacheKey = `${parsedGithubUrl.owner.toLowerCase()}/${parsedGithubUrl.repo.toLowerCase()}`;
+    const cachedEligibility = contentEligibilityCache.get(cacheKey);
+    return !cachedEligibility || Date.now() >= cachedEligibility.expiresAt;
+  });
+
+  if (needsUncachedContentChecks) {
+    const expensiveRl = await checkRateLimit(`scan-content:${ip}:${username}`, EXPENSIVE_SCAN_RATE_LIMIT, SCAN_WINDOW_MS);
+    if (!expensiveRl.allowed) {
+      return NextResponse.json(
+        { error: "Too many deep GitHub scans. Please try again later." },
+        { status: 429, headers: { "Retry-After": String(Math.ceil(expensiveRl.retryAfterMs / 1000)) } }
+      );
+    }
+  }
+
+  const projectRepos: GitHubRepo[] = [];
+  for (const repo of reposToCheck) {
+    const parsedGithubUrl = parseGitHubRepoUrl(repo.html_url);
+    if (!parsedGithubUrl) continue;
+
+    const cacheKey = `${parsedGithubUrl.owner.toLowerCase()}/${parsedGithubUrl.repo.toLowerCase()}`;
+    const cachedEligibility = contentEligibilityCache.get(cacheKey);
+    if (cachedEligibility && Date.now() < cachedEligibility.expiresAt) {
+      if (cachedEligibility.ok) projectRepos.push(repo);
+      continue;
+    }
+
+    let contentsResponse: Response;
+    try {
+      contentsResponse = await fetchGitHubRepoRootContents(parsedGithubUrl.owner, parsedGithubUrl.repo);
+    } catch {
+      return NextResponse.json(
+        { error: "Failed to verify GitHub repository contents" },
+        { status: 502 }
+      );
+    }
+
+    if (contentsResponse.status === 403 || contentsResponse.status === 429) {
+      return NextResponse.json(
+        { error: "GitHub API rate limit exceeded. Please try again later." },
+        { status: 429 }
+      );
+    }
+
+    if (contentsResponse.status === 404 || contentsResponse.status === 409) continue;
+
+    if (!contentsResponse.ok) {
+      return NextResponse.json(
+        { error: "Failed to verify GitHub repository contents" },
+        { status: 502 }
+      );
+    }
+
+    const contents = await contentsResponse.json();
+    const contentsEligibility = validateGitHubRootContentsEligibility(Array.isArray(contents) ? contents : []);
+    pruneContentEligibilityCache();
+    contentEligibilityCache.set(cacheKey, {
+      ok: contentsEligibility.ok,
+      expiresAt: Date.now() + CONTENT_ELIGIBILITY_CACHE_TTL,
+    });
+    if (contentsEligibility.ok) {
+      projectRepos.push(repo);
+    }
+  }
+
+  const deadRepos = projectRepos
     .map((repo) => ({
       id: repo.id,
       name: repo.name,

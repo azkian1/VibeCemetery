@@ -158,7 +158,7 @@ The helper returns:
 - **Last commit timestamp**: numeric Unix seconds or `null`
 - **Last commit subject**: sanitized `%s` subject only
 - **Main language**: inferred from project markers
-- **Status**: `Dead` when git inactivity is >= 14 * 24 hours, `Alive` when newer, `Untracked` when git metadata is unavailable
+- **Status**: `Dead` when git inactivity is >= 7 * 24 hours, `Alive` when newer, `Untracked` when git metadata is unavailable
 - **Fingerprints**: sanitized `git_remote`, `first_commit`, and `path_fingerprint`
 
 Never display raw canonical paths. Use `path_fingerprint` for non-git deduplication.

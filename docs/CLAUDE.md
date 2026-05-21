@@ -249,8 +249,8 @@ vibecemetery/
 - Prefer inline styles for UI; `globals.css` is for app-wide base styling, not component-level theme work.
 - Stone palette and Cinzel typography are part of the product identity; new UI should match the established cemetery visual language.
 - Shared modal chrome belongs in `src/components/ui/`; feature modal behavior belongs in `src/components/modals/`.
-- GitHub repos count as dead when they have no commits for 14+ days and are not forks.
-- `POST /api/graves` verifies the GitHub repository before insertion: URL and repo id must match, owner must be the signed-in user, forks are rejected, and pushed_at must be 14+ days old.
+- GitHub repos count as dead when they have no commits for 7+ days and are not forks.
+- `POST /api/graves` verifies the GitHub repository before insertion: URL and repo id must match, owner must be the signed-in user, forks are rejected, and pushed_at must be 7+ days old.
 - Grave placement must come from parsed map slots, not hardcoded coordinates.
 - Normal user graves are limited server-side by slot economy before map slot assignment.
 - Auto-assigned user graves can use only `grave` and `grave_tall` slots. `grave_special` is reserved for friends/welcome placements; Tier 2–3 slots are manual Gravedigger upgrades for best ideas.

@@ -1,7 +1,18 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
+import {
+  fetchGitHubRepo,
+  fetchGitHubRepoRootContents,
+  parseGitHubRepoUrl,
+  validateGitHubRepoEligibility,
+  validateGitHubRootContentsEligibility,
+} from '@/app/api/graves/githubRepoEligibility'
 import { isAgentAshEnvelope, isAgentAshIngestToken } from '@/lib/agent-ash-boundary'
 import { resolveCliActor } from '@/lib/cli-auth'
+import { checkRateLimit, getClientIp } from '@/lib/rate-limit'
 import { supabaseAdmin } from '@/lib/supabase'
+
+const GITHUB_REPO_VERIFY_LIMIT = 15
+const GITHUB_REPO_VERIFY_WINDOW_MS = 60_000
 
 /** Strip HTML tags and collapse whitespace — defense-in-depth for stored text */
 function sanitize(str: string): string {
@@ -12,7 +23,7 @@ function normalizeGithubRepoUrl(url: string): string {
   return url.replace(/\/+$/, '')
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   const bearerToken = request.headers.get('authorization')?.match(/^Bearer\s+(.+)$/i)?.[1]?.trim()
   if (isAgentAshIngestToken(bearerToken)) {
     return NextResponse.json(
@@ -128,6 +139,11 @@ export async function POST(request: Request) {
   }
 
   if (trimmedGithubUrl) {
+    const parsedGithubUrl = parseGitHubRepoUrl(trimmedGithubUrl)
+    if (!parsedGithubUrl) {
+      return NextResponse.json({ error: 'github_url must be a valid GitHub repo URL' }, { status: 400 })
+    }
+
     const { data: existingGrave, error: existingGraveError } = await supabaseAdmin
       .from('graves')
       .select('id')
@@ -148,6 +164,94 @@ export async function POST(request: Request) {
         { status: 409 }
       )
     }
+
+    const verifyRateLimit = await checkRateLimit(
+      `cremated-verify:${authorGithub}:${getClientIp(request)}`,
+      GITHUB_REPO_VERIFY_LIMIT,
+      GITHUB_REPO_VERIFY_WINDOW_MS,
+    )
+    if (!verifyRateLimit.allowed) {
+      return NextResponse.json(
+        { error: 'Too many GitHub repository verification attempts. Please try again later.' },
+        {
+          status: 429,
+          headers: { 'Retry-After': String(Math.ceil(verifyRateLimit.retryAfterMs / 1000)) },
+        },
+      )
+    }
+
+    let githubRepo: unknown
+    try {
+      const githubResponse = await fetchGitHubRepo(parsedGithubUrl.owner, parsedGithubUrl.repo)
+      if (githubResponse.status === 404) {
+        return NextResponse.json({ error: 'GitHub repository not found' }, { status: 404 })
+      }
+      if (githubResponse.status === 403 || githubResponse.status === 429) {
+        return NextResponse.json({ error: 'GitHub API rate limit exceeded. Please try again later.' }, { status: 429 })
+      }
+      if (!githubResponse.ok) {
+        return NextResponse.json({ error: 'Failed to verify GitHub repository' }, { status: 502 })
+      }
+
+      githubRepo = await githubResponse.json()
+    } catch {
+      return NextResponse.json({ error: 'Failed to verify GitHub repository' }, { status: 502 })
+    }
+
+    const githubRepoId = githubRepo && typeof githubRepo === 'object' && typeof (githubRepo as { id?: unknown }).id === 'number'
+      ? (githubRepo as { id: number }).id
+      : 0
+    const { data: existingGraveByRepoId, error: existingGraveByRepoIdError } = await supabaseAdmin
+      .from('graves')
+      .select('id')
+      .eq('github_repo_id', githubRepoId)
+      .limit(1)
+      .maybeSingle()
+
+    if (existingGraveByRepoIdError) {
+      return NextResponse.json(
+        { error: 'Failed to check existing burial' },
+        { status: 500 }
+      )
+    }
+
+    if (existingGraveByRepoId) {
+      return NextResponse.json(
+        { error: 'This repository has already been buried' },
+        { status: 409 }
+      )
+    }
+
+    const eligibility = validateGitHubRepoEligibility({
+      repo: githubRepo && typeof githubRepo === 'object' ? githubRepo : {},
+      expectedRepoId: githubRepoId,
+      authenticatedUsername: authorGithub,
+    })
+    if (!eligibility.ok) {
+      return NextResponse.json({ error: eligibility.error }, { status: eligibility.status })
+    }
+
+    try {
+      const contentsResponse = await fetchGitHubRepoRootContents(parsedGithubUrl.owner, parsedGithubUrl.repo)
+      if (contentsResponse.status === 403 || contentsResponse.status === 429) {
+        return NextResponse.json({ error: 'GitHub API rate limit exceeded. Please try again later.' }, { status: 429 })
+      }
+      if (contentsResponse.status === 404 || contentsResponse.status === 409) {
+        return NextResponse.json({ error: 'Empty or non-project repositories cannot be buried' }, { status: 400 })
+      }
+      if (!contentsResponse.ok) {
+        return NextResponse.json({ error: 'Failed to verify GitHub repository contents' }, { status: 502 })
+      }
+
+      const contents = await contentsResponse.json()
+      const contentsEligibility = validateGitHubRootContentsEligibility(Array.isArray(contents) ? contents : [])
+      if (!contentsEligibility.ok) {
+        return NextResponse.json({ error: contentsEligibility.error }, { status: contentsEligibility.status })
+      }
+    } catch {
+      return NextResponse.json({ error: 'Failed to verify GitHub repository contents' }, { status: 502 })
+    }
+
   }
 
   // Insert record

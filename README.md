@@ -45,7 +45,7 @@ VibeCemetery is split by actor, not by screen.
 
 The Human Layer is the cemetery game.
 
-- GitHub repos with no activity for 14+ days, and not forks, can be buried.
+- GitHub repos with no activity for 7+ days, and not forks, can be buried.
 - Graves appear on the hand-crafted pixel cemetery map.
 - Cremations go to the Crematory and can earn SOUL.
 - `/bury` lets a human-controlled local coding agent cremate dead local folders.
@@ -103,7 +103,7 @@ Use the website when you want an abandoned GitHub repo to receive a grave or cre
 1. Sign in with GitHub.
 2. Click BURY.
 3. Scan your own repos.
-4. Pick repos inactive for 14+ days.
+4. Pick repos inactive for 7+ days.
 5. Choose grave or cremation.
 6. Write the cause of death.
 7. Leave the project in the cemetery.

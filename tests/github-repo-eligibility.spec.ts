@@ -1,5 +1,9 @@
 import { test, expect } from '@playwright/test'
-import { validateGitHubRepoEligibility } from '../src/app/api/graves/githubRepoEligibility'
+import {
+  classifyGitHubRootEntries,
+  validateGitHubRepoEligibility,
+  validateGitHubRootContentsEligibility,
+} from '../src/app/api/graves/githubRepoEligibility'
 
 const deadPushedAt = '2026-04-01T00:00:00Z'
 
@@ -18,9 +22,9 @@ function makeRepo(overrides: Partial<{
 }
 
 test.describe('validateGitHubRepoEligibility', () => {
-  test('accepts own non-fork repository inactive for at least 14 days', () => {
+  test('accepts own non-fork repository inactive for at least 7 days', () => {
     const result = validateGitHubRepoEligibility({
-      repo: makeRepo(),
+      repo: makeRepo({ pushed_at: '2026-04-24T00:00:00Z' }),
       expectedRepoId: 123,
       authenticatedUsername: 'OctoCat',
       now: new Date('2026-05-01T00:00:00Z'),
@@ -76,5 +80,69 @@ test.describe('validateGitHubRepoEligibility', () => {
     })
 
     expect(result).toEqual({ ok: false, status: 400, error: 'github_repo_id does not match repository URL' })
+  })
+})
+
+test.describe('classifyGitHubRootEntries', () => {
+  test('accepts /bury-style strong project markers', () => {
+    expect(classifyGitHubRootEntries([
+      { name: 'package.json', type: 'file' },
+      { name: 'README.md', type: 'file' },
+    ])).toMatchObject({
+      isCandidate: true,
+      source: 'strong',
+      strongMatches: ['package.json'],
+    })
+  })
+
+  test('accepts /bury-style fallback project signals', () => {
+    expect(classifyGitHubRootEntries([
+      { name: 'index.html', type: 'file' },
+      { name: 'Dockerfile', type: 'file' },
+    ])).toMatchObject({
+      isCandidate: true,
+      source: 'fallback',
+      codeLikeCount: 1,
+      confidenceBoosterCount: 1,
+    })
+  })
+
+  test('rejects empty and readme-only GitHub repositories', () => {
+    expect(classifyGitHubRootEntries([])).toMatchObject({
+      isCandidate: false,
+      source: 'none',
+    })
+
+    expect(classifyGitHubRootEntries([
+      { name: 'README.md', type: 'file' },
+    ])).toMatchObject({
+      isCandidate: false,
+      source: 'none',
+    })
+  })
+})
+
+test.describe('validateGitHubRootContentsEligibility', () => {
+  test('rejects empty or non-project GitHub root contents with burial-safe error', () => {
+    expect(validateGitHubRootContentsEligibility([])).toEqual({
+      ok: false,
+      status: 400,
+      error: 'Empty or non-project repositories cannot be buried',
+    })
+
+    expect(validateGitHubRootContentsEligibility([
+      { name: 'README.md', type: 'file' },
+    ])).toEqual({
+      ok: false,
+      status: 400,
+      error: 'Empty or non-project repositories cannot be buried',
+    })
+  })
+
+  test('accepts GitHub root contents matching /bury project signals', () => {
+    expect(validateGitHubRootContentsEligibility([
+      { name: 'main.py', type: 'file' },
+      { name: 'README.md', type: 'file' },
+    ])).toEqual({ ok: true })
   })
 })

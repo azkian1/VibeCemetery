@@ -114,7 +114,7 @@ export default function StepScan({
           Sign in with GitHub to scan your public repos.
         </p>
         <p style={{ color: '#6a6960', fontSize: 12, lineHeight: 1.5, margin: '0 0 16px' }}>
-          Dead repos are non-forks with no pushes for 14+ days.
+          Dead repos are non-forks with no pushes for 7+ days.
         </p>
         <button
           onClick={() => signIn('github', { callbackUrl: getBuryLoginCallbackUrl() })}
@@ -192,7 +192,7 @@ export default function StepScan({
           No dead repos found.
         </p>
         <p style={{ color: '#6a6960', fontSize: 12, lineHeight: 1.5, margin: '0 0 8px' }}>
-          A repo must be inactive for 14+ days and not be a fork.
+          A repo must be inactive for 7+ days and not be a fork.
         </p>
         <p style={{ color: '#8a8980', fontSize: 13, margin: 0 }}>
           All alive, or the evidence is hidden well.

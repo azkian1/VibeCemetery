@@ -50,7 +50,7 @@ const FAQ_ITEMS: FaqItem[] = [
   {
     question: 'What counts as a "dead" project?',
     answer:
-      'A repository with no pushes for 14+ days. Forks are excluded. ' +
+      'A repository with no pushes for 7+ days. Forks are excluded. ' +
       'If the project comes back to life — well, zombies happen.',
   },
   {

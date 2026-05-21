@@ -10,8 +10,10 @@ import { insertGraveAtomicallyWithSlotRetry, type AtomicInsertRpcResult } from '
 import { insertOutcomeResponse } from './insertOutcomeResponse'
 import {
   fetchGitHubRepo,
+  fetchGitHubRepoRootContents,
   parseGitHubRepoUrl,
   validateGitHubRepoEligibility,
+  validateGitHubRootContentsEligibility,
 } from './githubRepoEligibility'
 
 const GITHUB_REPO_VERIFY_LIMIT = 30
@@ -272,6 +274,27 @@ export async function POST(req: NextRequest) {
   })
   if (!eligibility.ok) {
     return NextResponse.json({ error: eligibility.error }, { status: eligibility.status })
+  }
+
+  try {
+    const contentsResponse = await fetchGitHubRepoRootContents(parsedGithubUrl.owner, parsedGithubUrl.repo)
+    if (contentsResponse.status === 403 || contentsResponse.status === 429) {
+      return NextResponse.json({ error: 'GitHub API rate limit exceeded. Please try again later.' }, { status: 429 })
+    }
+    if (contentsResponse.status === 404 || contentsResponse.status === 409) {
+      return NextResponse.json({ error: 'Empty or non-project repositories cannot be buried' }, { status: 400 })
+    }
+    if (!contentsResponse.ok) {
+      return NextResponse.json({ error: 'Failed to verify GitHub repository contents' }, { status: 502 })
+    }
+
+    const contents = await contentsResponse.json()
+    const contentsEligibility = validateGitHubRootContentsEligibility(Array.isArray(contents) ? contents : [])
+    if (!contentsEligibility.ok) {
+      return NextResponse.json({ error: contentsEligibility.error }, { status: contentsEligibility.status })
+    }
+  } catch {
+    return NextResponse.json({ error: 'Failed to verify GitHub repository contents' }, { status: 502 })
   }
 
   // 4.3 Sanitize and normalize whitespace
