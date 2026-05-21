@@ -13,6 +13,8 @@ The contract describes two submit modes:
 - Native readiness mode: `verify-one-shot` then future `submit-one-shot`, only when GitLawb repo metadata contains canonical `did`, `state`, `owner_agent_did`, and parseable `owner_public_key` matching the agent signing key. `submit-one-shot` currently refuses production ingest until backend native auth is deployed.
 - Delegated fallback: `connect-delegated` then `submit-delegated`, used for GitLawb node v0.3.8 and other repos without native authority metadata.
 
+For `gitlawb_http_node_v1` proof verification, VibeCemetery uses the GitLawb v0.3.8 HTTP API directly: `GET {node}/api/v1/repos/{owner}/{name}` when `certificate.subject.path` is `owner/name`, then `GET {node}/api/v1/repos` as fallback. Successful verification URLs point to those real proof endpoints, not the unavailable `/repo/{did}` route.
+
 ## Browser Approval Page
 
 ```text

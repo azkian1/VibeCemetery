@@ -38,9 +38,9 @@ const config = {
 }
 
 const gitlawbV038Repo = {
-  id: '35912a4c-d435-4f7f-a5d6-71abc39bed0e',
-  owner_did: 'did:key:z6MkpqHermesOwner',
-  name: 'hermes-test',
+  id: 'owner/repo-name',
+  owner_did: 'z6MkOwner',
+  name: 'repo-name',
   created_at: '2026-06-01T00:00:00Z',
   updated_at: '2026-06-01T00:00:00Z',
 }
@@ -50,7 +50,7 @@ const nativeConfig = {
   agent_private_key: nativeKeyPair.privateKey.export({ type: 'pkcs8', format: 'pem' }),
 }
 
-const derivedGitlawbV038RepoDid = 'did:gitlawb:34deff7b47100b8febd5c935bf152124'
+const derivedGitlawbV038RepoDid = 'did:gitlawb:e69fe641235afed640cacd656435eb71'
 
 test.describe('gitlawb agent ash skill helpers', () => {
   test('installable skill contract stays aligned with canonical Agent Ash v1', async () => {
@@ -255,7 +255,7 @@ test.describe('gitlawb agent ash skill helpers', () => {
         node_url: 'https://node.gitlawb.com',
         observed_created_at: '2026-03-01T14:22:00Z',
         observed_updated_at: '2026-03-05T09:15:00Z',
-        verification_url: 'https://node.gitlawb.com/repo/did%3Agitlawb%3Az6MkRepoDeadAgentPrototype',
+        verification_url: 'https://node.gitlawb.com/api/v1/repos/azkian1/dead-agent-prototype',
         signature: null,
         signed_by: 'did:key:z6MkAgentHermes',
       },
@@ -295,11 +295,12 @@ test.describe('gitlawb agent ash skill helpers', () => {
     expect(getRepoDid({ id: repo.did })).toBe(repo.did)
   })
 
-  test('derives a stable repo DID from GitLawb node v0.3.8 owner_did and name fields', async () => {
-    const { buildAgentAshRequest, getRepoDid } = await loadHelper()
+  test('derives a stable repo DID and owner/name path from GitLawb node v0.3.8 fields', async () => {
+    const { buildAgentAshRequest, getNativeReadiness, getRepoDid } = await loadHelper()
 
     expect(getRepoDid(gitlawbV038Repo)).toBe(derivedGitlawbV038RepoDid)
-    expect(getRepoDid({ ...gitlawbV038Repo, name: ' Hermes Test ' })).toBe(derivedGitlawbV038RepoDid)
+    expect(getRepoDid({ ...gitlawbV038Repo, name: ' Repo Name ' })).toBe(derivedGitlawbV038RepoDid)
+    expect(getRepoDid({ ...gitlawbV038Repo, owner_did: 'did:key:z6MkOwner' })).toBe(derivedGitlawbV038RepoDid)
     expect(getRepoDid({ ...gitlawbV038Repo, owner_did: 'did:web:not-supported' })).toBe('')
 
     const request = buildAgentAshRequest({
@@ -309,12 +310,17 @@ test.describe('gitlawb agent ash skill helpers', () => {
     })
 
     expect(request.certificate.subject).toMatchObject({
-      name: 'hermes-test',
+      name: 'repo-name',
       repo_did: derivedGitlawbV038RepoDid,
-      path: 'hermes-test',
+      path: 'owner/repo-name',
       url: `gitlawb://${derivedGitlawbV038RepoDid}`,
     })
     expect(request.proof.repo_did).toBe(derivedGitlawbV038RepoDid)
+    expect(request.proof.verification_url).toBe('https://node.gitlawb.com/api/v1/repos/owner/repo-name')
+    expect(getNativeReadiness(gitlawbV038Repo, nativeConfig)).toMatchObject({
+      native_ready: false,
+      missing: ['did', 'owner_agent_did', 'owner_public_key', 'state'],
+    })
   })
 
   test('builds an agent-native signed VibeCemetery ingest request without ash token auth', async () => {

@@ -86,7 +86,7 @@ The `claim_token` is only for polling this browser approval session. It is not a
 
 Use this flow when the human explicitly asks to record a death for a public GitLawb repo DID.
 
-GitLawb node v0.3.8 may omit `repo_did` and expose only `owner_did` plus `name`. In that case, the helper derives a stable fallback repo DID as `did:gitlawb:<sha256(owner_did|normalized_name)[0..32]>` for discovery/readiness checks only. Do not treat the derived DID as native authority.
+GitLawb node v0.3.8 may omit `repo_did` and expose only `id = owner/name`, `owner_did`, and `name`. In that case, the helper normalizes bare `z6Mk...` owners as `did:key:z6Mk...`, derives a stable fallback repo DID as `did:gitlawb:<sha256(owner_did|normalized_name)[0..32]>`, and preserves `owner/name` as the certificate subject path. The derived DID is valid for discovery and delegated HTTP proof matching only; do not treat it as native authority.
 
 Command:
 
@@ -108,6 +108,8 @@ Agent-native Agent Ash does not require GitHub OAuth, VibeCemetery login, or bro
 If `verify-one-shot` returns `native_ready: false`, do not call native `submit-one-shot`; use delegated fallback instead. If `verify-one-shot` returns `native_ready: true`, native `submit-one-shot` still refuses production ingest until backend native auth is enabled.
 
 VibeCemetery verifies GitLawb proof once before accepting the write. Treat a `201` response from `/api/agent-ashes` as the final confirmation and do not recheck GitLawb after the record is accepted.
+
+Production verification uses `GET {gitlawb_node_url}/api/v1/repos/{owner}/{name}` when the certificate subject path has `owner/name`. `GET {gitlawb_node_url}/api/v1/repos` is fallback. The missing `/repo/{did}` UI-style route is not required for VibeCemetery backend proof verification.
 
 Use `GITLAWB_NODE=https://node.gitlawb.com` for GitLawb push/delete operations when GitLawb needs an explicit node. Do not confuse GitLawb node writes with VibeCemetery ingest; current production VibeCemetery writes are only `POST https://vibecemetery.app/api/agent-ashes` through delegated `submit-delegated` or an approved watchlist submission.
 

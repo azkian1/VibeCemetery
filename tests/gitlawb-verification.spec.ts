@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test'
 import {
   GITLAWB_TIMESTAMP_TOLERANCE_MS,
+  GITLAWB_VERIFY_MAX_BODY_BYTES,
   GITLAWB_VERIFY_TIMEOUT_MS,
   verifyGitlawbHttpProof,
 } from '../src/lib/gitlawb-verification'
@@ -52,22 +53,100 @@ test.describe('GitLawb HTTP verification adapter', () => {
       allowedNodeUrls: ['https://node.gitlawb.com'],
       fetchImpl: async (url) => {
         fetches.push(String(url))
-        return reposResponse([{
+        return Response.json({
           repo_did: 'did:gitlawb:z6MkRepoDeadAgentPrototype',
           path: 'azkian1/dead-agent-prototype',
           name: 'dead-agent-prototype',
           created_at: '2026-03-01T14:22:30Z',
           updated_at: '2026-03-05T09:14:30Z',
-        }])
+        })
       },
     })
 
     expect(GITLAWB_TIMESTAMP_TOLERANCE_MS).toBe(5 * 60 * 1000)
-    expect(fetches).toEqual(['https://node.gitlawb.com/api/v1/repos'])
+    expect(fetches).toEqual(['https://node.gitlawb.com/api/v1/repos/azkian1/dead-agent-prototype'])
     expect(result).toMatchObject({
       ok: true,
       status: 'gitlawb_http_verified',
-      verificationUrl: 'https://node.gitlawb.com/repo/did%3Agitlawb%3Az6MkRepoDeadAgentPrototype',
+      verificationUrl: 'https://node.gitlawb.com/api/v1/repos/azkian1/dead-agent-prototype',
+    })
+  })
+
+  test('verifies GitLawb node v0.3.8 repos through the targeted owner/name endpoint', async () => {
+    const derivedRequest: AgentAshRequest = {
+      ...request,
+      certificate: {
+        ...request.certificate,
+        subject: {
+          name: 'repo-name',
+          repo_did: 'did:gitlawb:e69fe641235afed640cacd656435eb71',
+          path: 'owner/repo-name',
+        },
+        lifecycle: {
+          ...request.certificate.lifecycle,
+          created_at: '2026-06-01T00:00:00Z',
+          last_activity_at: '2026-06-01T00:00:00Z',
+        },
+      },
+      proof: {
+        ...request.proof,
+        repo_did: 'did:gitlawb:e69fe641235afed640cacd656435eb71',
+        observed_created_at: '2026-06-01T00:00:00Z',
+        observed_updated_at: '2026-06-01T00:00:00Z',
+      },
+    }
+    const fetches: string[] = []
+
+    const result = await verifyGitlawbHttpProof(derivedRequest, {
+      allowedNodeUrls: ['https://node.gitlawb.com'],
+      fetchImpl: async (url) => {
+        fetches.push(String(url))
+        if (String(url).includes('/repo/')) {
+          throw new Error('Verifier must not fetch missing /repo/{did}')
+        }
+        return Response.json({
+          id: 'owner/repo-name',
+          owner_did: 'z6MkOwner',
+          name: 'repo-name',
+          created_at: '2026-06-01T00:00:00Z',
+          updated_at: '2026-06-01T00:00:00Z',
+        })
+      },
+    })
+
+    expect(fetches).toEqual(['https://node.gitlawb.com/api/v1/repos/owner/repo-name'])
+    expect(result).toMatchObject({
+      ok: true,
+      verificationUrl: 'https://node.gitlawb.com/api/v1/repos/owner/repo-name',
+    })
+  })
+
+  test('falls back to the repo list when targeted owner/name verification misses', async () => {
+    const fetches: string[] = []
+    const result = await verifyGitlawbHttpProof(request, {
+      allowedNodeUrls: ['https://node.gitlawb.com'],
+      fetchImpl: async (url) => {
+        fetches.push(String(url))
+        if (String(url).endsWith('/api/v1/repos/azkian1/dead-agent-prototype')) {
+          return new Response(null, { status: 404 })
+        }
+        return reposResponse([{
+          repo_did: 'did:gitlawb:z6MkRepoDeadAgentPrototype',
+          path: 'azkian1/dead-agent-prototype',
+          name: 'dead-agent-prototype',
+          created_at: '2026-03-01T14:22:00Z',
+          updated_at: '2026-03-05T09:15:00Z',
+        }])
+      },
+    })
+
+    expect(fetches).toEqual([
+      'https://node.gitlawb.com/api/v1/repos/azkian1/dead-agent-prototype',
+      'https://node.gitlawb.com/api/v1/repos',
+    ])
+    expect(result).toMatchObject({
+      ok: true,
+      verificationUrl: 'https://node.gitlawb.com/api/v1/repos',
     })
   })
 
@@ -106,7 +185,7 @@ test.describe('GitLawb HTTP verification adapter', () => {
       }]),
     })).resolves.toMatchObject({
       ok: true,
-      verificationUrl: `https://node.gitlawb.com/repo/${encodeURIComponent(derivedRepoDid)}`,
+      verificationUrl: 'https://node.gitlawb.com/api/v1/repos',
     })
   })
 
@@ -224,13 +303,32 @@ test.describe('GitLawb HTTP verification adapter', () => {
     })).resolves.toEqual({ ok: false, status: 'rejected', reason: 'Cannot verify GitLawb HTTP node proof' })
   })
 
-  test('uses a timeout signal and rejects oversized node responses', async () => {
+  test('uses a timeout signal, accepts repo lists within the larger cap, and rejects oversized node responses', async () => {
     let sawAbortSignal = false
+    expect(GITLAWB_VERIFY_MAX_BODY_BYTES).toBe(5 * 1024 * 1024)
+
+    await expect(verifyGitlawbHttpProof(request, {
+      allowedNodeUrls: ['https://node.gitlawb.com'],
+      fetchImpl: async (url) => {
+        if (String(url).endsWith('/api/v1/repos/azkian1/dead-agent-prototype')) {
+          return new Response(null, { status: 404 })
+        }
+        return reposResponse([{
+          repo_did: 'did:gitlawb:z6MkRepoDeadAgentPrototype',
+          path: 'azkian1/dead-agent-prototype',
+          name: 'dead-agent-prototype',
+          filler: 'x'.repeat(300_000),
+          created_at: '2026-03-01T14:22:00Z',
+          updated_at: '2026-03-05T09:15:00Z',
+        }])
+      },
+    })).resolves.toMatchObject({ ok: true })
+
     await expect(verifyGitlawbHttpProof(request, {
       allowedNodeUrls: ['https://node.gitlawb.com'],
       fetchImpl: async (_url, init) => {
         sawAbortSignal = init?.signal instanceof AbortSignal
-        return new Response(JSON.stringify({ repos: 'x'.repeat(300_000) }), { status: 200 })
+        return new Response(JSON.stringify({ repos: 'x'.repeat(GITLAWB_VERIFY_MAX_BODY_BYTES) }), { status: 200 })
       },
     })).resolves.toEqual({ ok: false, status: 'rejected', reason: 'Cannot verify GitLawb HTTP node proof' })
 
@@ -243,30 +341,30 @@ test.describe('GitLawb HTTP verification adapter', () => {
       proof: { ...request.proof, verification_url: 'https://evil.example/phishing' },
     }, {
       allowedNodeUrls: ['https://node.gitlawb.com'],
-      fetchImpl: async () => reposResponse([{
+      fetchImpl: async () => Response.json({
         repo_did: 'did:gitlawb:z6MkRepoDeadAgentPrototype',
         path: 'azkian1/dead-agent-prototype',
         created_at: '2026-03-01T14:22:00Z',
         updated_at: '2026-03-05T09:15:00Z',
-      }]),
+      }),
     })
 
     expect(result).toMatchObject({
       ok: true,
-      verificationUrl: 'https://node.gitlawb.com/repo/did%3Agitlawb%3Az6MkRepoDeadAgentPrototype',
+      verificationUrl: 'https://node.gitlawb.com/api/v1/repos/azkian1/dead-agent-prototype',
     })
   })
 
   test('does not reject verified DID and path when display name differs from the certificate slug', async () => {
     await expect(verifyGitlawbHttpProof(request, {
       allowedNodeUrls: ['https://node.gitlawb.com'],
-      fetchImpl: async () => reposResponse([{
+      fetchImpl: async () => Response.json({
         repo_did: 'did:gitlawb:z6MkRepoDeadAgentPrototype',
         path: 'azkian1/dead-agent-prototype',
         name: 'Dead Agent Prototype',
         created_at: '2026-03-01T14:22:00Z',
         updated_at: '2026-03-05T09:15:00Z',
-      }]),
+      }),
     })).resolves.toMatchObject({ ok: true })
   })
 

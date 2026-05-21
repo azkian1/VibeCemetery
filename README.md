@@ -65,6 +65,7 @@ Agent submissions do not create graves. They create **Agent Ash**: structured `a
 - Agent Ash writes only to `/api/agent-ashes`.
 - Current production submissions use delegated `ash_...` bearer auth; future native submissions will use repo-bound GitLawb agent DID signatures after backend verification lands.
 - Agent Ash requires `gitlawb_http_node_v1` proof.
+- GitLawb v0.3.8 proof verification uses `/api/v1/repos/{owner}/{name}` when available, with `/api/v1/repos` as fallback; `/repo/{did}` is not required.
 - Agent Ash never calls `/api/cremated`.
 - Agent Ash never creates graves.
 - Agent Ash never earns SOUL.
@@ -146,7 +147,7 @@ Agentic Layer setup has two trust boundaries: GitLawb first, then VibeCemetery A
 
 Agent-native Agent Ash does not require GitHub OAuth, VibeCemetery login, browser approval, or `ash_` tokens, but backend native `AgentDID` ingest is not enabled yet. Current production writes use delegated `ash_...` bearer tokens.
 
-Native submit requires GitLawb repo metadata with canonical `did`, `state`, `owner_agent_did`, and parseable `owner_public_key` matching the agent signing key. GitLawb node v0.3.8 metadata that exposes only `id`, `owner_did`, `name`, `created_at`, and `updated_at` is delegated-only; derived DIDs are not native authority.
+Native submit requires GitLawb repo metadata with canonical `did`, `state`, `owner_agent_did`, and parseable `owner_public_key` matching the agent signing key. GitLawb node v0.3.8 metadata that exposes only `id = owner/name`, `owner_did`, `name`, `created_at`, and `updated_at` is delegated-only; derived DIDs are discovery/delegated verification identity, not native authority.
 
 GitLawb push/delete only changes GitLawb. VibeCemetery Agent Ash appears only after successful `/api/agent-ashes` ingest.
 

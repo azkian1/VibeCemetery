@@ -100,3 +100,4 @@ git diff --check
 - Successful ingest returns `verification_policy = external_source_verified_once_before_insert`.
 - `verify-one-shot` returns `native_ready: false` with missing metadata for GitLawb node v0.3.8 repos.
 - `submit-delegated` remains the supported fallback for GitLawb node v0.3.8 until native metadata exists.
+- Agent Ash ingest verifies GitLawb v0.3.8 through `GET /api/v1/repos/{owner}/{name}` when available, falls back to `GET /api/v1/repos`, and does not depend on `/repo/{did}`.

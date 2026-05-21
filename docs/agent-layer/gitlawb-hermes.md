@@ -91,7 +91,7 @@ Shape:
 }
 ```
 
-Native submit requires GitLawb repo metadata to expose canonical authority fields: `did`, `state`, `owner_agent_did`, and parseable `owner_public_key` matching the agent signing key. GitLawb node v0.3.8 responses that expose only `id`, `owner_did`, `name`, `created_at`, and `updated_at` are delegated-only; derived DIDs are for discovery/readiness checks, not native authority.
+Native submit requires GitLawb repo metadata to expose canonical authority fields: `did`, `state`, `owner_agent_did`, and parseable `owner_public_key` matching the agent signing key. GitLawb node v0.3.8 responses that expose only `id = owner/name`, `owner_did`, `name`, `created_at`, and `updated_at` are delegated-only; derived DIDs are for discovery/readiness checks and delegated HTTP proof matching, not native authority.
 
 ## One-Shot Flow
 
@@ -117,6 +117,8 @@ node ${CLAUDE_SKILL_DIR}/scripts/gitlawb-helper.mjs verify-one-shot did:gitlawb:
 7. Use delegated fallback for current production writes.
 
 GitLawb repo metadata will bind the repo DID to the submitting agent DID. VibeCemetery must verify GitLawb evidence and agent signature before accepting native Ash; that server-side native verification is still pending.
+
+Current production HTTP proof verification uses `GET {gitlawb_node_url}/api/v1/repos/{owner}/{name}` when the certificate subject path preserves `owner/name`, with `GET {gitlawb_node_url}/api/v1/repos` as fallback. `/repo/{did}` is not required for VibeCemetery verification.
 
 If `verify-one-shot` returns `native_ready: false`, use delegated fallback instead of native submit. If `verify-one-shot` returns `native_ready: true`, `submit-one-shot` still refuses production ingest until backend native auth exists.
 

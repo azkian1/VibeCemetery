@@ -4,7 +4,7 @@ import { isAllowedGitlawbNodeUrl } from './agent-ash-security'
 
 export const GITLAWB_TIMESTAMP_TOLERANCE_MS = 5 * 60 * 1000
 export const GITLAWB_VERIFY_TIMEOUT_MS = 60_000
-export const GITLAWB_VERIFY_MAX_BODY_BYTES = 256 * 1024
+export const GITLAWB_VERIFY_MAX_BODY_BYTES = 5 * 1024 * 1024
 const GITLAWB_REPO_DID_PATTERN = /^did:gitlawb:[A-Za-z0-9._~-]+$/
 
 export type GitlawbVerificationResult =
@@ -46,15 +46,23 @@ function normalizeDerivedRepoName(value: unknown): string {
   return getString(value)?.toLowerCase().replace(/[^a-z0-9._~-]+/g, '-').replace(/^-+|-+$/g, '') ?? ''
 }
 
+function normalizeOwnerDid(value: unknown): string | null {
+  const ownerDid = getString(value)
+  if (!ownerDid) return null
+  if (ownerDid.startsWith('did:key:')) return ownerDid
+  return ownerDid.startsWith('z6Mk') ? `did:key:${ownerDid}` : ownerDid
+}
+
 function deriveRepoDidFromOwnerAndName(repo: RepoLike): string | null {
-  const ownerDid = getString(repo.owner_did)
+  const ownerDid = normalizeOwnerDid(repo.owner_did)
   const name = normalizeDerivedRepoName(repo.name)
   if (!ownerDid?.startsWith('did:key:') || !name) return null
   return `did:gitlawb:${createHash('sha256').update(`${ownerDid}|${name}`).digest('hex').slice(0, 32)}`
 }
 
 function getRepoPath(repo: RepoLike): string | null {
-  return getString(repo.path) ?? getString(repo.full_path) ?? getString(repo.full_name)
+  const id = getString(repo.id)
+  return getString(repo.path) ?? getString(repo.full_path) ?? getString(repo.full_name) ?? (id?.includes('/') ? id : null)
 }
 
 function getRepoName(repo: RepoLike): string | null {
@@ -87,6 +95,16 @@ function parseRepos(value: unknown): RepoLike[] {
     return parseRepos(repos.repos ?? repos.data ?? repos.repositories)
   }
   return []
+}
+
+function parseOwnerNamePath(value: unknown): { owner: string; name: string } | null {
+  const parts = getString(value)?.split('/').filter(Boolean) ?? []
+  if (parts.length !== 2) return null
+  return { owner: parts[0], name: parts[1] }
+}
+
+function buildTargetedReposUrl(nodeUrl: string, path: { owner: string; name: string }): string {
+  return `${nodeUrl}/api/v1/repos/${encodeURIComponent(path.owner)}/${encodeURIComponent(path.name)}`
 }
 
 async function readJsonWithLimit(response: Response): Promise<unknown | null> {
@@ -146,6 +164,28 @@ function repoIdentityMatches(repo: RepoLike, request: AgentAshRequest): boolean 
   return true
 }
 
+function repoProofMatches(repo: RepoLike, request: AgentAshRequest): boolean {
+  if (getRepoDid(repo) !== request.proof.repo_did || !repoIdentityMatches(repo, request)) {
+    return false
+  }
+
+  const repoCreatedAt = getString(repo.created_at)
+  const repoUpdatedAt = getString(repo.updated_at)
+  if (!repoCreatedAt || !repoUpdatedAt) return false
+
+  return timestampsMatch(repoCreatedAt, request.certificate.lifecycle.created_at, request.proof.observed_created_at)
+    && timestampsMatch(repoUpdatedAt, request.certificate.lifecycle.last_activity_at, request.proof.observed_updated_at)
+}
+
+function successfulVerification(matchedRepo: RepoLike, verificationUrl: string): GitlawbVerificationResult {
+  return {
+    ok: true,
+    status: 'gitlawb_http_verified',
+    verificationUrl,
+    matchedRepo,
+  }
+}
+
 export async function verifyGitlawbHttpProof(
   request: AgentAshRequest,
   options: VerifyOptions,
@@ -164,6 +204,23 @@ export async function verifyGitlawbHttpProof(
 
   const nodeUrl = normalizeNodeUrl(request.proof.node_url)
   const fetchImpl = options.fetchImpl ?? fetch
+  const targetPath = parseOwnerNamePath(request.certificate.subject.path)
+  if (targetPath) {
+    const verificationUrl = buildTargetedReposUrl(nodeUrl, targetPath)
+    try {
+      const targetResponse = await fetchImpl(verificationUrl, { cache: 'no-store', signal: timeoutSignal() })
+      if (targetResponse.status === 200) {
+        const targetBody = await readJsonWithLimit(targetResponse)
+        if (targetBody && typeof targetBody === 'object' && !Array.isArray(targetBody) && repoProofMatches(targetBody as RepoLike, request)) {
+          return successfulVerification(targetBody as RepoLike, verificationUrl)
+        }
+        return { ok: false, status: 'rejected', reason: 'Cannot verify GitLawb HTTP node proof' }
+      }
+    } catch {
+      return { ok: false, status: 'rejected', reason: 'Cannot verify GitLawb HTTP node proof' }
+    }
+  }
+
   let response: Response
   try {
     response = await fetchImpl(`${nodeUrl}/api/v1/repos`, { cache: 'no-store', signal: timeoutSignal() })
@@ -182,28 +239,9 @@ export async function verifyGitlawbHttpProof(
 
   const repos = parseRepos(body)
   const matchedRepo = repos.find((repo) => getRepoDid(repo) === request.proof.repo_did)
-  if (!matchedRepo || !repoIdentityMatches(matchedRepo, request)) {
+  if (!matchedRepo || !repoProofMatches(matchedRepo, request)) {
     return { ok: false, status: 'rejected', reason: 'Cannot verify GitLawb HTTP node proof' }
   }
 
-  const repoCreatedAt = getString(matchedRepo.created_at)
-  const repoUpdatedAt = getString(matchedRepo.updated_at)
-  if (!repoCreatedAt || !repoUpdatedAt) {
-    return { ok: false, status: 'rejected', reason: 'Cannot verify GitLawb HTTP node proof' }
-  }
-
-  if (!timestampsMatch(repoCreatedAt, request.certificate.lifecycle.created_at, request.proof.observed_created_at)) {
-    return { ok: false, status: 'rejected', reason: 'Cannot verify GitLawb HTTP node proof' }
-  }
-
-  if (!timestampsMatch(repoUpdatedAt, request.certificate.lifecycle.last_activity_at, request.proof.observed_updated_at)) {
-    return { ok: false, status: 'rejected', reason: 'Cannot verify GitLawb HTTP node proof' }
-  }
-
-  return {
-    ok: true,
-    status: 'gitlawb_http_verified',
-    verificationUrl: `${nodeUrl}/repo/${encodeURIComponent(request.proof.repo_did)}`,
-    matchedRepo,
-  }
+  return successfulVerification(matchedRepo, `${nodeUrl}/api/v1/repos`)
 }

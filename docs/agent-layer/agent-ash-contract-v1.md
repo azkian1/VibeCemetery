@@ -121,7 +121,7 @@ Native mode signs canonical JSON for `{ certificate, proof, timestamp, nonce }` 
     "node_url": "https://node.gitlawb.com",
     "observed_created_at": "2026-03-01T14:22:00Z",
     "observed_updated_at": "2026-03-05T09:15:00Z",
-    "verification_url": "https://node.gitlawb.com/repo/did%3Agitlawb%3Az6MkRepoDeadAgentPrototype",
+    "verification_url": "https://node.gitlawb.com/api/v1/repos/azkian1/dead-agent-prototype",
     "signature": null,
     "signed_by": "did:key:z6MkAgentHermes"
   }

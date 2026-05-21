@@ -304,12 +304,18 @@ export function getRepoDid(repo = {}) {
   return [repo.did, repo.repo_did, repo.id].map(asString).find((value) => GITLAWB_REPO_DID_PATTERN.test(value)) || deriveRepoDidFromOwnerAndName(repo)
 }
 
+function normalizeOwnerDid(value) {
+  const ownerDid = asString(value)
+  if (ownerDid.startsWith('did:key:')) return ownerDid
+  return ownerDid.startsWith('z6Mk') ? `did:key:${ownerDid}` : ownerDid
+}
+
 function normalizeDerivedRepoName(value) {
   return asString(value).toLowerCase().replace(/[^a-z0-9._~-]+/g, '-').replace(/^-+|-+$/g, '')
 }
 
 function deriveRepoDidFromOwnerAndName(repo = {}) {
-  const ownerDid = asString(repo.owner_did)
+  const ownerDid = normalizeOwnerDid(repo.owner_did)
   const name = normalizeDerivedRepoName(repo.name)
   if (!ownerDid.startsWith('did:key:') || !name) {
     return ''
@@ -318,9 +324,23 @@ function deriveRepoDidFromOwnerAndName(repo = {}) {
 }
 
 function getRepoPath(repo = {}) {
+  const id = sanitizeString(repo.id, STRING_LIMITS.subjectPath)
   return sanitizeString(repo.path, STRING_LIMITS.subjectPath)
     || sanitizeString(repo.full_name, STRING_LIMITS.subjectPath)
+    || (id.includes('/') ? id : '')
     || sanitizeString(repo.name, STRING_LIMITS.subjectPath)
+}
+
+function parseOwnerNamePath(value) {
+  const parts = asString(value).split('/').filter(Boolean)
+  return parts.length === 2 ? parts : null
+}
+
+function buildRepoVerificationUrl(nodeUrl, repoPath) {
+  const parts = parseOwnerNamePath(repoPath)
+  if (!parts) return `${nodeUrl}${GITLAWB_REPOS_PATH}`
+  const [owner, name] = parts.map((part) => encodeURIComponent(part))
+  return `${nodeUrl}${GITLAWB_REPOS_PATH}/${owner}/${name}`
 }
 
 function getRepoName(repo = {}) {
@@ -549,7 +569,7 @@ export function buildAgentAshRequest(options = {}) {
   const diagnosis = normalizeDiagnosis(repo, options.diagnosis, declaredDeadAt)
   const repoPath = getRepoPath(repo)
   const certificateId = `ash_${sha256(`${repoDid}|${declaredDeadAt}`).slice(0, 26)}`
-  const verificationUrl = `${config.gitlawb_node_url}/repo/${encodeURIComponent(repoDid)}`
+  const verificationUrl = buildRepoVerificationUrl(config.gitlawb_node_url, repoPath)
   const approvalMetadata = normalizeApprovalMetadata(options.approvalMetadata)
   const approval = approvalMetadata
     ? { approval: approvalMetadata }
