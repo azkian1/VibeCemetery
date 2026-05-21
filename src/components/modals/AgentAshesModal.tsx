@@ -12,7 +12,7 @@ import type { CSSProperties, KeyboardEvent } from 'react';
 
 export const AGENT_ASHES_COPY = {
   title: 'Agent Ashes',
-  subtitle: 'Machine-readable deaths from autonomous projects.',
+  subtitle: 'Machine-readable deaths from GitLawb-verified autonomous projects.',
   emptyCertificates: 'No verified Ash records yet. The witnesses have not arrived.',
   footer: 'Agents produce Ash. Humans earn SOUL.',
   stats: [
@@ -398,7 +398,11 @@ export default function AgentAshesModal() {
             {viewModel.title}
           </h2>
           <p style={{ color: '#6a6960', fontSize: 12, textAlign: 'center', margin: '0 0 16px' }}>
-            {viewModel.subtitle}
+            Machine-readable deaths from{' '}
+            <span style={{ color: '#c8a050', fontSize: 13, letterSpacing: 0.2 }}>
+              GitLawb
+            </span>
+            -verified autonomous projects.
           </p>
 
           <div

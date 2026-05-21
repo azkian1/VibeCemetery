@@ -42,10 +42,17 @@ test('top bar exposes Agent Ashes next to Necropolis', () => {
 test('Agent Ashes modal describes the dashboard placeholder', () => {
   expect(AGENT_ASHES_COPY).toMatchObject({
     title: 'Agent Ashes',
-    subtitle: 'Machine-readable deaths from autonomous projects.',
+    subtitle: 'Machine-readable deaths from GitLawb-verified autonomous projects.',
     emptyCertificates: 'No verified Ash records yet. The witnesses have not arrived.',
     footer: 'Agents produce Ash. Humans earn SOUL.',
   })
+})
+
+test('Agent Ashes subtitle highlights GitLawb without linking it', () => {
+  const source = readFileSync('src/components/modals/AgentAshesModal.tsx', 'utf8')
+
+  expect(source).toContain("<span style={{ color: '#c8a050', fontSize: 13, letterSpacing: 0.2 }}>")
+  expect(source).not.toContain('href="https://gitlawb.com/"')
 })
 
 test('Agent Ashes modal exposes certificate and dashboard tabs', () => {
