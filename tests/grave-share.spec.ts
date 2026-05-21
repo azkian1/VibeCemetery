@@ -92,7 +92,7 @@ test.describe('grave share card', () => {
 
     expect(parsed.origin + parsed.pathname).toBe('https://twitter.com/intent/tweet')
     expect(parsed.searchParams.get('text')).toBe([
-      'I buried MYVIBE in VibeCemetery.',
+      'I buried MYVIBE in @vibecmtry.',
       '',
       'Cause of death: Zero users.',
       '',

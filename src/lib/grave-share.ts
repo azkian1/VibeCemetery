@@ -71,7 +71,7 @@ export function buildGraveTweetIntentUrl({ graveUrl, name, cause }: GraveTweetIn
   const safeName = truncate(collapseWhitespace(name) || 'a project', 60)
   const safeCause = truncate(collapseWhitespace(cause) || 'Unknown', 90)
   const tweetText = [
-    `I buried ${safeName} in VibeCemetery.`,
+    `I buried ${safeName} in @vibecmtry.`,
     '',
     `Cause of death: ${safeCause}.`,
     '',
