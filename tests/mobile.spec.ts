@@ -47,6 +47,11 @@ test.describe('Mobile (390×844)', () => {
     await expect(page.locator('button').filter({ hasText: '☰' }).first()).toBeVisible();
   });
 
+  test('Gate copy explains mobile showcase mode', async ({ page }) => {
+    await expect(page.getByText('Walk the cemetery on mobile.')).toBeVisible();
+    await expect(page.getByText('Bury repos from desktop.')).toBeVisible();
+  });
+
   test('BurgerMenu opens on mobile', async ({ page }) => {
     await page.getByLabel('Menu').click();
     await expect(page.getByRole('heading', { name: 'The Cemetery Guide' })).toBeVisible({ timeout: 5000 });

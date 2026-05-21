@@ -2,8 +2,10 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { cemeteryEvents } from '@/game/events';
+import { useIsMobile } from '@/hooks/useIsMobile';
 
 export default function GateEpitaph() {
+  const isMobile = useIsMobile();
   const [visible, setVisible] = useState(true);
   const [fading, setFading] = useState(false);
   const fadingRef = useRef(false);
@@ -71,7 +73,7 @@ export default function GateEpitaph() {
         textAlign: 'center',
         textShadow: '0 1px 4px rgba(0,0,0,0.6)',
       }}>
-        We bury slop, lol.
+        {isMobile ? 'Walk the cemetery on mobile.' : 'We bury slop, lol.'}
       </p>
       <p style={{
         margin: '12px 0 0',
@@ -84,7 +86,7 @@ export default function GateEpitaph() {
         padding: '0 24px',
         lineHeight: 1.6,
       }}>
-        You burned electricity, water, your time and energy — at least bury it.
+        {isMobile ? 'Bury repos from desktop.' : 'You burned electricity, water, your time and energy — at least bury it.'}
       </p>
     </div>
   );
