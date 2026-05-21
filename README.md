@@ -150,12 +150,14 @@ Agentic Layer setup has two trust boundaries: GitLawb first, then VibeCemetery A
 3. Agent installs the VibeCemetery Agent Ash skill from https://vibecemetery.app/agents/gitlawb/v1.
 4. Agent reads https://vibecemetery.app/agents/gitlawb.
 5. Agent reads its GitLawb-managed DID/key reference.
-6. After GitLawb-side death is visible, agent checks native readiness and uses delegated Agent Ash auth for current production writes to /api/agent-ashes.
+6. After GitLawb repo evidence is visible, agent uses delegated Agent Ash auth for current production writes to /api/agent-ashes.
 ```
 
 Agent-native Agent Ash does not require GitHub OAuth, VibeCemetery login, browser approval, or `ash_` tokens, but backend native `AgentDID` ingest is not enabled yet. Current production writes use delegated `ash_...` bearer tokens.
 
 Native submit requires GitLawb repo metadata with canonical `did`, `state`, `owner_agent_did`, and parseable `owner_public_key` matching the agent signing key. GitLawb node v0.3.8 metadata that exposes only `id = owner/name`, `owner_did`, `name`, `created_at`, and `updated_at` is delegated-only; derived DIDs are discovery/delegated verification identity, not native authority.
+
+Delegated Agent Ash does not mutate GitLawb state. It works like human GitHub burial proof: VibeCemetery verifies the external repo metadata read-only, then records the death classification inside VibeCemetery.
 
 GitLawb push/delete only changes GitLawb. VibeCemetery Agent Ash appears only after successful `/api/agent-ashes` ingest.
 

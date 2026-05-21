@@ -17,9 +17,9 @@ INGEST_ENDPOINT = /api/agent-ashes
 HELPER_SCRIPT = ${CLAUDE_SKILL_DIR}/scripts/gitlawb-helper.mjs
 ```
 
-Use `HELPER_SCRIPT` for agent-native certificate construction, canonical signed submission, watchlist reporting, delegated fallback connect, and approval metadata shaping. Do not post Agent Ash to `/api/cremated`.
+Use `HELPER_SCRIPT` for delegated production certificate construction, future native readiness checks, watchlist reporting, delegated connect, and approval metadata shaping. Do not post Agent Ash to `/api/cremated`.
 
-GitLawb push/delete only changes GitLawb. VibeCemetery Agent Ash appears only after successful `/api/agent-ashes` ingest.
+GitLawb push/delete only changes GitLawb. VibeCemetery Agent Ash appears only after successful `/api/agent-ashes` ingest. Do not try to mark, delete, archive, label, or otherwise mutate the GitLawb repo to make Agent Ash; current production treats GitLawb as read-only proof, like GitHub proof in the human `/bury` flow.
 
 ## Local Config
 
@@ -59,13 +59,15 @@ Native submit also requires GitLawb repo metadata to expose all authority fields
 
 `owner_public_key` must be parseable public-key material, and local readiness requires the configured signing key to derive the same public key. A non-empty string is not enough.
 
-GitLawb node v0.3.8 repos that expose only `id`, `owner_did`, `name`, `created_at`, and `updated_at` are delegated-only. The helper may derive a DID for discovery, but derived DIDs are not authoritative for native Agent Ash ingest.
+GitLawb node v0.3.8 repos that expose only `id`, `owner_did`, `name`, `created_at`, and `updated_at` are delegated-only. The helper may derive a DID for discovery and delegated HTTP proof matching, but derived DIDs are not authoritative for native Agent Ash ingest.
 
 `scheduled_approval_policy` controls only scheduled mode and defaults to `none` when omitted. Valid values are `none`, `manual`, and `all`.
 
 ## Delegated Mode / Production Write Path
 
 Browser-approved Agent Ash connect is the current production write path. Do not open GitHub browser auth for Agent Ash. Do not ask the human to paste a raw `ash_...` token into chat.
+
+Delegated mode does not require GitLawb `state = dead`, `owner_agent_did`, or `owner_public_key`. Those fields are only for future native AgentDID authority. For delegated production, VibeCemetery verifies that the public GitLawb repo exists and that DID/path/name/timestamps match the `agent_ash.v1` certificate; the death classification lives in the Agent Ash diagnosis, not in GitLawb repo state.
 
 Command:
 
@@ -82,9 +84,9 @@ node ${CLAUDE_SKILL_DIR}/scripts/gitlawb-helper.mjs submit-delegated did:gitlawb
 
 The `claim_token` is only for polling this browser approval session. It is not an ingest credential and must never be used for `/api/agent-ashes`.
 
-## Agent-Native One-Shot Flow
+## Native Readiness / Future-Only Flow
 
-Use this flow when the human explicitly asks to record a death for a public GitLawb repo DID.
+Use this flow only to check whether a public GitLawb repo is ready for future native AgentDID submit. It is not the current production write path.
 
 GitLawb node v0.3.8 may omit `repo_did` and expose only `id = owner/name`, `owner_did`, and `name`. In that case, the helper normalizes bare `z6Mk...` owners as `did:key:z6Mk...`, derives a stable fallback repo DID as `did:gitlawb:<sha256(owner_did|normalized_name)[0..32]>`, and preserves `owner/name` as the certificate subject path. The derived DID is valid for discovery and delegated HTTP proof matching only; do not treat it as native authority.
 
@@ -99,9 +101,9 @@ node ${CLAUDE_SKILL_DIR}/scripts/gitlawb-helper.mjs verify-one-shot did:gitlawb:
 2. Fetch public repos from `GET {gitlawb_node_url}/api/v1/repos`.
 3. Locate the requested GitLawb repo DID in the public response.
 4. Validate GitLawb repo metadata includes canonical `did`, `state = dead`, `owner_agent_did`, and a parseable `owner_public_key` matching the configured signing key.
-5. Build an `agent_ash.v1` certificate and `gitlawb_http_node_v1` proof with `buildAgentAshRequest`.
+5. Report readiness only. Do not mutate GitLawb repo state.
 6. Stop before production ingest until VibeCemetery backend native auth is deployed. Current `/api/agent-ashes` production ingest accepts delegated `ash_...` bearer tokens only.
-7. Use `submit-delegated` for production writes.
+7. Use `submit-delegated` for production writes, even when `verify-one-shot` is blocked by missing native fields.
 
 Agent-native Agent Ash does not require GitHub OAuth, VibeCemetery login, or browser approval, but it is backend-disabled until server-side `AgentDID` signature verification, nonce replay protection, timestamp freshness, and GitLawb public-key checks are deployed.
 
@@ -186,6 +188,7 @@ Rules:
 - Use the public node `updated_at` as `certificate.lifecycle.last_activity_at` and `proof.observed_updated_at`.
 - Include `agent.name` and optional `agent.did`.
 - Require `state = dead`, `owner_agent_did`, and parseable `owner_public_key` matching the configured signing key for native one-shot submit.
+- Do not require `state = dead` for delegated `submit-delegated`; GitLawb is read-only evidence in delegated mode.
 - Include raw GitLawb node metadata only under `certificate.raw`.
 
 ## Prohibited Actions
@@ -199,6 +202,7 @@ Rules:
 - Do not present unverified local cleanup as public Agent Ash.
 - Do not submit watchlist candidates without explicit human approval.
 - Do not perform post-write GitLawb rechecks after VibeCemetery returns `201` for `/api/agent-ashes`.
+- Do not try to create Agent Ash by deleting, archiving, labeling, or writing marker files into the GitLawb repo.
 
 ## Future Extensions
 

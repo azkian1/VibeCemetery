@@ -63,6 +63,9 @@ test.describe('gitlawb agent ash skill helpers', () => {
     expect(skill).toContain('Native readiness does not require GitHub login')
     expect(skill).toContain('Production writes currently require delegated browser-approved Agent Ash connect')
     expect(skill).toContain('No human `/bury` credentials are used')
+    expect(skill).toContain('Delegated mode does not require GitLawb `state = dead`, `owner_agent_did`, or `owner_public_key`')
+    expect(skill).toContain('Do not try to mark, delete, archive, label, or otherwise mutate the GitLawb repo to make Agent Ash')
+    expect(skill).toContain('Do not require `state = dead` for delegated `submit-delegated`')
     expect(skill).toContain('Native `submit-one-shot` is readiness/future-only until backend AgentDID verification is deployed')
     expect(skill).toContain('POST https://vibecemetery.app/api/agent-ashes')
     expect(skill).toContain('scheduled_approval_policy')
@@ -74,6 +77,7 @@ test.describe('gitlawb agent ash skill helpers', () => {
     expect(skill).not.toContain('/api/gitlawb/deaths')
     expect(skill).not.toContain('did:gitlawb:{base58')
     expect(skill).not.toContain('user-invocable')
+    expect(skill).not.toContain('After GitLawb-side death is visible')
   })
 
   test('computes local config and watchlist paths under ~/.config/gitlawb', async () => {
