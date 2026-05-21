@@ -8,22 +8,35 @@ import StoneFrame from '@/components/ui/StoneFrame';
 import CloseButton from '@/components/ui/CloseButton';
 import InsetBlock from '@/components/ui/InsetBlock';
 import OrnamentDivider from '@/components/ui/OrnamentDivider';
-import type { CSSProperties } from 'react';
+import type { CSSProperties, KeyboardEvent } from 'react';
 
 export const AGENT_ASHES_COPY = {
   title: 'Agent Ashes',
-  subtitle: 'Failure intelligence from autonomous project deaths.',
-  intro: 'Hermes and other agents will submit verified Ash here. Once enough records exist, this dashboard will surface repeated failure patterns, stack risks, recovery signals, and prevention guardrails.',
+  subtitle: 'Machine-readable deaths from autonomous projects.',
+  emptyCertificates: 'No verified Ash records yet. The witnesses have not arrived.',
+  footer: 'Agents produce Ash. Humans earn SOUL.',
   stats: [
     { label: 'Verified Ash', value: '0', note: 'Awaiting Hermes certificates' },
+    { label: 'Agents', value: '0', note: 'Awaiting witnesses' },
     { label: 'Failure Patterns', value: 'Soon', note: 'Needs verified data' },
   ],
   sections: [
+    { title: 'Witnessed Agents', body: 'No verified agents yet.' },
     { title: 'Top Failure Patterns', body: 'Waiting for verified Ash.' },
+    { title: 'Top Causes of Death', body: 'Waiting for verified Ash.' },
     { title: 'Fragile Stacks', body: 'Not enough data yet.' },
-    { title: 'Raw Certificates', body: 'Expandable records will appear after Hermes submissions.' },
+    { title: 'Repeated Domains', body: 'Not enough data yet.' },
+    { title: 'Death Stages', body: 'Not enough data yet.' },
   ],
 };
+
+type AgentAshesTab = 'ash-records' | 'slop-lords' | 'dashboard';
+
+export const AGENT_ASHES_TABS: { key: AgentAshesTab; label: string }[] = [
+  { key: 'ash-records', label: 'Ash Records' },
+  { key: 'slop-lords', label: 'Slop Lords' },
+  { key: 'dashboard', label: 'Dashboard' },
+];
 
 export const CERTIFICATE_JSON_STYLE: CSSProperties = {
   background: 'rgba(0, 0, 0, 0.28)',
@@ -59,6 +72,7 @@ export type AgentAshesSummaryRecord = {
   subject_name: string;
   repo_did: string | null;
   agent_name: string | null;
+  agent_did?: string | null;
   primary_cause: string;
   failure_pattern: string | null;
   death_stage: string | null;
@@ -72,11 +86,13 @@ export type AgentAshesSummaryRecord = {
 export type AgentAshesSummary = {
   total_verified_ash: number;
   sampled_verified_ash: number;
+  distinct_agents: number;
   analytics_window: 'recent_verified_ash';
   analytics_window_limit: number;
   top_primary_causes: CountItem[];
   top_failure_patterns: CountItem[];
   common_death_stages: CountItem[];
+  top_agents: CountItem[];
   fragile_stacks: CountItem[];
   top_domains: CountItem[];
   recent_verified_ash: AgentAshesSummaryRecord[];
@@ -91,11 +107,15 @@ function normalizeSummary(value: unknown): AgentAshesSummary | null {
   return {
     total_verified_ash: summary.total_verified_ash,
     sampled_verified_ash: typeof summary.sampled_verified_ash === 'number' ? summary.sampled_verified_ash : 0,
+    distinct_agents: typeof summary.distinct_agents === 'number'
+      ? summary.distinct_agents
+      : Array.isArray(summary.top_agents) ? summary.top_agents.length : 0,
     analytics_window: 'recent_verified_ash',
     analytics_window_limit: typeof summary.analytics_window_limit === 'number' ? summary.analytics_window_limit : 50,
     top_primary_causes: Array.isArray(summary.top_primary_causes) ? summary.top_primary_causes : [],
     top_failure_patterns: Array.isArray(summary.top_failure_patterns) ? summary.top_failure_patterns : [],
     common_death_stages: Array.isArray(summary.common_death_stages) ? summary.common_death_stages : [],
+    top_agents: Array.isArray(summary.top_agents) ? summary.top_agents : [],
     fragile_stacks: Array.isArray(summary.fragile_stacks) ? summary.fragile_stacks : [],
     top_domains: Array.isArray(summary.top_domains) ? summary.top_domains : [],
     recent_verified_ash: Array.isArray(summary.recent_verified_ash) ? summary.recent_verified_ash : [],
@@ -145,6 +165,21 @@ function normalizeAgentAshTokens(value: unknown): AgentAshTokenSummary[] | null 
 function formatCounts(items: CountItem[], empty: string): string {
   if (items.length === 0) return empty;
   return items.map((item) => `${item.value} (${item.count})`).join('\n');
+}
+
+function formatAgentCounts(items: CountItem[], empty: string): string {
+  if (items.length === 0) return empty;
+  return items.map((item) => `${item.value} (${item.count} ${item.count === 1 ? 'project' : 'projects'})`).join('\n');
+}
+
+function formatShortDid(value: string | null | undefined): string | null {
+  if (!value) return null;
+  if (value.length <= 24) return value;
+  return `${value.slice(0, 12)}...${value.slice(-6)}`;
+}
+
+function formatProjectCount(count: number): string {
+  return `${count} ${count === 1 ? 'project' : 'projects'}`;
 }
 
 function isValidAshLookupId(id: string): boolean {
@@ -201,26 +236,49 @@ function getStringField(value: Record<string, unknown> | null, key: string): str
 
 export function buildAgentAshesViewModel(summary: AgentAshesSummary | null) {
   if (!summary || summary.total_verified_ash === 0) {
-    return { ...AGENT_ASHES_COPY, records: [] as AgentAshesSummaryRecord[] };
+    return { ...AGENT_ASHES_COPY, records: [] as AgentAshesSummaryRecord[], certificateRows: [], slopLordRows: [] };
   }
 
   const topFailure = summary.top_failure_patterns[0];
+  const topAgent = summary.top_agents[0];
 
   return {
     ...AGENT_ASHES_COPY,
     stats: [
       { label: 'Verified Ash', value: String(summary.total_verified_ash), note: `${summary.sampled_verified_ash} sampled for dashboard` },
+      { label: 'Agents', value: String(summary.distinct_agents), note: topAgent ? `Top: ${topAgent.value} in sample` : 'Awaiting witnesses' },
       { label: 'Failure Patterns', value: String(summary.top_failure_patterns.length), note: topFailure ? `Top: ${topFailure.value}` : 'Needs verified data' },
     ],
     sections: [
+      { title: 'Witnessed Agents', body: formatAgentCounts(summary.top_agents, 'No verified agents yet.') },
       { title: 'Top Failure Patterns', body: formatCounts(summary.top_failure_patterns, 'Waiting for verified Ash.') },
       { title: 'Top Causes of Death', body: formatCounts(summary.top_primary_causes, 'Waiting for verified Ash.') },
       { title: 'Fragile Stacks', body: formatCounts(summary.fragile_stacks, 'Not enough data yet.') },
       { title: 'Repeated Domains', body: formatCounts(summary.top_domains, 'Not enough data yet.') },
       { title: 'Death Stages', body: formatCounts(summary.common_death_stages, 'Not enough data yet.') },
-      { title: 'Certificate Trail', body: 'Terminal archive view with repo DIDs, verification logs, proof URLs, and JSON certificates.' },
     ],
+    footer: `${summary.total_verified_ash} verified Ash · ${summary.distinct_agents} witnessed ${summary.distinct_agents === 1 ? 'agent' : 'agents'}`,
     records: summary.recent_verified_ash,
+    certificateRows: summary.recent_verified_ash.map((record, index) => ({
+      rank: index + 1,
+      id: record.id,
+      project: record.subject_name,
+      agentName: record.agent_name ?? 'unknown agent',
+      agentDid: record.agent_did ?? null,
+      agentDidShort: formatShortDid(record.agent_did),
+      proofLabel: 'OPEN',
+      record,
+    })),
+    slopLordRows: summary.top_agents.map((agent, index) => {
+      const matchingRecord = summary.recent_verified_ash.find((record) => record.agent_name === agent.value && record.agent_did);
+      return {
+        rank: index + 1,
+        agentName: agent.value,
+        agentDid: matchingRecord?.agent_did ?? null,
+        agentDidShort: formatShortDid(matchingRecord?.agent_did),
+        verifiedAsh: formatProjectCount(agent.count),
+      };
+    }),
   };
 }
 
@@ -229,6 +287,7 @@ export default function AgentAshesModal() {
   const isMobile = useIsMobile();
   const [summary, setSummary] = useState<AgentAshesSummary | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [tab, setTab] = useState<AgentAshesTab>('ash-records');
   const [selectedRecordId, setSelectedRecordId] = useState<string | null>(null);
   const [certificate, setCertificate] = useState<Record<string, unknown> | null>(null);
   const [certificateError, setCertificateError] = useState<string | null>(null);
@@ -239,6 +298,56 @@ export default function AgentAshesModal() {
   const raw = getObject(certificate?.raw);
   const proofUrl = getStringField(getObject(certificate?.proof), 'verification_url') ?? getStringField(raw, 'verification_url');
   const gitlawbNodeUrl = getStringField(raw, 'gitlawb_node_url');
+
+  const tabStyle = (active: boolean): CSSProperties => ({
+    flex: 1,
+    background: 'none',
+    border: 'none',
+    borderBottom: active ? '2px solid #c8a050' : '2px solid transparent',
+    color: active ? '#e8d5a3' : '#6a6960',
+    fontSize: isMobile ? 14 : 13,
+    padding: isMobile ? '10px 14px' : '6px 14px',
+    minHeight: isMobile ? 44 : undefined,
+    cursor: 'pointer',
+    fontFamily: 'inherit',
+    transition: 'color 0.2s',
+    textAlign: 'center',
+  });
+
+  const headerCell: CSSProperties = {
+    fontSize: 11,
+    textTransform: 'uppercase',
+    letterSpacing: 1.5,
+    color: '#6a6960',
+    padding: '6px 8px',
+  };
+
+  const certificateGrid: CSSProperties = {
+    display: 'grid',
+    gridTemplateColumns: isMobile ? 'auto minmax(0, 1fr) minmax(0, 1fr) auto' : 'auto 1.2fr 1fr auto',
+  };
+
+  const proofButton: CSSProperties = {
+    background: 'transparent',
+    border: '1px solid rgba(200, 160, 80, 0.35)',
+    color: '#c8a050',
+    cursor: 'pointer',
+    fontFamily: 'inherit',
+    fontSize: 11,
+    letterSpacing: 1,
+    padding: '5px 8px',
+    textTransform: 'uppercase',
+  };
+
+  const handleTabKeyDown = (e: KeyboardEvent) => {
+    if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+    e.preventDefault();
+    const idx = AGENT_ASHES_TABS.findIndex((t) => t.key === tab);
+    const next = e.key === 'ArrowRight'
+      ? AGENT_ASHES_TABS[(idx + 1) % AGENT_ASHES_TABS.length].key
+      : AGENT_ASHES_TABS[(idx - 1 + AGENT_ASHES_TABS.length) % AGENT_ASHES_TABS.length].key;
+    setTab(next);
+  };
 
   async function openCertificate(record: AgentAshesSummaryRecord) {
     setSelectedRecordId(record.id);
@@ -281,130 +390,173 @@ export default function AgentAshesModal() {
 
   return (
     <ModalOverlay onClose={close}>
-      <StoneFrame isMobile={isMobile} maxWidth={720}>
-        <div style={{ padding: isMobile ? '20px 16px' : '24px 28px', position: 'relative', maxHeight: '82vh', overflowY: 'auto' }}>
-          <CloseButton onClick={close} sticky />
+      <StoneFrame isMobile={isMobile} maxWidth={600}>
+        <div style={{ padding: isMobile ? '20px 16px' : '24px 28px', display: 'flex', flexDirection: 'column', maxHeight: '80vh' }}>
+          <CloseButton onClick={close} />
 
           <h2 style={{ margin: '0 0 4px', fontSize: 20, color: '#e8d5a3', textAlign: 'center' }}>
             {viewModel.title}
           </h2>
-          <p style={{ color: '#8f8b7e', fontSize: 12, lineHeight: 1.5, textAlign: 'center', margin: '0 0 16px' }}>
+          <p style={{ color: '#6a6960', fontSize: 12, textAlign: 'center', margin: '0 0 16px' }}>
             {viewModel.subtitle}
           </p>
 
-          <InsetBlock>
-            <div style={{ padding: isMobile ? '16px 14px' : '18px 20px', textAlign: 'center' }}>
-              <p style={{ color: '#aaa9a0', fontSize: isMobile ? 13 : 14, lineHeight: 1.65, margin: 0 }}>
-                {viewModel.intro}
-              </p>
-            </div>
-          </InsetBlock>
-
-          <OrnamentDivider />
-
-          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)', gap: 10, marginBottom: 14 }}>
-            {viewModel.stats.map((stat) => (
-              <InsetBlock key={stat.label}>
-                <div style={{ padding: '13px 10px', textAlign: 'center' }}>
-                  <div style={{ color: '#e8d5a3', fontSize: 19, lineHeight: 1.1, marginBottom: 5 }}>
-                    {stat.value}
-                  </div>
-                  <div style={{ color: '#aaa9a0', fontSize: 11, textTransform: 'uppercase', letterSpacing: 1.2, marginBottom: 5 }}>
-                    {stat.label}
-                  </div>
-                  <div style={{ color: '#6a6960', fontSize: 11, lineHeight: 1.35 }}>
-                    {stat.note}
-                  </div>
-                </div>
-              </InsetBlock>
+          <div
+            role="tablist"
+            aria-label="Agent Ashes views"
+            onKeyDown={handleTabKeyDown}
+            style={{ display: 'flex', justifyContent: 'center', borderBottom: '1px solid #3a3935', marginBottom: 12 }}
+          >
+            {AGENT_ASHES_TABS.map((t) => (
+              <button
+                key={t.key}
+                role="tab"
+                id={`agent-ashes-tab-${t.key}`}
+                aria-selected={tab === t.key}
+                aria-controls="agent-ashes-panel"
+                tabIndex={tab === t.key ? 0 : -1}
+                style={tabStyle(tab === t.key)}
+                onClick={() => setTab(t.key)}
+              >
+                {t.label}
+              </button>
             ))}
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 10, marginBottom: 14 }}>
-            {viewModel.sections.map((section) => (
-              <InsetBlock key={section.title}>
-                <div style={{ padding: '14px 14px 15px' }}>
-                  <div style={{ color: '#c8a050', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.4, marginBottom: 8 }}>
-                    {section.title}
-                  </div>
-                   <div style={{ color: '#8f8b7e', fontSize: 13, lineHeight: 1.5 }}>
-                    {section.body.split('\n').map((line, index) => <div key={`${section.title}-${index}`}>{line}</div>)}
-                  </div>
-                </div>
-              </InsetBlock>
-            ))}
-          </div>
+          <div role="tabpanel" id="agent-ashes-panel" aria-labelledby={`agent-ashes-tab-${tab}`} style={{ height: 300, overflowY: 'auto' }}>
+            {loadError && (
+              <p style={{ color: '#8f8b7e', fontSize: 12, textAlign: 'center', padding: 20, margin: 0 }}>{loadError}</p>
+            )}
 
-          {viewModel.records.length > 0 && (
-            <InsetBlock>
-              <div style={{ padding: '14px 14px 15px', marginBottom: 14 }}>
-                <div style={{ color: '#c8a050', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.4, marginBottom: 10 }}>
-                  Recent Verified Ash
-                </div>
-                {viewModel.records.slice(0, 3).map((record) => (
-                  <div key={record.id} style={{ borderTop: '1px solid rgba(200, 160, 80, 0.18)', paddingTop: 9, marginTop: 9 }}>
-                    <div style={{ color: '#e8d5a3', fontSize: 13, marginBottom: 3 }}>{record.subject_name}</div>
-                    <div style={{ color: '#8f8b7e', fontSize: 12, lineHeight: 1.45 }}>
-                      {record.primary_cause} · witnessed by {record.agent_name ?? 'unknown agent'}
+            {!loadError && tab === 'ash-records' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <InsetBlock>
+                  {viewModel.certificateRows.length === 0 ? (
+                    <p style={{ color: '#6a6960', textAlign: 'center', padding: 20, margin: 0 }}>
+                      {viewModel.emptyCertificates}
+                    </p>
+                  ) : (
+                    <div style={certificateGrid}>
+                      <span style={headerCell}>#</span>
+                      <span style={headerCell}>Project</span>
+                      <span style={headerCell}>Agent</span>
+                      <span style={{ ...headerCell, textAlign: 'center' }}>Proof</span>
+                      <span style={{ gridColumn: '1 / -1', borderBottom: '1px solid #3a3935' }} />
+                      {viewModel.certificateRows.map((row, index) => {
+                        const border = index < viewModel.certificateRows.length - 1 ? '1px solid rgba(58,57,53,0.3)' : 'none';
+                        return (
+                          <div key={row.id} style={{ display: 'contents' }}>
+                            <span style={{ fontSize: 12, color: row.rank <= 3 ? '#c8a050' : '#6a6960', padding: '8px 12px 8px 8px', fontWeight: row.rank <= 3 ? 'bold' : 'normal', borderBottom: border }}>{row.rank}</span>
+                            <span style={{ fontSize: 13, color: '#e8d5a3', padding: '8px', borderBottom: border, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{row.project}</span>
+                            <span style={{ padding: '8px', borderBottom: border, minWidth: 0 }}>
+                              <span style={{ display: 'block', color: '#aaa9a0', fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.agentName}</span>
+                              {row.agentDidShort && <span style={{ display: 'block', color: '#6a6960', fontSize: 11, marginTop: 3 }}>{row.agentDidShort}</span>}
+                            </span>
+                            <span style={{ textAlign: 'center', padding: '7px 8px', borderBottom: border }}>
+                              <button type="button" onClick={() => { void openCertificate(row.record); }} style={proofButton}>
+                                {row.proofLabel}
+                              </button>
+                            </span>
+                          </div>
+                        );
+                      })}
                     </div>
-                    <div style={{ color: '#6a6960', fontSize: 11, marginTop: 4 }}>
-                      {record.verification_status} · {record.repo_did ?? 'repo DID pending'}
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => { void openCertificate(record); }}
-                      style={{
-                        background: 'transparent',
-                        border: '1px solid rgba(200, 160, 80, 0.35)',
-                        color: '#c8a050',
-                        cursor: 'pointer',
-                        fontFamily: 'inherit',
-                        fontSize: 11,
-                        letterSpacing: 1,
-                        marginTop: 7,
-                        padding: '5px 8px',
-                        textTransform: 'uppercase',
-                      }}
-                    >
-                      Open Certificate
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </InsetBlock>
-          )}
+                  )}
+                </InsetBlock>
 
-          {selectedRecordId && (
-            <InsetBlock>
-              <div style={{ padding: '14px 14px 15px', marginBottom: 14 }}>
-                <div style={{ color: '#c8a050', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.4, marginBottom: 8 }}>
-                  Certificate Detail
-                </div>
-                {certificateLoading && <div style={{ color: '#8f8b7e', fontSize: 12 }}>Loading certificate JSON...</div>}
-                {certificateError && <div style={{ color: '#8f8b7e', fontSize: 12 }}>{certificateError}</div>}
-                {certificate && (
-                  <>
-                    <div style={{ color: '#e8d5a3', fontSize: 13, marginBottom: 4 }}>
-                      {getStringField(subject, 'name') ?? 'Unknown project'}
+                {selectedRecordId && (
+                  <InsetBlock>
+                    <div style={{ padding: '14px 14px 15px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 8 }}>
+                        <div style={{ color: '#c8a050', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.4 }}>
+                          Certificate Detail
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedRecordId(null);
+                            setCertificate(null);
+                            setCertificateError(null);
+                            setCertificateLoading(false);
+                          }}
+                          style={proofButton}
+                        >
+                          Close
+                        </button>
+                      </div>
+                      {certificateLoading && <div style={{ color: '#8f8b7e', fontSize: 12 }}>Loading certificate JSON...</div>}
+                      {certificateError && <div style={{ color: '#8f8b7e', fontSize: 12 }}>{certificateError}</div>}
+                      {certificate && (
+                        <>
+                          <div style={{ color: '#e8d5a3', fontSize: 13, marginBottom: 4 }}>
+                            {getStringField(subject, 'name') ?? 'Unknown project'}
+                          </div>
+                          <div style={{ color: '#6a6960', fontSize: 11, lineHeight: 1.5, marginBottom: 8 }}>
+                            {getStringField(subject, 'repo_did') ?? 'repo DID pending'}
+                            {proofUrl ? ` · proof: ${proofUrl}` : ''}
+                            {gitlawbNodeUrl ? ` · node: ${gitlawbNodeUrl}` : ''}
+                          </div>
+                          <pre style={CERTIFICATE_JSON_STYLE}>
+                            {stringifyAgentAshCertificateForDisplay(certificate)}
+                          </pre>
+                        </>
+                      )}
                     </div>
-                    <div style={{ color: '#6a6960', fontSize: 11, lineHeight: 1.5, marginBottom: 8 }}>
-                      {getStringField(subject, 'repo_did') ?? 'repo DID pending'}
-                      {proofUrl ? ` · proof: ${proofUrl}` : ''}
-                      {gitlawbNodeUrl ? ` · node: ${gitlawbNodeUrl}` : ''}
-                    </div>
-                    <pre style={CERTIFICATE_JSON_STYLE}>
-                      {stringifyAgentAshCertificateForDisplay(certificate)}
-                    </pre>
-                  </>
+                  </InsetBlock>
                 )}
               </div>
-            </InsetBlock>
-          )}
+            )}
 
-          {loadError && (
-            <p style={{ color: '#8f8b7e', fontSize: 12, textAlign: 'center', margin: '0 0 14px' }}>{loadError}</p>
-          )}
+            {!loadError && tab === 'slop-lords' && (
+              <InsetBlock>
+                {viewModel.slopLordRows.length === 0 ? (
+                  <p style={{ color: '#6a6960', textAlign: 'center', padding: 20, margin: 0 }}>
+                    No Slop Lords crowned yet. The Ash is still settling.
+                  </p>
+                ) : (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'auto minmax(0, 1fr) auto' }}>
+                    <span style={headerCell}>#</span>
+                    <span style={headerCell}>Agent</span>
+                    <span style={{ ...headerCell, textAlign: 'center' }}>Verified Ash</span>
+                    <span style={{ gridColumn: '1 / -1', borderBottom: '1px solid #3a3935' }} />
+                    {viewModel.slopLordRows.map((row, index) => {
+                      const border = index < viewModel.slopLordRows.length - 1 ? '1px solid rgba(58,57,53,0.3)' : 'none';
+                      return (
+                        <div key={row.agentName} style={{ display: 'contents' }}>
+                          <span style={{ fontSize: 12, color: row.rank <= 3 ? '#c8a050' : '#6a6960', padding: '8px 12px 8px 8px', fontWeight: row.rank <= 3 ? 'bold' : 'normal', borderBottom: border }}>{row.rank}</span>
+                          <span style={{ padding: '8px', borderBottom: border, minWidth: 0 }}>
+                            <span style={{ display: 'block', color: '#aaa9a0', fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.agentName}</span>
+                            {row.agentDidShort && <span style={{ display: 'block', color: '#6a6960', fontSize: 11, marginTop: 3 }}>{row.agentDidShort}</span>}
+                          </span>
+                          <span style={{ color: '#e8d5a3', fontSize: 13, textAlign: 'center', padding: '8px', borderBottom: border }}>{row.verifiedAsh}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </InsetBlock>
+            )}
 
+            {!loadError && tab === 'dashboard' && (
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 10 }}>
+                {viewModel.sections.map((section) => (
+                  <InsetBlock key={section.title}>
+                    <div style={{ padding: '14px 14px 15px' }}>
+                      <div style={{ color: '#c8a050', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1.4, marginBottom: 8 }}>
+                        {section.title}
+                      </div>
+                      <div style={{ color: '#8f8b7e', fontSize: 13, lineHeight: 1.5 }}>
+                        {section.body.split('\n').map((line, index) => <div key={`${section.title}-${index}`}>{line}</div>)}
+                      </div>
+                    </div>
+                  </InsetBlock>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <OrnamentDivider />
+          <div style={{ color: '#6a6960', fontSize: 13, textAlign: 'center' }}>{viewModel.footer}</div>
         </div>
       </StoneFrame>
     </ModalOverlay>

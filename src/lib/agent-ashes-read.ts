@@ -92,6 +92,10 @@ function getDomain(record: AgentAshReadRecord): string | null {
   return isObject(subject) && typeof subject.domain === 'string' ? subject.domain : null
 }
 
+function getPublicAgentName(record: AgentAshReadRecord): string | null {
+  return record.agent_name?.trim() || null
+}
+
 function getResurrectionScore(record: AgentAshReadRecord): number | null {
   const value = record.certificate.value
   if (!isObject(value)) return null
@@ -109,6 +113,7 @@ function toPublicSummaryRecord(record: AgentAshReadRecord) {
     subject_name: record.subject_name,
     repo_did: record.repo_did,
     agent_name: record.agent_name,
+    agent_did: record.agent_did ?? null,
     primary_cause: record.primary_cause,
     failure_pattern: record.failure_pattern ?? null,
     death_stage: record.death_stage ?? null,
@@ -126,11 +131,13 @@ export function buildAgentAshSummary(records: AgentAshReadRecord[], options: { t
   return {
     total_verified_ash: options.totalVerifiedAsh ?? verified.length,
     sampled_verified_ash: verified.length,
+    distinct_agents: new Set(verified.map(getPublicAgentName).filter(Boolean)).size,
     analytics_window: 'recent_verified_ash',
     analytics_window_limit: 50,
     top_primary_causes: countValues(verified.map((record) => record.primary_cause)),
     top_failure_patterns: countValues(verified.map((record) => record.failure_pattern)),
     common_death_stages: countValues(verified.map((record) => record.death_stage)),
+    top_agents: countValues(verified.map(getPublicAgentName)),
     fragile_stacks: countValues(verified.flatMap(getLanguages)),
     top_domains: countValues(verified.map(getDomain)),
     recent_verified_ash: recent.map(toPublicSummaryRecord),

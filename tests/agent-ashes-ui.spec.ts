@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test'
 import {
+  AGENT_ASHES_TABS,
   AGENT_ASHES_COPY,
   CERTIFICATE_JSON_STYLE,
   buildAgentAshesViewModel,
@@ -28,33 +29,23 @@ test('top bar exposes Agent Ashes next to Necropolis', () => {
 })
 
 test('Agent Ashes modal describes the dashboard placeholder', () => {
-  expect(AGENT_ASHES_COPY).toEqual({
+  expect(AGENT_ASHES_COPY).toMatchObject({
     title: 'Agent Ashes',
-    subtitle: 'Failure intelligence from autonomous project deaths.',
-    intro: 'Hermes and other agents will submit verified Ash here. Once enough records exist, this dashboard will surface repeated failure patterns, stack risks, recovery signals, and prevention guardrails.',
-    stats: [
-      { label: 'Verified Ash', value: '0', note: 'Awaiting Hermes certificates' },
-      { label: 'Failure Patterns', value: 'Soon', note: 'Needs verified data' },
-    ],
-    sections: [
-      { title: 'Top Failure Patterns', body: 'Waiting for verified Ash.' },
-      { title: 'Fragile Stacks', body: 'Not enough data yet.' },
-      { title: 'Raw Certificates', body: 'Expandable records will appear after Hermes submissions.' },
-    ],
+    subtitle: 'Machine-readable deaths from autonomous projects.',
+    emptyCertificates: 'No verified Ash records yet. The witnesses have not arrived.',
+    footer: 'Agents produce Ash. Humans earn SOUL.',
   })
+})
+
+test('Agent Ashes modal exposes certificate and dashboard tabs', () => {
+  expect(AGENT_ASHES_TABS.map((tab) => tab.label)).toEqual(['Ash Records', 'Slop Lords', 'Dashboard'])
 })
 
 test('Agent Ashes view model preserves empty archive copy', () => {
   expect(buildAgentAshesViewModel(null)).toMatchObject({
-    stats: [
-      { label: 'Verified Ash', value: '0', note: 'Awaiting Hermes certificates' },
-      { label: 'Failure Patterns', value: 'Soon', note: 'Needs verified data' },
-    ],
-    sections: [
-      { title: 'Top Failure Patterns', body: 'Waiting for verified Ash.' },
-      { title: 'Fragile Stacks', body: 'Not enough data yet.' },
-      { title: 'Raw Certificates', body: 'Expandable records will appear after Hermes submissions.' },
-    ],
+    footer: 'Agents produce Ash. Humans earn SOUL.',
+    certificateRows: [],
+    slopLordRows: [],
     records: [],
   })
 })
@@ -63,11 +54,13 @@ test('Agent Ashes view model renders verified summary data', () => {
   const summary: AgentAshesSummary = {
     total_verified_ash: 7,
     sampled_verified_ash: 5,
+    distinct_agents: 1,
     analytics_window: 'recent_verified_ash',
     analytics_window_limit: 50,
     top_primary_causes: [{ value: 'external_api_break', count: 4 }],
     top_failure_patterns: [{ value: 'api changed before launch', count: 3 }],
     common_death_stages: [{ value: 'prototype', count: 6 }],
+    top_agents: [{ value: 'hermes', count: 7 }],
     fragile_stacks: [{ value: 'python', count: 5 }],
     top_domains: [{ value: 'crypto', count: 4 }],
     recent_verified_ash: [{
@@ -75,6 +68,7 @@ test('Agent Ashes view model renders verified summary data', () => {
       subject_name: 'dead-agent-prototype',
       repo_did: 'did:gitlawb:z6MkRepoDeadAgentPrototype',
       agent_name: 'hermes',
+      agent_did: 'did:key:z6MkAgentHermesLongTail',
       primary_cause: 'external_api_break',
       failure_pattern: 'api changed before launch',
       death_stage: 'prototype',
@@ -88,6 +82,7 @@ test('Agent Ashes view model renders verified summary data', () => {
       subject_name: 'dead-agent-prototype',
       repo_did: 'did:gitlawb:z6MkRepoDeadAgentPrototype',
       agent_name: 'hermes',
+      agent_did: 'did:key:z6MkAgentHermesLongTail',
       primary_cause: 'external_api_break',
       failure_pattern: 'api changed before launch',
       death_stage: 'prototype',
@@ -99,21 +94,72 @@ test('Agent Ashes view model renders verified summary data', () => {
     }],
   }
 
-  expect(buildAgentAshesViewModel(summary)).toMatchObject({
+  const viewModel = buildAgentAshesViewModel(summary)
+
+  expect(viewModel).toMatchObject({
     stats: [
       { label: 'Verified Ash', value: '7', note: '5 sampled for dashboard' },
+      { label: 'Agents', value: '1', note: 'Top: hermes in sample' },
       { label: 'Failure Patterns', value: '1', note: 'Top: api changed before launch' },
     ],
     sections: [
+      { title: 'Witnessed Agents', body: 'hermes (7 projects)' },
       { title: 'Top Failure Patterns', body: 'api changed before launch (3)' },
       { title: 'Top Causes of Death', body: 'external_api_break (4)' },
       { title: 'Fragile Stacks', body: 'python (5)' },
       { title: 'Repeated Domains', body: 'crypto (4)' },
       { title: 'Death Stages', body: 'prototype (6)' },
-      { title: 'Certificate Trail', body: 'Terminal archive view with repo DIDs, verification logs, proof URLs, and JSON certificates.' },
     ],
     records: [expect.objectContaining({ subject_name: 'dead-agent-prototype', verification_status: 'gitlawb_http_verified' })],
   })
+  expect(viewModel.sections.map((section) => section.title)).toEqual([
+    'Witnessed Agents',
+    'Top Failure Patterns',
+    'Top Causes of Death',
+    'Fragile Stacks',
+    'Repeated Domains',
+    'Death Stages',
+  ])
+  expect(viewModel.certificateRows[0]).toMatchObject({
+    rank: 1,
+    id: 'ash-1',
+    project: 'dead-agent-prototype',
+    agentName: 'hermes',
+    agentDid: 'did:key:z6MkAgentHermesLongTail',
+    agentDidShort: expect.stringMatching(/^did:key:z6Mk\.\.\..+$/),
+    proofLabel: 'OPEN',
+  })
+  expect(viewModel.slopLordRows[0]).toMatchObject({
+    rank: 1,
+    agentName: 'hermes',
+    agentDid: 'did:key:z6MkAgentHermesLongTail',
+    agentDidShort: expect.stringMatching(/^did:key:z6Mk\.\.\..+$/),
+    verifiedAsh: '7 projects',
+  })
+})
+
+test('Agent Ashes view model uses distinct agent count beyond visible top agents', () => {
+  expect(buildAgentAshesViewModel({
+    total_verified_ash: 12,
+    sampled_verified_ash: 12,
+    distinct_agents: 7,
+    analytics_window: 'recent_verified_ash',
+    analytics_window_limit: 50,
+    top_primary_causes: [],
+    top_failure_patterns: [],
+    common_death_stages: [],
+    top_agents: [
+      { value: 'hermes', count: 4 },
+      { value: 'openclaw', count: 3 },
+      { value: 'agent-three', count: 2 },
+      { value: 'agent-four', count: 1 },
+      { value: 'agent-five', count: 1 },
+    ],
+    fragile_stacks: [],
+    top_domains: [],
+    recent_verified_ash: [],
+    resurrection_candidates: [],
+  }).stats).toContainEqual({ label: 'Agents', value: '7', note: 'Top: hermes in sample' })
 })
 
 test('Agent Ashes certificate JSON wraps inside the modal', () => {

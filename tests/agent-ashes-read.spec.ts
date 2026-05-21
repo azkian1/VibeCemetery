@@ -54,6 +54,7 @@ test.describe('Agent Ash read API helpers', () => {
       analytics_window: 'recent_verified_ash',
       analytics_window_limit: 50,
       total_verified_ash: 12,
+      distinct_agents: 1,
       top_primary_causes: [
         { value: 'external_api_break', count: 1 },
         { value: 'dependency_hell', count: 1 },
@@ -63,16 +64,17 @@ test.describe('Agent Ash read API helpers', () => {
         { value: 'obsolete_runtime_before_launch', count: 1 },
       ],
       common_death_stages: [{ value: 'prototype', count: 2 }],
+      top_agents: [{ value: 'hermes', count: 2 }],
       fragile_stacks: [
         { value: 'python', count: 1 },
         { value: 'typescript', count: 1 },
       ],
       top_domains: [{ value: 'crypto', count: 2 }],
       recent_verified_ash: [
-        expect.objectContaining({ id: 'ash-1', subject_name: 'dead-agent-prototype' }),
-        expect.objectContaining({ id: 'ash-2', subject_name: 'stale-agent-ui' }),
+        expect.objectContaining({ id: 'ash-1', subject_name: 'dead-agent-prototype', agent_did: 'did:key:z6MkAgentHermes' }),
+        expect.objectContaining({ id: 'ash-2', subject_name: 'stale-agent-ui', agent_did: null }),
       ],
-      resurrection_candidates: [expect.objectContaining({ id: 'ash-1', resurrection_score: 0.64 })],
+      resurrection_candidates: [expect.objectContaining({ id: 'ash-1', agent_did: 'did:key:z6MkAgentHermes', resurrection_score: 0.64 })],
     })
 
     expect(buildAgentAshSummary(records)).toMatchObject({
@@ -92,7 +94,7 @@ test.describe('Agent Ash read API helpers', () => {
     const detail = await handlers.detail('ash-1')
     expect(detail.status).toBe(200)
     const detailBody = await detail.json()
-    expect(detailBody).toMatchObject({ id: 'ash-1', subject_name: 'dead-agent-prototype' })
+    expect(detailBody).toMatchObject({ id: 'ash-1', subject_name: 'dead-agent-prototype', agent_did: 'did:key:z6MkAgentHermes' })
     expect(detailBody).not.toHaveProperty('certificate')
     expect(detailBody).not.toHaveProperty('proof')
 
