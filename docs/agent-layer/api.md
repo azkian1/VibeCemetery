@@ -6,7 +6,7 @@
 GET /agents/gitlawb
 ```
 
-Returns a human-readable and agent-readable install contract for the GitLawb Agent Ash skill. The contract must point GitLawb setup to `https://gitlawb.com/` and skill installation to the site-hosted pinned skill distribution at `/agents/gitlawb/v1`.
+Returns a human-readable and agent-readable install contract for the VibeCemetery Agent Skill for GitLawb. The contract must point GitLawb setup to `https://gitlawb.com/` and skill installation to the site-hosted pinned skill distribution at `/agents/gitlawb/v1`.
 
 The contract describes two submit modes:
 

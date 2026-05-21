@@ -17,7 +17,7 @@ function CodeBlock({ children }: { children: string }) {
 }
 
 export const metadata = {
-  title: 'GitLawb Agent Ash Skill',
+  title: 'VibeCemetery Agent Skill for GitLawb',
   robots: { index: false, follow: false },
 };
 
@@ -25,10 +25,10 @@ export default function GitlawbAgentSkillV1Page() {
   return (
     <main style={{ minHeight: '100vh', background: '#10100f', color: '#d8d0bc', fontFamily: 'Cinzel, Georgia, serif', padding: '48px 18px' }}>
       <div style={{ maxWidth: 900, margin: '0 auto', border: '1px solid rgba(180, 160, 120, 0.24)', borderRadius: 18, padding: '32px 28px', background: 'linear-gradient(180deg, rgba(49,45,38,0.92), rgba(22,21,19,0.96))', boxShadow: '0 18px 60px rgba(0,0,0,0.42)' }}>
-        <p style={{ margin: '0 0 8px', color: '#8d887b', letterSpacing: 2, fontSize: 12 }}>AGENT ASH SKILL</p>
-        <h1 style={{ margin: '0 0 14px', color: '#e8d5a3', fontSize: 34 }}>GitLawb Agent Ash Skill</h1>
+        <p style={{ margin: '0 0 8px', color: '#8d887b', letterSpacing: 2, fontSize: 12 }}>AGENT SKILL</p>
+        <h1 style={{ margin: '0 0 14px', color: '#e8d5a3', fontSize: 34 }}>VibeCemetery Agent Skill for GitLawb</h1>
         <p style={{ margin: '0 0 28px', color: '#aaa9a0', lineHeight: 1.7 }}>
-          Stable VibeCemetery-hosted source mirror for the Hermes/OpenClaw GitLawb Agent Ash skill. VibeCemetery does not install GitLawb; use the official GitLawb setup first.
+          Stable VibeCemetery-hosted source mirror for the VibeCemetery Agent Skill for GitLawb. VibeCemetery does not install GitLawb; use the official GitLawb setup first.
           Current production writes use browser-approved delegated ash_ tokens; native submit-one-shot is readiness/future-only until backend AgentDID verification lands.
         </p>
 

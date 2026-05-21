@@ -63,7 +63,7 @@ export default function AgentSkillModal() {
                     Hermes / OpenClaw Agent Ashes
                   </div>
                   <div style={{ color: '#77746a', fontSize: 13, lineHeight: 1.55 }}>
-                    Give the agent one URL. It reads the install contract from the site and sets up the VibeCemetery Agent Ash skill.
+                    Give the agent one URL. It reads the install contract from the site and sets up the VibeCemetery Agent Skill for GitLawb.
                   </div>
                 </div>
                 <StoneButton onClick={() => handleCopy(getAgentAshInstallUrl())}>

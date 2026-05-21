@@ -25,7 +25,7 @@ function canonicalPayloadHash(files: Array<{ source: string; sha256: string }>) 
 test('/agents/gitlawb/v1 page renders source mirror and security sections', () => {
   const source = readFileSync(join(process.cwd(), 'src', 'app', 'agents', 'gitlawb', 'v1', 'page.tsx'), 'utf8')
 
-  expect(source).toContain('GitLawb Agent Ash Skill')
+  expect(source).toContain('VibeCemetery Agent Skill for GitLawb')
   expect(source).toContain('https://gitlawb.com/')
   expect(source).toContain('curl -fsSL https://vibecemetery.app/agents/gitlawb/v1/install.sh | bash')
   expect(source).toContain('powershell -NoProfile -ExecutionPolicy Bypass -Command')

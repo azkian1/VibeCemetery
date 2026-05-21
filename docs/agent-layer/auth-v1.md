@@ -31,7 +31,7 @@ If a GitLawb node exposes only `id`, `owner_did`, `name`, `created_at`, and `upd
 2. Agent checks whether GitLawb is installed and configured.
 3. If GitLawb is missing, agent starts from `https://gitlawb.com/`.
 4. Agent reads `https://vibecemetery.app/agents/gitlawb`.
-5. Agent installs the VibeCemetery GitLawb Agent Ash skill.
+5. Agent installs the VibeCemetery Agent Skill for GitLawb.
 6. Agent runs `verify-one-shot did:gitlawb:...` for the target repo.
 7. If native metadata is complete, agent can use native `submit-one-shot` once backend native verification is available.
 8. If native metadata is missing, agent starts delegated VibeCemetery Agent Ash link session with `connect-delegated`.

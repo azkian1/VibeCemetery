@@ -22,7 +22,7 @@ test('Agent Ash install contract points to external GitLawb setup and VibeCemete
 
   expect(contract).toContain('## Task')
   expect(contract).toContain('## Official GitLawb Setup')
-  expect(contract).toContain('## Install VibeCemetery Agent Ash Skill')
+  expect(contract).toContain('## Install VibeCemetery Agent Skill for GitLawb')
   expect(contract).toContain('## Config')
   expect(contract).toContain('## Allowed Actions')
   expect(contract).toContain('## Forbidden Actions')
@@ -30,7 +30,7 @@ test('Agent Ash install contract points to external GitLawb setup and VibeCemete
   expect(contract).toContain(GITLAWB_OFFICIAL_SETUP_URL)
   expect(contract).toContain('If GitLawb is not installed or configured, go to https://gitlawb.com/.')
   expect(contract).toContain('Do not install GitLawb from VibeCemetery.')
-  expect(contract).toContain('VibeCemetery only provides the Agent Ash skill.')
+  expect(contract).toContain('VibeCemetery only provides the VibeCemetery Agent Skill for GitLawb.')
   expect(contract).toContain('https://vibecemetery.app/agents/gitlawb/v1')
   expect(contract).toContain('curl -fsSL https://vibecemetery.app/agents/gitlawb/v1/install.sh | bash')
   expect(contract).toContain('powershell -NoProfile -ExecutionPolicy Bypass -Command')
@@ -133,7 +133,7 @@ test('Hermes agent install URL points to an agent-readable route', () => {
   expect(getAgentAshInstallPath()).toBe('/agents/gitlawb')
 
   const pageSource = readFileSync(join(process.cwd(), 'src', 'app', 'agents', 'gitlawb', 'page.tsx'), 'utf8')
-  expect(pageSource).toContain('Hermes / OpenClaw GitLawb Agent Ash install')
+  expect(pageSource).toContain('VibeCemetery Agent Skill for GitLawb')
   expect(pageSource).toContain('getAgentAshInstallContract()')
   expect(pageSource).toContain('getAgentAshSkillInstallCommand()')
   expect(pageSource).toContain('getAgentAshPowerShellInstallCommand()')

@@ -1,9 +1,9 @@
 ---
 name: gitlawb
-description: Hermes GitLawb Agent Ash producer. Produces repo-bound agent_ash.v1 certificates from GitLawb; production writes currently use delegated Agent Ash auth.
+description: VibeCemetery Agent Ash skill for GitLawb repositories.
 ---
 
-# Hermes GitLawb Agent Ash Producer
+# VibeCemetery Agent Skill for GitLawb
 
 This skill produces Agent Ash for VibeCemetery's Agent Layer. It never performs human cremation, never creates graves, never awards SOUL, and never consumes cemetery map slots.
 

@@ -1,8 +1,8 @@
-# GitLawb Hermes Skill
+# VibeCemetery Agent Skill for GitLawb
 
 ## Purpose
 
-The `gitlawb` skill lets Hermes/OpenClaw produce verified Agent Ash for public GitLawb repositories.
+The `gitlawb` skill is the VibeCemetery Agent Ash skill for GitLawb repositories. It lets Hermes/OpenClaw produce verified Agent Ash for public GitLawb repositories.
 
 It is not the human `/bury` command.
 
@@ -16,14 +16,14 @@ If GitLawb is missing, agents must start from:
 https://gitlawb.com/
 ```
 
-VibeCemetery only provides the Agent Ash skill contract and site-hosted skill distribution at:
+VibeCemetery only provides the VibeCemetery Agent Skill contract and site-hosted skill distribution at:
 
 ```text
 https://vibecemetery.app/agents/gitlawb
 https://vibecemetery.app/agents/gitlawb/v1
 ```
 
-## Install Agent Ash Skill
+## Install VibeCemetery Agent Skill for GitLawb
 
 Install only after GitLawb itself is installed and configured through the official GitLawb setup.
 

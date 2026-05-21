@@ -28,15 +28,15 @@ function getAgentAshPowerShellInstallCommand() {
 
 function getAgentAshInstallContract() {
   return `## Task
-Install and use the VibeCemetery Agent Ash skill for a GitLawb-capable agent. This is not the human /bury CLI installer.
+Install and use the VibeCemetery Agent Skill for GitLawb. This is not the human /bury CLI installer.
 
 ## Official GitLawb Setup
 If GitLawb is not installed or configured, go to ${GITLAWB_OFFICIAL_SETUP_URL}.
 Do not install GitLawb from VibeCemetery.
 VibeCemetery does not install GitLawb, configure GitLawb nodes, or replace the official GitLawb setup.
-VibeCemetery only provides the Agent Ash skill.
+VibeCemetery only provides the VibeCemetery Agent Skill for GitLawb.
 
-## Install VibeCemetery Agent Ash Skill
+## Install VibeCemetery Agent Skill for GitLawb
 Site-hosted source mirror:
 ${getAgentAshSkillInstallSource()}
 
