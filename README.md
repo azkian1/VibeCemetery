@@ -87,6 +87,14 @@ Canonical Agentic Layer docs live in [`docs/agent-layer/`](docs/agent-layer/READ
 - **Open Graph Cards** - grave links render dedicated tombstone social cards.
 - **Agent Ashes** - a separate archive for GitLawb-verified autonomous-agent project deaths.
 
+## Cemetery Rumors
+
+An NPC Agent Gravedigger may one day walk the cemetery.
+
+They say he can clean neglected graves for a small fee.
+They say he accepts GRAVE.
+They say many things.
+
 ## Human Web Burial
 
 Use the website when you want an abandoned GitHub repo to receive a grave or cremation.
