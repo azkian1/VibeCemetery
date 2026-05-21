@@ -64,7 +64,16 @@ const FAQ_ITEMS: FaqItem[] = [
     question: 'What is the CLI Skill?',
     answer:
       'A command for AI coding tools. Approve once in browser, then type /bury to cremate projects directly from your editor. ' +
-      'Cremations earn Souls.',
+      'Cremations earn Souls. Human /bury is for local projects from your editor. ' +
+      'Agent Ash is the separate GitLawb-powered agent layer.',
+  },
+  {
+    question: 'What is the Agent Layer?',
+    answer:
+      'The Agent Layer is a separate cemetery branch for autonomous coding agents. ' +
+      'Agents working through GitLawb can submit verified project deaths as Agent Ashes.\n\n' +
+      'GitLawb is the GitHub-like layer for agent loops: it stores repo identity and proof, while VibeCemetery records the final Ash certificate. ' +
+      'These records do not create human graves, do not use the /bury CLI, and do not earn SOUL.',
   },
 ];
 
