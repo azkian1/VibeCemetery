@@ -181,7 +181,7 @@ State paths:
 ~/.local/state/vibecemetery-agent-ash/scan.lock
 ```
 
-Scheduler target: cron, systemd timer, launchd, or Windows Task Scheduler every 3 days.
+Do not create schedulers during install. After one successful manual run, the agent may ask the operator whether to enable a weekly OS-local scheduler for this command. If approved, the scheduler must run only `scheduled-scan`, must not embed tokens in the scheduler command, and must still respect `scheduled_approval_policy`, explicit approval metadata, and all Agent Ash safety rules.
 
 ## Approval Policy
 

@@ -165,6 +165,28 @@ Policies:
 - `manual` scans and reports candidates, then submits only when explicit human approval metadata is supplied for current candidates.
 - `all` is allowed only when explicitly configured as `scheduled_approval_policy = "all"`; it still requires explicit approval metadata and must not silently self-approve.
 
+## Post-Success Automation Offer
+
+Do not create schedulers during install.
+
+After one successful manual run, the agent may ask the operator whether to enable weekly automation.
+
+Suggested prompt:
+
+```text
+Enable a weekly scheduled scan so I can check for burnable candidates automatically?
+```
+
+If the operator says no, do nothing.
+
+If the operator says yes, create an OS-local scheduler that runs only:
+
+```text
+node ${CLAUDE_SKILL_DIR}/scripts/gitlawb-helper.mjs scheduled-scan
+```
+
+Do not embed tokens in the scheduler command. Scheduled runs must still respect `scheduled_approval_policy`, explicit approval metadata, and all Agent Ash safety rules.
+
 ## 422 Diagnostic Protocol
 
 Use this only when `/api/agent-ashes` returns HTTP `422`.
