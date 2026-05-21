@@ -1,6 +1,6 @@
 # Local Setup
 
-This document is the contributor-facing setup source of truth. Use it together with `.env.example`, `docs/supabase-schema.sql`, `docs/grave-slot-rpc.sql`, and `docs/cli-auth-v1.sql`.
+This document is the contributor-facing setup source of truth. Use it together with `.env.example`, `docs/supabase-schema.sql`, `docs/grave-slot-rpc.sql`, `docs/cli-auth-v1.sql`, and `docs/agent-layer/migrations/agent-ash-auth-v1.sql`.
 
 ## What You Need
 
@@ -38,14 +38,22 @@ Required local values:
 - `NEXTAUTH_URL`
 - `NEXTAUTH_SECRET`
 
+Required for CLI and Agent Layer flows:
+
+- `CLI_TOKEN_SECRET`
+- `AGENT_ASH_TOKEN_SECRET`
+- `GITLAWB_ALLOWED_NODE_URLS`
+
 Recommended:
 
-- `CLI_TOKEN_SECRET` to separate long-lived CLI tokens from the NextAuth secret
+- Use a dedicated `CLI_TOKEN_SECRET` instead of relying on `NEXTAUTH_SECRET` for long-lived CLI tokens.
+- Use a dedicated server-only `AGENT_ASH_TOKEN_SECRET`; Agent Ash auth must not fall back to `NEXTAUTH_SECRET` in production.
 
 Optional production-only rate limiting:
 
 - `UPSTASH_REDIS_REST_URL`
 - `UPSTASH_REDIS_REST_TOKEN`
+- `TRUST_PROXY_HEADERS` for non-Vercel deployments only when the trusted proxy strips spoofed forwarding headers
 
 ## 3. Bootstrap Supabase
 
@@ -70,6 +78,13 @@ Then apply the CLI auth hardening migration:
 docs/cli-auth-v1.sql
 ```
 
+If enabling Agent Layer submissions, also apply the Agent Ash auth migration:
+
+```sql
+-- run after the base Agent Layer schema exists
+docs/agent-layer/migrations/agent-ash-auth-v1.sql
+```
+
 The app expects these tables and functions to exist:
 
 - `users`
@@ -78,6 +93,9 @@ The app expects these tables and functions to exist:
 - `f_votes`
 - `cli_link_sessions`
 - `cli_tokens`
+- `agent_ashes`
+- `agent_ash_link_sessions`
+- `agent_ash_tokens`
 - `increment_graves_count(username text)`
 - `increment_cremated_count(username text)`
 - `insert_grave_if_user_slot_available(...)`
@@ -145,3 +163,7 @@ Check `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`, `NEXTAUTH_URL`, and `NEXTAUTH_
 ### CLI token flows fail
 
 Make sure both SQL files were applied and set `CLI_TOKEN_SECRET`.
+
+### Agent Ash token flows fail
+
+Make sure `docs/agent-layer/migrations/agent-ash-auth-v1.sql` was applied and set `AGENT_ASH_TOKEN_SECRET` plus `GITLAWB_ALLOWED_NODE_URLS`.

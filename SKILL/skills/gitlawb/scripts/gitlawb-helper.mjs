@@ -342,6 +342,41 @@ function parseOwnerNamePath(value) {
   return parts.length === 2 ? parts : null
 }
 
+function getRepoCollisionKey(repo = {}) {
+  const pathParts = parseOwnerNamePath(getRepoPath(repo))
+  const ownerDid = normalizeOwnerDid(repo.owner_did) || (pathParts ? normalizeOwnerDid(pathParts[0]) : '')
+  const name = normalizeDerivedRepoName(repo.name || (pathParts ? pathParts[1] : ''))
+  return ownerDid && name ? `${ownerDid}/${name}` : ''
+}
+
+function getRepoCollisionIdentifier(repo = {}) {
+  const explicitDid = [repo.did, repo.repo_did]
+    .map(asString)
+    .find((value) => GITLAWB_REPO_DID_PATTERN.test(value)) || ''
+  const pathValue = sanitizeString(repo.path, STRING_LIMITS.subjectPath)
+    || sanitizeString(repo.full_name, STRING_LIMITS.subjectPath)
+  return stableJsonStringify({
+    did: explicitDid,
+    id: sanitizeString(repo.id, STRING_LIMITS.subjectPath),
+    path: pathValue,
+  })
+}
+
+export function assertNoDuplicateGitlawbRepoCollisions(repos = []) {
+  const seen = new Map()
+  for (const repo of Array.isArray(repos) ? repos : []) {
+    const key = getRepoCollisionKey(repo)
+    if (!key) continue
+    const identifier = getRepoCollisionIdentifier(repo)
+    const previous = seen.get(key)
+    if (previous && previous !== identifier) {
+      throw new Error(`Duplicate GitLawb repo collision for ${key}`)
+    }
+    seen.set(key, identifier)
+  }
+  return repos
+}
+
 function buildRepoVerificationUrl(nodeUrl, repoPath) {
   const parts = parseOwnerNamePath(repoPath)
   if (!parts) return `${nodeUrl}${GITLAWB_REPOS_PATH}`
@@ -690,6 +725,33 @@ export function buildNativeSubmissionRequest(options = {}) {
   }
 }
 
+async function readJsonResponseBody(response, context) {
+  try {
+    return await response.json()
+  } catch {
+    throw new Error(`${context} returned malformed JSON`)
+  }
+}
+
+async function handleAgentAshSubmitResponse(response) {
+  const body = await readJsonResponseBody(response, 'Agent Ash submit')
+  if (response.status === 201) {
+    return { status: response.status, body }
+  }
+  if (response.status === 409) {
+    return { status: response.status, already_cremated: true, body }
+  }
+
+  const message = body && typeof body.error === 'string' ? body.error : response.statusText
+  if (response.status === 422) {
+    throw new Error(`Agent Ash submit failed with 422 verification failure; run the 422 Diagnostic Protocol: ${redactSecretLikeText(message)}`)
+  }
+  if (!response.ok) {
+    throw new Error(`Agent Ash submit failed: ${redactSecretLikeText(message)}`)
+  }
+  throw new Error(`Agent Ash submit must return 201, received ${response.status}`)
+}
+
 export async function submitAgentAshRequest(options = {}) {
   const fetchImpl = options.fetchImpl ?? globalThis.fetch
   if (typeof fetchImpl !== 'function') {
@@ -701,14 +763,7 @@ export async function submitAgentAshRequest(options = {}) {
     headers: request.headers,
     body: request.body,
   })
-  const body = await parseJsonResponse(response, 'Agent Ash submit')
-  if (response.status !== 201) {
-    throw new Error(`Agent Ash submit must return 201, received ${response.status}`)
-  }
-  return {
-    status: response.status,
-    body,
-  }
+  return await handleAgentAshSubmitResponse(response)
 }
 
 export async function submitAgentAshNativeRequest(options = {}) {
@@ -722,14 +777,7 @@ export async function submitAgentAshNativeRequest(options = {}) {
     headers: request.headers,
     body: request.body,
   })
-  const body = await parseJsonResponse(response, 'Agent Ash submit')
-  if (response.status !== 201) {
-    throw new Error(`Agent Ash submit must return 201, received ${response.status}`)
-  }
-  return {
-    status: response.status,
-    body,
-  }
+  return await handleAgentAshSubmitResponse(response)
 }
 
 export function buildAgentAshLinkStartRequest(options = {}) {
@@ -773,12 +821,7 @@ export function buildAgentAshLinkStatusRequest(options = {}) {
 }
 
 async function parseJsonResponse(response, context) {
-  let body
-  try {
-    body = await response.json()
-  } catch {
-    throw new Error(`${context} returned malformed JSON`)
-  }
+  const body = await readJsonResponseBody(response, context)
   if (!response.ok) {
     const message = body && typeof body.error === 'string' ? body.error : response.statusText
     throw new Error(`${context} failed: ${redactSecretLikeText(message)}`)
@@ -1094,7 +1137,7 @@ export async function runOneShotSubmit(options = {}) {
 
   const storedConfig = options.config ?? await readJsonFile(computeGitlawbStoragePaths(options).configPath)
   const config = normalizeGitlawbConfig(storedConfig)
-  const repos = Array.isArray(options.repos) ? options.repos : await fetchGitlawbRepos({ config, fetchImpl: options.fetchImpl, execFileImpl: options.execFileImpl })
+  const repos = assertNoDuplicateGitlawbRepoCollisions(Array.isArray(options.repos) ? options.repos : await fetchGitlawbRepos({ config, fetchImpl: options.fetchImpl, execFileImpl: options.execFileImpl }))
   const repo = findGitlawbRepoByDid(repos, repoDid)
   if (!repo) {
     throw new Error(`GitLawb repo not found: ${repoDid}`)
@@ -1113,6 +1156,7 @@ export async function runOneShotSubmit(options = {}) {
   const submitted = await submitAgentAshNativeRequest({ config, request, fetchImpl: options.fetchImpl })
   return {
     status: submitted.status,
+    already_cremated: submitted.already_cremated === true || undefined,
     repo_did: repoDid,
     certificate_id: request.certificate.identity.certificate_id,
     id: submitted.body?.id,
@@ -1134,7 +1178,7 @@ export async function runDelegatedSubmit(options = {}) {
 
   const storedConfig = options.config ?? await readJsonFile(computeGitlawbStoragePaths(options).configPath)
   const config = normalizeGitlawbConfig(storedConfig)
-  const repos = Array.isArray(options.repos) ? options.repos : await fetchGitlawbRepos({ config, fetchImpl: options.fetchImpl, execFileImpl: options.execFileImpl })
+  const repos = assertNoDuplicateGitlawbRepoCollisions(Array.isArray(options.repos) ? options.repos : await fetchGitlawbRepos({ config, fetchImpl: options.fetchImpl, execFileImpl: options.execFileImpl }))
   const repo = findGitlawbRepoByDid(repos, repoDid)
   if (!repo) {
     throw new Error(`GitLawb repo not found: ${repoDid}`)
@@ -1149,6 +1193,7 @@ export async function runDelegatedSubmit(options = {}) {
   const submitted = await submitAgentAshRequest({ config, request, fetchImpl: options.fetchImpl })
   return {
     status: submitted.status,
+    already_cremated: submitted.already_cremated === true || undefined,
     repo_did: repoDid,
     certificate_id: request.certificate.identity.certificate_id,
     id: submitted.body?.id,
@@ -1170,7 +1215,7 @@ export async function runOneShotVerify(options = {}) {
 
   const storedConfig = options.config ?? await readJsonFile(computeGitlawbStoragePaths(options).configPath)
   const config = normalizeGitlawbConfig(storedConfig)
-  const repos = Array.isArray(options.repos) ? options.repos : await fetchGitlawbRepos({ config, fetchImpl: options.fetchImpl, execFileImpl: options.execFileImpl })
+  const repos = assertNoDuplicateGitlawbRepoCollisions(Array.isArray(options.repos) ? options.repos : await fetchGitlawbRepos({ config, fetchImpl: options.fetchImpl, execFileImpl: options.execFileImpl }))
   const repo = findGitlawbRepoByDid(repos, repoDid)
   if (!repo) {
     throw new Error(`GitLawb repo not found: ${repoDid}`)
@@ -1356,10 +1401,11 @@ export async function runScheduledWatchlistScan(options = {}) {
     const config = normalizeGitlawbConfig(storedConfig)
     const scheduledApprovalPolicy = normalizeScheduledApprovalPolicy(options, storedConfig)
     const watchlist = options.watchlist ?? await readJsonFile(computeGitlawbStoragePaths(options).watchlistPath)
-    const repos = (Array.isArray(options.repos)
+    const repos = assertNoDuplicateGitlawbRepoCollisions((Array.isArray(options.repos)
       ? options.repos
       : await fetchGitlawbRepos({ config, fetchImpl: options.fetchImpl, execFileImpl: options.execFileImpl }))
       .slice(0, MAX_SCHEDULED_REPOS)
+    )
     const report = buildWatchlistReport({ repos, watchlist, now })
     report.candidates = report.candidates.slice(0, MAX_SCHEDULED_CANDIDATES)
     if (report.notification) {
@@ -1460,6 +1506,7 @@ function toCliPrintableResult(result) {
     })),
     submitted: (Array.isArray(result.submitted) ? result.submitted : []).map((item) => ({
       status: item?.status,
+      already_cremated: item?.already_cremated === true || undefined,
       id: item?.body?.id,
       certificate_hash: item?.body?.certificate_hash,
       verification_policy: item?.body?.verification_policy,

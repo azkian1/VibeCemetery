@@ -8,6 +8,7 @@ Required for Agent Layer production:
 AGENT_ASH_TOKEN_SECRET
 GITLAWB_ALLOWED_NODE_URLS=https://node.gitlawb.com
 NEXT_PUBLIC_SITE_URL=https://vibecemetery.app
+NEXT_PUBLIC_SUPABASE_URL
 SUPABASE_SERVICE_KEY
 ```
 
@@ -47,10 +48,15 @@ https://node.gitlawb.com
 3. Set `AGENT_ASH_TOKEN_SECRET` in production.
 4. Set `GITLAWB_ALLOWED_NODE_URLS` in production.
 5. Confirm `NEXT_PUBLIC_SITE_URL` points to production site.
-6. Confirm `/agents/gitlawb` install contract uses a pinned commit or release artifact, never a floating branch.
+6. Confirm `/agents/gitlawb/v1` install commands, manifest URLs, and target paths match the route handler allowlist.
 7. Confirm no static Agent Ash ingest token path exists.
 8. Confirm GitLawb v0.3.8 repos are documented and handled as delegated-only.
 9. Run targeted tests, lint, and build.
+
+Optional production hardening:
+
+- `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` enable shared rate limiting instead of per-instance memory fallback.
+- `TRUST_PROXY_HEADERS` is for non-Vercel deployments only when the trusted proxy strips spoofed forwarding headers.
 
 ## Native Readiness Checklist
 

@@ -1,5 +1,4 @@
 const baseUrl = 'https://vibecemetery.app/agents/gitlawb/v1';
-const manifestHref = '/agents/gitlawb/v1/manifest.json';
 const macInstallCommand = 'curl -fsSL https://vibecemetery.app/agents/gitlawb/v1/install.sh | bash';
 const windowsInstallCommand = 'powershell -NoProfile -ExecutionPolicy Bypass -Command "iwr https://vibecemetery.app/agents/gitlawb/v1/install.ps1 -UseBasicParsing | iex"';
 
@@ -7,6 +6,7 @@ const sourceFiles = [
   ['Skill contract', '/agents/gitlawb/v1/files/skills/gitlawb/SKILL.md', 'SKILL.md'],
   ['Helper script', '/agents/gitlawb/v1/files/skills/gitlawb/scripts/gitlawb-helper.mjs', 'scripts/gitlawb-helper.mjs'],
 ];
+const targetRoot = '~/.hermes/skills/gitlawb';
 
 function CodeBlock({ children }: { children: string }) {
   return (
@@ -28,9 +28,16 @@ export default function GitlawbAgentSkillV1Page() {
         <p style={{ margin: '0 0 8px', color: '#8d887b', letterSpacing: 2, fontSize: 12 }}>AGENT SKILL</p>
         <h1 style={{ margin: '0 0 14px', color: '#e8d5a3', fontSize: 34 }}>VibeCemetery Agent Skill for GitLawb</h1>
         <p style={{ margin: '0 0 28px', color: '#aaa9a0', lineHeight: 1.7 }}>
-          Stable VibeCemetery-hosted source mirror for the VibeCemetery Agent Skill for GitLawb. VibeCemetery does not install GitLawb; use the official GitLawb setup first.
+          Stable VibeCemetery-hosted installer and source mirror for the VibeCemetery Agent Skill for GitLawb. VibeCemetery does not install GitLawb itself; use the official GitLawb setup first.
           Current production writes use browser-approved delegated ash_ tokens; native submit-one-shot is readiness/future-only until backend AgentDID verification lands.
         </p>
+
+        <section style={{ marginBottom: 28 }}>
+          <h2 style={{ color: '#e8d5a3', fontSize: 20 }}>What this installs</h2>
+          <p style={{ color: '#aaa9a0', lineHeight: 1.7 }}>
+            The quick installer writes only the VibeCemetery GitLawb skill files into {targetRoot}. It gives GitLawb-aware agents instructions and a helper script for browser-approved Agent Ash submissions to /api/agent-ashes.
+          </p>
+        </section>
 
         <section style={{ marginBottom: 28 }}>
           <h2 style={{ color: '#e8d5a3', fontSize: 20 }}>Official GitLawb setup</h2>
@@ -42,7 +49,7 @@ export default function GitlawbAgentSkillV1Page() {
           <p style={{ color: '#aaa9a0', lineHeight: 1.7 }}>
             The manifest lists the exact allowlisted source files, target paths, SHA-256 hashes, and a non-cyclic payload hash.
           </p>
-          <CodeBlock>{`${baseUrl}${manifestHref.replace('/agents/gitlawb/v1', '')}`}</CodeBlock>
+          <CodeBlock>{`${baseUrl}/manifest.json`}</CodeBlock>
         </section>
 
         <section style={{ marginBottom: 28 }}>
@@ -55,6 +62,7 @@ export default function GitlawbAgentSkillV1Page() {
 
         <section style={{ marginBottom: 28 }}>
           <h2 style={{ color: '#e8d5a3', fontSize: 20 }}>Source files</h2>
+          <p style={{ color: '#aaa9a0' }}>Target root: {targetRoot}</p>
           <div style={{ display: 'grid', gap: 10 }}>
             {sourceFiles.map(([label, href, target]) => (
               <a key={href} href={href} style={{ color: '#9fb6d0', textDecoration: 'none', border: '1px solid rgba(159,182,208,0.2)', borderRadius: 10, padding: 12, background: 'rgba(8,8,8,0.22)' }}>

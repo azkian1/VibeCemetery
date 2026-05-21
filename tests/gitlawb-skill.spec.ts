@@ -56,6 +56,9 @@ test.describe('gitlawb agent ash skill helpers', () => {
   test('installable skill contract stays aligned with canonical Agent Ash v1', async () => {
     const skill = await readFile(skillPath, 'utf8')
 
+    expect(skill).toContain('## Golden Rules')
+    expect(skill).toContain('## Fail-Fast Checks')
+    expect(skill).toContain('## 422 Diagnostic Protocol')
     expect(skill).toContain('HELPER_SCRIPT = ${CLAUDE_SKILL_DIR}/scripts/gitlawb-helper.mjs')
     expect(skill).toContain('Current production writes use delegated `ash_...` bearer tokens')
     expect(skill).not.toContain('Agent-native is the default')
@@ -64,15 +67,21 @@ test.describe('gitlawb agent ash skill helpers', () => {
     expect(skill).toContain('Production writes currently require delegated browser-approved Agent Ash connect')
     expect(skill).toContain('No human `/bury` credentials are used')
     expect(skill).toContain('Delegated mode does not require GitLawb `state = dead`, `owner_agent_did`, or `owner_public_key`')
+    expect(skill).toContain('For `connect-delegated`, `agent_ash_token` may be absent')
+    expect(skill).toContain('For `submit-delegated` and approved scheduled submissions, `agent_ash_token` must match `ash_...`')
     expect(skill).toContain('Do not try to mark, delete, archive, label, or otherwise mutate the GitLawb repo to make Agent Ash')
     expect(skill).toContain('Do not require `state = dead` for delegated `submit-delegated`')
-    expect(skill).toContain('Native `submit-one-shot` is readiness/future-only until backend AgentDID verification is deployed')
-    expect(skill).toContain('POST https://vibecemetery.app/api/agent-ashes')
+    expect(skill).toContain('Native submit remains backend-disabled and future-only')
+    expect(skill).toContain('POST /api/agent-ashes')
+    expect(skill).toContain('The `claim_token` is only for polling this browser approval session')
+    expect(skill).toContain('`409` means already cremated / already recorded. Do not retry.')
+    expect(skill).toContain('Duplicate Repos / DID Collision')
+    expect(skill).toContain('Do not add `references/manual-submit-guide.md` unless that file exists')
     expect(skill).toContain('scheduled_approval_policy')
     expect(skill).toContain('Do not call `/api/cremated`.')
     expect(skill).toContain('Do not use human CLI `/bury` tokens.')
     expect(skill).toContain('owner_did')
-    expect(skill).toContain('sha256(owner_did|normalized_name)')
+    expect(skill).toContain('Derived DIDs are discovery-only, not native authority')
     expect(skill).not.toContain('gitlab_token')
     expect(skill).not.toContain('/api/gitlawb/deaths')
     expect(skill).not.toContain('did:gitlawb:{base58')
@@ -965,6 +974,108 @@ test.describe('gitlawb agent ash skill helpers', () => {
     }
   })
 
+  test('submit-delegated aborts when GitLawb returns duplicate owner/name repos with different DIDs', async () => {
+    const { runDelegatedSubmit } = await loadHelper()
+
+    await expect(runDelegatedSubmit({
+      repoDid: 'did:gitlawb:z6MkRepoCollisionA',
+      config,
+      repos: [
+        {
+          ...gitlawbV038Repo,
+          did: 'did:gitlawb:z6MkRepoCollisionA',
+          id: 'did:key:z6MkOwner/repo-name',
+          owner_did: 'did:key:z6MkOwner',
+          name: 'repo-name',
+        },
+        {
+          ...gitlawbV038Repo,
+          did: 'did:gitlawb:z6MkRepoCollisionB',
+          id: 'did:key:z6MkOwner/repo-name-copy',
+          owner_did: 'z6MkOwner',
+          name: 'repo-name',
+        },
+      ],
+      fetchImpl: async () => Response.json({ ok: true }, { status: 201 }),
+    })).rejects.toThrow('Duplicate GitLawb repo collision for did:key:z6MkOwner/repo-name')
+  })
+
+  test('submit-delegated aborts v0.3.8 duplicate owner/name repos even when DIDs are derived', async () => {
+    const { runDelegatedSubmit } = await loadHelper()
+
+    await expect(runDelegatedSubmit({
+      repoDid: derivedGitlawbV038RepoDid,
+      config,
+      repos: [
+        {
+          id: 'did:key:z6MkOwner/repo-name-a',
+          owner_did: 'did:key:z6MkOwner',
+          name: 'repo-name',
+          created_at: '2026-06-01T00:00:00Z',
+          updated_at: '2026-06-01T00:00:00Z',
+        },
+        {
+          id: 'did:key:z6MkOwner/repo-name-b',
+          owner_did: 'z6MkOwner',
+          name: 'repo-name',
+          created_at: '2026-06-01T00:00:00Z',
+          updated_at: '2026-06-01T00:00:00Z',
+        },
+      ],
+      fetchImpl: async () => Response.json({ ok: true }, { status: 201 }),
+    })).rejects.toThrow('Duplicate GitLawb repo collision for did:key:z6MkOwner/repo-name')
+  })
+
+  test('Agent Ash submit treats 409 as already cremated and 422 as diagnostic guidance', async () => {
+    const { buildAgentAshRequest, runDelegatedSubmit, submitAgentAshRequest } = await loadHelper()
+    const request = buildAgentAshRequest({ repo, config, declaredDeadAt: '2026-07-01T00:00:00Z' })
+
+    const already = await submitAgentAshRequest({
+      config,
+      request,
+      fetchImpl: async () => Response.json({ id: 'existing-ash', error: 'already cremated' }, { status: 409 }),
+    })
+
+    expect(already).toMatchObject({
+      status: 409,
+      already_cremated: true,
+      body: { id: 'existing-ash' },
+    })
+
+    const delegatedAlready = await runDelegatedSubmit({
+      repoDid: repo.did,
+      config,
+      repos: [repo],
+      fetchImpl: async () => Response.json({ id: 'existing-ash', error: 'already cremated' }, { status: 409 }),
+    })
+    expect(delegatedAlready).toMatchObject({ status: 409, already_cremated: true, id: 'existing-ash' })
+
+    await expect(submitAgentAshRequest({
+      config,
+      request,
+      fetchImpl: async () => Response.json({
+        error: `Cannot verify GitLawb HTTP node proof for ${config.agent_ash_token} claim_xxxxxxxxxxxxxxxxxxxx vc_cli_12345678-1234-4123-8123-123456789abc.sig`,
+      }, { status: 422 }),
+    })).rejects.toThrow('Agent Ash submit failed with 422 verification failure; run the 422 Diagnostic Protocol')
+
+    try {
+      await submitAgentAshRequest({
+        config,
+        request,
+        fetchImpl: async () => Response.json({
+          error: `Cannot verify GitLawb HTTP node proof for ${config.agent_ash_token} claim_xxxxxxxxxxxxxxxxxxxx vc_cli_12345678-1234-4123-8123-123456789abc.sig`,
+        }, { status: 422 }),
+      })
+      throw new Error('expected 422 diagnostic failure')
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      expect(message).toContain('[redacted]')
+      expect(message).not.toContain(config.agent_ash_token)
+      expect(message).not.toContain('claim_xxxxxxxxxxxxxxxxxxxx')
+      expect(message).not.toContain('vc_cli_12345678-1234-4123-8123-123456789abc.sig')
+    }
+  })
+
   test('one-shot submit rejects missing or invalid DID, missing repo, bad binding, and ingest failures', async () => {
     const { parseCliArgs, runOneShotSubmit } = await loadHelper()
     const home = await mkdtemp(join(tmpdir(), 'gitlawb-cli-submit-fail-'))
@@ -1008,7 +1119,7 @@ test.describe('gitlawb agent ash skill helpers', () => {
         fetchImpl: async (url: string | URL | Request) => String(url).startsWith('https://node.gitlawb.com')
           ? Response.json({ repos: [repo] })
           : Response.json({ error: 'verification failed' }, { status: 422 }),
-      })).rejects.toThrow('Agent Ash submit failed: verification failed')
+      })).rejects.toThrow('Agent Ash submit failed with 422 verification failure; run the 422 Diagnostic Protocol')
       await expect(runOneShotSubmit({
         repoDid: repo.did,
         homedir: home,

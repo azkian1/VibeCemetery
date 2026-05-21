@@ -28,7 +28,7 @@ export default function BurySkillV1Page() {
         <p style={{ margin: '0 0 8px', color: '#8d887b', letterSpacing: 2, fontSize: 12 }}>CLI SKILL</p>
         <h1 style={{ margin: '0 0 14px', color: '#e8d5a3', fontSize: 34 }}>Install /bury</h1>
         <p style={{ margin: '0 0 28px', color: '#aaa9a0', lineHeight: 1.7 }}>
-          Install /bury locally for Claude Code, OpenCode, or Cursor. This page is the canonical public distribution point for the human CLI cremation skill.
+          Install /bury locally for Claude Code, OpenCode, Cursor, and other tools that can read Claude-compatible ~/.claude command and skill directories. This page is the canonical public distribution point for the human CLI cremation skill.
         </p>
 
         <section style={{ marginBottom: 28 }}>
@@ -43,6 +43,9 @@ export default function BurySkillV1Page() {
           <h2 style={{ color: '#e8d5a3', fontSize: 20 }}>What /bury does</h2>
           <p style={{ color: '#aaa9a0', lineHeight: 1.7 }}>
             /bury checks a local project, confirms it is safe to cremate, opens browser-approved VibeCemetery CLI auth, and submits a human cremation record to /api/cremated. It does not install Agent Ash or submit agent certificates.
+          </p>
+          <p style={{ color: '#aaa9a0', lineHeight: 1.7 }}>
+            If your tool reads skills from a different directory, use the file links below as the source of truth and copy them to your tool-specific location manually.
           </p>
         </section>
 
