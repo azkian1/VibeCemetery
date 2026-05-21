@@ -829,6 +829,22 @@ function openUrlWithSystemBrowser(url) {
   })
 }
 
+function isBrowserOpenFailure(error) {
+  const code = asString(error?.code)
+  const message = asString(error?.message)
+  return code === 'ENOENT' || message.includes('xdg-open') || message.includes('spawn open ENOENT') || message.includes('spawn cmd.exe ENOENT')
+}
+
+function isGitlawbTransportFailure(error) {
+  const code = asString(error?.code)
+  const message = asString(error?.message)
+  return ['ETIMEDOUT', 'ECONNRESET', 'ENOTFOUND', 'EAI_AGAIN', 'ECONNREFUSED'].includes(code)
+    || error?.name === 'AbortError'
+    || message.includes('fetch failed')
+    || message.includes('network')
+    || message.includes('timeout')
+}
+
 function delay(ms) {
   return ms > 0 ? new Promise((resolve) => setTimeout(resolve, ms)) : Promise.resolve()
 }
@@ -919,7 +935,15 @@ export async function storeAgentAshConfig(options = {}) {
 
 export async function connectAgentAsh(options = {}) {
   const claim = await startAgentAshLink(options)
-  await openAgentAshApproveUrl({ claim, openImpl: options.openImpl })
+  try {
+    await openAgentAshApproveUrl({ claim, openImpl: options.openImpl })
+  } catch (error) {
+    if (!isBrowserOpenFailure(error)) {
+      throw error
+    }
+    const log = typeof options.log === 'function' ? options.log : console.log
+    log(`Open this Agent Ash approval URL in a browser: ${claim.approve_url}`)
+  }
   const approved = await pollAgentAshLinkStatus({ ...options, claim })
   if (approved.status !== 'approved') {
     throw new Error(`Agent Ash link ended with status: ${approved.status}`)
@@ -938,19 +962,83 @@ export function buildGitlawbReposRequest(config = {}) {
 
 export async function fetchGitlawbRepos(options = {}) {
   const fetchImpl = options.fetchImpl ?? globalThis.fetch
-  if (typeof fetchImpl !== 'function') {
-    throw new Error('fetch is required to scan GitLawb repos')
+  if (typeof fetchImpl === 'function') {
+    const request = buildGitlawbReposRequest(options.config ?? {})
+    let response
+    try {
+      response = await fetchImpl(request.url, {
+        method: request.method,
+        headers: request.headers,
+      })
+    } catch (error) {
+      if (!isGitlawbTransportFailure(error)) {
+        throw error
+      }
+      return await fetchGitlawbReposWithCli({ ...options, cause: error })
+    }
+
+    const body = await parseJsonResponse(response, 'GitLawb repos scan')
+    if (Array.isArray(body)) {
+      return body
+    }
+    return Array.isArray(body?.repos) ? body.repos : []
   }
-  const request = buildGitlawbReposRequest(options.config ?? {})
-  const response = await fetchImpl(request.url, {
-    method: request.method,
-    headers: request.headers,
+
+  return await fetchGitlawbReposWithCli(options)
+}
+
+function execFileJson(execFileImpl, command, args) {
+  return new Promise((resolve, reject) => {
+    execFileImpl(command, args, { windowsHide: true }, (error, stdout, stderr) => {
+      if (error) {
+        reject(error)
+        return
+      }
+      try {
+        resolve(JSON.parse(String(stdout || stderr || '')))
+      } catch {
+        reject(new Error(`${command} ${args.join(' ')} returned malformed JSON`))
+      }
+    })
   })
-  const body = await parseJsonResponse(response, 'GitLawb repos scan')
-  if (Array.isArray(body)) {
-    return body
+}
+
+function firstString(...values) {
+  return values.map(asString).find(Boolean) || ''
+}
+
+function normalizeGitlawbCliRepo(repo = {}) {
+  if (!repo || typeof repo !== 'object' || Array.isArray(repo)) return null
+  const did = firstString(repo.did)
+  const repoDid = firstString(repo.repo_did, repo.repoDid)
+  return {
+    ...(did ? { did } : {}),
+    ...(repoDid ? { repo_did: repoDid } : {}),
+    id: firstString(repo.id, repo.full_name, repo.fullName, repo.path),
+    owner_did: firstString(repo.owner_did, repo.ownerDid, repo.owner?.did),
+    name: firstString(repo.name, repo.slug),
+    created_at: firstString(repo.created_at, repo.createdAt),
+    updated_at: firstString(repo.updated_at, repo.updatedAt),
   }
-  return Array.isArray(body?.repos) ? body.repos : []
+}
+
+function parseGitlawbCliRepos(body) {
+  if (Array.isArray(body)) {
+    return body.map(normalizeGitlawbCliRepo).filter(Boolean)
+  }
+  if (body && typeof body === 'object') {
+    return parseGitlawbCliRepos(body.repos ?? body.data ?? body.repositories)
+  }
+  return []
+}
+
+async function fetchGitlawbReposWithCli(options = {}) {
+  const execFileImpl = options.execFileImpl ?? execFile
+  if (typeof execFileImpl !== 'function') {
+    throw options.cause ?? new Error('fetch is required to scan GitLawb repos')
+  }
+  const body = await execFileJson(execFileImpl, 'gl', ['repo', 'list', '--json'])
+  return parseGitlawbCliRepos(body)
 }
 
 export function findGitlawbRepoByDid(repos, repoDid) {
@@ -972,7 +1060,7 @@ export async function runOneShotSubmit(options = {}) {
 
   const storedConfig = options.config ?? await readJsonFile(computeGitlawbStoragePaths(options).configPath)
   const config = normalizeGitlawbConfig(storedConfig)
-  const repos = Array.isArray(options.repos) ? options.repos : await fetchGitlawbRepos({ config, fetchImpl: options.fetchImpl })
+  const repos = Array.isArray(options.repos) ? options.repos : await fetchGitlawbRepos({ config, fetchImpl: options.fetchImpl, execFileImpl: options.execFileImpl })
   const repo = findGitlawbRepoByDid(repos, repoDid)
   if (!repo) {
     throw new Error(`GitLawb repo not found: ${repoDid}`)
@@ -1012,7 +1100,7 @@ export async function runDelegatedSubmit(options = {}) {
 
   const storedConfig = options.config ?? await readJsonFile(computeGitlawbStoragePaths(options).configPath)
   const config = normalizeGitlawbConfig(storedConfig)
-  const repos = Array.isArray(options.repos) ? options.repos : await fetchGitlawbRepos({ config, fetchImpl: options.fetchImpl })
+  const repos = Array.isArray(options.repos) ? options.repos : await fetchGitlawbRepos({ config, fetchImpl: options.fetchImpl, execFileImpl: options.execFileImpl })
   const repo = findGitlawbRepoByDid(repos, repoDid)
   if (!repo) {
     throw new Error(`GitLawb repo not found: ${repoDid}`)
@@ -1048,7 +1136,7 @@ export async function runOneShotVerify(options = {}) {
 
   const storedConfig = options.config ?? await readJsonFile(computeGitlawbStoragePaths(options).configPath)
   const config = normalizeGitlawbConfig(storedConfig)
-  const repos = Array.isArray(options.repos) ? options.repos : await fetchGitlawbRepos({ config, fetchImpl: options.fetchImpl })
+  const repos = Array.isArray(options.repos) ? options.repos : await fetchGitlawbRepos({ config, fetchImpl: options.fetchImpl, execFileImpl: options.execFileImpl })
   const repo = findGitlawbRepoByDid(repos, repoDid)
   if (!repo) {
     throw new Error(`GitLawb repo not found: ${repoDid}`)
@@ -1236,7 +1324,7 @@ export async function runScheduledWatchlistScan(options = {}) {
     const watchlist = options.watchlist ?? await readJsonFile(computeGitlawbStoragePaths(options).watchlistPath)
     const repos = (Array.isArray(options.repos)
       ? options.repos
-      : await fetchGitlawbRepos({ config, fetchImpl: options.fetchImpl }))
+      : await fetchGitlawbRepos({ config, fetchImpl: options.fetchImpl, execFileImpl: options.execFileImpl }))
       .slice(0, MAX_SCHEDULED_REPOS)
     const report = buildWatchlistReport({ repos, watchlist, now })
     report.candidates = report.candidates.slice(0, MAX_SCHEDULED_CANDIDATES)

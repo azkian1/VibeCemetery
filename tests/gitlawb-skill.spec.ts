@@ -394,6 +394,96 @@ test.describe('gitlawb agent ash skill helpers', () => {
     expect(calls.some((url) => url.startsWith('https://node.gitlawb.com'))).toBe(false)
   })
 
+  test('falls back to gl repo list JSON when GitLawb HTTP repo scan times out', async () => {
+    const { fetchGitlawbRepos, getRepoDid } = await loadHelper()
+    const execCalls: Array<{ command: string; args: string[] }> = []
+
+    const repos = await fetchGitlawbRepos({
+      config,
+      fetchImpl: async () => {
+        throw Object.assign(new Error('connect ETIMEDOUT node.gitlawb.com:443'), { code: 'ETIMEDOUT' })
+      },
+      execFileImpl: (command: string, args: string[], _options: unknown, callback: (error: Error | null, stdout: string, stderr: string) => void) => {
+        execCalls.push({ command, args })
+        callback(null, JSON.stringify({
+          repos: [{
+            id: 'owner/repo-name',
+            ownerDid: 'z6MkOwner',
+            name: 'repo-name',
+            createdAt: '2026-06-01T00:00:00Z',
+            updatedAt: '2026-06-01T00:00:00Z',
+          }],
+        }), '')
+        return { unref() {} }
+      },
+    })
+
+    expect(execCalls).toEqual([{ command: 'gl', args: ['repo', 'list', '--json'] }])
+    expect(repos).toEqual([{
+      id: 'owner/repo-name',
+      owner_did: 'z6MkOwner',
+      name: 'repo-name',
+      created_at: '2026-06-01T00:00:00Z',
+      updated_at: '2026-06-01T00:00:00Z',
+    }])
+    expect(getRepoDid(repos[0])).toBe(derivedGitlawbV038RepoDid)
+  })
+
+  test('does not fall back to gl repo list for non-transport GitLawb HTTP failures', async () => {
+    const { fetchGitlawbRepos } = await loadHelper()
+    let execCalled = false
+
+    await expect(fetchGitlawbRepos({
+      config,
+      fetchImpl: async () => Response.json({ error: 'bad upstream state' }, { status: 500 }),
+      execFileImpl: () => {
+        execCalled = true
+        throw new Error('must not call gl fallback')
+      },
+    })).rejects.toThrow('GitLawb repos scan failed: bad upstream state')
+    expect(execCalled).toBe(false)
+
+    await expect(fetchGitlawbRepos({
+      config,
+      fetchImpl: async () => Response.json({ error: 'network policy denied' }, { status: 403 }),
+      execFileImpl: () => {
+        execCalled = true
+        throw new Error('must not call gl fallback')
+      },
+    })).rejects.toThrow('GitLawb repos scan failed: network policy denied')
+    expect(execCalled).toBe(false)
+  })
+
+  test('gl repo list fallback preserves canonical DID fields and string fallbacks', async () => {
+    const { fetchGitlawbRepos, findGitlawbRepoByDid } = await loadHelper()
+
+    const repos = await fetchGitlawbRepos({
+      config,
+      fetchImpl: async () => {
+        throw Object.assign(new Error('fetch failed'), { code: 'ETIMEDOUT' })
+      },
+      execFileImpl: (_command: string, _args: string[], _options: unknown, callback: (error: Error | null, stdout: string, stderr: string) => void) => {
+        callback(null, JSON.stringify({ repos: [{
+          id: 123,
+          fullName: 'owner/canonical-repo',
+          repoDid: 'did:gitlawb:z6MkCanonicalRepo',
+          ownerDid: 'did:web:not-derivable',
+          name: 'canonical-repo',
+          createdAt: '2026-06-01T00:00:00Z',
+          updatedAt: '2026-06-01T00:00:00Z',
+        }] }), '')
+        return { unref() {} }
+      },
+    })
+
+    expect(repos[0]).toMatchObject({
+      id: 'owner/canonical-repo',
+      repo_did: 'did:gitlawb:z6MkCanonicalRepo',
+      owner_did: 'did:web:not-derivable',
+    })
+    expect(findGitlawbRepoByDid(repos, 'did:gitlawb:z6MkCanonicalRepo')).toMatchObject({ name: 'canonical-repo' })
+  })
+
   test('builds browser-approved Agent Ash link start and status requests', async () => {
     const { buildAgentAshLinkStartRequest, buildAgentAshLinkStatusRequest } = await loadHelper()
 
@@ -506,6 +596,61 @@ test.describe('gitlawb agent ash skill helpers', () => {
     } finally {
       await rm(home, { recursive: true, force: true })
     }
+  })
+
+  test('connect CLI prints approve URL and keeps polling when no system browser opener exists', async () => {
+    const { runCliCommand } = await loadHelper()
+    const home = await mkdtemp(join(tmpdir(), 'gitlawb-cli-connect-headless-'))
+    const printed: string[] = []
+
+    try {
+      const result = await runCliCommand(['connect'], {
+        homedir: home,
+        log: (line: string) => printed.push(line),
+        openImpl: async () => {
+          throw Object.assign(new Error('spawn xdg-open ENOENT'), { code: 'ENOENT' })
+        },
+        fetchImpl: async (url: string | URL | Request) => {
+          if (String(url).endsWith('/api/agent-ash/link/start')) {
+            return Response.json({
+              link_id: 'ashlink_abc123456789',
+              claim_token: 'claim_xxxxxxxxxxxxxxxxxxxx',
+              approve_url: 'https://vibecemetery.app/agent-ash/connect?link_id=ashlink_abc123456789',
+            })
+          }
+          return Response.json({
+            status: 'approved',
+            agent_ash_token: 'ash_test_token_1234567890',
+            vc_url: 'https://vibecemetery.app',
+          })
+        },
+        intervalMs: 0,
+        timeoutMs: 1,
+      })
+
+      expect(result.status).toBe('connected')
+      expect(printed[0]).toContain('https://vibecemetery.app/agent-ash/connect?link_id=ashlink_abc123456789')
+      expect(printed.join('\n')).not.toContain('claim_xxxxxxxxxxxxxxxxxxxx')
+      expect(printed.join('\n')).not.toContain('ash_test_token')
+    } finally {
+      await rm(home, { recursive: true, force: true })
+    }
+  })
+
+  test('connect CLI does not swallow non-browser opener failures', async () => {
+    const { runCliCommand } = await loadHelper()
+
+    await expect(runCliCommand(['connect'], {
+      log: () => {},
+      openImpl: async () => {
+        throw new Error('permission policy denied')
+      },
+      fetchImpl: async () => Response.json({
+        link_id: 'ashlink_abc123456789',
+        claim_token: 'claim_xxxxxxxxxxxxxxxxxxxx',
+        approve_url: 'https://vibecemetery.app/agent-ash/connect?link_id=ashlink_abc123456789',
+      }),
+    })).rejects.toThrow('permission policy denied')
   })
 
   test('one-shot CLI verifies native readiness but refuses production ingest until backend native auth exists', async () => {
@@ -690,6 +835,48 @@ test.describe('gitlawb agent ash skill helpers', () => {
       })
       expect(delegatedHeaders.Authorization).toBe('Bearer ash_test_token_1234567890')
       expect(JSON.stringify(output)).not.toContain('ash_test_token')
+    } finally {
+      await rm(home, { recursive: true, force: true })
+    }
+  })
+
+  test('submit-delegated uses gl fallback when local GitLawb HTTPS repo scan times out', async () => {
+    const { runDelegatedSubmit } = await loadHelper()
+    const home = await mkdtemp(join(tmpdir(), 'gitlawb-cli-submit-delegated-gl-'))
+    const execCalls: Array<{ command: string; args: string[] }> = []
+
+    try {
+      await mkdir(join(home, '.config', 'gitlawb'), { recursive: true })
+      await writeFile(join(home, '.config', 'gitlawb', 'config.json'), `${JSON.stringify(config)}\n`, 'utf8')
+
+      const result = await runDelegatedSubmit({
+        repoDid: derivedGitlawbV038RepoDid,
+        homedir: home,
+        now: '2026-06-02T00:00:00Z',
+        fetchImpl: async (url: string | URL | Request) => {
+          if (String(url).startsWith('https://node.gitlawb.com')) {
+            throw Object.assign(new Error('fetch failed'), { code: 'ETIMEDOUT' })
+          }
+          return Response.json({
+            id: 'ash-row-id-delegated-gl',
+            certificate_hash: 'd'.repeat(64),
+            verification_policy: 'external_source_verified_once_before_insert',
+            url: 'https://vibecemetery.app/api/agent-ashes/ash-row-id-delegated-gl',
+          }, { status: 201 })
+        },
+        execFileImpl: (command: string, args: string[], _options: unknown, callback: (error: Error | null, stdout: string, stderr: string) => void) => {
+          execCalls.push({ command, args })
+          callback(null, JSON.stringify({ repos: [gitlawbV038Repo] }), '')
+          return { unref() {} }
+        },
+      })
+
+      expect(execCalls).toEqual([{ command: 'gl', args: ['repo', 'list', '--json'] }])
+      expect(result).toMatchObject({
+        status: 201,
+        repo_did: derivedGitlawbV038RepoDid,
+        url: 'https://vibecemetery.app/api/agent-ashes/ash-row-id-delegated-gl',
+      })
     } finally {
       await rm(home, { recursive: true, force: true })
     }

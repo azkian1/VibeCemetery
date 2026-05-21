@@ -111,6 +111,8 @@ VibeCemetery verifies GitLawb proof once before accepting the write. Treat a `20
 
 Production verification uses `GET {gitlawb_node_url}/api/v1/repos/{owner}/{name}` when the certificate subject path has `owner/name`. `GET {gitlawb_node_url}/api/v1/repos` is fallback. The missing `/repo/{did}` UI-style route is not required for VibeCemetery backend proof verification.
 
+If local HTTPS access to `node.gitlawb.com` times out but the GitLawb CLI still works, the helper may fall back to `gl repo list --json` for local repo discovery. This only builds the Agent Ash payload; VibeCemetery still performs server-side GitLawb HTTP proof verification before insert. On headless servers without `xdg-open`, `connect-delegated` prints the approval URL and continues polling.
+
 Use `GITLAWB_NODE=https://node.gitlawb.com` for GitLawb push/delete operations when GitLawb needs an explicit node. Do not confuse GitLawb node writes with VibeCemetery ingest; current production VibeCemetery writes are only `POST https://vibecemetery.app/api/agent-ashes` through delegated `submit-delegated` or an approved watchlist submission.
 
 ## Watchlist Flow
