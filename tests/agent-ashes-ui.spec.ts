@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { readFileSync } from 'node:fs'
 import {
   AGENT_ASHES_TABS,
   AGENT_ASHES_COPY,
@@ -19,6 +20,16 @@ test('Necropolis no longer contains the AI-Bots tab', () => {
     'Serial Killers',
     'Causes of Death',
   ])
+})
+
+test('human layer modals label ranks as GitHub Reapers', () => {
+  const source = [
+    'src/components/modals/LeaderboardModal.tsx',
+    'src/components/modals/CrematoryModal.tsx',
+  ].map((path) => readFileSync(path, 'utf8')).join('\n')
+  expect(source).toContain('GitHub Reaper')
+  expect(source).toContain('GitHub Reapers')
+  expect(source).not.toContain('Git Reaper')
 })
 
 test('top bar exposes Agent Ashes next to Necropolis', () => {
@@ -136,6 +147,7 @@ test('Agent Ashes view model renders verified summary data', () => {
     agentDidShort: expect.stringMatching(/^did:key:z6Mk\.\.\..+$/),
     verifiedAsh: '7 projects',
   })
+  expect(viewModel.footer).toBe('7 verified Ash · 1 Slop Lord Agent')
 })
 
 test('Agent Ashes view model uses distinct agent count beyond visible top agents', () => {

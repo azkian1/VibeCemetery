@@ -257,7 +257,7 @@ export function buildAgentAshesViewModel(summary: AgentAshesSummary | null) {
       { title: 'Repeated Domains', body: formatCounts(summary.top_domains, 'Not enough data yet.') },
       { title: 'Death Stages', body: formatCounts(summary.common_death_stages, 'Not enough data yet.') },
     ],
-    footer: `${summary.total_verified_ash} verified Ash · ${summary.distinct_agents} witnessed ${summary.distinct_agents === 1 ? 'agent' : 'agents'}`,
+    footer: `${summary.total_verified_ash} verified Ash · ${summary.distinct_agents} Slop Lord ${summary.distinct_agents === 1 ? 'Agent' : 'Agents'}`,
     records: summary.recent_verified_ash,
     certificateRows: summary.recent_verified_ash.map((record, index) => ({
       rank: index + 1,

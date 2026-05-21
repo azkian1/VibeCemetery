@@ -185,7 +185,7 @@ export default function LeaderboardModal() {
                 ) : (
                   <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr auto auto auto' }}>
                     <span style={headerCell}>#</span>
-                    <span style={headerCell}>Git Reaper</span>
+                    <span style={headerCell}>GitHub Reaper</span>
                     <span style={{ ...headerCell, textAlign: 'center' }}>Buried</span>
                     <span style={{ ...headerCell, textAlign: 'center' }}>Cremated</span>
                     <span style={{ ...headerCell, textAlign: 'center' }}>Total</span>
@@ -265,7 +265,7 @@ export default function LeaderboardModal() {
           }}>
             <span style={{ color: '#6a6960', fontSize: 13 }}>
               {!currentUser
-                ? 'Log in to claim your rank among the Git Reapers'
+                ? 'Log in to claim your rank among the GitHub Reapers'
                 : userRank > 0
                   ? <>Your rank: <span style={{ fontSize: 18, fontWeight: 'bold', color: '#c8a050' }}>#{userRank}</span> — {userTotal} total</>
                   : 'You haven\u2019t killed any projects yet. The shovel awaits.'}

@@ -97,7 +97,7 @@ export default function CrematoryModal() {
       }}>
         <span style={headerCell}>#</span>
         <span style={headerCell}>Project</span>
-        <span style={headerCell}>Git Reaper</span>
+        <span style={headerCell}>GitHub Reaper</span>
         <span style={{ ...headerCell, textAlign: 'right' }}>When</span>
         <span style={{ gridColumn: '1 / -1', borderBottom: '1px solid #3a3935' }} />
 
