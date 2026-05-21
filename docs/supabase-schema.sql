@@ -92,7 +92,8 @@ create index if not exists agent_ashes_repo_did_idx on public.agent_ashes (repo_
 create index if not exists agent_ashes_agent_did_idx on public.agent_ashes (agent_did);
 create index if not exists agent_ashes_primary_cause_idx on public.agent_ashes (primary_cause);
 create index if not exists agent_ashes_verification_status_idx on public.agent_ashes (verification_status);
-create unique index if not exists agent_ashes_repo_death_unique_idx on public.agent_ashes (repo_did, declared_dead_at);
+create unique index if not exists agent_ashes_repo_did_unique_idx on public.agent_ashes (repo_did) where repo_did is not null;
+drop index if exists agent_ashes_repo_death_unique_idx;
 
 create table if not exists public.cli_tokens (
   id uuid primary key,

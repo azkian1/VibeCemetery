@@ -44,7 +44,7 @@ export interface AgentAshInsertRow {
 
 export interface AgentAshStore {
   findByCertificateHash(certificateHash: string): Promise<AgentAshRecordRef | null>
-  findConflict(repoDid: string, declaredDeadAt: string): Promise<AgentAshRecordRef | null>
+  findConflict(repoDid: string): Promise<AgentAshRecordRef | null>
   insert(row: AgentAshInsertRow): Promise<AgentAshRecordRef>
 }
 
@@ -180,11 +180,8 @@ export async function handleAgentAshPost(
   const duplicate = await dependencies.store.findByCertificateHash(certificateHash)
   if (duplicate) return json({ error: 'Agent Ash certificate already exists' }, { status: 409 })
 
-  const conflict = await dependencies.store.findConflict(
-    validation.value.certificate.subject.repo_did,
-    validation.value.certificate.lifecycle.declared_dead_at,
-  )
-  if (conflict) return json({ error: 'Agent Ash record already exists for this repo death' }, { status: 409 })
+  const conflict = await dependencies.store.findConflict(validation.value.certificate.subject.repo_did)
+  if (conflict) return json({ error: 'Agent Ash record already exists for this repo' }, { status: 409 })
 
   const verifier = dependencies.verify ?? verifyGitlawbHttpProof
   const verification = await verifier(validation.value, { allowedNodeUrls })
@@ -223,13 +220,13 @@ function createSupabaseAgentAshStore(): AgentAshStore {
       if (error) throw error
       return data as AgentAshRecordRef | null
     },
-    async findConflict(repoDid, declaredDeadAt) {
+    async findConflict(repoDid) {
       const { supabaseAdmin } = await import('@/lib/supabase')
       const { data, error } = await supabaseAdmin
         .from('agent_ashes')
         .select('id')
         .eq('repo_did', repoDid)
-        .eq('declared_dead_at', declaredDeadAt)
+        .limit(1)
         .maybeSingle()
 
       if (error) throw error

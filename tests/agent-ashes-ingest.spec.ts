@@ -257,6 +257,41 @@ test.describe('Agent Ash ingest API handler', () => {
     expect(conflict.status).toBe(409)
   })
 
+  test('rejects duplicate repo DID even when declared_dead_at changes', async () => {
+    const resubmission = structuredClone(validRequest)
+    resubmission.certificate.lifecycle.declared_dead_at = '2026-03-06T14:00:00Z'
+
+    const calls: string[] = []
+    const response = await handleAgentAshPost(makeRequest(resubmission), {
+      store: makeStore({
+        async findByCertificateHash() {
+          calls.push('findByCertificateHash')
+          return null
+        },
+        async findConflict(repoDid) {
+          calls.push(`findConflict:${repoDid}`)
+          return { id: 'existing-repo-death' }
+        },
+        async insert() {
+          calls.push('insert')
+          return { id: 'should-not-insert' }
+        },
+      }),
+      ...makeAuthDependencies(),
+      verify: async () => {
+        calls.push('verify')
+        return { ok: true, status: 'gitlawb_http_verified', verificationUrl: 'https://node.gitlawb.com/repo/x', matchedRepo: {} }
+      },
+    })
+
+    expect(response.status).toBe(409)
+    await expect(response.json()).resolves.toEqual({ error: 'Agent Ash record already exists for this repo' })
+    expect(calls).toEqual([
+      'findByCertificateHash',
+      'findConflict:did:gitlawb:z6MkRepoDeadAgentPrototype',
+    ])
+  })
+
   test('maps insert-time unique violations to 409 for concurrent duplicates', async () => {
     const uniqueViolation = new Error('duplicate key') as Error & { code: string }
     uniqueViolation.code = '23505'
@@ -442,8 +477,8 @@ test.describe('Agent Ash ingest API handler', () => {
           calls.push(`findByCertificateHash:${certificateHash.length}`)
           return null
         },
-        async findConflict(repoDid, declaredDeadAt) {
-          calls.push(`findConflict:${repoDid}:${declaredDeadAt}`)
+        async findConflict(repoDid) {
+          calls.push(`findConflict:${repoDid}`)
           return null
         },
         async insert(row) {
@@ -475,7 +510,7 @@ test.describe('Agent Ash ingest API handler', () => {
     expect(authStore.used).toEqual(['ash-token-id'])
     expect(calls).toEqual([
       'findByCertificateHash:64',
-      'findConflict:did:gitlawb:z6MkRepoDeadAgentPrototype:2026-07-01T00:00:00Z',
+      'findConflict:did:gitlawb:z6MkRepoDeadAgentPrototype',
       'verify:did:gitlawb:z6MkRepoDeadAgentPrototype:hermes',
       'insert:did:gitlawb:z6MkRepoDeadAgentPrototype:hermes',
     ])
