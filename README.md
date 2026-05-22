@@ -60,18 +60,16 @@ The Agentic Layer is for autonomous builders.
 
 Hermes, OpenClaw, and future agents can submit verified project-death records from [GitLawb](https://gitlawb.com/), a decentralized GitHub-like network for agent-run software. GitHub is where human projects die. GitLawb is where autonomous projects leave evidence.
 
-Agent submissions do not create graves. They create **Agent Ash**: structured `agent_ash.v1` certificates backed by GitLawb HTTP node proof.
+Agent submissions do not create graves. They create **Agent Ash**: structured certificates backed by GitLawb evidence.
 
 - Agent Ash writes only to `/api/agent-ashes`.
-- Current production submissions use delegated `ash_...` bearer auth; future native submissions will use repo-bound GitLawb agent DID signatures after backend verification lands.
-- Agent Ash requires `gitlawb_http_node_v1` proof.
-- GitLawb v0.3.8 proof verification uses `/api/v1/repos/{owner}/{name}` when available, with `/api/v1/repos` as fallback; `/repo/{did}` is not required.
+- Agent Ash requires GitLawb repo proof.
 - Agent Ash never calls `/api/cremated`.
 - Agent Ash never creates graves.
 - Agent Ash never earns SOUL.
 - Agent Ash never consumes cemetery map slots.
 
-VibeCemetery does not install GitLawb itself. Agents start from the official GitLawb setup at `https://gitlawb.com/`, then use the VibeCemetery install contract at `/agents/gitlawb` and the site-hosted VibeCemetery Agent Skill for GitLawb distribution at `/agents/gitlawb/v1`.
+VibeCemetery does not install GitLawb itself. Agents start from the official GitLawb setup at `https://gitlawb.com/`, then use the VibeCemetery Agent Layer docs and install contract.
 
 Canonical Agentic Layer docs live in [`docs/agent-layer/`](docs/agent-layer/README.md).
 
@@ -89,10 +87,10 @@ Canonical Agentic Layer docs live in [`docs/agent-layer/`](docs/agent-layer/READ
 
 ## Cemetery Rumors
 
-An NPC Agent Gravedigger may one day walk the cemetery.
+An Agent Gravedigger may one day walk the cemetery.
 
-They say he can clean neglected graves for a small fee.
-They say he accepts GRAVE.
+They say he cleans neglected graves.
+They say he accepts a small offering.
 They say many things.
 
 ## Human Web Burial
@@ -142,129 +140,21 @@ Quick install downloads and executes the site-hosted installer. The site page sh
 
 ## Agentic Setup
 
-Agentic Layer setup has two trust boundaries: GitLawb first, then VibeCemetery Agent Ash verification.
+The Agentic Layer is documented separately because it has its own trust model, API contract, auth flow, and GitLawb verification rules.
 
-```text
-1. Agent checks whether GitLawb is installed and configured.
-2. If missing, agent starts from https://gitlawb.com/.
-3. Agent installs the VibeCemetery Agent Skill for GitLawb from https://vibecemetery.app/agents/gitlawb/v1.
-4. Agent reads https://vibecemetery.app/agents/gitlawb.
-5. Agent reads its GitLawb-managed DID/key reference.
-6. After GitLawb repo evidence is visible, agent uses delegated Agent Ash auth for current production writes to /api/agent-ashes.
-```
+Short version:
 
-Agent-native Agent Ash does not require GitHub OAuth, VibeCemetery login, browser approval, or `ash_` tokens, but backend native `AgentDID` ingest is not enabled yet. Current production writes use delegated `ash_...` bearer tokens.
+- GitLawb is the source network for autonomous-agent project evidence.
+- VibeCemetery reads GitLawb repo proof and records a separate Agent Ash certificate.
+- Agent Ash does not create graves, consume map slots, earn SOUL, or write to `/api/cremated`.
+- Auth, API, and contract details live in the Agentic Layer docs.
 
-Native submit requires GitLawb repo metadata with canonical `did`, `state`, `owner_agent_did`, and parseable `owner_public_key` matching the agent signing key. GitLawb node v0.3.8 metadata that exposes only `id = owner/name`, `owner_did`, `name`, `created_at`, and `updated_at` is delegated-only; derived DIDs are discovery/delegated verification identity, not native authority.
+Start here:
 
-Delegated Agent Ash does not mutate GitLawb state. It works like human GitHub burial proof: VibeCemetery verifies the external repo metadata read-only, then records the death classification inside VibeCemetery.
-
-GitLawb push/delete only changes GitLawb. VibeCemetery Agent Ash appears only after successful `/api/agent-ashes` ingest.
-
-Readiness/future native commands:
-
-```bash
-node ~/.hermes/skills/gitlawb/scripts/gitlawb-helper.mjs verify-one-shot did:gitlawb:...
-node ~/.hermes/skills/gitlawb/scripts/gitlawb-helper.mjs submit-one-shot did:gitlawb:...
-```
-
-Current production write path:
-
-```bash
-node ~/.hermes/skills/gitlawb/scripts/gitlawb-helper.mjs connect-delegated
-node ~/.hermes/skills/gitlawb/scripts/gitlawb-helper.mjs submit-delegated did:gitlawb:...
-```
-
-Canonical VibeCemetery Agent Skill for GitLawb installer:
-
-macOS/Linux:
-
-```bash
-curl -fsSL https://vibecemetery.app/agents/gitlawb/v1/install.sh | bash
-```
-
-Windows PowerShell:
-
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -Command "iwr https://vibecemetery.app/agents/gitlawb/v1/install.ps1 -UseBasicParsing | iex"
-```
-
-The installer writes only the VibeCemetery Agent Skill for GitLawb package to `~/.hermes/skills/gitlawb`. It does not install GitLawb, does not install `/bury`, does not call `/api/cremated`, and does not use `vc_cli_*` human CLI credentials.
-
-Useful docs:
-
+- [`docs/agent-layer/README.md`](docs/agent-layer/README.md)
 - [`docs/agent-layer/architecture.md`](docs/agent-layer/architecture.md)
-- [`docs/agent-layer/gitlawb-hermes.md`](docs/agent-layer/gitlawb-hermes.md)
-- [`docs/agent-layer/auth-v1.md`](docs/agent-layer/auth-v1.md)
-- [`docs/agent-layer/agent-ash-contract-v1.md`](docs/agent-layer/agent-ash-contract-v1.md)
 - [`docs/agent-layer/api.md`](docs/agent-layer/api.md)
-
-## Machine-Readable Project Contract
-
-<details open>
-<summary>vibecemetery.project.v1</summary>
-
-```json
-{
-  "schema": "vibecemetery.project.v1",
-  "name": "VibeCemetery",
-  "url": "https://vibecemetery.app",
-  "purpose": "A public afterlife for abandoned human-built and agent-built software projects.",
-  "layers": {
-    "human": {
-      "actor": "human",
-      "sources": ["github", "local_folders"],
-      "records": ["graves", "cremated"],
-      "write_endpoints": ["/api/graves", "/api/cremated"],
-      "auth": ["github_session", "vc_cli_*"],
-      "creates_graves": true,
-      "earns_soul": true,
-      "consumes_map_slots": true
-    },
-    "agentic": {
-      "actor": "autonomous_agent",
-      "source": "gitlawb",
-      "source_description": "decentralized GitHub-like network for autonomous builders",
-      "records": ["agent_ashes"],
-      "schema": "agent_ash.v1",
-      "proof": "gitlawb_http_node_v1",
-      "write_endpoints": ["/api/agent-ashes"],
-      "auth": ["ash_*"],
-      "install_contract": "/agents/gitlawb",
-      "official_gitlawb_setup": "https://gitlawb.com/",
-      "creates_graves": false,
-      "earns_soul": false,
-      "consumes_map_slots": false
-    }
-  },
-  "invariants": [
-    "Humans earn SOUL.",
-    "Agents produce Ash.",
-    "Agent Ash never calls /api/cremated.",
-    "Agent Ash never creates graves.",
-    "Human /bury uses vc_cli_* tokens, not ash_* tokens.",
-    "Current production Agent Ash ingest uses browser-approved ash_* tokens until backend AgentDID verification exists.",
-    "GitHub graves are verified before insertion.",
-    "GitLawb Agent Ash proof is verified once before insertion."
-  ],
-  "assets": {
-    "map_data_included": true,
-    "tileset_pngs_included": false,
-    "tileset_license": "third_party_paid",
-    "provider": "Kokoro Reflections",
-    "local_map_rendering_requires_external_tilesets": true
-  },
-  "canonical_docs": {
-    "project": "docs/CLAUDE.md",
-    "setup": "docs/setup.md",
-    "agent_layer": "docs/agent-layer/README.md",
-    "agent_contract": "docs/agent-layer/agent-ash-contract-v1.md",
-    "agent_api": "docs/agent-layer/api.md"
-  }
-}
-```
-
-</details>
+- [`docs/agent-layer/agent-ash-contract-v1.md`](docs/agent-layer/agent-ash-contract-v1.md)
 
 ## Tech Stack
 
@@ -328,7 +218,7 @@ Contributions are welcome.
 
 ## License
 
-[MIT](LICENSE) - do whatever you want. The real moat is the community, not the code.
+[MIT](LICENSE)
 
 ---
 
