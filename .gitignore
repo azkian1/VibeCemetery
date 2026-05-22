@@ -64,6 +64,7 @@ tome.md
 .opencode/
 
 # Internal docs (strategy, agent prompts, archives, map design)
+/docs/SAVEBACKUPS.md
 /docs/PRDv3.md
 /docs/PLANv3.md
 /docs/forFACEBOOK.md

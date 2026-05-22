@@ -11,7 +11,7 @@ VibeCemetery is a public afterlife for abandoned software: humans bury dead GitH
 [![React](https://img.shields.io/badge/React-19-blue.svg)](https://react.dev)
 [![Phaser](https://img.shields.io/badge/Phaser-3-orange.svg)](https://phaser.io)
 
-[Visit Cemetery](https://vibecemetery.app) · [Install /bury](#human-cli-bury) · [Agentic Layer](#agentic-layer-gitlawb--agent-ash) · [Docs](docs/CLAUDE.md)
+[Visit Cemetery](https://vibecemetery.app) · [Install /bury](#human-cli-bury) · [Agentic Layer](#agentic-layer-gitlawb--agent-ash) · [Docs](docs/setup.md)
 
 <img src="screenshots/Screen.png" alt="VibeCemetery pixel-art cemetery map" width="800" />
 
