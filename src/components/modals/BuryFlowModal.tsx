@@ -31,6 +31,18 @@ export async function shouldFallbackGraveToCremation(res: Response): Promise<boo
   }
 }
 
+export function withDefaultGraveForSelectedRepo(graveSet: Set<number>, repoId: number, availableSlots: number): Set<number> {
+  if (availableSlots <= 0 || graveSet.has(repoId) || graveSet.size >= availableSlots) return graveSet;
+  const next = new Set(graveSet);
+  next.add(repoId);
+  return next;
+}
+
+export function getDefaultGraveSetForSelectAll(repoIds: number[], availableSlots: number): Set<number> {
+  if (availableSlots <= 0) return new Set();
+  return new Set(repoIds.slice(0, availableSlots));
+}
+
 function toEnglishSafeProjectLabel(name: string): string {
   return /[^\x00-\x7F]/.test(name) ? 'A project' : name;
 }
@@ -125,38 +137,28 @@ export default function BuryFlowModal() {
   }, [state.graves, state.cremated, username]);
 
   const handleToggle = useCallback((id: number) => {
+    const wasSelected = selected.has(id);
     setSelected((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
+      if (wasSelected) next.delete(id);
       else next.add(id);
       return next;
     });
-    // Cleanup graveSet separately — idempotent, safe outside setSelected
     setGraveSet((gs) => {
+      if (!wasSelected) return withDefaultGraveForSelectedRepo(gs, id, availableSlots);
       if (!gs.has(id)) return gs;
       const ng = new Set(gs);
       ng.delete(id);
       return ng;
     });
-  }, []);
+  }, [availableSlots, selected]);
 
   const handleToggleAll = useCallback(() => {
-    setSelected((prev) => {
-      const deselectAll = prev.size === repos.length;
-      if (deselectAll) {
-        setGraveSet(new Set());
-        return new Set();
-      }
-      // Select all — prune stale graveSet ids
-      setGraveSet((gs) => {
-        if (gs.size === 0) return gs;
-        const repoIds = new Set(repos.map((r) => r.id));
-        const pruned = new Set([...gs].filter((id) => repoIds.has(id)));
-        return pruned.size === gs.size ? gs : pruned;
-      });
-      return new Set(repos.map((r) => r.id));
-    });
-  }, [repos]);
+    const repoIds = repos.map((r) => r.id);
+    const deselectAll = selected.size === repos.length;
+    setSelected(deselectAll ? new Set() : new Set(repoIds));
+    setGraveSet(deselectAll ? new Set() : getDefaultGraveSetForSelectAll(repoIds, availableSlots));
+  }, [availableSlots, repos, selected]);
 
   const handleToggleGrave = useCallback((id: number) => {
     setGraveSet((prev) => {
