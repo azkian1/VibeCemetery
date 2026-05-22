@@ -48,7 +48,7 @@ test('Agent Ash install contract points to external GitLawb setup and VibeCemete
   expect(contract).toContain('open approve_url')
   expect(contract).toContain('GET https://vibecemetery.app/api/agent-ash/link/status?link_id=...')
   expect(contract).not.toMatch(/ash_[A-Za-z0-9._~-]{16,}/)
-  expect(contract).not.toMatch(/\\p{Script=Cyrillic}/)
+  expect(contract).not.toMatch(/[\u0400-\u04FF]/)
   expect(contract).toContain('Use the GitLawb config created by the official GitLawb setup.')
   expect(contract).toContain('Do not create or rewrite GitLawb node config from VibeCemetery instructions.')
   expect(contract).toContain('Current production writes must use delegated ash_ tokens')
