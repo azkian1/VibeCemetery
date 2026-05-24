@@ -44,13 +44,13 @@ export const metadata: Metadata = {
     title: "VibeCemetery",
     description: "A cemetery for abandoned vibe-coded projects",
     url: siteUrl,
-    images: [{ url: "/og-image.png", width: 1200, height: 630 }],
+    images: [{ url: "/og-brand-v2.png", width: 1200, height: 630 }],
   },
   twitter: {
     card: "summary_large_image",
     title: "VibeCemetery",
     description: "A cemetery for abandoned vibe-coded projects",
-    images: ["/og-image.png"],
+    images: ["/og-brand-v2.png"],
   },
 };
 
