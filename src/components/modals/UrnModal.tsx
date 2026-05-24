@@ -147,7 +147,7 @@ export default function UrnModal() {
               <StoneButton
                 onClick={() => {
                   const url = c.github_url ?? '';
-                  if (/^https:\/\/github\.com\//.test(url)) window.open(url, '_blank');
+                  if (/^https:\/\/github\.com\//.test(url)) window.open(url, '_blank', 'noopener,noreferrer');
                 }}
                 style={{ flex: 1 }}
               >

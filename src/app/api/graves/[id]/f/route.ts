@@ -1,13 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
+import { checkRateLimit, getClientIp } from '@/lib/rate-limit'
 import { supabaseAdmin } from '@/lib/supabase'
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+const VOTE_RATE_LIMIT = 20
+const VOTE_WINDOW_MS = 60_000
 
 // POST /api/graves/[id]/f — press F (one per user per grave)
 export async function POST(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   const session = await getServerSession(authOptions)
@@ -22,13 +25,43 @@ export async function POST(
     return NextResponse.json({ error: 'Invalid grave id' }, { status: 400 })
   }
 
+  const rateLimit = await checkRateLimit(
+    `f-vote:${username}:${getClientIp(req)}`,
+    VOTE_RATE_LIMIT,
+    VOTE_WINDOW_MS,
+  )
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      { error: 'Too many vote attempts. Please try again later.' },
+      { status: 429, headers: { 'Retry-After': String(Math.ceil(rateLimit.retryAfterMs / 1000)) } },
+    )
+  }
+
+  const { data: grave, error: graveError } = await supabaseAdmin
+    .from('graves')
+    .select('id')
+    .eq('id', graveId)
+    .maybeSingle()
+
+  if (graveError) {
+    return NextResponse.json({ error: 'Failed to read grave' }, { status: 500 })
+  }
+
+  if (!grave) {
+    return NextResponse.json({ error: 'Grave not found' }, { status: 404 })
+  }
+
   // Check if already voted
-  const { data: existing } = await supabaseAdmin
+  const { data: existing, error: existingError } = await supabaseAdmin
     .from('f_votes')
     .select('id')
     .eq('grave_id', graveId)
     .eq('username', username)
     .maybeSingle()
+
+  if (existingError) {
+    return NextResponse.json({ error: 'Failed to read vote' }, { status: 500 })
+  }
 
   if (!existing) {
     // Record the vote — ignore duplicate constraint errors (race-safe)
@@ -36,7 +69,11 @@ export async function POST(
       .from('f_votes')
       .insert({ grave_id: graveId, username })
 
-    if (insertError && !insertError.code?.startsWith('23')) {
+    if (insertError?.code === '23503') {
+      return NextResponse.json({ error: 'Grave not found' }, { status: 404 })
+    }
+
+    if (insertError && insertError.code !== '23505') {
       return NextResponse.json({ error: 'Failed to record vote' }, { status: 500 })
     }
   }

@@ -11,6 +11,10 @@ export function canReadLastCommitForOwner(owner: string, authenticatedUsername: 
   return owner.trim().toLowerCase() === authenticatedUsername.trim().toLowerCase();
 }
 
+export function normalizeLastCommitMessage(value: unknown): string | null {
+  return typeof value === 'string' ? value.slice(0, 500) : null;
+}
+
 export async function GET(request: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.github_username) {
@@ -60,7 +64,7 @@ export async function GET(request: NextRequest) {
     }
 
     const commits = await res.json();
-    const message = commits?.[0]?.commit?.message ?? null;
+    const message = normalizeLastCommitMessage(commits?.[0]?.commit?.message);
 
     return NextResponse.json({ message });
   } catch {

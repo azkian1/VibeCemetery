@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test'
 import { encode } from 'next-auth/jwt'
 import { createClient } from '@supabase/supabase-js'
+import { randomUUID } from 'node:crypto'
 
 function getNextAuthSecret(): string {
   const secret = process.env.NEXTAUTH_SECRET
@@ -521,6 +522,38 @@ test.describe.serial('API smoke', () => {
 
     expect(res.status()).toBe(400)
     expect(await res.json()).toEqual({ error: 'Invalid grave id' })
+  })
+
+  test('POST /api/graves/[id]/f rejects a valid UUID with no grave', async ({ request }) => {
+    const headers = await createAuthHeaders(`api-smoke-missing-f-${Date.now()}`)
+    const missingGraveId = randomUUID()
+
+    const res = await request.post(`/api/graves/${missingGraveId}/f`, { headers })
+
+    expect(res.status()).toBe(404)
+    expect(await res.json()).toEqual({ error: 'Grave not found' })
+  })
+
+  test('POST /api/graves/[id]/f rate-limits repeated vote attempts', async ({ request }) => {
+    const headers = await createAuthHeaders(`api-smoke-f-limit-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`)
+    const grave = await createSmokeGrave()
+
+    try {
+      let rateLimitedBody: unknown = null
+
+      for (let i = 0; i < 22; i += 1) {
+        const res = await request.post(`/api/graves/${grave.id}/f`, { headers })
+        if (res.status() === 429) {
+          rateLimitedBody = await res.json()
+          expect(res.headers()['retry-after']).toBeTruthy()
+          break
+        }
+      }
+
+      expect(rateLimitedBody).toEqual({ error: 'Too many vote attempts. Please try again later.' })
+    } finally {
+      await deleteSmokeGrave(grave.id)
+    }
   })
 
   test('POST /api/graves/[id]/f is idempotent and visible in /api/f-status', async ({ request }) => {

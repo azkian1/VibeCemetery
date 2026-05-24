@@ -184,13 +184,13 @@ export default function BurgerMenu() {
           </h3>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
             <StoneButton
-              onClick={() => window.open('https://x.com/vibecmtry', '_blank')}
+              onClick={() => window.open('https://x.com/vibecmtry', '_blank', 'noopener,noreferrer')}
               style={{ width: '100%', maxWidth: 280 }}
             >
               @vibecmtry on 𝕏
             </StoneButton>
             <StoneButton
-              onClick={() => window.open('https://github.com/azkian1/VibeCemetery', '_blank')}
+              onClick={() => window.open('https://github.com/azkian1/VibeCemetery', '_blank', 'noopener,noreferrer')}
               style={{ width: '100%', maxWidth: 280 }}
             >
               GitHub ↗
