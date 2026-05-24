@@ -62,6 +62,8 @@ test-results/
 .playwright-mcp/
 tome.md
 .opencode/
+src/demo/
+tests/demo-cemetery.spec.ts
 
 # Internal docs (strategy, agent prompts, archives, map design)
 /docs/SAVEBACKUPS.md
@@ -87,4 +89,5 @@ postcss.config.mjs
 
 # Local settings
 /.claude/
+public/Tailes/**/.claude/
 SKILL/settings.local.json
