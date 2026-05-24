@@ -23,6 +23,11 @@ export default function GraveModal() {
   const slotId = modalData?.slotId;
   const slotType = modalData?.slotType;
   const grave = slotId != null ? state.graves.get(slotId) : undefined;
+  const isOwnGrave = Boolean(
+    session?.user?.github_username &&
+      grave?.author_github &&
+      session.user.github_username.toLowerCase() === grave.author_github.toLowerCase(),
+  );
 
   const voted = grave ? state.fVotes.has(grave.id) : false;
   const fCount = grave?.f_count ?? 0;
@@ -67,7 +72,7 @@ export default function GraveModal() {
   };
 
   const confirmShareUnlock = async () => {
-    if (!grave || session?.user?.github_username !== grave.author_github || session.user.x_first_grave_shared_at) return;
+    if (!grave || !isOwnGrave || session?.user?.x_first_grave_shared_at) return;
 
     setShareUnlockState({ graveId: grave.id, status: 'unlocking' });
     try {
@@ -87,7 +92,12 @@ export default function GraveModal() {
   const handleShare = async () => {
     if (!grave) return;
     const url = `${window.location.origin}/grave/${grave.id}`;
-    const intentUrl = buildGraveTweetIntentUrl({ graveUrl: url, name: grave.name, cause: grave.cause });
+    const intentUrl = buildGraveTweetIntentUrl({
+      graveUrl: url,
+      name: grave.name,
+      cause: grave.cause,
+      perspective: isOwnGrave ? 'owner' : 'visitor',
+    });
 
     try {
       const popup = window.open(intentUrl, '_blank', 'noopener,noreferrer');

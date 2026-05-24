@@ -101,6 +101,26 @@ test.describe('grave share card', () => {
     expect(parsed.searchParams.get('url')).toBe('https://vibecemetery.app/grave/11111111-1111-4111-8111-111111111111')
   })
 
+  test('builds visitor X intent text without claiming the burial', () => {
+    const intentUrl = buildGraveTweetIntentUrl({
+      graveUrl: 'https://vibecemetery.app/grave/11111111-1111-4111-8111-111111111111',
+      name: 'MYVIBE',
+      cause: 'Zero users',
+      perspective: 'visitor',
+    })
+
+    const parsed = new URL(intentUrl)
+
+    expect(parsed.searchParams.get('text')).toBe([
+      'I paid respects to MYVIBE in @vibecmtry.',
+      '',
+      'Cause of death: Zero users.',
+      '',
+      'Pay respects:',
+    ].join('\n'))
+    expect(parsed.searchParams.get('url')).toBe('https://vibecemetery.app/grave/11111111-1111-4111-8111-111111111111')
+  })
+
   test('truncates long grave names and causes in X intent text', () => {
     const intentUrl = buildGraveTweetIntentUrl({
       graveUrl: 'https://vibecemetery.app/grave/long',

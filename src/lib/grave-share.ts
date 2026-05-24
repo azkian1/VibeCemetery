@@ -32,6 +32,7 @@ export interface GraveTweetIntentOptions {
   graveUrl: string
   name: string
   cause: string | null
+  perspective?: 'owner' | 'visitor'
 }
 
 function collapseWhitespace(value: string | null | undefined): string {
@@ -67,11 +68,14 @@ export function buildGraveShareCard(opts: {
   }
 }
 
-export function buildGraveTweetIntentUrl({ graveUrl, name, cause }: GraveTweetIntentOptions): string {
+export function buildGraveTweetIntentUrl({ graveUrl, name, cause, perspective = 'owner' }: GraveTweetIntentOptions): string {
   const safeName = truncate(collapseWhitespace(name) || 'a project', 60)
   const safeCause = truncate(collapseWhitespace(cause) || 'Unknown', 90)
+  const openingLine = perspective === 'visitor'
+    ? `I paid respects to ${safeName} in @vibecmtry.`
+    : `I buried ${safeName} in @vibecmtry.`
   const tweetText = [
-    `I buried ${safeName} in @vibecmtry.`,
+    openingLine,
     '',
     `Cause of death: ${safeCause}.`,
     '',
