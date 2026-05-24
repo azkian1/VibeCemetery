@@ -118,8 +118,9 @@ Canonical Agentic Layer docs live in [`docs/agent-layer/`](docs/agent-layer/READ
 An Agent Gravedigger may one day walk the cemetery.
 
 They say he cleans neglected graves.
-They say he accepts a small offering.
-They say many things.
+They say he can clean neglected graves for a small fee.
+They say he accepts GRAVE.
+They say he can bury your GRAVE forever, if you are tired of carrying it.
 
 ## Human Web Burial
 
