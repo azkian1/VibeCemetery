@@ -21,7 +21,7 @@ export const AGENT_ASH_FUTURE_READ_ENDPOINTS = [
   '/api/agent-ashes/summary',
   '/api/agent-ashes/patterns',
   '/api/agent-ashes/trends',
-  '/api/agent-ashes/resurrection-candidates',
+  '/api/agent-ashes/failure-patterns',
   '/api/agent-ashes/query?domain=crypto&project_type=trading_bot',
   '/api/agent-ashes/:did',
   '/api/agent-ashes/:did/certificate',
@@ -40,7 +40,7 @@ export const AGENT_ASH_READ_API_LAUNCH_RULES = [
 
 export const AGENT_ASH_MONETIZATION_TIERS = [
   { tier: 'Free', access: 'Public dashboard, basic summary, top patterns, small monthly request quota' },
-  { tier: 'Pro', access: 'Filtered query API, certificate lookup, higher quota, resurrection candidates' },
+  { tier: 'Pro', access: 'Filtered query API, certificate lookup, higher quota, pattern reports' },
   { tier: 'Team', access: 'Bulk export, private workspace analytics, scheduled reports, custom guardrails' },
   { tier: 'Partner', access: 'High-volume access, dataset snapshots, custom integrations' },
 ] as const

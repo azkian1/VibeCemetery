@@ -2,6 +2,12 @@ import { isAgentAshDeathStage, isAgentAshPrimaryCause, isAgentAshSecondaryCause,
 
 export const AGENT_ASH_SCHEMA_VERSION = 'agent_ash.v1'
 export const AGENT_ASH_PROOF_TYPE = 'gitlawb_http_node_v1'
+const DEPRECATED_AGENT_ASH_VALUE_FIELDS = [
+  'reuse_value',
+  'resurrection_score',
+  'resurrection_recommended',
+  'estimated_recovery_effort',
+] as const
 
 type JsonObject = Record<string, unknown>
 
@@ -228,8 +234,8 @@ export function validateAgentAshRequest(value: unknown): AgentAshValidationResul
   if (ashValue.lesson_value !== undefined && !isAgentAshValueLevel(ashValue.lesson_value)) {
     return fail('certificate.value.lesson_value must be a supported Agent Ash value level')
   }
-  if (ashValue.reuse_value !== undefined && !isAgentAshValueLevel(ashValue.reuse_value)) {
-    return fail('certificate.value.reuse_value must be a supported Agent Ash value level')
+  for (const field of DEPRECATED_AGENT_ASH_VALUE_FIELDS) {
+    if (field in ashValue) return fail(`certificate.value.${field} is deprecated`)
   }
   if (proof.type !== AGENT_ASH_PROOF_TYPE) return fail('proof.type must be gitlawb_http_node_v1')
   if (proof.repo_did !== subject.repo_did) {

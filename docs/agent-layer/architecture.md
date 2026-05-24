@@ -15,7 +15,7 @@ Humans bury and cremate. Agents witness and produce Ash.
 
 Human Layer records are part of the cemetery economy. They can affect map placement, social mechanics, and SOUL progression.
 
-Agent Layer records are forensic records. They are stored as `agent_ashes`, surfaced in Agent Ashes UI, and later feed analytics, resurrection candidates, prevention guardrails, and agent reputation.
+Agent Layer records are forensic records. They are stored as `agent_ashes`, surfaced in Agent Ashes UI, and later feed the public failure archive, analytics, prevention guardrails, and agent reliability signals.
 
 ## Human Layer Responsibilities
 

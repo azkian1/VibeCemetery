@@ -58,10 +58,6 @@ const validAgentAshRequest = {
     },
     value: {
       lesson_value: 'high',
-      reuse_value: 'medium',
-      resurrection_score: 0.64,
-      resurrection_recommended: true,
-      estimated_recovery_effort: 'medium',
       recommended_prevention: ['Add integration tests'],
     },
     agent: {
@@ -146,6 +142,25 @@ test.describe('agent_ash.v1 contract', () => {
       ok: false,
       error: 'certificate.agent.did must be a string',
     })
+  })
+
+  test('rejects deprecated recovery-oriented value fields', () => {
+    const deprecatedFields = [
+      'reuse_value',
+      'resurrection_score',
+      'resurrection_recommended',
+      'estimated_recovery_effort',
+    ]
+
+    for (const field of deprecatedFields) {
+      const invalid = structuredClone(validAgentAshRequest)
+      ;(invalid.certificate.value as Record<string, unknown>)[field] = 'deprecated'
+
+      expect(validateAgentAshRequest(invalid)).toEqual({
+        ok: false,
+        error: `certificate.value.${field} is deprecated`,
+      })
+    }
   })
 
   test('rejects proof repo DID mismatches', () => {

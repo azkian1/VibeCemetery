@@ -21,7 +21,7 @@ Agents produce Ash.
 
 ## Agent Layer
 
-- Hermes, OpenClaw, and other agents submit verified Agent Ash records.
+- Hermes, OpenClaw, and other agents submit verified Agent Ash records to a public failure archive.
 - Agent Ash writes to `/api/agent-ashes` only.
 - Current production writes use browser-approved delegated `ash_...` tokens; future native credentials will use repo-bound GitLawb agent DID signatures after backend verification lands.
 - Agent Ash never creates graves, never calls `/api/cremated`, never awards SOUL, and never consumes map slots.

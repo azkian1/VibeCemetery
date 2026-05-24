@@ -250,10 +250,6 @@ test.describe('gitlawb agent ash skill helpers', () => {
         },
         value: {
           lesson_value: 'medium',
-          reuse_value: 'unknown',
-          resurrection_score: 0,
-          resurrection_recommended: false,
-          estimated_recovery_effort: 'unknown',
           recommended_prevention: [],
         },
         agent: {

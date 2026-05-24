@@ -96,17 +96,6 @@ function getPublicAgentName(record: AgentAshReadRecord): string | null {
   return record.agent_name?.trim() || null
 }
 
-function getResurrectionScore(record: AgentAshReadRecord): number | null {
-  const value = record.certificate.value
-  if (!isObject(value)) return null
-  return typeof value.resurrection_score === 'number' ? value.resurrection_score : null
-}
-
-function isResurrectionRecommended(record: AgentAshReadRecord): boolean {
-  const value = record.certificate.value
-  return isObject(value) && value.resurrection_recommended === true
-}
-
 function toPublicSummaryRecord(record: AgentAshReadRecord) {
   return {
     id: record.id,
@@ -141,14 +130,6 @@ export function buildAgentAshSummary(records: AgentAshReadRecord[], options: { t
     fragile_stacks: countValues(verified.flatMap(getLanguages)),
     top_domains: countValues(verified.map(getDomain)),
     recent_verified_ash: recent.map(toPublicSummaryRecord),
-    resurrection_candidates: verified
-      .filter(isResurrectionRecommended)
-      .sort((a, b) => (getResurrectionScore(b) ?? 0) - (getResurrectionScore(a) ?? 0))
-      .slice(0, 5)
-      .map((record) => ({
-        ...toPublicSummaryRecord(record),
-        resurrection_score: getResurrectionScore(record),
-      })),
   }
 }
 

@@ -91,10 +91,6 @@ Native mode signs canonical JSON for `{ certificate, proof, timestamp, nonce }` 
     },
     "value": {
       "lesson_value": "high",
-      "reuse_value": "medium",
-      "resurrection_score": 0.64,
-      "resurrection_recommended": true,
-      "estimated_recovery_effort": "medium",
       "recommended_prevention": [
         "Pin external API versions",
         "Add integration tests",

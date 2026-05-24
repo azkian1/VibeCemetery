@@ -20,7 +20,7 @@ const records: AgentAshReadRecord[] = [
     verification_url: 'https://node.gitlawb.com/repo/1',
     declared_dead_at: '2026-03-06T12:11:00Z',
     created_at: '2026-03-06T12:12:00Z',
-    certificate: { subject: { domain: 'crypto' }, value: { resurrection_recommended: true, resurrection_score: 0.64 }, technical_profile: { languages: ['python'] } },
+    certificate: { subject: { domain: 'crypto' }, value: { lesson_value: 'high' }, technical_profile: { languages: ['python'] } },
     proof: { type: 'gitlawb_http_node_v1', verification_url: 'https://node.gitlawb.com/repo/1' },
   },
   {
@@ -34,7 +34,7 @@ const records: AgentAshReadRecord[] = [
     verification_status: 'gitlawb_http_verified',
     declared_dead_at: '2026-03-05T12:11:00Z',
     created_at: '2026-03-05T12:12:00Z',
-    certificate: { subject: { domain: 'crypto' }, value: { resurrection_recommended: false }, technical_profile: { languages: ['typescript'] } },
+    certificate: { subject: { domain: 'crypto' }, value: { lesson_value: 'medium' }, technical_profile: { languages: ['typescript'] } },
     proof: { type: 'gitlawb_http_node_v1' },
   },
 ]
@@ -74,7 +74,6 @@ test.describe('Agent Ash read API helpers', () => {
         expect.objectContaining({ id: 'ash-1', subject_name: 'dead-agent-prototype', agent_did: 'did:key:z6MkAgentHermes' }),
         expect.objectContaining({ id: 'ash-2', subject_name: 'stale-agent-ui', agent_did: null }),
       ],
-      resurrection_candidates: [expect.objectContaining({ id: 'ash-1', agent_did: 'did:key:z6MkAgentHermes', resurrection_score: 0.64 })],
     })
 
     expect(buildAgentAshSummary(records)).toMatchObject({

@@ -67,7 +67,7 @@ The map uses paid tilesets not included in the repo. The Tiled map JSON is inclu
 type: short description
 
 Examples:
-feat: add resurrection button to GraveModal
+feat: add share button to GraveModal
 fix: tooltip position on mobile
 docs: update README with new env vars
 style: align ChatLog colors to stone palette

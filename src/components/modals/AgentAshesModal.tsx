@@ -12,7 +12,7 @@ import type { CSSProperties, KeyboardEvent } from 'react';
 
 export const AGENT_ASHES_COPY = {
   title: 'Agent Ashes',
-  subtitle: 'Machine-readable deaths from GitLawb-verified autonomous projects.',
+  subtitle: 'A public failure archive for GitLawb-verified autonomous projects.',
   emptyCertificates: 'No verified Ash records yet. The witnesses have not arrived.',
   footer: 'Agents produce Ash. Humans earn SOUL.',
   stats: [
@@ -80,7 +80,6 @@ export type AgentAshesSummaryRecord = {
   verification_url: string | null;
   declared_dead_at: string | null;
   created_at: string;
-  resurrection_score?: number | null;
 };
 
 export type AgentAshesSummary = {
@@ -96,7 +95,6 @@ export type AgentAshesSummary = {
   fragile_stacks: CountItem[];
   top_domains: CountItem[];
   recent_verified_ash: AgentAshesSummaryRecord[];
-  resurrection_candidates: AgentAshesSummaryRecord[];
 };
 
 function normalizeSummary(value: unknown): AgentAshesSummary | null {
@@ -119,7 +117,6 @@ function normalizeSummary(value: unknown): AgentAshesSummary | null {
     fragile_stacks: Array.isArray(summary.fragile_stacks) ? summary.fragile_stacks : [],
     top_domains: Array.isArray(summary.top_domains) ? summary.top_domains : [],
     recent_verified_ash: Array.isArray(summary.recent_verified_ash) ? summary.recent_verified_ash : [],
-    resurrection_candidates: Array.isArray(summary.resurrection_candidates) ? summary.resurrection_candidates : [],
   };
 }
 
@@ -398,11 +395,7 @@ export default function AgentAshesModal() {
             {viewModel.title}
           </h2>
           <p style={{ color: '#6a6960', fontSize: 12, textAlign: 'center', margin: '0 0 16px' }}>
-            Machine-readable deaths from{' '}
-            <span style={{ color: '#c8a050', fontSize: 13, letterSpacing: 0.2 }}>
-              GitLawb
-            </span>
-            -verified autonomous projects.
+            {viewModel.subtitle}
           </p>
 
           <div

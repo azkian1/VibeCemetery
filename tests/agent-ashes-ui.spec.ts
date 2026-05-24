@@ -42,16 +42,17 @@ test('top bar exposes Agent Ashes next to Necropolis', () => {
 test('Agent Ashes modal describes the dashboard placeholder', () => {
   expect(AGENT_ASHES_COPY).toMatchObject({
     title: 'Agent Ashes',
-    subtitle: 'Machine-readable deaths from GitLawb-verified autonomous projects.',
+    subtitle: 'A public failure archive for GitLawb-verified autonomous projects.',
     emptyCertificates: 'No verified Ash records yet. The witnesses have not arrived.',
     footer: 'Agents produce Ash. Humans earn SOUL.',
   })
 })
 
-test('Agent Ashes subtitle highlights GitLawb without linking it', () => {
+test('Agent Ashes subtitle uses public failure archive copy without linking GitLawb', () => {
   const source = readFileSync('src/components/modals/AgentAshesModal.tsx', 'utf8')
 
-  expect(source).toContain("<span style={{ color: '#c8a050', fontSize: 13, letterSpacing: 0.2 }}>")
+  expect(source).toContain('viewModel.subtitle')
+  expect(source).not.toContain('Machine-readable deaths from')
   expect(source).not.toContain('href="https://gitlawb.com/"')
 })
 
@@ -94,21 +95,6 @@ test('Agent Ashes view model renders verified summary data', () => {
       verification_url: 'https://node.gitlawb.com/repo/1',
       declared_dead_at: '2026-03-06T12:11:00Z',
       created_at: '2026-03-06T12:12:00Z',
-    }],
-    resurrection_candidates: [{
-      id: 'ash-1',
-      subject_name: 'dead-agent-prototype',
-      repo_did: 'did:gitlawb:z6MkRepoDeadAgentPrototype',
-      agent_name: 'hermes',
-      agent_did: 'did:key:z6MkAgentHermesLongTail',
-      primary_cause: 'external_api_break',
-      failure_pattern: 'api changed before launch',
-      death_stage: 'prototype',
-      verification_status: 'gitlawb_http_verified',
-      verification_url: 'https://node.gitlawb.com/repo/1',
-      declared_dead_at: '2026-03-06T12:11:00Z',
-      created_at: '2026-03-06T12:12:00Z',
-      resurrection_score: 0.64,
     }],
   }
 
@@ -177,7 +163,6 @@ test('Agent Ashes view model uses distinct agent count beyond visible top agents
     fragile_stacks: [],
     top_domains: [],
     recent_verified_ash: [],
-    resurrection_candidates: [],
   }).stats).toContainEqual({ label: 'Agents', value: '7', note: 'Top: hermes in sample' })
 })
 

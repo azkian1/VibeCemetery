@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { NextRequest } from 'next/server'
 import {
   AGENT_ASH_TOKEN_PREFIX,
   isAgentAshEnvelope,
@@ -21,7 +22,7 @@ test.describe('Agent Ash product boundary', () => {
   })
 
   test('human cremation endpoint rejects Agent Ash tokens before reading body', async () => {
-    const response = await postCremated(new Request('http://localhost/api/cremated', {
+    const response = await postCremated(new NextRequest('http://localhost/api/cremated', {
       method: 'POST',
       headers: { authorization: 'Bearer ash_dead_agent_token_123' },
       body: '{',
@@ -34,11 +35,11 @@ test.describe('Agent Ash product boundary', () => {
   })
 
   test('human grave endpoint rejects Agent Ash tokens before session auth', async () => {
-    const response = await postGraves(new Request('http://localhost/api/graves', {
+    const response = await postGraves(new NextRequest('http://localhost/api/graves', {
       method: 'POST',
       headers: { authorization: 'Bearer ash_dead_agent_token_123' },
       body: '{',
-    }) as never)
+    }))
 
     expect(response.status).toBe(403)
     await expect(response.json()).resolves.toEqual({

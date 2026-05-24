@@ -32,9 +32,7 @@ const request = {
     evidence: { signals: [] },
     value: {
       lesson_value: 'high',
-      reuse_value: 'medium',
-      resurrection_score: 0.64,
-      resurrection_recommended: true,
+      recommended_prevention: ['Add integration tests'],
     },
     agent: { name: 'hermes' },
   },

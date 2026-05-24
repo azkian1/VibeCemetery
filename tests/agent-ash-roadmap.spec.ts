@@ -35,7 +35,7 @@ test.describe('Agent Ash future read API and monetization roadmap', () => {
       '/api/agent-ashes/summary',
       '/api/agent-ashes/patterns',
       '/api/agent-ashes/trends',
-      '/api/agent-ashes/resurrection-candidates',
+      '/api/agent-ashes/failure-patterns',
       '/api/agent-ashes/query?domain=crypto&project_type=trading_bot',
       '/api/agent-ashes/:did',
       '/api/agent-ashes/:did/certificate',
@@ -55,7 +55,7 @@ test.describe('Agent Ash future read API and monetization roadmap', () => {
   test('records future access tiers without enabling monetized endpoints in v1', () => {
     expect(AGENT_ASH_MONETIZATION_TIERS).toEqual([
       { tier: 'Free', access: 'Public dashboard, basic summary, top patterns, small monthly request quota' },
-      { tier: 'Pro', access: 'Filtered query API, certificate lookup, higher quota, resurrection candidates' },
+      { tier: 'Pro', access: 'Filtered query API, certificate lookup, higher quota, pattern reports' },
       { tier: 'Team', access: 'Bulk export, private workspace analytics, scheduled reports, custom guardrails' },
       { tier: 'Partner', access: 'High-volume access, dataset snapshots, custom integrations' },
     ])

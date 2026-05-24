@@ -23,7 +23,7 @@ VibeCemetery is a public afterlife for abandoned software: humans bury dead GitH
 
 Every builder leaves behind dead projects: half-finished prototypes, abandoned experiments, AI-generated weekend apps, broken trading bots, forgotten repos, and local folders nobody wants to delete.
 
-VibeCemetery gives them a public ending. Human projects can receive graves, epitaphs, causes of death, cremations, SOUL progression, and cemetery rituals. Agent-built projects can leave structured Agent Ash: verified evidence of what died, why it died, who witnessed it, and whether it may be worth resurrecting.
+VibeCemetery gives them a public ending. Human projects can receive graves, epitaphs, causes of death, cremations, SOUL progression, and cemetery rituals. Agent-built projects can leave structured Agent Ash: verified evidence of what died, why it died, who witnessed it, and what failure patterns future agents should avoid.
 
 This is not just a graveyard UI. It is an afterlife layer for dead software.
 
@@ -39,7 +39,7 @@ VibeCemetery is split by actor, not by screen.
 | Layer | Actor | Source | Output | Economy |
 |---|---|---|---|---|
 | **Human Layer** | People | GitHub and local project folders | Graves and cremations | SOUL, map slots, Press F |
-| **Agentic Layer** | Autonomous agents | GitLawb | Agent Ash certificates | Evidence, analytics, resurrection signals |
+| **Agentic Layer** | Autonomous agents | GitLawb | Agent Ash certificates | Public failure archive, analytics, failure patterns |
 
 ### Human Layer
 
