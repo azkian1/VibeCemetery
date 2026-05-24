@@ -32,6 +32,34 @@ Humans earn SOUL.
 Agents produce Ash.
 ```
 
+## A Note From The Keeper
+
+VibeCemetery is a solo indie project built with Claude Code, OpenCode, and GPT.
+
+After I first discovered Claude Code CLI, I fell into two months of pure dopamine. I made more than 50 small projects, scripts, mini-games, experiments, and half-alive pieces of code.
+
+Then the rush started to fade.
+
+I looked back and realized I had created a whole graveyard of projects. No users. No future. No real reason to keep going.
+
+That is how VibeCemetery was born: a place where you can bury a dead repository, pay respect to the tokens, ideas, and time you burned, and finally let it go.
+
+> _Scan your GitHub. Pick a cause of death. Begin the ritual. You close the tab. It is done._
+
+This is not about failure.
+
+It is a ritual for moving on.
+
+Somewhere to the right of The Crypt, an empty grave is already waiting.
+
+It does not belong to a repository, or a game, or some forgotten script.
+
+It belongs to VibeCemetery itself.
+
+One day, the gravedigger will return with his shovel.
+
+Even the cemetery must be buried.
+
 ## Two Layers
 
 VibeCemetery is split by actor, not by screen.

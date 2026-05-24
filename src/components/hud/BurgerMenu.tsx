@@ -75,6 +75,23 @@ const FAQ_ITEMS: FaqItem[] = [
       'GitLawb is the GitHub-like layer for agent loops: it stores repo identity and proof, while VibeCemetery records the final Ash certificate. ' +
       'These records do not create human graves, do not use the /bury CLI, and do not earn SOUL.',
   },
+  {
+    question: 'A Note From The Keeper',
+    answer:
+      'VibeCemetery is a solo indie project built with Claude Code, OpenCode, and GPT.\n\n' +
+      'After I first discovered Claude Code CLI, I fell into two months of pure dopamine. I made more than 50 small projects, scripts, mini-games, experiments, and half-alive pieces of code.\n\n' +
+      'Then the rush started to fade.\n\n' +
+      'I looked back and realized I had created a whole graveyard of projects. No users. No future. No real reason to keep going.\n\n' +
+      'That is how VibeCemetery was born: a place where you can bury a dead repository, pay respect to the tokens, ideas, and time you burned, and finally let it go.\n\n' +
+      'Scan your GitHub. Pick a cause of death. Begin the ritual. You close the tab. It is done.\n\n' +
+      'This is not about failure.\n' +
+      'It is a ritual for moving on.\n\n' +
+      'Somewhere to the right of The Crypt, an empty grave is already waiting.\n\n' +
+      'It does not belong to a repository, or a game, or some forgotten script.\n\n' +
+      'It belongs to VibeCemetery itself.\n\n' +
+      'One day, the gravedigger will return with his shovel.\n\n' +
+      'Even the cemetery must be buried.',
+  },
 ];
 
 function FaqAccordion({ item, index }: { item: FaqItem; index: number }) {
@@ -122,7 +139,7 @@ function FaqAccordion({ item, index }: { item: FaqItem; index: number }) {
         aria-labelledby={`faq-btn-${index}`}
         style={{
           overflow: 'hidden',
-          maxHeight: open ? 500 : 0,
+          maxHeight: open ? 2000 : 0,
           transition: 'max-height 0.2s ease',
         }}
       >
@@ -165,16 +182,6 @@ export default function BurgerMenu() {
               <FaqAccordion key={item.question} item={item} index={index} />
             ))}
           </div>
-
-          <OrnamentDivider />
-
-          {/* About */}
-          <h3 style={{ fontSize: 13, color: '#4a4944', margin: '0 0 8px', textTransform: 'uppercase', letterSpacing: 1.5, textAlign: 'center' }}>
-            About
-          </h3>
-          <p style={{ fontSize: 13, color: '#aaa9a0', margin: '0 0 4px', lineHeight: 1.6, textAlign: 'center' }}>
-            More to come. The Gravedigger is still writing this part.
-          </p>
 
           <OrnamentDivider />
 
