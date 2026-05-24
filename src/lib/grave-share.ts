@@ -1,7 +1,7 @@
 import { epitaphFallback } from '@/gravedigger/epitaphs'
 import type { Metadata } from 'next'
 
-const GRAVE_OG_IMAGE_VERSION = 'social-v2'
+const GRAVE_OG_IMAGE_VERSION = 'social-v3'
 
 export interface GraveShareData {
   id: string

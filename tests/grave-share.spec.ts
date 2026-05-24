@@ -26,7 +26,7 @@ test.describe('grave share card', () => {
     expect(card.title).toBe('DemoCast · VibeCemetery')
     expect(card.description).toBe('It shipped one demo and never returned.')
     expect(card.url).toBe('https://vibecemetery.app/grave/11111111-1111-4111-8111-111111111111')
-    expect(card.imageUrl).toBe('https://vibecemetery.app/grave/11111111-1111-4111-8111-111111111111/opengraph-image?v=social-v2')
+    expect(card.imageUrl).toBe('https://vibecemetery.app/grave/11111111-1111-4111-8111-111111111111/opengraph-image?v=social-v3')
     expect(card.cause).toBe('Lost interest')
     expect(card.authorGithub).toBe('demo-user')
   })
@@ -71,13 +71,13 @@ test.describe('grave share card', () => {
     expect(metadata.alternates?.canonical).toBe('https://vibecemetery.app/grave/33333333-3333-4333-8333-333333333333')
     expect(metadata.openGraph?.images).toEqual([
       {
-        url: 'https://vibecemetery.app/grave/33333333-3333-4333-8333-333333333333/opengraph-image?v=social-v2',
+        url: 'https://vibecemetery.app/grave/33333333-3333-4333-8333-333333333333/opengraph-image?v=social-v3',
         width: 1200,
         height: 630,
       },
     ])
     expect(metadata.twitter?.images).toEqual([
-      'https://vibecemetery.app/grave/33333333-3333-4333-8333-333333333333/opengraph-image?v=social-v2',
+      'https://vibecemetery.app/grave/33333333-3333-4333-8333-333333333333/opengraph-image?v=social-v3',
     ])
   })
 

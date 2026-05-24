@@ -50,8 +50,55 @@ function getNameLayout(name: string) {
   }
 }
 
-function getSocialNameLayout(name: string) {
+function splitNameBySeparator(name: string): string[] | null {
+  const parts = name.split(/[._-]+/).filter(Boolean)
+  if (parts.length < 2) return null
+
+  const midpoint = Math.ceil(parts.length / 2)
+  return [parts.slice(0, midpoint).join(' '), parts.slice(midpoint).join(' ')]
+}
+
+function truncateNameLine(line: string, maxLength: number): string {
+  return line.length > maxLength ? `${line.slice(0, maxLength - 3).trimEnd()}...` : line
+}
+
+function getEstimatedNameLineWidth(line: string, fontSize: number): number {
+  const units = line.toUpperCase().split('').reduce((total, char) => {
+    if (char === ' ') return total + 0.32
+    if ('I1JL'.includes(char)) return total + 0.38
+    if ('MW'.includes(char)) return total + 0.98
+    if ('OQCG'.includes(char)) return total + 0.76
+    if ('-_.'.includes(char)) return total + 0.36
+    return total + 0.66
+  }, 0)
+
+  return units * fontSize
+}
+
+function fitNameFontSize(lines: string[], maxFontSize: number, minFontSize: number): number {
+  const maxLineWidth = 218
+
+  for (let fontSize = maxFontSize; fontSize >= minFontSize; fontSize -= 2) {
+    if (lines.every((line) => getEstimatedNameLineWidth(line, fontSize) <= maxLineWidth)) {
+      return fontSize
+    }
+  }
+
+  return minFontSize
+}
+
+export function getSocialNameLayout(name: string) {
   const compactName = name.trim()
+  const separatedLines = splitNameBySeparator(compactName)
+
+  if (separatedLines && compactName.length > 8) {
+    if (compactName.length > 22 || separatedLines.some((line) => line.length > 10)) {
+      const lines = separatedLines.map((line) => truncateNameLine(line, 9))
+      return { lines, fontSize: fitNameFontSize(lines, 58, 38), lineHeight: 0.98 }
+    }
+
+    return { lines: separatedLines, fontSize: fitNameFontSize(separatedLines, 72, 44), lineHeight: 0.96 }
+  }
 
   if (compactName.length <= 12) {
     return { lines: [compactName], fontSize: 86, lineHeight: 0.95 }
@@ -164,9 +211,11 @@ function renderSocialGraveShareImage({ card, author, cause, socialNameLayout, li
               fontWeight: 700,
               color: '#11100e',
               letterSpacing: '-2px',
+              width: '260px',
+              overflow: 'hidden',
             }}>
               {socialNameLayout.lines.map((line, index) => (
-                <span key={`${line}-${index}`}>{line}</span>
+                <span key={`${line}-${index}`} style={{ display: 'flex', width: '100%', justifyContent: 'center', textAlign: 'center', whiteSpace: 'nowrap' }}>{line}</span>
               ))}
             </div>
             {lifeDates ? (
