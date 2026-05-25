@@ -5,6 +5,7 @@ import { isAgentAshEnvelope, isAgentAshIngestToken } from '@/lib/agent-ash-bound
 import { supabaseAdmin } from '@/lib/supabase'
 import { checkRateLimit, getClientIp } from '@/lib/rate-limit'
 import { getAutoAssignableGraveSlots, pickRandomFreeSlot } from '@/lib/map-slots'
+import { sanitizePublicText } from '@/lib/sanitize-public-text'
 import { generateEpitaph } from '@/gravedigger/epitaphs'
 import { insertGraveAtomicallyWithSlotRetry, type AtomicInsertRpcResult } from './atomicInsertWithSlotRetry'
 import { insertOutcomeResponse } from './insertOutcomeResponse'
@@ -18,11 +19,6 @@ import {
 
 const GITHUB_REPO_VERIFY_LIMIT = 30
 const GITHUB_REPO_VERIFY_WINDOW_MS = 60_000
-
-/** Strip HTML tags and collapse whitespace — defense-in-depth for stored text */
-function sanitize(str: string): string {
-  return str.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim()
-}
 
 async function syncUserGravesCount(authorGithub: string): Promise<void> {
   const { count, error: countError } = await supabaseAdmin
@@ -298,16 +294,23 @@ export async function POST(req: NextRequest) {
   }
 
   // 4.3 Sanitize and normalize whitespace
-  const trimmedName = sanitize(name);
-  const trimmedCause = sanitize(cause);
-  const trimmedDescription = typeof description === 'string' ? sanitize(description) : null;
+  const trimmedName = sanitizePublicText(name, 100);
+  const trimmedCause = sanitizePublicText(cause, 200);
+  const trimmedDescription = typeof description === 'string' ? sanitizePublicText(description, 500) : null;
+
+  if (!trimmedName || !trimmedCause) {
+    return NextResponse.json(
+      { error: 'name and cause must not be empty' },
+      { status: 400 },
+    )
+  }
 
   // 5. Generate epitaph + insert grave.
   // Repo uniqueness is enforced by the DB; slot selection is retried on expected slot collisions.
   const epitaph = generateEpitaph({
     name: trimmedName,
     cause: trimmedCause,
-    stack: stack ? stack.map(s => sanitize(s)) : null,
+    stack: stack ? stack.map(s => sanitizePublicText(s, 50)) : null,
     born_at: born_at ?? null,
     died_at: died_at ?? null,
   })
@@ -319,11 +322,11 @@ export async function POST(req: NextRequest) {
     born_at: born_at ?? null,
     died_at: died_at ?? null,
     cause: trimmedCause,
-    stack: stack ? stack.map(s => sanitize(s)) : null,
+    stack: stack ? stack.map(s => sanitizePublicText(s, 50)) : null,
     github_url,
     github_repo_id,
     author_github,
-    last_commit_message: typeof last_commit_message === 'string' ? sanitize(last_commit_message) : null,
+    last_commit_message: typeof last_commit_message === 'string' ? sanitizePublicText(last_commit_message, 500) : null,
   }
 
   const autoSlotIds = getAutoAssignableGraveSlots().map((slot) => slot.id)

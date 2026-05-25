@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { checkRateLimit, getClientIp } from '@/lib/rate-limit';
+import { sanitizePublicText } from '@/lib/sanitize-public-text';
 
 // 20 requests per minute per IP
 const COMMIT_RATE_LIMIT = 20;
@@ -12,7 +13,9 @@ export function canReadLastCommitForOwner(owner: string, authenticatedUsername: 
 }
 
 export function normalizeLastCommitMessage(value: unknown): string | null {
-  return typeof value === 'string' ? value.slice(0, 500) : null;
+  if (typeof value !== 'string') return null;
+
+  return sanitizePublicText(value, 500) || null;
 }
 
 export async function GET(request: NextRequest) {

@@ -12,4 +12,10 @@ test.describe('last commit authorization', () => {
 
     expect(message).toBe('A'.repeat(500))
   })
+
+  test('sanitizes commit messages returned to the client', () => {
+    const message = normalizeLastCommitMessage('<b>final</b>\u0000\u202E\u200B commit')
+
+    expect(message).toBe('final commit')
+  })
 })

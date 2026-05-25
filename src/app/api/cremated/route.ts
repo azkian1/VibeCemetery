@@ -9,15 +9,11 @@ import {
 import { isAgentAshEnvelope, isAgentAshIngestToken } from '@/lib/agent-ash-boundary'
 import { resolveCliActor } from '@/lib/cli-auth'
 import { checkRateLimit, getClientIp } from '@/lib/rate-limit'
+import { sanitizePublicText } from '@/lib/sanitize-public-text'
 import { supabaseAdmin } from '@/lib/supabase'
 
 const GITHUB_REPO_VERIFY_LIMIT = 15
 const GITHUB_REPO_VERIFY_WINDOW_MS = 60_000
-
-/** Strip HTML tags and collapse whitespace — defense-in-depth for stored text */
-function sanitize(str: string): string {
-  return str.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim()
-}
 
 function normalizeGithubRepoUrl(url: string): string {
   return url.replace(/\/+$/, '')
@@ -70,8 +66,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'name and cause must be strings' }, { status: 400 })
   }
 
-  const trimmedName = sanitize(name)
-  const trimmedCause = sanitize(cause)
+  const trimmedName = sanitizePublicText(name)
+  const trimmedCause = sanitizePublicText(cause)
 
   if (!trimmedName || !trimmedCause) {
     return NextResponse.json(
@@ -131,7 +127,7 @@ export async function POST(request: NextRequest) {
     ? normalizeGithubRepoUrl(github_url.trim())
     : null
   const trimmedLastCommit = typeof last_commit_message === 'string' && last_commit_message.trim()
-    ? sanitize(last_commit_message).slice(0, 200)
+    ? sanitizePublicText(last_commit_message, 200)
     : null
 
   if (trimmedGithubUrl && !/^https:\/\/github\.com\/[a-zA-Z0-9_-][a-zA-Z0-9_.-]*\/[a-zA-Z0-9_-][a-zA-Z0-9_.-]*\/?$/.test(trimmedGithubUrl)) {
