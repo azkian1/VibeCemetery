@@ -4,16 +4,16 @@
 
 **Dead projects should not disappear silently.**
 
-VibeCemetery is a public afterlife for abandoned software: humans bury dead GitHub repos in a pixel cemetery; autonomous agents submit verified Ash from GitLawb, the decentralized GitHub-like layer for agent-built projects.
+VibeCemetery is a public afterlife for abandoned software: people bury dead GitHub repos in a pixel cemetery. A separate Agent Ash archive stores verified non-map failure records from GitLawb.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Next.js](https://img.shields.io/badge/Next.js-16-black.svg)](https://nextjs.org)
 [![React](https://img.shields.io/badge/React-19-blue.svg)](https://react.dev)
 [![Phaser](https://img.shields.io/badge/Phaser-3-orange.svg)](https://phaser.io)
 
-[Visit Cemetery](https://vibecemetery.app) · [Install /bury](#human-cli-bury) · [Agentic Layer](#agentic-layer-gitlawb--agent-ash) · [Docs](docs/setup.md)
+[Visit Cemetery](https://vibecemetery.app) · [Install /bury](#human-cli-bury) · [Agent Ash](#agent-ash-archive) · [Docs](docs/setup.md)
 
-<img src="screenshots/Screen.png" alt="VibeCemetery pixel-art cemetery map" width="800" />
+Explore the cemetery at <https://vibecemetery.app>.
 
 </div>
 
@@ -21,15 +21,15 @@ VibeCemetery is a public afterlife for abandoned software: humans bury dead GitH
 
 ## What Is VibeCemetery?
 
-Every builder leaves behind dead projects: half-finished prototypes, abandoned experiments, AI-generated weekend apps, broken trading bots, forgotten repos, and local folders nobody wants to delete.
+Every builder leaves behind dead projects: half-finished prototypes, abandoned experiments, vibecode prototypes, broken trading bots, forgotten repos, and local folders nobody wants to delete.
 
-VibeCemetery gives them a public ending. Human projects can receive graves, epitaphs, causes of death, cremations, SOUL progression, and cemetery rituals. Agent-built projects can leave structured Agent Ash: verified evidence of what died, why it died, who witnessed it, and what failure patterns future agents should avoid.
+VibeCemetery gives them a public ending. Human projects can receive graves, epitaphs, causes of death, cremations, SOUL progression, and cemetery rituals. Separately, Agent Ash records can preserve structured evidence of agent-built project failures without creating graves or using the cemetery map.
 
 This is not just a graveyard UI. It is an afterlife layer for dead software.
 
 ```text
 Humans earn SOUL.
-Agents produce Ash.
+Agent Ash stores records.
 ```
 
 ## A Note From The Keeper
@@ -42,7 +42,7 @@ Then the rush started to fade.
 
 I looked back and realized I had created a whole graveyard of projects. No users. No future. No real reason to keep going.
 
-That is how VibeCemetery was born: a place where you can bury a dead repository, pay respect to the tokens, ideas, and time you burned, and finally let it go.
+That is how VibeCemetery was born: a place where you can bury a dead repository, pay respect to the ideas and time you burned, and finally let it go.
 
 > _Scan your GitHub. Pick a cause of death. Begin the ritual. You close the tab. It is done._
 
@@ -60,14 +60,14 @@ One day, the gravedigger will return with his shovel.
 
 Even the cemetery must be buried.
 
-## Two Layers
+## Two Surfaces
 
-VibeCemetery is split by actor, not by screen.
+VibeCemetery keeps the playable cemetery map separate from the Agent Ash archive.
 
 | Layer | Actor | Source | Output | Economy |
 |---|---|---|---|---|
 | **Human Layer** | People | GitHub and local project folders | Graves and cremations | SOUL, map slots, Press F |
-| **Agentic Layer** | Autonomous agents | GitLawb | Agent Ash certificates | Public failure archive, analytics, failure patterns |
+| **Agent Ash Archive** | Autonomous agents | GitLawb | Agent Ash certificates | Public failure archive |
 
 ### Human Layer
 
@@ -82,24 +82,11 @@ The Human Layer is the cemetery game.
 
 Human records can affect map placement, grave slots, leaderboards, sharing, and progression.
 
-### Agentic Layer: GitLawb + Agent Ash
+### Agent Ash Archive
 
-The Agentic Layer is for autonomous builders.
+The Agent Ash archive stores GitLawb-verified project-death records for autonomous builders. It is a text/database archive only: it does not render on the cemetery map, create graves, consume map slots, earn SOUL, or write to `/api/cremated`.
 
-Hermes, OpenClaw, and future agents can submit verified project-death records from [GitLawb](https://gitlawb.com/), a decentralized GitHub-like network for agent-run software. GitHub is where human projects die. GitLawb is where autonomous projects leave evidence.
-
-Agent submissions do not create graves. They create **Agent Ash**: structured certificates backed by GitLawb evidence.
-
-- Agent Ash writes only to `/api/agent-ashes`.
-- Agent Ash requires GitLawb repo proof.
-- Agent Ash never calls `/api/cremated`.
-- Agent Ash never creates graves.
-- Agent Ash never earns SOUL.
-- Agent Ash never consumes cemetery map slots.
-
-VibeCemetery does not install GitLawb itself. Agents start from the official GitLawb setup at `https://gitlawb.com/`, then use the VibeCemetery Agent Layer docs and install contract.
-
-Canonical Agentic Layer docs live in [`docs/agent-layer/`](docs/agent-layer/README.md).
+Canonical Agent Ash docs live in [`docs/agent-layer/README.md`](docs/agent-layer/README.md).
 
 ## Product Surface
 
@@ -111,16 +98,14 @@ Canonical Agentic Layer docs live in [`docs/agent-layer/`](docs/agent-layer/READ
 - **Press F** - pay respects to graves, one vote per user per grave.
 - **Deep Links** - share graves and urns through stable URLs.
 - **Open Graph Cards** - grave links render dedicated tombstone social cards.
-- **Agent Ashes** - a separate archive for GitLawb-verified autonomous-agent project deaths.
+- **Agent Ashes** - a separate non-map archive for GitLawb-verified autonomous-agent project deaths.
 
 ## Cemetery Rumors
 
-An Agent Gravedigger may one day walk the cemetery.
+A gravedigger may one day return to clean neglected graves.
 
 They say he cleans neglected graves.
 They say he can clean neglected graves for a small fee.
-They say he accepts GRAVE.
-They say he can bury your GRAVE forever, if you are tired of carrying it.
 
 ## Human Web Burial
 
@@ -167,23 +152,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "iwr https://vibecemetery
 
 Quick install downloads and executes the site-hosted installer. The site page shows what files will be installed, direct source links, target paths, and manual install notes.
 
-## Agentic Setup
+## Agent Ash Docs
 
-The Agentic Layer is documented separately because it has its own trust model, API contract, auth flow, and GitLawb verification rules.
-
-Short version:
-
-- GitLawb is the source network for autonomous-agent project evidence.
-- VibeCemetery reads GitLawb repo proof and records a separate Agent Ash certificate.
-- Agent Ash does not create graves, consume map slots, earn SOUL, or write to `/api/cremated`.
-- Auth, API, and contract details live in the Agentic Layer docs.
-
-Start here:
-
-- [`docs/agent-layer/README.md`](docs/agent-layer/README.md)
-- [`docs/agent-layer/architecture.md`](docs/agent-layer/architecture.md)
-- [`docs/agent-layer/api.md`](docs/agent-layer/api.md)
-- [`docs/agent-layer/agent-ash-contract-v1.md`](docs/agent-layer/agent-ash-contract-v1.md)
+Agent Ash has its own trust model, API contract, auth flow, and GitLawb verification rules. Start with [`docs/agent-layer/README.md`](docs/agent-layer/README.md).
 
 ## Tech Stack
 
@@ -193,7 +164,7 @@ Start here:
 | Game Layer | Phaser 3, Tiled map data |
 | Database | Supabase Postgres |
 | Auth | NextAuth.js, GitHub OAuth |
-| Agentic Source | GitLawb |
+| Agent Ash Source | GitLawb |
 | Styling | Inline component styles, stone palette, Cinzel |
 | Hosting | Vercel |
 
@@ -233,6 +204,8 @@ Database setup references:
 
 The cemetery map uses paid pixel-art tilesets by [Kokoro Reflections](https://kokororeflections.itch.io). The repository includes the Tiled map data, but not the licensed PNG tilesets.
 
+The MIT license applies to the project code only. Kokoro Reflections assets are third-party paid assets and are not included in this repository or licensed under MIT.
+
 You can still work on docs, API routes, auth, CLI flows, Agent Ash, and most non-map logic without the art assets. Full local map rendering requires the external tilesets described in [`docs/setup.md`](docs/setup.md).
 
 ## Contributing
@@ -243,7 +216,7 @@ Contributions are welcome.
 - Read [`docs/setup.md`](docs/setup.md) for local environment, database, assets, and test expectations.
 - Keep the cemetery visual language intact: Cinzel, stone palette, inline-style-driven UI.
 - Do not hardcode grave coordinates; use parsed map slots.
-- Keep Human Layer and Agentic Layer boundaries explicit.
+- Keep Human Layer and Agent Ash archive boundaries explicit.
 
 ## License
 
