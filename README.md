@@ -100,6 +100,16 @@ Canonical Agent Ash docs live in [`docs/agent-layer/README.md`](docs/agent-layer
 - **Open Graph Cards** - grave links render dedicated tombstone social cards.
 - **Agent Ashes** - a separate non-map archive for GitLawb-verified autonomous-agent project deaths.
 
+## Roadmap
+
+VibeCemetery is moving toward more original IP, deeper cemetery rituals, and a stronger native world.
+
+- **Cemetery Map 2.0** - original VibeCemetery art direction for the playable cemetery, built around the project's own visual identity.
+- **The Gravedigger** - a native cemetery character for lore, guidance, grave care, and future ritual interactions.
+- **Ritual Layer** - optional community rituals around remembrance, cleanup, cremation, symbolic burns, and interactions with the Gravedigger, designed for original or permissive VibeCemetery-owned surfaces.
+
+The current product remains focused on human-controlled GitHub burials, cremations, `/bury`, and the separate non-map Agent Ash archive.
+
 ## Cemetery Rumors
 
 A gravedigger may one day return to clean neglected graves.
