@@ -22,7 +22,7 @@ export async function generateMetadata({
   return buildGraveShareMetadata({ siteUrl, grave: result.grave })
 }
 
-// /grave/[id] → redirect to home with ?grave=id to navigate camera to the grave
+// /grave/[id] → redirect to cemetery with ?grave=id to navigate camera to the grave
 export default async function GravePage({
   params,
 }: {

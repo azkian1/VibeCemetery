@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useMemo, useRef } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import { useModal, useGame } from '@/context/GameContext';
 import ModalOverlay from './ModalOverlay';
@@ -48,17 +48,20 @@ function toEnglishSafeProjectLabel(name: string): string {
 }
 
 export default function BuryFlowModal() {
-  const { close, open } = useModal();
+  const { close, open, modalData } = useModal();
   const { state, dispatch } = useGame();
   const { data: session } = useSession();
   const isMobile = useIsMobile();
   const username = session?.user?.github_username ?? null;
   const hasSharedFirstGrave = Boolean(session?.user?.x_first_grave_shared_at);
+  const initialDeadRepos = modalData?.initialDeadRepos;
+  const initialRepos = useMemo(() => initialDeadRepos ?? [], [initialDeadRepos]);
+  const suppressCeremony = modalData?.suppressCeremony === true;
 
-  const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
-  const [repos, setRepos] = useState<DeadRepo[]>([]);
+  const [step, setStep] = useState<1 | 2 | 3 | 4>(initialRepos.length > 0 ? 2 : 1);
+  const [repos, setRepos] = useState<DeadRepo[]>(initialRepos);
   const [filteredCount, setFilteredCount] = useState(0);
-  const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [selected, setSelected] = useState<Set<number>>(() => new Set(initialRepos.map((repo) => repo.id)));
   const [graveSet, setGraveSet] = useState<Set<number>>(new Set());
   const [causes, setCauses] = useState<Map<number, string>>(new Map());
   const [results, setResults] = useState<BuryResult[]>([]);
@@ -102,6 +105,16 @@ export default function BuryFlowModal() {
   });
   const slotsUnlocked = slotEconomy.slotsUnlocked;
   const availableSlots = slotEconomy.availableSlots;
+  const initialGraveSetAppliedRef = useRef(false);
+
+  useEffect(() => {
+    if (initialGraveSetAppliedRef.current) return;
+    if (initialRepos.length === 0) return;
+    if (state.gravesLoading || state.crematedLoading) return;
+
+    initialGraveSetAppliedRef.current = true;
+    setGraveSet(getDefaultGraveSetForSelectAll(initialRepos.map((repo) => repo.id), availableSlots));
+  }, [availableSlots, initialRepos, state.crematedLoading, state.gravesLoading]);
 
   // ── Cremation daily limit ──
   const dailyCremationsLeft = useMemo(() => {
@@ -271,9 +284,11 @@ export default function BuryFlowModal() {
             // Emit ceremony BEFORE dispatch so PhaserCanvas pre-registers the slot_id
             const chatText = `${toEnglishSafeProjectLabel(repo.name)} has been buried. Rest in peace.`;
             const gravediggerPhrase = GRAVEDIGGER_BURIAL[Math.floor(Math.random() * GRAVEDIGGER_BURIAL.length)];
-            const ceremonyData = { slot_id: grave.slot_id, id: grave.id, name: grave.name, chatText, gravediggerPhrase };
-            cemeteryEvents.emit('burial_ceremony', ceremonyData);
-            ceremonyRef.current = ceremonyData;
+            if (!suppressCeremony) {
+              const ceremonyData = { slot_id: grave.slot_id, id: grave.id, name: grave.name, chatText, gravediggerPhrase };
+              cemeteryEvents.emit('burial_ceremony', ceremonyData);
+              ceremonyRef.current = ceremonyData;
+            }
             dispatch({ type: 'ADD_GRAVE', grave });
             buryResults.push({ name: repo.name, success: true, type: 'grave', grave });
           }
@@ -343,9 +358,7 @@ export default function BuryFlowModal() {
     if (hasCeremony && !hasOtherResults) {
       close();
     }
-  }, [repos, selected, graveSet, causes, dispatch, burying, close]);
-
-  if (isMobile) return null;
+  }, [repos, selected, graveSet, causes, dispatch, burying, close, suppressCeremony]);
 
   return (
     <ModalOverlay onClose={burying ? (() => {}) : close}>

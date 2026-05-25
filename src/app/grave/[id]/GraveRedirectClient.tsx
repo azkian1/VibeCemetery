@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 
 export default function GraveRedirectClient({ graveId }: { graveId: string }) {
   const router = useRouter()
-  const target = `/?grave=${graveId}`
+  const target = `/cemetery?grave=${graveId}`
 
   useEffect(() => {
     router.replace(target)

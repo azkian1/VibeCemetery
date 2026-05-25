@@ -10,7 +10,7 @@ import {
   type ReactNode,
 } from 'react';
 import { useSession } from 'next-auth/react';
-import type { GraveData, CrematedData } from '@/types/game';
+import type { GraveData, CrematedData, DeadRepo } from '@/types/game';
 import type { SlotPositionData } from '@/game/events';
 
 // ── Types ──────────────────────────────────────────────
@@ -32,6 +32,8 @@ export interface ModalData {
   slotId?: number;
   slotType?: string;
   graveData?: GraveData;
+  initialDeadRepos?: DeadRepo[];
+  suppressCeremony?: boolean;
   buildingName?: string;
   crematedItem?: CrematedData;
 }

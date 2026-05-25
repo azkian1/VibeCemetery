@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 
-// /urn/[id] → redirect to home with ?urn=id to open the urn modal
+// /urn/[id] → redirect to cemetery with ?urn=id to open the urn modal
 export default async function UrnPage({
   params,
 }: {
@@ -11,5 +11,5 @@ export default async function UrnPage({
   if (!/^\d+$/.test(id)) {
     redirect('/');
   }
-  redirect(`/?urn=${id}`);
+  redirect(`/cemetery?urn=${id}`);
 }

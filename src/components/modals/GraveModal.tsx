@@ -152,7 +152,7 @@ export default function GraveModal() {
     state.graves.forEach((g) => { totalF += g.f_count ?? 0; });
 
     const handleMetaShare = () => {
-      const url = `${window.location.origin}/?grave=meta`;
+      const url = `${window.location.origin}/cemetery?grave=meta`;
       navigator.clipboard.writeText(url).then(() => {
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);

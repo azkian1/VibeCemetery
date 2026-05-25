@@ -20,7 +20,7 @@ test.describe('Mobile (390×844)', () => {
   test.use({ viewport: { width: 390, height: 844 } });
 
   test.beforeEach(async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/cemetery');
     await waitForApp(page);
   });
 
@@ -103,7 +103,7 @@ test.describe('Desktop (1440×900)', () => {
   test.use({ viewport: { width: 1440, height: 900 } });
 
   test.beforeEach(async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/cemetery');
     await waitForApp(page);
   });
 
@@ -111,10 +111,10 @@ test.describe('Desktop (1440×900)', () => {
     await expect(page.locator('canvas').first()).toBeVisible();
   });
 
-  test('CTA buttons are visible on desktop', async ({ page }) => {
-    await expect(page.getByRole('button', { name: /BURY/ })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'CLI SKILL' })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'AGENT SKILL' })).toBeVisible();
+  test('first-action CTA buttons are hidden on desktop map', async ({ page }) => {
+    await expect(page.getByRole('button', { name: /BURY/ })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'CLI SKILL' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'AGENT SKILL' })).toHaveCount(0);
   });
 
   test('Login button is visible on desktop', async ({ page }) => {
@@ -147,7 +147,7 @@ test.describe('Deep links (mobile)', () => {
   test.use({ viewport: { width: 390, height: 844 } });
 
   test('?grave=meta loads without crash', async ({ page }) => {
-    await page.goto('/?grave=meta');
+    await page.goto('/cemetery?grave=meta');
     await waitForApp(page);
     await expect(page.locator('canvas').first()).toBeVisible();
   });
@@ -162,7 +162,7 @@ test.describe('Deep links (desktop)', () => {
   test.use({ viewport: { width: 1440, height: 900 } });
 
   test('?grave=meta loads and animates', async ({ page }) => {
-    await page.goto('/?grave=meta');
+    await page.goto('/cemetery?grave=meta');
     await waitForApp(page);
     await page.waitForTimeout(5000);
     await expect(page.locator('canvas').first()).toBeVisible();
