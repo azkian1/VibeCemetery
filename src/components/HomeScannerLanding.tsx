@@ -10,37 +10,6 @@ import type { CrematedData, DeadRepo, GitHubScanResult, GraveData } from '@/type
 
 const AUTH_GATE_COPY = 'Connect GitHub to scan and bury your own repos.';
 
-export function normalizeGitHubUsernameInput(value: string): string {
-  const trimmed = value.trim();
-  if (!trimmed) return '';
-
-  try {
-    const withProtocol = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
-    const url = new URL(withProtocol);
-    if (url.hostname.toLowerCase() === 'github.com') {
-      return (url.pathname.split('/').filter(Boolean)[0] ?? '').toLowerCase();
-    }
-  } catch {
-    // Fall through to plain username parsing.
-  }
-
-  return trimmed.replace(/^@/, '').split(/[/?#]/)[0].toLowerCase();
-}
-
-export function canScanRequestedUsername({
-  requested,
-  authenticated,
-}: {
-  requested: string;
-  authenticated: string | null | undefined;
-}): { ok: true } | { ok: false; message: string } {
-  if (!authenticated) return { ok: false, message: AUTH_GATE_COPY };
-  if (requested && requested.toLowerCase() !== authenticated.toLowerCase()) {
-    return { ok: false, message: AUTH_GATE_COPY };
-  }
-  return { ok: true };
-}
-
 export function formatLastPushAge(value: string, now = new Date()): string {
   const pushedAt = new Date(value);
   if (!value || Number.isNaN(pushedAt.getTime())) return 'unknown';
@@ -83,15 +52,10 @@ function ScannerShell() {
   const authenticatedUsername = session?.user?.github_username ?? null;
   const recordsLoading = state.gravesLoading || state.crematedLoading;
   const [isCompactViewport, setIsCompactViewport] = useState(false);
-  const [input, setInput] = useState('');
   const [repos, setRepos] = useState<DeadRepo[] | null>(null);
   const [totalRepos, setTotalRepos] = useState(0);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (authenticatedUsername && !input) setInput(authenticatedUsername);
-  }, [authenticatedUsername, input]);
 
   useEffect(() => {
     const updateViewport = () => setIsCompactViewport(window.innerWidth < 640);
@@ -101,23 +65,15 @@ function ScannerShell() {
   }, []);
 
   const runScan = async () => {
+    if (status !== 'authenticated' || !authenticatedUsername) {
+      setMessage(AUTH_GATE_COPY);
+      setRepos(null);
+      void signIn('github');
+      return;
+    }
+
     if (recordsLoading) {
       setMessage('Opening cemetery ledger before scanning...');
-      return;
-    }
-
-    const requested = normalizeGitHubUsernameInput(input);
-    const allowed = canScanRequestedUsername({ requested, authenticated: authenticatedUsername });
-    if (!allowed.ok) {
-      setMessage(allowed.message);
-      setRepos(null);
-      if (status !== 'authenticated') void signIn('github');
-      return;
-    }
-
-    const username = authenticatedUsername ?? requested;
-    if (!username) {
-      setMessage(AUTH_GATE_COPY);
       return;
     }
 
@@ -126,7 +82,7 @@ function ScannerShell() {
     setRepos(null);
 
     try {
-      const res = await fetch(`/api/github/scan?username=${encodeURIComponent(username)}`);
+      const res = await fetch(`/api/github/scan?username=${encodeURIComponent(authenticatedUsername)}`);
       const data = await res.json().catch(() => null) as GitHubScanResult | { error?: string } | null;
       if (!res.ok) {
         setMessage(data && 'error' in data && data.error ? data.error : `Scan failed (${res.status})`);
@@ -163,11 +119,6 @@ function ScannerShell() {
         <Link href="/" style={{ color: '#e8d5a3', textDecoration: 'none', fontWeight: 700, letterSpacing: 1.2 }}>VibeCemetery</Link>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
           <button style={navButtonStyle} type="button">Connect Wallet</button>
-          {status === 'authenticated' ? (
-            <button style={navButtonStyle} type="button">{authenticatedUsername ?? 'GitHub Connected'}</button>
-          ) : (
-            <button style={navButtonStyle} type="button" onClick={() => signIn('github')}>Connect GitHub</button>
-          )}
         </div>
       </nav>
 
@@ -175,23 +126,14 @@ function ScannerShell() {
         <div style={{ width: 'min(100%, 430px)', border: '1px solid rgba(232,213,163,0.16)', borderRadius: 18, background: 'linear-gradient(180deg, rgba(42,40,37,0.96), rgba(20,18,16,0.98))', boxShadow: '0 18px 44px rgba(0,0,0,0.42), inset 0 1px 0 rgba(255,255,255,0.04)', padding: 'clamp(20px, 4vw, 28px)', textAlign: 'center' }}>
           <p style={{ margin: '0 0 10px', color: '#9a7562', fontSize: 11, letterSpacing: 2, textTransform: 'uppercase' }}>GitHub scanner</p>
           <h1 style={{ margin: '0 auto 12px', maxWidth: 360, fontSize: 'clamp(24px, 3.2vw, 27px)', lineHeight: 1.16, letterSpacing: -0.1 }}>Bury your abandoned GitHub repos</h1>
-          <p style={{ margin: '0 auto 22px', maxWidth: 330, color: '#aaa9a0', lineHeight: 1.5, fontSize: 14, fontFamily: "var(--font-geist-sans), Arial, sans-serif" }}>Scan GitHub, find dead projects, give them a grave.</p>
-
-          <div style={{ display: 'grid', gap: 10 }}>
-            <input
-              value={input}
-              onChange={(event) => setInput(event.target.value)}
-              placeholder="github username"
-              aria-label="GitHub username"
-              style={{ width: '100%', boxSizing: 'border-box', border: '1px solid #3a3530', borderRadius: 12, background: '#11100f', color: '#e8d5a3', padding: '13px 15px', fontSize: 15, outline: 'none', textAlign: 'center', fontFamily: "var(--font-geist-sans), Arial, sans-serif" }}
-            />
+          <div style={{ display: 'grid', gap: 10, marginTop: 22 }}>
             <button
               type="button"
               onClick={() => { void runScan(); }}
               disabled={loading || status === 'loading' || recordsLoading}
-              style={{ border: '1px solid #6a3020', borderRadius: 12, background: loading ? '#3a2520' : 'linear-gradient(180deg, #7a2a24 0%, #421512 100%)', color: '#f4dfaa', padding: '14px 18px', fontWeight: 700, letterSpacing: 1, cursor: loading ? 'wait' : 'pointer', fontFamily: 'inherit', fontSize: 15, boxShadow: '0 0 28px rgba(122,42,36,0.25)' }}
+              style={{ border: '1px solid #6a3020', borderRadius: 12, background: loading ? '#3a2520' : 'linear-gradient(180deg, #7a2a24 0%, #421512 100%)', color: '#f4dfaa', padding: '16px 18px', fontWeight: 700, letterSpacing: 1, cursor: loading ? 'wait' : 'pointer', fontFamily: 'inherit', fontSize: 15, boxShadow: '0 0 28px rgba(122,42,36,0.25)' }}
             >
-              {loading ? 'Scanning GitHub...' : recordsLoading ? 'Opening Ledger...' : 'Scan GitHub'}
+              {loading ? 'Scanning GitHub...' : recordsLoading ? 'Opening Ledger...' : authenticatedUsername ? `Scan @${authenticatedUsername}` : 'Scan GitHub'}
             </button>
           </div>
 
@@ -200,7 +142,7 @@ function ScannerShell() {
             <Link href="/agents/gitlawb" style={secondaryLinkStyle}>Agent / GitLawb Layer</Link>
           </div>
 
-          <p style={{ margin: '16px 0 0', color: '#777168', fontSize: 12, fontFamily: "var(--font-geist-sans), Arial, sans-serif" }}>Dead repos = non-forks inactive for 7+ days.</p>
+          <p style={{ margin: '16px 0 0', color: '#777168', fontSize: 12, fontFamily: "var(--font-geist-sans), Arial, sans-serif" }}>Dead repos = non-forks inactive for 7+ days. Only your connected GitHub can be scanned.</p>
           {message && <p style={{ margin: '14px 0 0', color: '#c78373', fontSize: 13, fontFamily: "var(--font-geist-sans), Arial, sans-serif" }}>{message}</p>}
 
           {repos && (

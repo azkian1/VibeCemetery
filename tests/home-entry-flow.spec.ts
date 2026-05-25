@@ -1,25 +1,11 @@
 import { expect, test } from '@playwright/test'
 import {
-  canScanRequestedUsername,
   filterFreshDeadRepos,
   formatLastPushAge,
-  normalizeGitHubUsernameInput,
 } from '../src/components/HomeScannerLanding'
 import type { CrematedData, DeadRepo, GraveData } from '../src/types/game'
 
 test.describe('home scanner entry flow', () => {
-  test('normalizes GitHub username input without enabling public scans', () => {
-    expect(normalizeGitHubUsernameInput('octocat')).toBe('octocat')
-    expect(normalizeGitHubUsernameInput(' github.com/OctoCat ')).toBe('octocat')
-    expect(normalizeGitHubUsernameInput('https://github.com/OctoCat?tab=repositories')).toBe('octocat')
-
-    expect(canScanRequestedUsername({ requested: 'octocat', authenticated: 'OctoCat' })).toMatchObject({ ok: true })
-    expect(canScanRequestedUsername({ requested: 'someone-else', authenticated: 'OctoCat' })).toMatchObject({
-      ok: false,
-      message: 'Connect GitHub to scan and bury your own repos.',
-    })
-  })
-
   test('formats last push age for result cards', () => {
     expect(formatLastPushAge('2026-05-15T00:00:00Z', new Date('2026-05-25T00:00:00Z'))).toBe('10 days ago')
     expect(formatLastPushAge('2026-05-24T00:00:00Z', new Date('2026-05-25T00:00:00Z'))).toBe('1 day ago')
