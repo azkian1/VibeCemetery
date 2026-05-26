@@ -9,7 +9,7 @@ import { test, expect } from '@playwright/test';
 async function waitForApp(page: import('@playwright/test').Page) {
   await page.getByTestId('phaser-stage').waitFor({ state: 'visible', timeout: 15_000 });
   await expect(page.locator('canvas').first()).toBeVisible();
-  await expect(page.getByLabel('Menu')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'FAQ' })).toBeVisible();
 }
 
 // ===========================================================================
@@ -44,7 +44,7 @@ test.describe('Mobile (390×844)', () => {
   });
 
   test('TopBar is visible on mobile', async ({ page }) => {
-    await expect(page.locator('button').filter({ hasText: '☰' }).first()).toBeVisible();
+    await expect(page.getByRole('button', { name: 'FAQ' })).toBeVisible();
   });
 
   test('Gate copy explains mobile showcase mode', async ({ page }) => {
@@ -53,7 +53,7 @@ test.describe('Mobile (390×844)', () => {
   });
 
   test('BurgerMenu opens on mobile', async ({ page }) => {
-    await page.getByLabel('Menu').click();
+    await page.getByRole('button', { name: 'FAQ' }).click();
     await expect(page.getByRole('heading', { name: 'The Cemetery Guide' })).toBeVisible({ timeout: 5000 });
   });
 
@@ -128,12 +128,13 @@ test.describe('Desktop (1440×900)', () => {
   });
 
   test('TopBar elements visible', async ({ page }) => {
-    await expect(page.locator('button').filter({ hasText: '☰' }).first()).toBeVisible();
+    await expect(page.getByRole('button', { name: 'FAQ' })).toBeVisible();
+    await expect(page.getByLabel('Home')).toBeVisible();
     await expect(page.getByText('Login', { exact: true })).toBeVisible();
   });
 
   test('BurgerMenu opens on desktop', async ({ page }) => {
-    await page.getByLabel('Menu').click();
+    await page.getByRole('button', { name: 'FAQ' }).click();
     await expect(page.getByRole('heading', { name: 'The Cemetery Guide' })).toBeVisible({ timeout: 10_000 });
     await expect(page.getByRole('button', { name: '@vibecmtry on 𝕏' })).toBeVisible();
     await expect(page.getByRole('button', { name: /Mogil/i })).toHaveCount(0);

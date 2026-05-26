@@ -1,6 +1,7 @@
 'use client';
 
 import { useModal } from '@/context/GameContext';
+import Link from 'next/link';
 import AuthButton from './AuthButton';
 import DayCycleIcon from './DayCycleIcon';
 import { useIsMobile } from '@/hooks/useIsMobile';
@@ -46,30 +47,60 @@ export default function TopBar() {
 
       {/* Left zone */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, overflowX: 'auto', scrollbarWidth: 'none' }}>
+        <Link
+          href="/"
+          aria-label="Home"
+          title="Home"
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: 32,
+            height: isMobile ? 30 : 33,
+            color: '#aaa9a0',
+            textDecoration: 'none',
+            border: '1px solid #3a3530',
+            borderRadius: 2,
+            background: 'linear-gradient(180deg, #2a2825 0%, #1e1c18 100%)',
+            fontSize: 15,
+            lineHeight: 1,
+            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03), 0 1px 2px rgba(0,0,0,0.3)',
+          }}
+        >
+          ⌂
+        </Link>
         <button
           onClick={() => open('burger')}
-          aria-label="Menu"
+          aria-label="FAQ"
           style={{
-            background: 'none',
-            border: '1px solid transparent',
+            background: 'linear-gradient(180deg, #2a2825 0%, #1e1c18 100%)',
+            border: '1px solid #3a3530',
             borderRadius: 2,
-            color: '#4a4944',
-            fontSize: 18,
+            color: '#aaa9a0',
+            fontFamily: "var(--font-cinzel), 'Cinzel', Georgia, serif",
+            fontSize: isMobile ? 12 : 13,
+            letterSpacing: 0.5,
             cursor: 'pointer',
-            padding: '6px 8px',
+            display: 'inline-flex',
+            alignItems: 'center',
+            height: isMobile ? 30 : 33,
+            padding: isMobile ? '5px 8px' : '5px 12px',
             lineHeight: 1,
-            transition: 'color 0.15s, border-color 0.15s',
+            transition: 'all 0.15s',
+            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03), 0 1px 2px rgba(0,0,0,0.3)',
           }}
           onMouseEnter={(e) => {
             e.currentTarget.style.borderColor = '#5a4a30';
             e.currentTarget.style.color = '#e8d5a3';
+            e.currentTarget.style.background = 'linear-gradient(180deg, #302e28 0%, #242018 100%)';
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.borderColor = 'transparent';
-            e.currentTarget.style.color = '#4a4944';
+            e.currentTarget.style.borderColor = '#3a3530';
+            e.currentTarget.style.color = '#aaa9a0';
+            e.currentTarget.style.background = 'linear-gradient(180deg, #2a2825 0%, #1e1c18 100%)';
           }}
         >
-          ☰
+          FAQ
         </button>
         {TOPBAR_ACTIONS.map((action) => (
           <button
@@ -80,6 +111,9 @@ export default function TopBar() {
               cursor: 'pointer',
               color: '#aaa9a0',
               fontSize: isMobile ? 12 : 14,
+              display: 'inline-flex',
+              alignItems: 'center',
+              height: isMobile ? 30 : 33,
               padding: isMobile ? '5px 8px' : '5px 12px',
               borderRadius: 2,
               transition: 'all 0.15s',

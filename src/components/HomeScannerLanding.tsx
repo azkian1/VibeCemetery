@@ -202,6 +202,16 @@ function ScannerShell() {
       }}
     >
       <div style={{ position: 'absolute', inset: 0, opacity: 0.22, background: 'linear-gradient(0deg, rgba(0,0,0,0.38), transparent 42%)', pointerEvents: 'none' }} />
+      <style>{`
+        @media (prefers-reduced-motion: no-preference) {
+          @keyframes vc-enter-cemetery-glint {
+            0%, 58%, 100% { border-color: #3a3530; color: #bdb6a4; box-shadow: inset 0 1px 0 rgba(255,255,255,0.03), 0 1px 2px rgba(0,0,0,0.3); }
+            68% { border-color: rgba(232,213,163,0.42); color: #e8d5a3; box-shadow: inset 0 1px 0 rgba(255,255,255,0.08), 0 0 18px rgba(232,213,163,0.24), 0 0 34px rgba(200,160,80,0.14); }
+            78% { border-color: rgba(200,160,80,0.7); color: #f2dfad; box-shadow: inset 0 1px 0 rgba(255,255,255,0.1), 0 0 26px rgba(232,213,163,0.36), 0 0 48px rgba(200,160,80,0.2); }
+            88% { border-color: rgba(232,213,163,0.32); color: #d8c891; box-shadow: inset 0 1px 0 rgba(255,255,255,0.06), 0 0 14px rgba(232,213,163,0.18); }
+          }
+        }
+      `}</style>
       <nav style={{ position: 'relative', zIndex: 1, display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', gap: 12, padding: '18px clamp(16px, 5vw, 48px)' }}>
         <span style={{ gridColumn: 2, color: '#e8d5a3', fontWeight: 700, letterSpacing: 1.2, textAlign: 'center' }}>VibeCemetery</span>
         <div style={{ gridColumn: 3, justifySelf: 'end', display: 'none', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
@@ -225,7 +235,7 @@ function ScannerShell() {
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: isCompactViewport ? '1fr' : '1fr 1fr', gap: 10, marginTop: 14 }}>
-            <Link href="/cemetery" style={secondaryLinkStyle}>Enter Cemetery</Link>
+            <Link href="/cemetery" style={enterCemeteryLinkStyle}>Enter Cemetery</Link>
             <Link href="/agents" style={secondaryLinkStyle}>Agent Layer</Link>
           </div>
 
@@ -286,6 +296,11 @@ const secondaryLinkStyle: React.CSSProperties = {
   justifyContent: 'center',
   color: '#bdb6a4',
   textDecoration: 'none',
+};
+
+const enterCemeteryLinkStyle: React.CSSProperties = {
+  ...secondaryLinkStyle,
+  animation: 'vc-enter-cemetery-glint 5s ease-in-out infinite',
 };
 
 const repoMetaStyle: React.CSSProperties = {

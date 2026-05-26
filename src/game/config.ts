@@ -1,14 +1,14 @@
 import * as Phaser from 'phaser';
 import { CemeteryScene } from './scenes/CemeteryScene';
 
-export function createGameConfig(parent: HTMLElement): Phaser.Types.Core.GameConfig {
+export function createGameConfig(parent: HTMLElement, size: { width: number; height: number }): Phaser.Types.Core.GameConfig {
   return {
     type: Phaser.AUTO,
     parent,
     scale: {
-      mode: Phaser.Scale.RESIZE,
-      width: '100%',
-      height: '100%',
+      mode: Phaser.Scale.NONE,
+      width: size.width,
+      height: size.height,
     },
     backgroundColor: '#1a1918',
     scene: [CemeteryScene],

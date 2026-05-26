@@ -41,10 +41,16 @@ test('human cemetery top bar keeps Agent Ashes out of the map layer', () => {
 test('Agent Layer hub hosts Agent Ashes and Agent Skill entry points', () => {
   const source = readFileSync('src/app/agents/page.tsx', 'utf8')
 
+  expect(source).toContain('Back')
   expect(source).toContain('Agent Ashes')
   expect(source).toContain('Agent Skill')
+  expect(source).toContain('A separate ash layer for AI agents like Hermes, OpenClaw, and others.')
+  expect(source).toContain('version 1.0')
+  expect(source).toContain('href="/skills/bury/v1"')
   expect(source).toContain("open('agentAshes')")
   expect(source).toContain('href="/agents/gitlawb"')
+  expect(source).not.toContain('Human Cemetery')
+  expect(source).not.toContain('Agent / GitLawb Layer')
 })
 
 test('Agent Ashes modal describes the dashboard placeholder', () => {

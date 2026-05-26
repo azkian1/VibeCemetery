@@ -6,6 +6,23 @@ import { useGame } from '@/context/GameContext';
 import type { ModalType } from '@/context/GameContext';
 import StoneButton from '@/components/ui/StoneButton';
 
+function getContainerSize(element: HTMLElement) {
+  const rect = element.getBoundingClientRect();
+  return {
+    width: Math.floor(rect.width),
+    height: Math.floor(rect.height),
+  };
+}
+
+async function waitForContainerSize(element: HTMLElement) {
+  for (let i = 0; i < 10; i += 1) {
+    const size = getContainerSize(element);
+    if (size.width > 0 && size.height > 0) return size;
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+  }
+  return getContainerSize(element);
+}
+
 export default function PhaserCanvas() {
   const containerRef = useRef<HTMLDivElement>(null);
   const gameRef = useRef<Phaser.Game | null>(null);
@@ -99,8 +116,23 @@ export default function PhaserCanvas() {
 
       if (cancelled || !containerRef.current) return;
 
-      const game = new Phaser.Game(createGameConfig(containerRef.current));
+      const parent = containerRef.current;
+      const initialSize = await waitForContainerSize(parent);
+      if (cancelled || !containerRef.current || initialSize.width <= 0 || initialSize.height <= 0) return;
+
+      const game = new Phaser.Game(createGameConfig(parent, initialSize));
       gameRef.current = game;
+
+      const resizeObserver = new ResizeObserver(([entry]) => {
+        if (!entry || gameRef.current !== game) return;
+        const width = Math.floor(entry.contentRect.width);
+        const height = Math.floor(entry.contentRect.height);
+        if (width <= 0 || height <= 0) return;
+        game.scale.resize(width, height);
+      });
+      resizeObserver.observe(parent);
+
+      game.events.once(Phaser.Core.Events.DESTROY, () => resizeObserver.disconnect());
     })();
 
     return () => {
