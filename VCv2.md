@@ -110,6 +110,13 @@ New VCv2 action split:
 - Cremation is not active while the user still has grave slots.
 - If the user opens burial with no grave slots, the UI should explain that no grave slots are left and cremation is available.
 
+Map HUD action split:
+
+- The old `BURY` floating CTA is replaced by `SHOVEL` and `FIRE`.
+- `SHOVEL` opens burial mode and is disabled when no grave slots remain.
+- `FIRE` opens cremation mode and is disabled while grave slots remain.
+- `CLI SKILL` stays separate from both ritual actions.
+
 ## Burial From First Page
 
 Clicking `Bury` opens the existing `BuryFlowModal` with the selected repo preloaded.

@@ -60,7 +60,7 @@ test.describe('Mobile (390×844)', () => {
   // ---- Mobile-specific behavior ----
 
   test('CTA buttons are hidden on mobile', async ({ page }) => {
-    expect(await page.getByRole('button', { name: /BURY/ }).count()).toBe(0);
+    expect(await page.getByRole('button', { name: /SHOVEL|FIRE/ }).count()).toBe(0);
     expect(await page.getByRole('button', { name: /SKILL/ }).count()).toBe(0);
   });
 
@@ -112,7 +112,8 @@ test.describe('Desktop (1440×900)', () => {
   });
 
   test('Human CTA buttons stay on desktop map without Agent Skill', async ({ page }) => {
-    await expect(page.getByRole('button', { name: /BURY/ })).toBeVisible();
+    await expect(page.getByRole('button', { name: /SHOVEL/ })).toBeVisible();
+    await expect(page.getByRole('button', { name: /FIRE/ })).toBeVisible();
     await expect(page.getByRole('button', { name: 'CLI SKILL' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'AGENT SKILL' })).toHaveCount(0);
   });

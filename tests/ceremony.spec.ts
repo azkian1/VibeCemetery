@@ -57,8 +57,8 @@ test.describe('Ceremony plumbing (desktop 1440×900)', () => {
     await expect(page.locator('canvas').first()).toBeVisible();
   });
 
-  test('BuryFlowModal can be opened (BURY button exists)', async ({ page }) => {
-    const buryBtn = page.getByRole('button', { name: /BURY/ });
+  test('BuryFlowModal can be opened from the shovel button', async ({ page }) => {
+    const buryBtn = page.getByRole('button', { name: /SHOVEL/ });
     await expect(buryBtn).toBeVisible();
     // Click should open modal (will show login prompt for unauth)
     await buryBtn.click();
@@ -97,7 +97,7 @@ test.describe('Ceremony plumbing (mobile 390×844)', () => {
     await expect(page.locator('canvas').first()).toBeVisible();
   });
 
-  test('Mobile: BURY modal returns null (no crash)', async ({ page }) => {
+  test('Mobile: ritual CTAs return null (no crash)', async ({ page }) => {
     await page.goto('/');
     await waitForApp(page);
     // BuryFlowModal returns null on mobile — verify no stale ceremony state
