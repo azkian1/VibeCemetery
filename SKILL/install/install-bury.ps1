@@ -1,6 +1,6 @@
 $ErrorActionPreference = 'Stop'
 
-$expectedManifestPayloadSha256 = '6fe9107b0010a9bdcbf1459f9c4b6019217a882d1d0abd59a5ea6b469b3263a6'
+$expectedManifestPayloadSha256 = '5254d2459c1275b48c9082a669cb7970f8a60e20a012447c219593d5524385c5'
 $rawBase = if ($env:VIBECEMETERY_INSTALL_RAW_BASE_URL) { $env:VIBECEMETERY_INSTALL_RAW_BASE_URL } else { 'https://vibecemetery.app/skills/bury/v1' }
 $rawBase = $rawBase.TrimEnd('/')
 $tmpDir = New-Item -ItemType Directory -Force -Path ([System.IO.Path]::Combine([System.IO.Path]::GetTempPath(), [System.IO.Path]::GetRandomFileName()))
