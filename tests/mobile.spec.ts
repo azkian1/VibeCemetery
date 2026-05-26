@@ -111,9 +111,9 @@ test.describe('Desktop (1440×900)', () => {
     await expect(page.locator('canvas').first()).toBeVisible();
   });
 
-  test('first-action CTA buttons are hidden on desktop map', async ({ page }) => {
-    await expect(page.getByRole('button', { name: /BURY/ })).toHaveCount(0);
-    await expect(page.getByRole('button', { name: 'CLI SKILL' })).toHaveCount(0);
+  test('Human CTA buttons stay on desktop map without Agent Skill', async ({ page }) => {
+    await expect(page.getByRole('button', { name: /BURY/ })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'CLI SKILL' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'AGENT SKILL' })).toHaveCount(0);
   });
 

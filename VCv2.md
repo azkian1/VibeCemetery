@@ -17,7 +17,7 @@ Current first screen:
 
 ```text
 Top nav:
-[VibeCemetery]                                      [Connect Wallet]
+[VibeCemetery]                         [Connect Wallet hidden/reserved]
 
 Centered card:
 GitHub scanner
@@ -119,7 +119,8 @@ Current routes:
 
 - `/` - scanner landing page.
 - `/cemetery` - existing Phaser cemetery map experience.
-- `/agents/gitlawb` - Agent / GitLawb layer entry.
+- `/agents` - Agent / GitLawb layer hub.
+- `/agents/gitlawb` - Agent Skill install contract.
 
 Deep link behavior:
 
@@ -136,18 +137,32 @@ Kept on the map:
 - Phaser cemetery map.
 - Graves.
 - Grave details.
+- Crematory.
+- The Crypt.
 - Necropolis / leaderboard.
 - Profile/auth UI.
 - Deep links to graves and urns.
-
-Hidden from visible map UI for VCv2 clarity:
-
 - `BURY` floating CTA.
 - `CLI SKILL` floating CTA.
+
+Moved out of visible map UI for VCv2 clarity:
+
 - `AGENT SKILL` floating CTA.
+- `Agent Ashes` top-bar action.
 - `Start here` prompt.
 
-The map is now an exploration/result layer, not the first onboarding screen.
+The map is now the Human layer: hands-on cemetery interaction, manual burial, human cremations, Necropolis, Crematory, and The Crypt. Agent Ashes and Agent Skill live in the separate Agent layer hub.
+
+## Agent Layer Hub
+
+`/agents` is the compact Agent / GitLawb layer entry.
+
+Current hub actions:
+
+- `Agent Ashes` - opens the existing Agent Ashes modal outside the cemetery map.
+- `Agent Skill` - opens the GitLawb Agent Skill install page at `/agents/gitlawb`.
+
+The Agent layer is for AI/agent records and setup. It does not create graves, does not write human cremations, and does not compete with the Human map HUD.
 
 ## Visual Direction Implemented
 
@@ -180,6 +195,7 @@ Key files:
 - `src/components/HomeScannerLanding.tsx` - scanner landing page.
 - `src/components/CemeteryApp.tsx` - extracted map app shell.
 - `src/app/cemetery/page.tsx` - map route.
+- `src/app/agents/page.tsx` - Agent / GitLawb layer hub.
 - `src/components/modals/BuryFlowModal.tsx` - supports preloaded repo burial from `/`.
 - `src/lib/bury-intent.ts` - GitHub auth callback now returns to `/cemetery?modal=bury`.
 
@@ -197,4 +213,4 @@ Coverage:
 - Only the connected GitHub account can be scanned.
 - Scan results appear before the map.
 - The map remains accessible through `Enter Cemetery`.
-- CLI/skill/agent-skill CTAs no longer compete with the first-page scan action.
+- CLI Skill and BURY stay in the Human map layer; Agent Ashes and Agent Skill no longer compete with the cemetery HUD.

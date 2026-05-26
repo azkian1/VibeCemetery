@@ -117,7 +117,7 @@ function ScannerShell() {
       <div style={{ position: 'absolute', inset: 0, opacity: 0.22, background: 'linear-gradient(0deg, rgba(0,0,0,0.38), transparent 42%)', pointerEvents: 'none' }} />
       <nav style={{ position: 'relative', zIndex: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '18px clamp(16px, 5vw, 48px)' }}>
         <Link href="/" style={{ color: '#e8d5a3', textDecoration: 'none', fontWeight: 700, letterSpacing: 1.2 }}>VibeCemetery</Link>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+        <div style={{ display: 'none', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
           <button style={navButtonStyle} type="button">Connect Wallet</button>
         </div>
       </nav>
@@ -139,7 +139,7 @@ function ScannerShell() {
 
           <div style={{ display: 'grid', gridTemplateColumns: isCompactViewport ? '1fr' : '1fr 1fr', gap: 10, marginTop: 14 }}>
             <Link href="/cemetery" style={secondaryLinkStyle}>Enter Cemetery</Link>
-            <Link href="/agents/gitlawb" style={secondaryLinkStyle}>Agent / GitLawb Layer</Link>
+            <Link href="/agents" style={secondaryLinkStyle}>Agent / GitLawb Layer</Link>
           </div>
 
           <p style={{ margin: '16px 0 0', color: '#777168', fontSize: 12, fontFamily: "var(--font-geist-sans), Arial, sans-serif" }}>Dead repos = non-forks inactive for 7+ days. Only your connected GitHub can be scanned.</p>

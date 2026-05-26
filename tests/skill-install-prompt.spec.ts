@@ -105,14 +105,13 @@ test('human /bury install helpers point to the site-hosted skill page', () => {
   expect(getSkillPlatformLabels()).toEqual(['macOS', 'Windows'])
 })
 
-test('CTA buttons expose BURY, CLI SKILL, and AGENT SKILL separately', () => {
+test('CTA buttons keep Human BURY and CLI SKILL separate from Agent Skill', () => {
   const source = readFileSync(join(process.cwd(), 'src', 'components', 'hud', 'CTAButtons.tsx'), 'utf8')
 
   expect(source).toContain('BURY')
   expect(source).toContain('CLI SKILL')
-  expect(source).toContain('AGENT SKILL')
   expect(source).toContain("open('skill')")
-  expect(source).toContain("open('agentSkill')")
+  expect(source).not.toContain("open('agentSkill')")
   expect(source).toContain('0 0 18px')
 })
 

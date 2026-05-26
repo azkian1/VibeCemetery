@@ -15,6 +15,7 @@ const MausoleumModal = dynamic(() => import('./modals/MausoleumModal'), { ssr: f
 const TopBar = dynamic(() => import('./hud/TopBar'), { ssr: false });
 const BuryFlowModal = dynamic(() => import('./modals/BuryFlowModal'), { ssr: false });
 const BurgerMenu = dynamic(() => import('./hud/BurgerMenu'), { ssr: false });
+const CTAButtons = dynamic(() => import('./hud/CTAButtons'), { ssr: false });
 const ChatLog = dynamic(() => import('./hud/ChatLog'), { ssr: false });
 const Minimap = dynamic(() => import('./hud/Minimap'), { ssr: false });
 const GateEpitaph = dynamic(() => import('./hud/GateEpitaph'), { ssr: false });
@@ -205,6 +206,7 @@ export default function CemeteryApp() {
           <GateEpitaph />
           <HoverTooltip />
           <Minimap />
+          <CTAButtons />
           <ChatLog />
           <ZoomButtons />
           <ModalLayer />

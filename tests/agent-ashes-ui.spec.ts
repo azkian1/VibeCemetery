@@ -32,11 +32,19 @@ test('human layer modals label ranks as GitHub Reapers', () => {
   expect(source).not.toContain('Git Reaper')
 })
 
-test('top bar exposes Agent Ashes next to Necropolis', () => {
+test('human cemetery top bar keeps Agent Ashes out of the map layer', () => {
   expect(TOPBAR_ACTIONS.map((action) => action.label)).toEqual([
     'Necropolis',
-    'Agent Ashes',
   ])
+})
+
+test('Agent Layer hub hosts Agent Ashes and Agent Skill entry points', () => {
+  const source = readFileSync('src/app/agents/page.tsx', 'utf8')
+
+  expect(source).toContain('Agent Ashes')
+  expect(source).toContain('Agent Skill')
+  expect(source).toContain("open('agentAshes')")
+  expect(source).toContain('href="/agents/gitlawb"')
 })
 
 test('Agent Ashes modal describes the dashboard placeholder', () => {

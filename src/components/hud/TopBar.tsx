@@ -7,7 +7,6 @@ import { useIsMobile } from '@/hooks/useIsMobile';
 
 export const TOPBAR_ACTIONS = [
   { modal: 'leaderboard', label: 'Necropolis', ariaLabel: 'Open Necropolis leaderboard' },
-  { modal: 'agentAshes', label: 'Agent Ashes', ariaLabel: 'Open Agent Ashes' },
 ] as const;
 
 export default function TopBar() {

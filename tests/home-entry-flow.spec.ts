@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { readFileSync } from 'node:fs'
 import {
   filterFreshDeadRepos,
   formatLastPushAge,
@@ -22,6 +23,15 @@ test.describe('home scanner entry flow', () => {
     const cremated: CrematedData[] = [cremation({ name: 'Cremated', author_github: 'octocat' })]
 
     expect(filterFreshDeadRepos({ repos, graves, cremated, username: 'octocat' }).map((item) => item.name)).toEqual(['fresh'])
+  })
+
+  test('home keeps wallet hidden and routes Agent Layer to the hub', () => {
+    const source = readFileSync('src/components/HomeScannerLanding.tsx', 'utf8')
+
+    expect(source).toContain('Connect Wallet')
+    expect(source).toContain("display: 'none'")
+    expect(source).toContain('href="/agents"')
+    expect(source).not.toContain('href="/agents/gitlawb"')
   })
 })
 
