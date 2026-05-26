@@ -9,6 +9,7 @@ interface StepSelectProps {
   availableSlots: number;
   slotsUnlocked: number;
   dailyCremationsLeft: number;
+  singleSelection?: boolean;
   onToggle: (id: number) => void;
   onToggleAll: () => void;
   onToggleGrave: (id: number) => void;
@@ -30,17 +31,19 @@ export default function StepSelect({
   availableSlots,
   slotsUnlocked,
   dailyCremationsLeft,
+  singleSelection = false,
   onToggle,
   onToggleAll,
   onToggleGrave,
   onNext,
   onBack,
 }: StepSelectProps) {
-  const allSelected = repos.every((r) => selected.has(r.id));
-  const graveCount = [...selected].filter(id => graveSet.has(id)).length;
-  const cremateCount = selected.size - graveCount;
+  const allSelected = singleSelection ? selected.size > 0 : repos.every((r) => selected.has(r.id));
+  const graveCount = singleSelection ? selected.size : [...selected].filter(id => graveSet.has(id)).length;
+  const cremateCount = singleSelection ? 0 : selected.size - graveCount;
   const limitReached = dailyCremationsLeft === 0;
   const overLimit = cremateCount > dailyCremationsLeft && dailyCremationsLeft !== Infinity;
+  const noBurialSlots = singleSelection && availableSlots <= 0;
 
   return (
     <div>
@@ -67,34 +70,43 @@ export default function StepSelect({
             <span style={{ color: '#6a6960', fontSize: 12 }}> used</span>
           </span>
         </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span style={{ color: limitReached ? '#b86858' : dailyCremationsLeft === Infinity ? '#e8d5a3' : '#aaa9a0', fontSize: 14 }}>
-            &#x1F525; Crematory: {limitReached
-              ? <>closed today</>
-              : dailyCremationsLeft === Infinity
-                ? <>open</>
-                : <>{dailyCremationsLeft} left today</>
-            }
-          </span>
-          {dailyCremationsLeft !== Infinity && (
-            <span>
-              <span style={{ color: '#aaa9a0', fontSize: 13, fontWeight: 600 }}>{3 - dailyCremationsLeft}/3</span>
-              <span style={{ color: '#6a6960', fontSize: 12 }}> today</span>
+        {!singleSelection && (
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ color: limitReached ? '#b86858' : dailyCremationsLeft === Infinity ? '#e8d5a3' : '#aaa9a0', fontSize: 14 }}>
+              &#x1F525; Crematory: {limitReached
+                ? <>closed today</>
+                : dailyCremationsLeft === Infinity
+                  ? <>open</>
+                  : <>{dailyCremationsLeft} left today</>
+              }
             </span>
-          )}
-        </div>
+            {dailyCremationsLeft !== Infinity && (
+              <span>
+                <span style={{ color: '#aaa9a0', fontSize: 13, fontWeight: 600 }}>{3 - dailyCremationsLeft}/3</span>
+                <span style={{ color: '#6a6960', fontSize: 12 }}> today</span>
+              </span>
+            )}
+          </div>
+        )}
         {overLimit && !limitReached && (
           <div style={{ color: '#8a8980', fontSize: 12, textAlign: 'center', marginTop: 2, borderTop: '1px solid #3a3530', paddingTop: 6 }}>
             {cremateCount - dailyCremationsLeft} selected will be skipped
           </div>
         )}
+        {noBurialSlots && (
+          <div style={{ color: '#b86858', fontSize: 12, textAlign: 'center', marginTop: 2, borderTop: '1px solid #3a3530', paddingTop: 6 }}>
+            No grave slots left. Cremation is available from FIRE.
+          </div>
+        )}
         <div style={{ color: '#6a6960', fontSize: 12, lineHeight: 1.5, textAlign: 'center', marginTop: 2, borderTop: '1px solid #3a3530', paddingTop: 6 }}>
-          Coffin = grave on the map. Fire = crematory record. Cremations earn Souls for more grave slots.
+          {singleSelection
+            ? 'SHOVEL creates graves only. Use FIRE for cremation.'
+            : 'Coffin = grave on the map. Fire = crematory record. Cremations earn Souls for more grave slots.'}
         </div>
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-        <span style={{ color: '#e8d5a3', fontSize: 14 }}>Select projects</span>
+        <span style={{ color: '#e8d5a3', fontSize: 14 }}>{singleSelection ? 'Select one project' : 'Select projects'}</span>
         <button
           onClick={onToggleAll}
           style={{
@@ -107,7 +119,7 @@ export default function StepSelect({
             textDecoration: 'underline',
           }}
         >
-          {allSelected ? 'Deselect all' : 'Select all'}
+          {singleSelection ? (allSelected ? 'Clear' : 'Select first') : (allSelected ? 'Deselect all' : 'Select all')}
         </button>
       </div>
 
@@ -174,27 +186,29 @@ export default function StepSelect({
                   >
                     &#x26B0;
                   </button>
-                  <button
-                    onClick={() => { if (isGrave) onToggleGrave(repo.id); }}
-                    title={!isGrave ? 'Marked for cremation' : 'Mark for cremation'}
-                    style={{
-                      width: 28,
-                      height: 24,
-                      border: '1px solid',
-                      borderColor: !isGrave ? '#b8685850' : '#3a3530',
-                      borderRadius: 2,
-                      background: !isGrave
-                        ? 'linear-gradient(180deg, #5a2020 0%, #3a1010 100%)'
-                        : 'linear-gradient(180deg, #2a2825 0%, #1e1c18 100%)',
-                      color: !isGrave ? '#e8b8a3' : '#6a6960',
-                      cursor: isGrave ? 'pointer' : 'default',
-                      fontSize: 14,
-                      lineHeight: 1,
-                      padding: 0,
-                    }}
-                  >
-                    &#x1F525;
-                  </button>
+                  {!singleSelection && (
+                    <button
+                      onClick={() => { if (isGrave) onToggleGrave(repo.id); }}
+                      title={!isGrave ? 'Marked for cremation' : 'Mark for cremation'}
+                      style={{
+                        width: 28,
+                        height: 24,
+                        border: '1px solid',
+                        borderColor: !isGrave ? '#b8685850' : '#3a3530',
+                        borderRadius: 2,
+                        background: !isGrave
+                          ? 'linear-gradient(180deg, #5a2020 0%, #3a1010 100%)'
+                          : 'linear-gradient(180deg, #2a2825 0%, #1e1c18 100%)',
+                        color: !isGrave ? '#e8b8a3' : '#6a6960',
+                        cursor: isGrave ? 'pointer' : 'default',
+                        fontSize: 14,
+                        lineHeight: 1,
+                        padding: 0,
+                      }}
+                    >
+                      &#x1F525;
+                    </button>
+                  )}
                 </div>
               )}
             </div>
@@ -229,16 +243,16 @@ export default function StepSelect({
         </span>
         <button
           onClick={onNext}
-          disabled={selected.size === 0 || (limitReached && graveCount === 0)}
+          disabled={selected.size === 0 || noBurialSlots || (limitReached && graveCount === 0)}
           style={{
             padding: '8px 24px',
             border: '1px solid #3a3530',
             borderRadius: 2,
-            background: selected.size === 0 || (limitReached && graveCount === 0)
+            background: selected.size === 0 || noBurialSlots || (limitReached && graveCount === 0)
               ? 'linear-gradient(180deg, #2a2825 0%, #1e1c18 100%)'
               : 'linear-gradient(180deg, #5a2020 0%, #3a1010 100%)',
-            color: selected.size === 0 || (limitReached && graveCount === 0) ? '#4a4944' : '#e8d5a3',
-            cursor: selected.size === 0 || (limitReached && graveCount === 0) ? 'default' : 'pointer',
+            color: selected.size === 0 || noBurialSlots || (limitReached && graveCount === 0) ? '#4a4944' : '#e8d5a3',
+            cursor: selected.size === 0 || noBurialSlots || (limitReached && graveCount === 0) ? 'default' : 'pointer',
             fontSize: 14,
             fontFamily: 'inherit',
           }}

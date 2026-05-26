@@ -17,7 +17,7 @@ test.describe('Ceremony plumbing (desktop 1440×900)', () => {
   test.use({ viewport: { width: 1440, height: 900 } });
 
   test.beforeEach(async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/cemetery');
     await waitForApp(page);
   });
 
@@ -52,12 +52,14 @@ test.describe('Ceremony plumbing (desktop 1440×900)', () => {
   test('Phaser scene survives ceremony event bus wiring', async ({ page }) => {
     // Navigate away and back — tests that shutdown() properly cleans up ceremony listeners
     await page.goto('about:blank');
-    await page.goto('/');
+    await page.goto('/cemetery');
     await waitForApp(page);
     await expect(page.locator('canvas').first()).toBeVisible();
   });
 
   test('BuryFlowModal can be opened from the shovel button', async ({ page }) => {
+    await page.goto('/cemetery');
+    await waitForApp(page);
     const buryBtn = page.getByRole('button', { name: /SHOVEL/ });
     await expect(buryBtn).toBeVisible();
     // Click should open modal (will show login prompt for unauth)
@@ -77,7 +79,7 @@ test.describe('Ceremony plumbing (desktop 1440×900)', () => {
     page.on('console', (msg) => {
       if (msg.type() === 'error') consoleErrors.push(msg.text());
     });
-    await page.goto('/');
+    await page.goto('/cemetery');
     await waitForApp(page);
     // Filter out known benign errors (e.g., next-auth session, favicon)
     const realErrors = consoleErrors.filter(
@@ -92,13 +94,13 @@ test.describe('Ceremony plumbing (mobile 390×844)', () => {
   test.use({ viewport: { width: 390, height: 844 } });
 
   test('Mobile: no ceremony crash on load', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/cemetery');
     await waitForApp(page);
     await expect(page.locator('canvas').first()).toBeVisible();
   });
 
   test('Mobile: ritual CTAs return null (no crash)', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/cemetery');
     await waitForApp(page);
     // BuryFlowModal returns null on mobile — verify no stale ceremony state
     const errors: string[] = [];

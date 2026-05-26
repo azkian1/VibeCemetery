@@ -14,6 +14,7 @@ interface StepScanProps {
   username: string | null;
   filteredCount: number;
   recordsLoading?: boolean;
+  burialOnly?: boolean;
   onScanned: (repos: DeadRepo[], total: number) => void;
   onError: (err: string) => void;
   onNext: () => void;
@@ -27,6 +28,7 @@ export default function StepScan({
   username: defaultUsername,
   filteredCount,
   recordsLoading = false,
+  burialOnly = false,
   onScanned,
   onError,
   onNext,
@@ -208,7 +210,7 @@ export default function StepScan({
         Found <strong>{repos.length}</strong> dead repo{repos.length !== 1 ? 's' : ''}
       </p>
       <p style={{ color: '#6a6960', fontSize: 12, lineHeight: 1.5, margin: '0 0 12px' }}>
-        Choose which projects deserve a grave, and which should be cremated.
+        {burialOnly ? 'Choose one project for one grave.' : 'Choose which projects deserve a grave, and which should be cremated.'}
       </p>
       {filteredCount > 0 && (
         <p style={{ color: '#6a6960', fontSize: 12, marginBottom: 16 }}>

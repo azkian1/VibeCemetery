@@ -20,6 +20,8 @@ import type { SlotPositionData } from '@/game/events';
 const DEATH_CAUSES_DEFAULT = 'Developer lost interest';
 const USER_GRAVE_SLOTS_EXHAUSTED = 'USER_GRAVE_SLOTS_EXHAUSTED';
 
+type InitialMode = 'burial' | 'cremation';
+
 export async function shouldFallbackGraveToCremation(res: Response): Promise<boolean> {
   if (res.status === 507) return true;
   if (res.status !== 403) return false;
@@ -42,6 +44,65 @@ export function withDefaultGraveForSelectedRepo(graveSet: Set<number>, repoId: n
 export function getDefaultGraveSetForSelectAll(repoIds: number[], availableSlots: number): Set<number> {
   if (availableSlots <= 0) return new Set();
   return new Set(repoIds.slice(0, availableSlots));
+}
+
+export function shouldAutoAssignGraveOnSelection(initialMode?: InitialMode): boolean {
+  return initialMode !== 'cremation';
+}
+
+export function shouldAllowGraveToggle(initialMode?: InitialMode): boolean {
+  return initialMode !== 'burial' && initialMode !== 'cremation';
+}
+
+export function getInitialSelectedRepoSet(repoIds: number[], initialMode?: InitialMode): Set<number> {
+  return new Set(initialMode === 'burial' ? repoIds.slice(0, 1) : repoIds);
+}
+
+export function getNextSelectedRepoSet({
+  selected,
+  repoId,
+  initialMode,
+}: {
+  selected: Set<number>;
+  repoId: number;
+  initialMode?: InitialMode;
+}): Set<number> {
+  if (initialMode === 'burial') {
+    return selected.has(repoId) ? new Set() : new Set([repoId]);
+  }
+
+  const next = new Set(selected);
+  if (next.has(repoId)) next.delete(repoId);
+  else next.add(repoId);
+  return next;
+}
+
+export function getSelectedReposForSubmit({
+  repos,
+  selected,
+  initialMode,
+}: {
+  repos: DeadRepo[];
+  selected: Set<number>;
+  initialMode?: InitialMode;
+}): DeadRepo[] {
+  return repos.filter((repo) => selected.has(repo.id)).slice(0, initialMode === 'burial' ? 1 : undefined);
+}
+
+export function getRepoSubmissionType({
+  repoId,
+  graveSet,
+  initialMode,
+}: {
+  repoId: number;
+  graveSet: Set<number>;
+  initialMode?: InitialMode;
+}): 'grave' | 'cremated' {
+  return initialMode === 'burial' || graveSet.has(repoId) ? 'grave' : 'cremated';
+}
+
+export function shouldCremateAfterSlotExhaustion(initialMode?: InitialMode): boolean {
+  return initialMode !== 'burial';
 }
 
 export function countUserAutoAssignableGraves({
@@ -95,7 +156,7 @@ export default function BuryFlowModal() {
   const [step, setStep] = useState<1 | 2 | 3 | 4>(initialRepos.length > 0 ? 2 : 1);
   const [repos, setRepos] = useState<DeadRepo[]>(initialRepos);
   const [filteredCount, setFilteredCount] = useState(0);
-  const [selected, setSelected] = useState<Set<number>>(() => new Set(initialRepos.map((repo) => repo.id)));
+  const [selected, setSelected] = useState<Set<number>>(() => getInitialSelectedRepoSet(initialRepos.map((repo) => repo.id), initialMode));
   const [causes, setCauses] = useState<Map<number, string>>(new Map());
   const [results, setResults] = useState<BuryResult[]>([]);
   const [loading, setLoading] = useState(false);
@@ -131,8 +192,8 @@ export default function BuryFlowModal() {
   const availableSlots = slotEconomy.availableSlots;
   const selectableGraveSlots = initialMode === 'cremation' ? 0 : availableSlots;
   const defaultGraveSet = useMemo(
-    () => getDefaultGraveSetForSelectAll(initialRepos.map((repo) => repo.id), selectableGraveSlots),
-    [initialRepos, selectableGraveSlots]
+    () => getDefaultGraveSetForSelectAll(repos.map((repo) => repo.id), selectableGraveSlots),
+    [repos, selectableGraveSlots]
   );
   const [graveSetOverride, setGraveSetOverride] = useState<Set<number> | null>(null);
   const graveSet = graveSetOverride ?? defaultGraveSet;
@@ -178,14 +239,12 @@ export default function BuryFlowModal() {
 
   const handleToggle = useCallback((id: number) => {
     const wasSelected = selected.has(id);
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (wasSelected) next.delete(id);
-      else next.add(id);
-      return next;
-    });
+    setSelected(getNextSelectedRepoSet({ selected, repoId: id, initialMode }));
     setGraveSet((gs) => {
-      if (initialMode === 'burial' || initialMode === 'cremation') return gs;
+      if (!shouldAutoAssignGraveOnSelection(initialMode)) return gs;
+      if (initialMode === 'burial') {
+        return wasSelected ? new Set() : withDefaultGraveForSelectedRepo(new Set(), id, availableSlots);
+      }
       if (!wasSelected) return withDefaultGraveForSelectedRepo(gs, id, availableSlots);
       if (!gs.has(id)) return gs;
       const ng = new Set(gs);
@@ -196,13 +255,16 @@ export default function BuryFlowModal() {
 
   const handleToggleAll = useCallback(() => {
     const repoIds = repos.map((r) => r.id);
-    const deselectAll = selected.size === repos.length;
-    setSelected(deselectAll ? new Set() : new Set(repoIds));
-    setGraveSet(deselectAll ? new Set() : getDefaultGraveSetForSelectAll(repoIds, selectableGraveSlots));
-  }, [repos, selectableGraveSlots, selected, setGraveSet]);
+    const deselectAll = initialMode === 'burial' ? selected.size > 0 : selected.size === repos.length;
+    const nextSelected = deselectAll
+      ? new Set<number>()
+      : new Set(initialMode === 'burial' ? repoIds.slice(0, 1) : repoIds);
+    setSelected(nextSelected);
+    setGraveSet(getDefaultGraveSetForSelectAll([...nextSelected], selectableGraveSlots));
+  }, [initialMode, repos, selectableGraveSlots, selected, setGraveSet]);
 
   const handleToggleGrave = useCallback((id: number) => {
-    if (initialMode === 'burial' || initialMode === 'cremation') return;
+    if (!shouldAllowGraveToggle(initialMode)) return;
     setGraveSet((prev) => {
       const next = new Set(prev);
       if (next.has(id)) {
@@ -224,7 +286,7 @@ export default function BuryFlowModal() {
 
   const handleSubmit = useCallback(async () => {
     if (burying) return;
-    const selectedRepos = repos.filter((r) => selected.has(r.id));
+    const selectedRepos = getSelectedReposForSubmit({ repos, selected, initialMode });
     setBurying(true);
     setBuryTotal(selectedRepos.length);
     setBuryDone(0);
@@ -236,7 +298,7 @@ export default function BuryFlowModal() {
 
     for (const repo of selectedRepos) {
       const cause = causes.get(repo.id) || DEATH_CAUSES_DEFAULT;
-      const isGrave = graveSet.has(repo.id);
+      const isGrave = getRepoSubmissionType({ repoId: repo.id, graveSet, initialMode }) === 'grave';
 
       // Stop sending cremation requests after rate limit
       if (rateLimited && !isGrave) {
@@ -284,6 +346,10 @@ export default function BuryFlowModal() {
           if (res.status === 409) {
             buryResults.push({ name: repo.name, success: false, type: 'grave', error: 'already buried' });
           } else if (await shouldFallbackGraveToCremation(res)) {
+            if (!shouldCremateAfterSlotExhaustion(initialMode)) {
+              buryResults.push({ name: repo.name, success: false, type: 'grave', error: 'no grave slots left' });
+              continue;
+            }
             // Fallback: server says no slots — cremate instead
             if (rateLimited) {
               buryResults.push({ name: repo.name, success: false, type: 'cremated', error: 'daily limit reached — come back tomorrow' });
@@ -387,7 +453,7 @@ export default function BuryFlowModal() {
     if (hasCeremony && !hasOtherResults) {
       close();
     }
-  }, [repos, selected, graveSet, causes, dispatch, burying, close, suppressCeremony]);
+  }, [repos, selected, graveSet, causes, dispatch, burying, close, suppressCeremony, initialMode]);
 
   return (
     <ModalOverlay onClose={burying ? (() => {}) : close}>
@@ -417,7 +483,11 @@ export default function BuryFlowModal() {
 
           {step === 1 && (
             <p style={{ color: '#aaa9a0', fontSize: 13, lineHeight: 1.5, margin: '-6px 0 18px', textAlign: 'center' }}>
-              The Gravedigger scans your GitHub for non-fork repos with no pushes for 7+ days. Pick which ones become graves or cremations.
+              {initialMode === 'burial'
+                ? 'The Gravedigger scans your GitHub for non-fork repos with no pushes for 7+ days. Pick one project for one grave.'
+                : initialMode === 'cremation'
+                  ? 'The Gravedigger scans your GitHub for non-fork repos with no pushes for 7+ days. Pick projects for cremation.'
+                  : 'The Gravedigger scans your GitHub for non-fork repos with no pushes for 7+ days. Pick which ones become graves or cremations.'}
             </p>
           )}
 
@@ -429,6 +499,7 @@ export default function BuryFlowModal() {
               username={username}
               filteredCount={filteredCount}
               recordsLoading={state.gravesLoading || state.crematedLoading}
+              burialOnly={initialMode === 'burial'}
               onScanned={handleScanned}
               onError={setError}
               onNext={() => setStep(2)}
@@ -444,6 +515,7 @@ export default function BuryFlowModal() {
               availableSlots={selectableGraveSlots}
               slotsUnlocked={slotsUnlocked}
               dailyCremationsLeft={dailyCremationsLeft}
+              singleSelection={initialMode === 'burial'}
               onToggle={handleToggle}
               onToggleAll={handleToggleAll}
               onToggleGrave={handleToggleGrave}
@@ -462,6 +534,7 @@ export default function BuryFlowModal() {
               onSubmit={handleSubmit}
               onBack={() => setStep(2)}
               loading={burying}
+              burialOnly={initialMode === 'burial'}
             />
           )}
 

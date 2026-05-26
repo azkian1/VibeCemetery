@@ -27,6 +27,7 @@ interface StepCauseProps {
   onSubmit: () => void;
   onBack: () => void;
   loading: boolean;
+  burialOnly?: boolean;
 }
 
 export default function StepCause({
@@ -38,10 +39,11 @@ export default function StepCause({
   onSubmit,
   onBack,
   loading,
+  burialOnly = false,
 }: StepCauseProps) {
   const selectedRepos = repos.filter((r) => selected.has(r.id));
-  const graveCount = [...selected].filter(id => graveSet.has(id)).length;
-  const cremateCount = selected.size - graveCount;
+  const graveCount = burialOnly ? selectedRepos.length : [...selected].filter(id => graveSet.has(id)).length;
+  const cremateCount = burialOnly ? 0 : selected.size - graveCount;
   
   const getButtonText = () => {
     if (loading) {
@@ -168,7 +170,9 @@ export default function StepCause({
         </button>
       </div>
       <p style={{ color: '#6a6960', fontSize: 12, lineHeight: 1.5, margin: '12px 0 0', textAlign: 'center' }}>
-        Buried projects appear on the cemetery map. Cremated projects go to the Crematory and earn Souls.
+        {burialOnly
+          ? 'Buried projects appear on the cemetery map. One project, one grave.'
+          : 'Buried projects appear on the cemetery map. Cremated projects go to the Crematory and earn Souls.'}
       </p>
     </div>
   );
