@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import { useModal, useGame, useGraves } from '@/context/GameContext';
+import { filterGravesByAuthor } from '@/lib/crypt-filter';
 import ModalOverlay from './ModalOverlay';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import StoneFrame from '@/components/ui/StoneFrame';
@@ -34,7 +35,7 @@ function getTier(slotType: string | undefined): { label: string; color: string; 
 }
 
 export default function MausoleumModal() {
-  const { close, push } = useModal();
+  const { close, push, modalData } = useModal();
   const { state } = useGame();
   const { error, refetch } = useGraves({ auto: false });
   const isMobile = useIsMobile();
@@ -43,6 +44,7 @@ export default function MausoleumModal() {
   const [sortDir, setSortDir] = useState<SortDir>('desc');
 
   const loading = state.gravesLoading;
+  const authorFilter = modalData?.authorFilter;
 
   const slotTypeMap = useMemo(() => {
     const m = new Map<number, string>();
@@ -60,7 +62,7 @@ export default function MausoleumModal() {
   };
 
   const sortedGraves = useMemo(() => {
-    const arr = [...graves.values()];
+    const arr = filterGravesByAuthor([...graves.values()], authorFilter);
     const dir = sortDir === 'asc' ? 1 : -1;
     return arr.sort((a, b) => {
       switch (sortCol) {
@@ -84,7 +86,7 @@ export default function MausoleumModal() {
           return 0;
       }
     });
-  }, [graves, sortCol, sortDir, slotTypeMap]);
+  }, [graves, authorFilter, sortCol, sortDir, slotTypeMap]);
 
   const formatDate = (d: string | null | undefined) => {
     if (!d) return '—';
@@ -113,6 +115,15 @@ export default function MausoleumModal() {
     background: '#1a1a18',
   });
 
+  const staticThStyle: React.CSSProperties = {
+    ...headerCell,
+    borderBottom: '1px solid #3a3935',
+    background: '#1a1a18',
+    position: 'sticky',
+    top: 0,
+    zIndex: 1,
+  };
+
   const ariaSort = (col: SortCol): 'ascending' | 'descending' | 'none' => {
     if (sortCol !== col) return 'none';
     return sortDir === 'asc' ? 'ascending' : 'descending';
@@ -138,7 +149,9 @@ export default function MausoleumModal() {
             The Crypt
           </h2>
           <p style={{ fontSize: 12, color: '#9a998f', textAlign: 'center', margin: '0 0 16px' }}>
-            The Gravedigger&apos;s ledger. Only the buried are recorded here.
+            {authorFilter
+              ? <>The Gravedigger&apos;s ledger for <span style={{ color: '#e8d5a3' }}>{authorFilter}</span>.</>
+              : 'The Gravedigger\'s ledger. Only the buried are recorded here.'}
           </p>
 
           {loading ? (
@@ -169,6 +182,7 @@ export default function MausoleumModal() {
                   <colgroup>
                     <col style={{ width: 44 }} />
                     <col />
+                    {!isMobile && <col style={{ width: 130 }} />}
                     <col />
                     <col style={{ width: 48 }} />
                     {!isMobile && <col style={{ width: 100 }} />}
@@ -177,6 +191,7 @@ export default function MausoleumModal() {
                     <tr>
                       <th scope="col" aria-sort={ariaSort('tier')} style={thStyle('tier', 'center')} onClick={() => toggleSort('tier')}>Tier{sortArrow('tier')}</th>
                       <th scope="col" aria-sort={ariaSort('project')} style={thStyle('project')} onClick={() => toggleSort('project')}>Project{sortArrow('project')}</th>
+                      {!isMobile && <th scope="col" style={staticThStyle}>Reaper</th>}
                       <th scope="col" aria-sort={ariaSort('cause')} style={thStyle('cause')} onClick={() => toggleSort('cause')}>Cause{sortArrow('cause')}</th>
                       <th scope="col" aria-sort={ariaSort('f')} style={thStyle('f', 'center')} onClick={() => toggleSort('f')}>F{sortArrow('f')}</th>
                       {!isMobile && <th scope="col" aria-sort={ariaSort('died')} style={thStyle('died', 'right')} onClick={() => toggleSort('died')}>Died{sortArrow('died')}</th>}
@@ -229,6 +244,18 @@ export default function MausoleumModal() {
                           }}>
                             {g.name}
                           </td>
+                          {!isMobile && (
+                            <td style={{
+                              padding: '8px',
+                              fontSize: 12,
+                              color: '#7898b8',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap',
+                            }}>
+                              {g.author_github || 'anonymous'}
+                            </td>
+                          )}
                           <td style={{
                             padding: '8px',
                             fontSize: 14, color: '#d07868', fontStyle: 'italic',
@@ -254,7 +281,7 @@ export default function MausoleumModal() {
 
               <OrnamentDivider />
               <p style={{ margin: '0', fontSize: 12, color: '#9a998f', textAlign: 'center', letterSpacing: 1.5 }}>
-                {graves.size} at rest
+                {authorFilter ? `${sortedGraves.length} by ${authorFilter}` : `${graves.size} at rest`}
               </p>
             </>
           )}

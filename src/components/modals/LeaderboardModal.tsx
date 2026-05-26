@@ -18,7 +18,7 @@ export const LEADERBOARD_TABS: { key: Tab; label: string }[] = [
 ];
 
 export default function LeaderboardModal() {
-  const { close } = useModal();
+  const { close, push } = useModal();
   const { state } = useGame();
   const { data: session } = useSession();
   const isMobile = useIsMobile();
@@ -213,7 +213,33 @@ export default function LeaderboardModal() {
                               </a>
                             ) : u.author}
                           </span>
-                          <span style={{ fontSize: 13, color: '#aaa9a0', textAlign: 'center', padding: '8px', background: rowBg, borderBottom: border }}>{u.buried}</span>
+                          <button
+                            type="button"
+                            aria-label={
+                              u.buried > 0
+                                ? `Show ${u.author}'s ${u.buried} buried graves in The Crypt`
+                                : `${u.author} has no buried graves in The Crypt`
+                            }
+                            disabled={u.buried === 0}
+                            title={u.buried > 0 ? `Show ${u.author}'s graves in The Crypt` : 'No graves in The Crypt'}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (u.buried > 0) push('mausoleum', { authorFilter: u.author });
+                            }}
+                            style={{
+                              fontSize: 13,
+                              color: u.buried > 0 ? '#e8d5a3' : '#aaa9a0',
+                              textAlign: 'center',
+                              padding: '8px',
+                              background: rowBg,
+                              border: 'none',
+                              borderBottom: border,
+                              cursor: u.buried > 0 ? 'pointer' : 'default',
+                              fontFamily: 'inherit',
+                            }}
+                          >
+                            {u.buried}
+                          </button>
                           <span style={{ fontSize: 13, color: '#6a6960', textAlign: 'center', padding: '8px', background: rowBg, borderBottom: border }}>{u.cremated}</span>
                           <span style={{ fontSize: 13, color: '#e8d5a3', textAlign: 'center', padding: '8px', fontWeight: 'bold', background: rowBg, borderBottom: border }}>{u.total}</span>
                         </div>

@@ -36,6 +36,7 @@ export interface ModalData {
   suppressCeremony?: boolean;
   buildingName?: string;
   crematedItem?: CrematedData;
+  authorFilter?: string;
 }
 
 export interface ChatMessage {

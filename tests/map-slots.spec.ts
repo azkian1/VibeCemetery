@@ -24,4 +24,10 @@ test.describe('map slot economy', () => {
       { slot_id: autoSlot.id },
     ])).toBe(2)
   })
+
+  test('keeps existing Oroshimoro grave slot renderable', () => {
+    const slot = getGraveSlots().find((item) => item.id === 289)
+
+    expect(slot).toEqual({ id: 289, type: 'grave_tall' })
+  })
 })
