@@ -33,6 +33,7 @@ export interface ModalData {
   slotType?: string;
   graveData?: GraveData;
   initialDeadRepos?: DeadRepo[];
+  initialMode?: 'burial' | 'cremation';
   suppressCeremony?: boolean;
   buildingName?: string;
   crematedItem?: CrematedData;

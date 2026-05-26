@@ -1,9 +1,11 @@
 import { expect, test } from '@playwright/test'
 import {
+  countUserAutoAssignableGraves,
   getDefaultGraveSetForSelectAll,
   shouldFallbackGraveToCremation,
   withDefaultGraveForSelectedRepo,
 } from '../src/components/modals/BuryFlowModal'
+import type { GraveData } from '../src/types/game'
 
 test.describe('BuryFlowModal grave fallback', () => {
   test('falls back when the map has no free auto-assignable slots', async () => {
@@ -42,3 +44,34 @@ test.describe('BuryFlowModal default grave selection', () => {
     expect([...graveSet]).toEqual([101, 202])
   })
 })
+
+test.describe('BuryFlowModal slot counting', () => {
+  test('matches GitHub usernames case-insensitively', () => {
+    const graves = new Map<number, GraveData>([[10, grave({ author_github: 'OctoCat' })]])
+
+    expect(countUserAutoAssignableGraves({
+      graves,
+      slotPositions: [],
+      username: 'octocat',
+    })).toBe(1)
+  })
+})
+
+function grave(overrides: Partial<GraveData>): GraveData {
+  return {
+    id: 'grave-id',
+    name: 'grave',
+    born_at: null,
+    died_at: null,
+    cause: null,
+    epitaph: null,
+    description: null,
+    stack: null,
+    github_url: null,
+    github_repo_id: 999,
+    author_github: 'octocat',
+    slot_id: 10,
+    tier: 1,
+    ...overrides,
+  }
+}

@@ -1,6 +1,8 @@
 import { expect, test } from '@playwright/test'
 import { readFileSync } from 'node:fs'
 import {
+  calculateAvailableGraveSlotsForHome,
+  decideHomeRepoAction,
   filterFreshDeadRepos,
   formatLastPushAge,
 } from '../src/components/HomeScannerLanding'
@@ -25,12 +27,56 @@ test.describe('home scanner entry flow', () => {
     expect(filterFreshDeadRepos({ repos, graves, cremated, username: 'octocat' }).map((item) => item.name)).toEqual(['fresh'])
   })
 
+  test('routes first-page repo action to burial while grave slots remain', () => {
+    const graves = new Map<number, GraveData>()
+
+    const availableSlots = calculateAvailableGraveSlotsForHome({
+      graves,
+      cremated: [],
+      username: 'octocat',
+      hasSharedFirstGrave: false,
+    })
+
+    expect(availableSlots).toBe(1)
+    expect(decideHomeRepoAction(availableSlots)).toEqual({ label: 'Bury', mode: 'burial' })
+  })
+
+  test('routes first-page repo action to cremation when no grave slots remain', () => {
+    const graves = new Map<number, GraveData>([[10, grave({ author_github: 'octocat' })]])
+
+    const availableSlots = calculateAvailableGraveSlotsForHome({
+      graves,
+      cremated: [],
+      username: 'octocat',
+      hasSharedFirstGrave: false,
+    })
+
+    expect(availableSlots).toBe(0)
+    expect(decideHomeRepoAction(availableSlots)).toEqual({ label: 'Cremate', mode: 'cremation' })
+  })
+
+  test('ignores non-auto graves when map slot positions are known', () => {
+    const graves = new Map<number, GraveData>([[99, grave({ slot_id: 99, author_github: 'octocat' })]])
+
+    expect(calculateAvailableGraveSlotsForHome({
+      graves,
+      cremated: [],
+      username: 'octocat',
+      hasSharedFirstGrave: false,
+      slotPositions: [{ id: 99, type: 'grave_special', name: 'Special', x: 0, y: 0, width: 1, height: 1 }],
+    })).toBe(1)
+  })
+
   test('home keeps wallet hidden and routes Agent Layer to the hub', () => {
     const source = readFileSync('src/components/HomeScannerLanding.tsx', 'utf8')
 
     expect(source).toContain('Connect Wallet')
+    expect(source).toContain('<span style={{ gridColumn: 2')
     expect(source).toContain("display: 'none'")
+    expect(source).toContain('Agent Layer')
     expect(source).toContain('href="/agents"')
+    expect(source).toContain('initialMode: repoAction.mode')
+    expect(source).not.toContain('Agent / GitLawb Layer')
     expect(source).not.toContain('href="/agents/gitlawb"')
   })
 })

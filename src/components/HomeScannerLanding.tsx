@@ -6,7 +6,9 @@ import { signIn, useSession } from 'next-auth/react';
 import { GameProvider, useModal } from '@/context/GameContext';
 import { useGame } from '@/context/GameContext';
 import { GameDataLoaders, ModalLayer } from '@/components/CemeteryApp';
+import { calculateSouls, calculateUserSlotEconomy, isAutoAssignableGraveSlotType } from '@/lib/slot-economy';
 import type { CrematedData, DeadRepo, GitHubScanResult, GraveData } from '@/types/game';
+import type { SlotPositionData } from '@/game/events';
 
 const AUTH_GATE_COPY = 'Connect GitHub to scan and bury your own repos.';
 
@@ -45,17 +47,102 @@ export function filterFreshDeadRepos({
   });
 }
 
+export function calculateAvailableGraveSlotsForHome({
+  graves,
+  cremated,
+  username,
+  hasSharedFirstGrave,
+  slotPositions = [],
+}: {
+  graves: Map<number, GraveData>;
+  cremated: CrematedData[];
+  username: string | null;
+  hasSharedFirstGrave: boolean;
+  slotPositions?: SlotPositionData[];
+}): number {
+  if (!username) return 0;
+
+  const autoSlotIds = slotPositions.length > 0
+    ? new Set(slotPositions.filter((slot) => isAutoAssignableGraveSlotType(slot.type)).map((slot) => slot.id))
+    : null;
+  let slotsUsed = 0;
+  graves.forEach((grave) => {
+    if (grave.author_github?.toLowerCase() !== username.toLowerCase()) return;
+    if (autoSlotIds && !autoSlotIds.has(grave.slot_id)) return;
+    slotsUsed++;
+  });
+
+  const souls = calculateSouls(
+    cremated.filter((item) => item.author_github.toLowerCase() === username.toLowerCase()),
+  );
+
+  return calculateUserSlotEconomy({ souls, slotsUsed, hasSharedFirstGrave }).availableSlots;
+}
+
+export function decideHomeRepoAction(availableSlots: number): { label: 'Bury' | 'Cremate'; mode: 'burial' | 'cremation' } {
+  return availableSlots > 0
+    ? { label: 'Bury', mode: 'burial' }
+    : { label: 'Cremate', mode: 'cremation' };
+}
+
 function ScannerShell() {
   const { data: session, status } = useSession();
   const { open } = useModal();
-  const { state } = useGame();
+  const { state, dispatch } = useGame();
   const authenticatedUsername = session?.user?.github_username ?? null;
-  const recordsLoading = state.gravesLoading || state.crematedLoading;
+  const hasSharedFirstGrave = Boolean(session?.user?.x_first_grave_shared_at);
+  const [mapSlotsLoading, setMapSlotsLoading] = useState(true);
+  const recordsLoading = state.gravesLoading || state.crematedLoading || mapSlotsLoading;
+  const availableGraveSlots = calculateAvailableGraveSlotsForHome({
+    graves: state.graves,
+    cremated: state.cremated,
+    username: authenticatedUsername,
+    hasSharedFirstGrave,
+    slotPositions: state.slotPositions,
+  });
+  const repoAction = decideHomeRepoAction(availableGraveSlots);
   const [isCompactViewport, setIsCompactViewport] = useState(false);
   const [repos, setRepos] = useState<DeadRepo[] | null>(null);
   const [totalRepos, setTotalRepos] = useState(0);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (state.slotPositions.length > 0) {
+      setMapSlotsLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    fetch('/map/az.tmj')
+      .then((res) => res.ok ? res.json() : null)
+      .then((map: { layers?: Array<{ name?: string; objects?: Array<{ id: number; type: string; name?: string; x?: number; y?: number; width?: number; height?: number }> }> } | null) => {
+        if (cancelled) return;
+        const objects = map?.layers?.find((layer) => layer.name === 'slots')?.objects ?? [];
+        dispatch({
+          type: 'SET_SLOT_POSITIONS',
+          slots: objects
+            .filter((slot) => slot.type?.startsWith('grave'))
+            .map((slot) => ({
+              id: slot.id,
+              type: slot.type,
+              name: slot.name ?? '',
+              x: slot.x ?? 0,
+              y: slot.y ?? 0,
+              width: slot.width ?? 0,
+              height: slot.height ?? 0,
+            })),
+        });
+      })
+      .catch(() => {
+        if (!cancelled) setMessage('The grave slot map could not be loaded. Slot routing may be delayed.');
+      })
+      .finally(() => {
+        if (!cancelled) setMapSlotsLoading(false);
+      });
+
+    return () => { cancelled = true; };
+  }, [dispatch, state.slotPositions.length]);
 
   useEffect(() => {
     const updateViewport = () => setIsCompactViewport(window.innerWidth < 640);
@@ -115,9 +202,9 @@ function ScannerShell() {
       }}
     >
       <div style={{ position: 'absolute', inset: 0, opacity: 0.22, background: 'linear-gradient(0deg, rgba(0,0,0,0.38), transparent 42%)', pointerEvents: 'none' }} />
-      <nav style={{ position: 'relative', zIndex: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '18px clamp(16px, 5vw, 48px)' }}>
-        <Link href="/" style={{ color: '#e8d5a3', textDecoration: 'none', fontWeight: 700, letterSpacing: 1.2 }}>VibeCemetery</Link>
-        <div style={{ display: 'none', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+      <nav style={{ position: 'relative', zIndex: 1, display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', gap: 12, padding: '18px clamp(16px, 5vw, 48px)' }}>
+        <span style={{ gridColumn: 2, color: '#e8d5a3', fontWeight: 700, letterSpacing: 1.2, textAlign: 'center' }}>VibeCemetery</span>
+        <div style={{ gridColumn: 3, justifySelf: 'end', display: 'none', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
           <button style={navButtonStyle} type="button">Connect Wallet</button>
         </div>
       </nav>
@@ -139,7 +226,7 @@ function ScannerShell() {
 
           <div style={{ display: 'grid', gridTemplateColumns: isCompactViewport ? '1fr' : '1fr 1fr', gap: 10, marginTop: 14 }}>
             <Link href="/cemetery" style={secondaryLinkStyle}>Enter Cemetery</Link>
-            <Link href="/agents" style={secondaryLinkStyle}>Agent / GitLawb Layer</Link>
+            <Link href="/agents" style={secondaryLinkStyle}>Agent Layer</Link>
           </div>
 
           <p style={{ margin: '16px 0 0', color: '#777168', fontSize: 12, fontFamily: "var(--font-geist-sans), Arial, sans-serif" }}>Dead repos = non-forks inactive for 7+ days. Only your connected GitHub can be scanned.</p>
@@ -159,7 +246,7 @@ function ScannerShell() {
                           <p style={repoMetaStyle}>Language: {repo.language ?? 'Unknown'}</p>
                           <p style={repoMetaStyle}>Status: Dead</p>
                         </div>
-                        <button type="button" onClick={() => open('bury', { initialDeadRepos: [repo], suppressCeremony: true })} style={{ ...navButtonStyle, color: '#e8d5a3' }}>Bury</button>
+                        <button type="button" onClick={() => open('bury', { initialDeadRepos: [repo], initialMode: repoAction.mode, suppressCeremony: true })} style={{ ...navButtonStyle, color: repoAction.mode === 'burial' ? '#e8d5a3' : '#e8b8a3' }}>{repoAction.label}</button>
                       </div>
                     </article>
                   ))}

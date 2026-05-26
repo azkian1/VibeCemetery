@@ -99,7 +99,16 @@ A repo must be inactive for 7+ days and not be a fork.
 [ Enter Cemetery ]
 ```
 
-The first page does not show cremation as a standalone action.
+The first page does not show cremation as a standalone action while grave slots are available.
+
+New VCv2 action split:
+
+- `Shovel` / grave action is the burial-only flow.
+- `Fire` / cremation action is the cremation-only flow.
+- After `Scan GitHub`, each dead repo should lead to burial when the user has grave slots.
+- If the user has no grave slots, the scan result action leads to cremation instead.
+- Cremation is not active while the user still has grave slots.
+- If the user opens burial with no grave slots, the UI should explain that no grave slots are left and cremation is available.
 
 ## Burial From First Page
 

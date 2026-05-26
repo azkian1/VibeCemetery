@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import { useState, useCallback, useMemo, useRef, type SetStateAction } from 'react';
 import { useSession } from 'next-auth/react';
 import { useModal, useGame } from '@/context/GameContext';
 import ModalOverlay from './ModalOverlay';
@@ -15,6 +15,7 @@ import type { DeadRepo, GraveData, BuryResult } from '@/types/game';
 import { GRAVEDIGGER_BURIAL, GRAVEDIGGER_MASS_BURIAL } from '@/gravedigger/phrases';
 import { cemeteryEvents } from '@/game/events';
 import { calculateSouls, calculateUserSlotEconomy, isAutoAssignableGraveSlotType } from '@/lib/slot-economy';
+import type { SlotPositionData } from '@/game/events';
 
 const DEATH_CAUSES_DEFAULT = 'Developer lost interest';
 const USER_GRAVE_SLOTS_EXHAUSTED = 'USER_GRAVE_SLOTS_EXHAUSTED';
@@ -43,6 +44,38 @@ export function getDefaultGraveSetForSelectAll(repoIds: number[], availableSlots
   return new Set(repoIds.slice(0, availableSlots));
 }
 
+export function countUserAutoAssignableGraves({
+  graves,
+  slotPositions,
+  username,
+}: {
+  graves: Map<number, GraveData>;
+  slotPositions: SlotPositionData[];
+  username: string | null;
+}): number {
+  if (!username) return 0;
+  const normalizedUsername = username.toLowerCase();
+
+  if (slotPositions.length === 0) {
+    let count = 0;
+    graves.forEach((grave) => {
+      if (grave.author_github?.toLowerCase() === normalizedUsername) count++;
+    });
+    return count;
+  }
+
+  const autoSlotIds = new Set(
+    slotPositions
+      .filter((slot) => isAutoAssignableGraveSlotType(slot.type))
+      .map((slot) => slot.id)
+  );
+  let count = 0;
+  graves.forEach((grave) => {
+    if (grave.author_github?.toLowerCase() === normalizedUsername && autoSlotIds.has(grave.slot_id)) count++;
+  });
+  return count;
+}
+
 function toEnglishSafeProjectLabel(name: string): string {
   return /[^\x00-\x7F]/.test(name) ? 'A project' : name;
 }
@@ -55,6 +88,7 @@ export default function BuryFlowModal() {
   const username = session?.user?.github_username ?? null;
   const hasSharedFirstGrave = Boolean(session?.user?.x_first_grave_shared_at);
   const initialDeadRepos = modalData?.initialDeadRepos;
+  const initialMode = modalData?.initialMode;
   const initialRepos = useMemo(() => initialDeadRepos ?? [], [initialDeadRepos]);
   const suppressCeremony = modalData?.suppressCeremony === true;
 
@@ -62,7 +96,6 @@ export default function BuryFlowModal() {
   const [repos, setRepos] = useState<DeadRepo[]>(initialRepos);
   const [filteredCount, setFilteredCount] = useState(0);
   const [selected, setSelected] = useState<Set<number>>(() => new Set(initialRepos.map((repo) => repo.id)));
-  const [graveSet, setGraveSet] = useState<Set<number>>(new Set());
   const [causes, setCauses] = useState<Map<number, string>>(new Map());
   const [results, setResults] = useState<BuryResult[]>([]);
   const [loading, setLoading] = useState(false);
@@ -74,20 +107,11 @@ export default function BuryFlowModal() {
 
   // ── Slot economy ──
   const userGravesCount = useMemo(() => {
-    if (!username) return 0;
-    if (state.slotPositions.length === 0) {
-      let count = 0;
-      state.graves.forEach(g => { if (g.author_github === username) count++; });
-      return count;
-    }
-    const autoSlotIds = new Set(
-      state.slotPositions
-        .filter((slot) => isAutoAssignableGraveSlotType(slot.type))
-        .map((slot) => slot.id)
-    );
-    let count = 0;
-    state.graves.forEach(g => { if (g.author_github === username && autoSlotIds.has(g.slot_id)) count++; });
-    return count;
+    return countUserAutoAssignableGraves({
+      graves: state.graves,
+      slotPositions: state.slotPositions,
+      username,
+    });
   }, [state.graves, state.slotPositions, username]);
 
   const userCremated = useMemo(() => {
@@ -105,16 +129,19 @@ export default function BuryFlowModal() {
   });
   const slotsUnlocked = slotEconomy.slotsUnlocked;
   const availableSlots = slotEconomy.availableSlots;
-  const initialGraveSetAppliedRef = useRef(false);
-
-  useEffect(() => {
-    if (initialGraveSetAppliedRef.current) return;
-    if (initialRepos.length === 0) return;
-    if (state.gravesLoading || state.crematedLoading) return;
-
-    initialGraveSetAppliedRef.current = true;
-    setGraveSet(getDefaultGraveSetForSelectAll(initialRepos.map((repo) => repo.id), availableSlots));
-  }, [availableSlots, initialRepos, state.crematedLoading, state.gravesLoading]);
+  const selectableGraveSlots = initialMode === 'cremation' ? 0 : availableSlots;
+  const defaultGraveSet = useMemo(
+    () => getDefaultGraveSetForSelectAll(initialRepos.map((repo) => repo.id), selectableGraveSlots),
+    [initialRepos, selectableGraveSlots]
+  );
+  const [graveSetOverride, setGraveSetOverride] = useState<Set<number> | null>(null);
+  const graveSet = graveSetOverride ?? defaultGraveSet;
+  const setGraveSet = useCallback((next: SetStateAction<Set<number>>) => {
+    setGraveSetOverride((currentOverride) => {
+      const current = currentOverride ?? defaultGraveSet;
+      return typeof next === 'function' ? next(current) : next;
+    });
+  }, [defaultGraveSet]);
 
   // ── Cremation daily limit ──
   const dailyCremationsLeft = useMemo(() => {
@@ -158,22 +185,24 @@ export default function BuryFlowModal() {
       return next;
     });
     setGraveSet((gs) => {
+      if (initialMode === 'burial' || initialMode === 'cremation') return gs;
       if (!wasSelected) return withDefaultGraveForSelectedRepo(gs, id, availableSlots);
       if (!gs.has(id)) return gs;
       const ng = new Set(gs);
       ng.delete(id);
       return ng;
     });
-  }, [availableSlots, selected]);
+  }, [availableSlots, initialMode, selected, setGraveSet]);
 
   const handleToggleAll = useCallback(() => {
     const repoIds = repos.map((r) => r.id);
     const deselectAll = selected.size === repos.length;
     setSelected(deselectAll ? new Set() : new Set(repoIds));
-    setGraveSet(deselectAll ? new Set() : getDefaultGraveSetForSelectAll(repoIds, availableSlots));
-  }, [availableSlots, repos, selected]);
+    setGraveSet(deselectAll ? new Set() : getDefaultGraveSetForSelectAll(repoIds, selectableGraveSlots));
+  }, [repos, selectableGraveSlots, selected, setGraveSet]);
 
   const handleToggleGrave = useCallback((id: number) => {
+    if (initialMode === 'burial' || initialMode === 'cremation') return;
     setGraveSet((prev) => {
       const next = new Set(prev);
       if (next.has(id)) {
@@ -183,7 +212,7 @@ export default function BuryFlowModal() {
       }
       return next;
     });
-  }, [availableSlots]);
+  }, [availableSlots, initialMode, setGraveSet]);
 
   const handleSetCause = useCallback((id: number, cause: string) => {
     setCauses((prev) => {
@@ -412,7 +441,7 @@ export default function BuryFlowModal() {
               repos={repos}
               selected={selected}
               graveSet={graveSet}
-              availableSlots={availableSlots}
+              availableSlots={selectableGraveSlots}
               slotsUnlocked={slotsUnlocked}
               dailyCremationsLeft={dailyCremationsLeft}
               onToggle={handleToggle}
