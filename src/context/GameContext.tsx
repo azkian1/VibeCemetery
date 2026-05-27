@@ -35,8 +35,6 @@ export interface ModalData {
   graveData?: GraveData;
   initialDeadRepos?: DeadRepo[];
   flowMode?: BuryFlowMode;
-  initialMode?: 'burial' | 'cremation';
-  suppressCeremony?: boolean;
   buildingName?: string;
   crematedItem?: CrematedData;
   authorFilter?: string;

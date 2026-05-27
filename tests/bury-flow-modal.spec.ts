@@ -1,16 +1,17 @@
 import { expect, test } from '@playwright/test'
+import { readFile } from 'node:fs/promises'
 import {
   countUserAutoAssignableGraves,
   getBuryFlowUi,
   getDefaultGraveSetForSelectAll,
-  getInitialSelectedRepoSet,
-  getNextSelectedRepoSet,
-  getRepoSubmissionType,
-  getSelectedReposForSubmit,
+  getInitialSelectedRepoSetForFlow,
+  getNextSelectedRepoSetForFlow,
+  getRepoSubmissionTypeForFlow,
+  getSelectedReposForFlowSubmit,
   resolveBuryFlowMode,
-  shouldAllowGraveToggle,
-  shouldAutoAssignGraveOnSelection,
-  shouldCremateAfterSlotExhaustion,
+  shouldAllowGraveToggleForFlow,
+  shouldAutoAssignGraveForFlow,
+  shouldCremateAfterSlotExhaustionForFlow,
   shouldFallbackGraveToCremation,
   withDefaultGraveForSelectedRepo,
 } from '../src/components/modals/BuryFlowModal'
@@ -29,6 +30,41 @@ import {
 } from '../src/components/modals/bury/StepScan'
 import { shouldHighlightShareGrave } from '../src/components/modals/GraveModal'
 import type { GraveData } from '../src/types/game'
+
+test.describe('BuryFlowModal ceremony bypass guards', () => {
+  test('does not expose legacy ceremony bypass while keeping both burial ceremony entry paths', async () => {
+    const [modalSource, contextSource] = await Promise.all([
+      readFile('src/components/modals/BuryFlowModal.tsx', 'utf8'),
+      readFile('src/context/GameContext.tsx', 'utf8'),
+    ])
+
+    const legacyBypassKey = ['suppress', 'Ceremony'].join('')
+
+    expect(modalSource).not.toContain(legacyBypassKey)
+    expect(contextSource).not.toContain(legacyBypassKey)
+    expect(modalSource).toContain('savePendingBurialCeremony(ceremonyData)')
+    expect(modalSource).toContain("cemeteryEvents.emit('burial_ceremony', ceremonyData)")
+  })
+})
+
+test.describe('BuryFlowModal flow helper exports', () => {
+  test('uses flow-based helper names without keeping stale exported names', async () => {
+    const modalSource = await readFile('src/components/modals/BuryFlowModal.tsx', 'utf8')
+    const oldHelperNames = [
+      ['shouldAutoAssignGrave', 'OnSelection'].join(''),
+      ['shouldAllowGrave', 'Toggle('].join(''),
+      ['getInitialSelectedRepo', 'Set('].join(''),
+      ['getNextSelectedRepo', 'Set('].join(''),
+      ['getSelectedRepos', 'ForSubmit'].join(''),
+      ['getRepoSubmission', 'Type('].join(''),
+      ['shouldCremateAfterSlot', 'Exhaustion('].join(''),
+    ]
+
+    for (const helperName of oldHelperNames) {
+      expect(modalSource).not.toContain(helperName)
+    }
+  })
+})
 
 test.describe('BuryFlowModal grave fallback', () => {
   test('falls back when the map has no free auto-assignable slots', async () => {
@@ -50,10 +86,18 @@ test.describe('BuryFlowModal grave fallback', () => {
 
 test.describe('BuryFlowModal default grave selection', () => {
   test('resolves explicit bury flow modes without inferring from stale local state', () => {
+    const staleModalData = (data: object) => data as Parameters<typeof resolveBuryFlowMode>[0]
+
     expect(resolveBuryFlowMode({ flowMode: 'home-preselected-burial' })).toBe('home-preselected-burial')
     expect(resolveBuryFlowMode({ flowMode: 'home-preselected-cremation' })).toBe('home-preselected-cremation')
     expect(resolveBuryFlowMode({ flowMode: 'cemetery-shovel' })).toBe('cemetery-shovel')
     expect(resolveBuryFlowMode({ flowMode: 'cemetery-fire' })).toBe('cemetery-fire')
+    const legacyModeKey = ['initial', 'Mode'].join('')
+
+    expect(resolveBuryFlowMode(staleModalData({ [legacyModeKey]: 'burial' }))).toBe('default-scanner')
+    expect(resolveBuryFlowMode(staleModalData({ [legacyModeKey]: 'cremation' }))).toBe('default-scanner')
+    expect(resolveBuryFlowMode(staleModalData({ initialDeadRepos: [repo({})], [legacyModeKey]: 'burial' }))).toBe('default-scanner')
+    expect(resolveBuryFlowMode(staleModalData({ initialDeadRepos: [repo({})], [legacyModeKey]: 'cremation' }))).toBe('default-scanner')
     expect(resolveBuryFlowMode(null)).toBe('default-scanner')
   })
 
@@ -76,42 +120,49 @@ test.describe('BuryFlowModal default grave selection', () => {
     })
   })
 
+  test('flow mode UI exposes flowAction instead of stale legacy mode key', () => {
+    expect(getBuryFlowUi('home-preselected-burial')).toMatchObject({ flowAction: 'burial' })
+    expect(getBuryFlowUi('home-preselected-cremation')).toMatchObject({ flowAction: 'cremation' })
+    expect(getBuryFlowUi('default-scanner')).toMatchObject({ flowAction: undefined })
+    expect(getBuryFlowUi('cemetery-shovel')).not.toHaveProperty(['initial', 'Mode'].join(''))
+  })
+
   test('keeps auto grave assignment enabled in burial mode after modal scan', () => {
-    expect(shouldAutoAssignGraveOnSelection('burial')).toBe(true)
+    expect(shouldAutoAssignGraveForFlow('burial')).toBe(true)
   })
 
   test('keeps auto grave assignment disabled in cremation mode', () => {
-    expect(shouldAutoAssignGraveOnSelection('cremation')).toBe(false)
+    expect(shouldAutoAssignGraveForFlow('cremation')).toBe(false)
   })
 
   test('burial mode allows only one selected repo at a time', () => {
-    expect([...getNextSelectedRepoSet({ selected: new Set([101]), repoId: 202, initialMode: 'burial' })]).toEqual([202])
+    expect([...getNextSelectedRepoSetForFlow({ selected: new Set([101]), repoId: 202, flowAction: 'burial' })]).toEqual([202])
   })
 
   test('burial mode initializes with only one preloaded repo selected', () => {
-    expect([...getInitialSelectedRepoSet([101, 202], 'burial')]).toEqual([101])
+    expect([...getInitialSelectedRepoSetForFlow([101, 202], 'burial')]).toEqual([101])
   })
 
   test('burial mode does not allow manual cremation toggles', () => {
-    expect(shouldAllowGraveToggle('burial')).toBe(false)
+    expect(shouldAllowGraveToggleForFlow('burial')).toBe(false)
   })
 
   test('default mode keeps multi-select behavior', () => {
-    expect([...getNextSelectedRepoSet({ selected: new Set([101]), repoId: 202 })]).toEqual([101, 202])
+    expect([...getNextSelectedRepoSetForFlow({ selected: new Set([101]), repoId: 202 })]).toEqual([101, 202])
   })
 
   test('burial mode submits only one selected repo', () => {
     const repos = [repo({ id: 101, name: 'one' }), repo({ id: 202, name: 'two' })]
 
-    expect(getSelectedReposForSubmit({ repos, selected: new Set([101, 202]), initialMode: 'burial' }).map((item) => item.id)).toEqual([101])
+    expect(getSelectedReposForFlowSubmit({ repos, selected: new Set([101, 202]), flowAction: 'burial' }).map((item) => item.id)).toEqual([101])
   })
 
   test('burial mode always submits selected repos as graves', () => {
-    expect(getRepoSubmissionType({ repoId: 101, graveSet: new Set(), initialMode: 'burial' })).toBe('grave')
+    expect(getRepoSubmissionTypeForFlow({ repoId: 101, graveSet: new Set(), flowAction: 'burial' })).toBe('grave')
   })
 
   test('burial mode does not cremate after slot exhaustion', () => {
-    expect(shouldCremateAfterSlotExhaustion('burial')).toBe(false)
+    expect(shouldCremateAfterSlotExhaustionForFlow('burial')).toBe(false)
   })
 
   test('cremation-only selection hides grave/fire choices and slot status', () => {

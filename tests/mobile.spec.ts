@@ -60,7 +60,7 @@ test.describe('Mobile (390×844)', () => {
   // ---- Mobile-specific behavior ----
 
   test('CTA buttons are hidden on mobile', async ({ page }) => {
-    expect(await page.getByRole('button', { name: /SHOVEL|FIRE/ }).count()).toBe(0);
+    expect(await page.getByRole('button', { name: /Bury|Cremate/ }).count()).toBe(0);
     expect(await page.getByRole('button', { name: /SKILL/ }).count()).toBe(0);
   });
 
@@ -112,14 +112,14 @@ test.describe('Desktop (1440×900)', () => {
   });
 
   test('Human CTA buttons stay on desktop map without Agent Skill', async ({ page }) => {
-    await expect(page.getByRole('button', { name: /SHOVEL/ })).toBeVisible();
-    await expect(page.getByRole('button', { name: /FIRE/ })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'CLI SKILL' })).toBeVisible();
+    await expect(page.getByRole('button', { name: /Bury/ })).toBeVisible();
+    await expect(page.getByRole('button', { name: /Cremate/ })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'CLI SKILL' })).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'AGENT SKILL' })).toHaveCount(0);
   });
 
-  test('Login button is visible on desktop', async ({ page }) => {
-    await expect(page.getByText('Login', { exact: true })).toBeVisible();
+  test('Auth button is visible on desktop', async ({ page }) => {
+    await expect(page.getByRole('button', { name: 'Login' })).toBeVisible();
   });
 
   test('Minimap canvas exists on desktop', async ({ page }) => {
@@ -130,7 +130,7 @@ test.describe('Desktop (1440×900)', () => {
   test('TopBar elements visible', async ({ page }) => {
     await expect(page.getByRole('button', { name: 'FAQ' })).toBeVisible();
     await expect(page.getByLabel('Home')).toBeVisible();
-    await expect(page.getByText('Login', { exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Login' })).toBeVisible();
   });
 
   test('BurgerMenu opens on desktop', async ({ page }) => {

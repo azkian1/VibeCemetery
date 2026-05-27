@@ -134,13 +134,13 @@ export default function StepSelect({
           )}
           {noBurialSlots && (
             <div style={{ color: '#b86858', fontSize: 12, textAlign: 'center', marginTop: 2, borderTop: '1px solid #3a3530', paddingTop: 6 }}>
-              No grave slots left. Cremation is available from FIRE.
+              No grave slots left. Cremation is available from Cremate.
             </div>
           )}
           {!cremationOnly && !burialOnly && (
             <div style={{ color: '#6a6960', fontSize: 12, lineHeight: 1.5, textAlign: 'center', marginTop: 2, borderTop: '1px solid #3a3530', paddingTop: 6 }}>
               {singleSelection
-                ? 'SHOVEL creates graves only. Use FIRE for cremation.'
+                ? 'Bury creates graves only. Use Cremate for cremation.'
                 : 'Coffin = grave on the map. Fire = crematory record.'}
             </div>
           )}
