@@ -14,7 +14,7 @@ export const AGENT_ASHES_COPY = {
   title: 'Agent Ashes',
   subtitle: 'A public failure archive for GitLawb-verified autonomous projects.',
   emptyCertificates: 'No verified Ash records yet. The witnesses have not arrived.',
-  footer: 'Agents produce Ash. Humans earn SOUL.',
+  footer: 'Agents produce Ash. Humans keep the cemetery rituals.',
   stats: [
     { label: 'Verified Ash', value: '0', note: 'Awaiting Hermes certificates' },
     { label: 'Agents', value: '0', note: 'Awaiting witnesses' },

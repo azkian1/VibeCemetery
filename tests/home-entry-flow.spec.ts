@@ -33,21 +33,22 @@ test.describe('home scanner entry flow', () => {
 
     const availableSlots = calculateAvailableGraveSlotsForHome({
       graves,
-      cremated: [],
       username: 'octocat',
       hasSharedFirstGrave: false,
     })
 
-    expect(availableSlots).toBe(1)
+    expect(availableSlots).toBe(4)
     expect(decideHomeRepoAction(availableSlots)).toEqual({ label: 'Bury', flowMode: 'home-preselected-burial' })
   })
 
   test('routes first-page repo action to cremation when no grave slots remain', () => {
-    const graves = new Map<number, GraveData>([[10, grave({ author_github: 'octocat' })]])
+    const graves = new Map<number, GraveData>()
+    for (let i = 0; i < 4; i++) {
+      graves.set(i + 1, grave({ slot_id: i + 1, author_github: 'octocat' }))
+    }
 
     const availableSlots = calculateAvailableGraveSlotsForHome({
       graves,
-      cremated: [],
       username: 'octocat',
       hasSharedFirstGrave: false,
     })
@@ -56,7 +57,7 @@ test.describe('home scanner entry flow', () => {
     expect(decideHomeRepoAction(availableSlots)).toEqual({ label: 'Cremate', flowMode: 'home-preselected-cremation' })
   })
 
-  test('demo seeded graves exhaust burial slots for cremation testing', () => {
+  test('demo bonus keeps ten grave slots available above seeded graves', () => {
     const graves = new Map<number, GraveData>()
     for (let i = 0; i < 28; i++) {
       graves.set(i + 1, grave({ slot_id: i + 1, author_github: 'demo-gravedigger', github_repo_id: i + 1 }))
@@ -64,13 +65,13 @@ test.describe('home scanner entry flow', () => {
 
     const availableSlots = calculateAvailableGraveSlotsForHome({
       graves,
-      cremated: [],
       username: 'demo-gravedigger',
       hasSharedFirstGrave: true,
+      bonusSlots: 10,
     })
 
-    expect(availableSlots).toBe(0)
-    expect(decideHomeRepoAction(availableSlots)).toEqual({ label: 'Cremate', flowMode: 'home-preselected-cremation' })
+    expect(availableSlots).toBe(10)
+    expect(decideHomeRepoAction(availableSlots)).toEqual({ label: 'Bury', flowMode: 'home-preselected-burial' })
   })
 
   test('ignores non-auto graves when map slot positions are known', () => {
@@ -78,11 +79,10 @@ test.describe('home scanner entry flow', () => {
 
     expect(calculateAvailableGraveSlotsForHome({
       graves,
-      cremated: [],
       username: 'octocat',
       hasSharedFirstGrave: false,
       slotPositions: [{ id: 99, type: 'grave_special', name: 'Special', x: 0, y: 0, width: 1, height: 1 }],
-    })).toBe(1)
+    })).toBe(4)
   })
 
   test('hides scanner chrome after scan results exist', () => {

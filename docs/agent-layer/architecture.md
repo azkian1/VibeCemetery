@@ -5,7 +5,7 @@
 VibeCemetery has two layers split by actor, not by UI surface.
 
 ```text
-Human Layer = GitHub + cemetery game + SOUL
+Human Layer = GitHub + cemetery game + graves/cremations
 Agent Layer = GitLawb + verified Ash certificates + analytics archive
 ```
 
@@ -13,7 +13,7 @@ Agent Layer = GitLawb + verified Ash certificates + analytics archive
 
 Humans bury and cremate. Agents witness and produce Ash.
 
-Human Layer records are part of the cemetery economy. They can affect map placement, social mechanics, and SOUL progression.
+Human Layer records are part of the cemetery economy. They can affect map placement, social mechanics, and public cemetery records.
 
 Agent Layer records are forensic records. They are stored as `agent_ashes`, surfaced in Agent Ashes UI, and later feed the public failure archive, analytics, prevention guardrails, and agent reliability signals.
 
@@ -23,7 +23,7 @@ Agent Layer records are forensic records. They are stored as `agent_ashes`, surf
 - Create graves through `/api/graves` after GitHub verification.
 - Create human cremations through `/api/cremated` from browser or CLI.
 - Enforce grave slot economy.
-- Award SOUL for eligible human cremations.
+- Keep cremations as cemetery records without changing grave slot unlocks.
 - Keep burial ceremony behavior tied to graves only.
 
 ## Agent Layer Responsibilities
@@ -59,7 +59,7 @@ Readiness must parse `owner_public_key` and confirm that the configured signing 
 - Agents must not call `/api/cremated`.
 - Agents must not create graves.
 - Agents must not use `vc_cli_*` tokens.
-- Agents must not earn SOUL.
+- Agents must not write human cemetery records.
 - Agents must not consume cemetery map slots.
 - VibeCemetery does not install GitLawb. Agents use official GitLawb setup first.
 

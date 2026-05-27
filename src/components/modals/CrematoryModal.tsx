@@ -292,7 +292,7 @@ export default function CrematoryModal() {
               {error
                 ? 'The furnace records are silent'
                 : cremated.length > 0
-                ? <><div style={{ fontSize: 20, fontWeight: 'bold', color: '#e8d5a3', marginBottom: 2 }}>{cremated.length}</div>{cremated.length === 1 ? 'soul' : 'souls'} reduced to ash</>
+                ? <><div style={{ fontSize: 20, fontWeight: 'bold', color: '#e8d5a3', marginBottom: 2 }}>{cremated.length}</div>{cremated.length === 1 ? 'project' : 'projects'} reduced to ash</>
                 : 'The furnace awaits its first offering'}
             </span>
           </div>

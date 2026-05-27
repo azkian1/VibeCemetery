@@ -1,82 +1,54 @@
 import { expect, test } from '@playwright/test'
 import {
-  calculateSouls,
   calculateUserSlotEconomy,
   getSlotUnlockProgress,
   NORMAL_SLOT_MAX,
-  SOUL_SLOT_THRESHOLDS,
 } from '../src/lib/slot-economy'
 
 test.describe('user slot economy', () => {
-  test('counts github cremations as 3 souls and skill cremations as 1 soul', () => {
-    expect(calculateSouls([{ source: 'github' }, { source: 'skill' }, { source: 'github' }])).toBe(7)
-  })
-
-  test('counts unknown cremation sources as 0 souls', () => {
-    expect(calculateSouls([{ source: 'unknown' as 'github' }])).toBe(0)
-  })
-
-  test('unlocks at most four normal grave slots', () => {
-    expect(SOUL_SLOT_THRESHOLDS).toEqual([30, 100])
+  test('starts every user with four normal grave slots', () => {
     expect(NORMAL_SLOT_MAX).toBe(4)
 
-    expect(calculateUserSlotEconomy({ souls: 0, slotsUsed: 0, hasSharedFirstGrave: false })).toMatchObject({
-      slotsUnlocked: 1,
-      availableSlots: 1,
-      nextSoulThreshold: 30,
-    })
-
-    expect(calculateUserSlotEconomy({ souls: 30, slotsUsed: 1, hasSharedFirstGrave: false })).toMatchObject({
-      slotsUnlocked: 2,
-      availableSlots: 1,
-      nextSoulThreshold: 100,
-    })
-
-    expect(calculateUserSlotEconomy({ souls: 0, slotsUsed: 0, hasSharedFirstGrave: true })).toMatchObject({
-      slotsUnlocked: 2,
-      availableSlots: 2,
-      nextSoulThreshold: 30,
-    })
-
-    expect(calculateUserSlotEconomy({ souls: 100, slotsUsed: 0, hasSharedFirstGrave: false })).toMatchObject({
-      slotsUnlocked: 3,
-      availableSlots: 3,
-      nextSoulThreshold: null,
-      allSlotsMaxed: false,
-    })
-
-    expect(calculateUserSlotEconomy({ souls: 100, slotsUsed: 2, hasSharedFirstGrave: true })).toMatchObject({
+    expect(calculateUserSlotEconomy({ slotsUsed: 0, hasSharedFirstGrave: false })).toMatchObject({
       slotsUnlocked: 4,
-      availableSlots: 2,
-      nextSoulThreshold: null,
+      availableSlots: 4,
     })
 
-    expect(calculateUserSlotEconomy({ souls: 999, slotsUsed: 4, hasSharedFirstGrave: true })).toMatchObject({
+    expect(calculateUserSlotEconomy({ slotsUsed: 4, hasSharedFirstGrave: false })).toMatchObject({
       slotsUnlocked: 4,
       availableSlots: 0,
       allSlotsMaxed: true,
     })
   })
 
+  test('adds one normal grave slot after sharing the first grave', () => {
+    expect(calculateUserSlotEconomy({ slotsUsed: 0, hasSharedFirstGrave: true })).toMatchObject({
+      slotsUnlocked: 5,
+      availableSlots: 5,
+    })
+
+    expect(calculateUserSlotEconomy({ slotsUsed: 4, hasSharedFirstGrave: true })).toMatchObject({
+      slotsUnlocked: 5,
+      availableSlots: 1,
+      allSlotsMaxed: true,
+    })
+  })
+
   test('adds explicit demo bonus grave slots above the normal limit', () => {
-    expect(calculateUserSlotEconomy({ souls: 999, slotsUsed: 28, hasSharedFirstGrave: true, bonusSlots: 5 })).toMatchObject({
+    expect(calculateUserSlotEconomy({ slotsUsed: 28, hasSharedFirstGrave: true, bonusSlots: 5 })).toMatchObject({
       slotsUnlocked: 33,
       availableSlots: 5,
       canCreateGrave: true,
     })
   })
 
-  test('labels social and souls slots by unlock source', () => {
-    expect(getSlotUnlockProgress({ souls: 30, hasSharedFirstGrave: false })).toEqual({
-      socialLabel: 'Social slot coming soon',
-      unlockedSoulLabels: ['Souls slot 1 unlocked (30 Souls)'],
-      nextSoulLabel: 'Souls slot 2: 100 Souls',
+  test('labels the share mission by unlock state', () => {
+    expect(getSlotUnlockProgress({ hasSharedFirstGrave: false })).toEqual({
+      socialLabel: 'Share your Grave for +1 Slot',
     })
 
-    expect(getSlotUnlockProgress({ souls: 100, hasSharedFirstGrave: true })).toEqual({
-      socialLabel: 'Social slot unlocked',
-      unlockedSoulLabels: ['Souls slot 1 unlocked (30 Souls)', 'Souls slot 2 unlocked (100 Souls)'],
-      nextSoulLabel: null,
+    expect(getSlotUnlockProgress({ hasSharedFirstGrave: true })).toEqual({
+      socialLabel: 'Shared your Grave: +1 Slot',
     })
   })
 })

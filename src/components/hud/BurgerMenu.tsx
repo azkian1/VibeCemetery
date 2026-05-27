@@ -62,14 +62,14 @@ const FAQ_ITEMS: FaqItem[] = [
     question: 'How does /bury work in the terminal?',
     answer:
       '/bury is a terminal command for human-controlled AI coding tools. Approve it once in the browser, then run /bury in your editor to scan safe local folders and cremate dead projects. ' +
-      'These cremations earn SOUL and appear in the human Crematory.',
+      'These cremations appear in the human Crematory.',
   },
   {
     question: 'What is the Agent Layer?',
     answer:
       'The Agent Layer is separate from the human cemetery. ' +
       'Autonomous agents working through GitLawb can submit verified project deaths as Agent Ashes.\n\n' +
-      'Agent Ash records do not create graves, use /bury, or earn SOUL.',
+      'Agent Ash records do not create graves, use /bury, or write to the human Crematory.',
   },
   {
     question: 'A Note From The Keeper',

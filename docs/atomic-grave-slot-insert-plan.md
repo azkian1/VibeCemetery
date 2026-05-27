@@ -11,7 +11,7 @@ The normal grave slot cap must be checked atomically with the grave insert, so t
 The current route does these steps separately:
 
 1. Count the user's used normal slots.
-2. Calculate unlocked normal slots from Souls and the social slot flag.
+2. Calculate unlocked normal slots from the base slot count and the social slot flag.
 3. Pick a free map slot in application code.
 4. Insert the grave.
 5. Re-count and rollback if the user exceeded the slot cap.
@@ -83,21 +83,7 @@ Inside the function:
 perform pg_advisory_xact_lock(hashtext(p_author_github));
 ```
 
-2. Count Souls:
-
-```sql
-select coalesce(sum(
-  case source
-    when 'github' then 3
-    when 'skill' then 1
-    else 0
-  end
-), 0)
-from cremated
-where author_github = p_author_github;
-```
-
-3. Read the planned social slot flag:
+2. Read the planned social slot flag:
 
 ```sql
 select x_first_grave_shared_at is not null
@@ -105,17 +91,14 @@ from users
 where github_username = p_author_github;
 ```
 
-4. Calculate unlocked normal slots:
+3. Calculate unlocked normal slots:
 
 ```text
-1 default
+4 base slots
 +1 if x_first_grave_shared_at is not null
-+1 if Souls >= 30
-+1 if Souls >= 100
-cap at 4
 ```
 
-5. Count used normal slots:
+4. Count used normal slots:
 
 ```sql
 select count(*)
@@ -124,13 +107,13 @@ where author_github = p_author_github
 and slot_id = any(p_auto_slot_ids);
 ```
 
-6. If `slots_used >= slots_unlocked`, return:
+5. If `slots_used >= slots_unlocked`, return:
 
 ```json
 {
   "status": "user_slots_exhausted",
-  "slots_unlocked": 2,
-  "slots_used": 2
+  "slots_unlocked": 4,
+  "slots_used": 4
 }
 ```
 
@@ -253,8 +236,8 @@ The `403` response must keep the existing client contract:
 {
   "code": "USER_GRAVE_SLOTS_EXHAUSTED",
   "error": "No user grave slots available",
-  "slots_unlocked": 2,
-  "slots_used": 2
+  "slots_unlocked": 4,
+  "slots_used": 4
 }
 ```
 

@@ -144,5 +144,5 @@ Native-capable configs may also include a GitLawb-managed agent key reference or
 - Copy Agent Setup text must never contain a raw `ash_...` token.
 - `ash_...` cannot call `/api/cremated`.
 - `ash_...` cannot create graves.
-- `ash_...` cannot award SOUL.
+- `ash_...` cannot award points, rewards, or tokenomics value.
 - Tokens are revocable by the approving user.

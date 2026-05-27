@@ -59,7 +59,7 @@ export default function GitlawbAgentInstallPage() {
         </section>
 
         <p style={{ color: '#77746a', lineHeight: 1.6 }}>
-          Boundary: use ash_ Agent Ash ingest authorization credentials only. They are not ERC-20, points, rewards, or SOUL. Never call /api/cremated.
+          Boundary: use ash_ Agent Ash ingest authorization credentials only. They are not ERC-20, points, rewards, or tokenomics value. Never call /api/cremated.
           Submit verified Ash only to /api/agent-ashes.
         </p>
       </div>

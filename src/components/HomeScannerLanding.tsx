@@ -6,7 +6,7 @@ import { signIn, useSession } from 'next-auth/react';
 import { GameProvider, useModal } from '@/context/GameContext';
 import { useGame } from '@/context/GameContext';
 import { GameDataLoaders, ModalLayer } from '@/components/CemeteryApp';
-import { calculateSouls, calculateUserSlotEconomy, isAutoAssignableGraveSlotType } from '@/lib/slot-economy';
+import { calculateUserSlotEconomy, isAutoAssignableGraveSlotType } from '@/lib/slot-economy';
 import { getDemoGraveBonusSlots } from '@/demo/mode';
 import type { BuryFlowMode } from '@/components/modals/BuryFlowModal';
 import type { CrematedData, DeadRepo, GitHubScanResult, GraveData } from '@/types/game';
@@ -51,14 +51,12 @@ export function filterFreshDeadRepos({
 
 export function calculateAvailableGraveSlotsForHome({
   graves,
-  cremated,
   username,
   hasSharedFirstGrave,
   slotPositions = [],
   bonusSlots = 0,
 }: {
   graves: Map<number, GraveData>;
-  cremated: CrematedData[];
   username: string | null;
   hasSharedFirstGrave: boolean;
   slotPositions?: SlotPositionData[];
@@ -76,11 +74,7 @@ export function calculateAvailableGraveSlotsForHome({
     slotsUsed++;
   });
 
-  const souls = calculateSouls(
-    cremated.filter((item) => item.author_github.toLowerCase() === username.toLowerCase()),
-  );
-
-  return calculateUserSlotEconomy({ souls, slotsUsed, hasSharedFirstGrave, bonusSlots }).availableSlots;
+  return calculateUserSlotEconomy({ slotsUsed, hasSharedFirstGrave, bonusSlots }).availableSlots;
 }
 
 export function decideHomeRepoAction(availableSlots: number): { label: 'Bury' | 'Cremate'; flowMode: BuryFlowMode } {
@@ -103,7 +97,6 @@ function ScannerShell() {
   const recordsLoading = state.gravesLoading || state.crematedLoading || mapSlotsLoading;
   const availableGraveSlots = calculateAvailableGraveSlotsForHome({
     graves: state.graves,
-    cremated: state.cremated,
     username: authenticatedUsername,
     hasSharedFirstGrave,
     slotPositions: state.slotPositions,

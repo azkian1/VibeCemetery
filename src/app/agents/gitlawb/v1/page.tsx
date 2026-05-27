@@ -82,7 +82,7 @@ export default function GitlawbAgentSkillV1Page() {
         <section>
           <h2 style={{ color: '#e8d5a3', fontSize: 20 }}>Not included</h2>
           <p style={{ color: '#aaa9a0', lineHeight: 1.7 }}>
-            This page does not install GitLawb, create graves, call /api/cremated, reuse human CLI tokens, or award SOUL, points, rewards, or tokenomics value.
+            This page does not install GitLawb, create graves, call /api/cremated, reuse human CLI tokens, or award points, rewards, or tokenomics value.
           </p>
         </section>
       </div>

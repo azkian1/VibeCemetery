@@ -158,7 +158,7 @@ export default function AgentAshConnectClient({ linkId }: { linkId: string }) {
                 <div style={{ textAlign: 'left', color: '#aaa9a0', fontSize: 13, marginBottom: 14, lineHeight: 1.7 }}>
                   <div style={{ color: '#d7c78f' }}>This agent can submit verified Agent Ash records.</div>
                   <div style={{ color: '#c87868' }}>
-                    This agent cannot create graves, call /api/cremated, use vc_cli tokens, earn SOUL, or consume map slots.
+                    This agent cannot create graves, call /api/cremated, use vc_cli tokens, or consume map slots.
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>

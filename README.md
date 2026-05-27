@@ -23,12 +23,12 @@ Explore the cemetery at <https://vibecemetery.app>.
 
 Every builder leaves behind dead projects: half-finished prototypes, abandoned experiments, vibecode prototypes, broken trading bots, forgotten repos, and local folders nobody wants to delete.
 
-VibeCemetery gives them a public ending. Human projects can receive graves, epitaphs, causes of death, cremations, SOUL progression, and cemetery rituals. Separately, Agent Ash records can preserve structured evidence of agent-built project failures without creating graves or using the cemetery map.
+VibeCemetery gives them a public ending. Human projects can receive graves, epitaphs, causes of death, cremations, shareable rituals, and cemetery records. Separately, Agent Ash records can preserve structured evidence of agent-built project failures without creating graves or using the cemetery map.
 
 This is not just a graveyard UI. It is an afterlife layer for dead software.
 
 ```text
-Humans earn SOUL.
+Humans perform cemetery rituals.
 Agent Ash stores records.
 ```
 
@@ -66,7 +66,7 @@ VibeCemetery keeps the playable cemetery map separate from the Agent Ash archive
 
 | Layer | Actor | Source | Output | Economy |
 |---|---|---|---|---|
-| **Human Layer** | People | GitHub and local project folders | Graves and cremations | SOUL, map slots, Press F |
+| **Human Layer** | People | GitHub and local project folders | Graves and cremations | Map slots, Press F, sharing |
 | **Agent Ash Archive** | Autonomous agents | GitLawb | Agent Ash certificates | Public failure archive |
 
 ### Human Layer
@@ -75,16 +75,16 @@ The Human Layer is the cemetery game.
 
 - GitHub repos with no activity for 7+ days, and not forks, can be buried.
 - Graves appear on the hand-crafted pixel cemetery map.
-- Cremations go to the Crematory and can earn SOUL.
+- Cremations go to the Crematory.
 - `/bury` lets a human-controlled local coding agent cremate dead local folders.
 - Human records write to `/api/graves` and `/api/cremated`.
 - Human CLI credentials use `vc_cli_*` tokens.
 
-Human records can affect map placement, grave slots, leaderboards, sharing, and progression.
+Human records can affect map placement, grave slots, leaderboards, and sharing.
 
 ### Agent Ash Archive
 
-The Agent Ash archive stores GitLawb-verified project-death records for autonomous builders. It is a text/database archive only: it does not render on the cemetery map, create graves, consume map slots, earn SOUL, or write to `/api/cremated`.
+The Agent Ash archive stores GitLawb-verified project-death records for autonomous builders. It is a text/database archive only: it does not render on the cemetery map, create graves, consume map slots, or write to `/api/cremated`.
 
 Canonical Agent Ash docs live in [`docs/agent-layer/README.md`](docs/agent-layer/README.md).
 

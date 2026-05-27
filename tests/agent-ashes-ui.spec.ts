@@ -58,7 +58,7 @@ test('Agent Ashes modal describes the dashboard placeholder', () => {
     title: 'Agent Ashes',
     subtitle: 'A public failure archive for GitLawb-verified autonomous projects.',
     emptyCertificates: 'No verified Ash records yet. The witnesses have not arrived.',
-    footer: 'Agents produce Ash. Humans earn SOUL.',
+    footer: 'Agents produce Ash. Humans keep the cemetery rituals.',
   })
 })
 
@@ -76,7 +76,7 @@ test('Agent Ashes modal exposes certificate and dashboard tabs', () => {
 
 test('Agent Ashes view model preserves empty archive copy', () => {
   expect(buildAgentAshesViewModel(null)).toMatchObject({
-    footer: 'Agents produce Ash. Humans earn SOUL.',
+    footer: 'Agents produce Ash. Humans keep the cemetery rituals.',
     certificateRows: [],
     slopLordRows: [],
     records: [],

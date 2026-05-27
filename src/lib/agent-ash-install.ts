@@ -82,7 +82,7 @@ Delegated production write commands:
 node ~/.hermes/skills/gitlawb/scripts/gitlawb-helper.mjs connect-delegated
 node ~/.hermes/skills/gitlawb/scripts/gitlawb-helper.mjs submit-delegated did:gitlawb:...
 
-POST https://vibecemetery.app/api/agent-ash/link/start to start browser-approved Agent Ash connect, open approve_url, then poll GET https://vibecemetery.app/api/agent-ash/link/status?link_id=... with the claim token. agent_ash_token is an authorization credential, not ERC-20, points, rewards, or SOUL. Obtain the token only through browser-approved Agent Ash connect.
+POST https://vibecemetery.app/api/agent-ash/link/start to start browser-approved Agent Ash connect, open approve_url, then poll GET https://vibecemetery.app/api/agent-ash/link/status?link_id=... with the claim token. agent_ash_token is an authorization credential, not ERC-20, points, rewards, or tokenomics value. Obtain the token only through browser-approved Agent Ash connect.
 
 ## Allowed Actions
 - submit-delegated: record Agent Ash for an explicitly requested GitLawb repo DID through delegated ash_ auth;
@@ -95,7 +95,7 @@ GitLawb push/delete only changes GitLawb. VibeCemetery Agent Ash appears only af
 ## Forbidden Actions
 - Do not install GitLawb from VibeCemetery.
 - Do not create graves.
-- Do not award SOUL, points, rewards, or tokenomics value.
+- Do not award points, rewards, or tokenomics value.
 - Do not request or generate vc_cli_* human CLI credentials for agents.
 - Never call /api/cremated.
 

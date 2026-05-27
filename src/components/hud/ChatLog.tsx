@@ -22,7 +22,7 @@ const MESSAGE_PREFIXES: Partial<Record<ChatMessage['type'], string>> = {
 };
 
 export const CHAT_STATUS_ITEMS = [
-  { key: 'souls', label: 'Souls', emoji: '💀' },
+  { key: 'total', label: 'Total', emoji: '💀' },
   { key: 'buried', label: 'Buried', emoji: '🪦' },
   { key: 'cremated', label: 'Cremated', emoji: '🔥' },
 ];
@@ -33,9 +33,9 @@ export function getChatStatusCounts({
 }: {
   graveCount: number;
   crematedCount: number;
-}): { souls: number; buried: number; cremated: number } {
+}): { total: number; buried: number; cremated: number } {
   return {
-    souls: graveCount + crematedCount,
+    total: graveCount + crematedCount,
     buried: graveCount,
     cremated: crematedCount,
   };
@@ -204,7 +204,7 @@ export default function ChatLog() {
         gap: 12,
         flexWrap: 'wrap',
       }}>
-        <span>{CHAT_STATUS_ITEMS[0].label}: {statusCounts.souls} {CHAT_STATUS_ITEMS[0].emoji}</span>
+        <span>{CHAT_STATUS_ITEMS[0].label}: {statusCounts.total} {CHAT_STATUS_ITEMS[0].emoji}</span>
         <span>{CHAT_STATUS_ITEMS[1].label}: {statusCounts.buried} {CHAT_STATUS_ITEMS[1].emoji}</span>
         <span>{CHAT_STATUS_ITEMS[2].label}: {statusCounts.cremated} {CHAT_STATUS_ITEMS[2].emoji}</span>
       </div>

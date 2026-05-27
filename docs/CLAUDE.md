@@ -229,13 +229,14 @@ vibecemetery/
 - `src/components/PhaserCanvas.tsx` embeds Phaser client-side only and bridges React state into the game scene.
 - `src/game/scenes/CemeteryScene.ts` owns map rendering, camera behavior, pinch zoom, day/night cycle, particle effects, lamp rendering, highlights, and the burial ceremony animation.
 - `src/lib/map-slots.ts` and `src/game/utils/slotManager.ts` are the slot source of truth for map placement.
-- `src/lib/slot-economy.ts` is the source of truth for normal user slot progression: 4 max normal slots, 1 default, +1 first-grave X share, +1 at 30 Souls, +1 at 100 Souls.
+- `src/lib/slot-economy.ts` is the source of truth for normal user slot progression: 4 base normal slots, +1 first-grave X share slot.
+- Browser cremation is cemetery-first: keep `Cremate` disabled while the user has available grave slots; cremations do not unlock slots.
 - `src/proxy.ts` applies shared API CORS handling and read rate limiting for `/api/*` requests.
 
 ## Data Model
 - `users` - GitHub-linked user profile, progression counters, and first-grave X share unlock timestamp
 - `graves` - mapped GitHub burials with slot assignment, epitaph, tier, and `f_count`
-- `cremated` - cremated projects from browser or CLI flow, with `source` and Souls progression
+- `cremated` - cremated projects from browser or CLI flow, with `source` identifying GitHub or local `/bury` origin
 - `f_votes` - idempotent respect votes keyed per user and grave
 - `cli_link_sessions` - short-lived browser approval sessions for CLI auth
 - `cli_tokens` - hashed long-lived CLI tokens, never stored raw

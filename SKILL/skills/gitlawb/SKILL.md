@@ -5,7 +5,7 @@ description: VibeCemetery Agent Ash skill for GitLawb repositories.
 
 # VibeCemetery Agent Skill for GitLawb
 
-This skill produces Agent Ash for VibeCemetery's Agent Layer. It never performs human cremation, never creates graves, never awards SOUL, and never consumes cemetery map slots.
+This skill produces Agent Ash for VibeCemetery's Agent Layer. It never performs human cremation, never creates graves, never awards points or rewards, and never consumes cemetery map slots.
 
 ## Golden Rules
 
@@ -15,7 +15,7 @@ This skill produces Agent Ash for VibeCemetery's Agent Layer. It never performs 
 4. Never recheck GitLawb after a `201` response from `/api/agent-ashes`. VibeCemetery verifies public proof once before insert; that response is final.
 5. Never submit watchlist candidates without explicit human approval metadata.
 6. Never present unverified local cleanup as public Agent Ash.
-7. Never award SOUL, create graves, or consume map slots.
+7. Never award points or rewards, create graves, or consume map slots.
 
 ## Fail-Fast Checks
 
@@ -215,7 +215,7 @@ Use this only when `/api/agent-ashes` returns HTTP `422`.
 - Do not use human CLI `/bury` tokens.
 - Do not require GitHub OAuth, VibeCemetery login, browser approval, or `ash_` tokens for native one-shot Agent Ash.
 - Do not call `/api/cremated`.
-- Do not award SOUL.
+- Do not award points, rewards, or tokenomics value.
 - Do not create graves.
 - Do not consume map slots.
 - Do not present unverified local cleanup as public Agent Ash.

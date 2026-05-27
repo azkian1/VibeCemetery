@@ -141,7 +141,7 @@ export default function StepSelect({
             <div style={{ color: '#6a6960', fontSize: 12, lineHeight: 1.5, textAlign: 'center', marginTop: 2, borderTop: '1px solid #3a3530', paddingTop: 6 }}>
               {singleSelection
                 ? 'SHOVEL creates graves only. Use FIRE for cremation.'
-                : 'Coffin = grave on the map. Fire = crematory record. Cremations earn Souls for more grave slots.'}
+                : 'Coffin = grave on the map. Fire = crematory record.'}
             </div>
           )}
         </div>

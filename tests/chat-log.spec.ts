@@ -2,17 +2,17 @@ import { expect, test } from '@playwright/test'
 import { readFileSync } from 'node:fs'
 import { CHAT_STATUS_ITEMS, getChatStatusCounts } from '../src/components/hud/ChatLog'
 
-test('chat status bar includes Souls, Buried, and Cremated counters', () => {
+test('chat status bar includes Total, Buried, and Cremated counters', () => {
   expect(CHAT_STATUS_ITEMS).toEqual([
-    { key: 'souls', label: 'Souls', emoji: '💀' },
+    { key: 'total', label: 'Total', emoji: '💀' },
     { key: 'buried', label: 'Buried', emoji: '🪦' },
     { key: 'cremated', label: 'Cremated', emoji: '🔥' },
   ])
 })
 
-test('chat status counts graves plus cremations as Souls', () => {
+test('chat status counts graves plus cremations as total records', () => {
   expect(getChatStatusCounts({ graveCount: 3, crematedCount: 2 })).toEqual({
-    souls: 5,
+    total: 5,
     buried: 3,
     cremated: 2,
   })

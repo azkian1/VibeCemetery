@@ -206,6 +206,6 @@ Scheduled scans currently submit only through delegated production auth and requ
 - Do not use `vc_cli_*` tokens.
 - Do not call `/api/cremated`.
 - Do not create graves.
-- Do not award SOUL.
+- Do not award points, rewards, or tokenomics value.
 - Do not consume map slots.
 - Do not present unverified local cleanup as public Agent Ash.

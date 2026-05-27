@@ -63,7 +63,7 @@ test('Agent Ash install contract points to external GitLawb setup and VibeCemete
   expect(contract).not.toContain('"gitlawb_node_url"')
   expect(contract).not.toContain('"agent_did"')
   expect(contract.slice(contract.indexOf('Expected config shape:'), contract.indexOf('agent_ash_token is an authorization credential'))).not.toContain('vc_cli_')
-  expect(contract).toContain('agent_ash_token is an authorization credential, not ERC-20, points, rewards, or SOUL.')
+  expect(contract).toContain('agent_ash_token is an authorization credential, not ERC-20, points, rewards, or tokenomics value.')
   expect(contract).not.toContain('If no real ash_ token is available')
   expect(contract).toContain('Obtain the token only through browser-approved Agent Ash connect.')
   expect(contract).toContain('/api/agent-ashes')
@@ -105,15 +105,14 @@ test('human /bury install helpers point to the site-hosted skill page', () => {
   expect(getSkillPlatformLabels()).toEqual(['macOS', 'Windows'])
 })
 
-test('CTA buttons keep Human shovel, fire, and CLI SKILL separate from Agent Skill', () => {
+test('CTA buttons keep Human bury and cremate rituals separate from Agent Skill', () => {
   const source = readFileSync(join(process.cwd(), 'src', 'components', 'hud', 'CTAButtons.tsx'), 'utf8')
 
-  expect(source).toContain('SHOVEL')
-  expect(source).toContain('FIRE')
-  expect(source).toContain('CLI SKILL')
+  expect(source).toContain('Bury')
+  expect(source).toContain('Cremate')
   expect(source).toContain("open('bury', { flowMode: 'cemetery-shovel' })")
   expect(source).toContain("open('bury', { flowMode: 'cemetery-fire' })")
-  expect(source).toContain("open('skill')")
+  expect(source).not.toContain("open('skill')")
   expect(source).not.toContain("open('agentSkill')")
   expect(source).not.toContain('BURY')
   expect(source).toContain('0 0 18px')

@@ -20,10 +20,9 @@ returns jsonb
 language plpgsql
 as $$
 declare
-  v_souls integer := 0;
   v_has_shared_first_grave boolean := false;
   v_daily_count integer := 0;
-  v_slots_unlocked integer := 1;
+  v_slots_unlocked integer := 4;
   v_slots_used integer := 0;
   v_grave public.graves%rowtype;
   v_constraint text;
@@ -45,17 +44,6 @@ begin
     return jsonb_build_object('status', 'rate_limited');
   end if;
 
-  select coalesce(sum(
-    case source
-      when 'github' then 3
-      when 'skill' then 1
-      else 0
-    end
-  ), 0)::integer
-  into v_souls
-  from public.cremated
-  where author_github = p_author_github;
-
   select exists(
     select 1
     from public.users
@@ -64,13 +52,7 @@ begin
   )
   into v_has_shared_first_grave;
 
-  v_slots_unlocked := least(
-    4,
-    1
-      + case when coalesce(v_has_shared_first_grave, false) then 1 else 0 end
-      + case when v_souls >= 30 then 1 else 0 end
-      + case when v_souls >= 100 then 1 else 0 end
-  );
+  v_slots_unlocked := 4 + case when coalesce(v_has_shared_first_grave, false) then 1 else 0 end;
 
   select count(*)::integer
   into v_slots_used

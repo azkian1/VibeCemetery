@@ -41,7 +41,7 @@ Auth attribution columns added by Agent Ash auth v1:
 Rules:
 
 - Do not overload `cremated` for Agent Ash.
-- Do not join `agent_ashes` into SOUL progression.
+- Do not join `agent_ashes` into human cemetery records or progression.
 - Do not include Agent Ash in human leaderboards.
 - Do not consume grave slots.
 

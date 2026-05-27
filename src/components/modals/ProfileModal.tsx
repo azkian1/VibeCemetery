@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useCallback, useEffect, useState } from 'react';
+import React, { useMemo, useCallback, useEffect } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import { useModal, useGame, useCremated, useGraves } from '@/context/GameContext';
 import { useIsMobile } from '@/hooks/useIsMobile';
@@ -12,7 +12,7 @@ import OrnamentDivider from '@/components/ui/OrnamentDivider';
 import StoneButton from '@/components/ui/StoneButton';
 import InsetBlock from '@/components/ui/InsetBlock';
 import LoadErrorState from '@/components/ui/LoadErrorState';
-import { calculateSouls, calculateUserSlotEconomy, getSlotUnlockProgress, isAutoAssignableGraveSlotType, SOUL_SLOT_THRESHOLDS } from '@/lib/slot-economy';
+import { calculateUserSlotEconomy, getSlotUnlockProgress, isAutoAssignableGraveSlotType } from '@/lib/slot-economy';
 import { getDemoGraveBonusSlots } from '@/demo/mode';
 
 function ProjectRow({ emoji, name, color, onClick, title, ariaLabel }: {
@@ -119,9 +119,6 @@ export default function ProfileModal() {
 
   const totalBurials = userGraves.length + userCremated.length;
 
-  // Cremation Souls drive slot unlocks (github = 3 Souls, skill = 1 Soul)
-  const souls = calculateSouls(userCremated);
-
   // Slot calculation — single pass over thresholds
   const slotsUsed = useMemo(() => {
     if (state.slotPositions.length === 0) return userGraves.length;
@@ -133,21 +130,14 @@ export default function ProfileModal() {
     return userGraves.filter((grave) => autoSlotIds.has(grave.slotId)).length;
   }, [state.slotPositions, userGraves]);
   const slotEconomy = calculateUserSlotEconomy({
-    souls,
     slotsUsed,
     hasSharedFirstGrave,
     bonusSlots: getDemoGraveBonusSlots(user?.github_username),
   });
-  const unlocked = SOUL_SLOT_THRESHOLDS.filter(t => souls >= t);
   const slotsUnlocked = slotEconomy.slotsUnlocked;
   const slotsAvailable = slotEconomy.availableSlots;
-  const allSlotsMaxed = slotEconomy.allSlotsMaxed;
-  const nextThreshold = slotEconomy.nextSoulThreshold;
-  const prevThreshold = unlocked.length > 0 ? unlocked[unlocked.length - 1] : 0;
-  const progressToNext = nextThreshold
-    ? ((souls - prevThreshold) / (nextThreshold - prevThreshold)) * 100
-    : 100;
-  const slotUnlockProgress = getSlotUnlockProgress({ souls, hasSharedFirstGrave });
+  const cremateDisabled = slotsAvailable > 0;
+  const slotUnlockProgress = getSlotUnlockProgress({ hasSharedFirstGrave });
 
   // Navigate camera to a grave slot and close modal
   const navigateToGrave = useCallback((slotId: number) => {
@@ -165,9 +155,8 @@ export default function ProfileModal() {
     }, 250);
   }, [state.slotPositions, close]);
 
-  const openBury = useCallback(() => { close(); open('bury'); }, [close, open]);
-  const [soulsTipVisible, setSoulsTipVisible] = useState(false);
-  const [earnSlotsExpanded, setEarnSlotsExpanded] = useState(false);
+  const openBury = useCallback(() => { close(); open('bury', { flowMode: 'cemetery-shovel' }); }, [close, open]);
+  const openCremate = useCallback(() => { close(); open('bury', { flowMode: 'cemetery-fire' }); }, [close, open]);
 
   if (!user) return null;
 
@@ -305,175 +294,29 @@ export default function ProfileModal() {
               <ProgressBar
                 percent={slotsUnlocked > 0 ? (slotsUsed / slotsUnlocked) * 100 : 0}
               />
-              {allSlotsMaxed ? (
-                <div style={{
-                  textAlign: 'center',
-                  fontSize: 11,
-                  color: '#c8a050',
-                  marginTop: 6,
-                  fontStyle: 'italic',
-                }}>
-                  All slots unlocked
-                </div>
-              ) : nextThreshold && (
-                <div style={{ marginTop: 6 }}>
-                  <div
-                    style={{
-                      fontSize: 10,
-                      color: '#aaa9a0',
-                      marginBottom: 3,
-                      cursor: 'help',
-                      position: 'relative',
-                      display: 'inline-block',
-                      borderBottom: '1px dotted #aaa9a0',
-                    }}
-                    onMouseEnter={() => setSoulsTipVisible(true)}
-                    onMouseLeave={() => setSoulsTipVisible(false)}
-                    onClick={() => setSoulsTipVisible(v => !v)}
-                  >
-                    Next slot at {nextThreshold} Souls
-                    {soulsTipVisible && (
-                      <div style={{
-                        position: 'absolute',
-                        bottom: '100%',
-                        left: '50%',
-                        transform: 'translateX(-50%)',
-                        marginBottom: 6,
-                        padding: '6px 10px',
-                        background: '#1a1816',
-                        border: '1px solid #3a3530',
-                        borderRadius: 3,
-                        boxShadow: '0 4px 12px rgba(0,0,0,0.6)',
-                        whiteSpace: 'nowrap',
-                        fontSize: 11,
-                        color: '#c8b888',
-                        lineHeight: 1.5,
-                        zIndex: 10,
-                        pointerEvents: 'none',
-                      }}>
-                        <div>GitHub cremation = <strong style={{ color: '#e8d5a3' }}>3 Souls</strong></div>
-                        <div>Skill cremation = <strong style={{ color: '#e8d5a3' }}>1 Soul</strong></div>
-                      </div>
-                    )}
-                  </div>
-                  <ProgressBar
-                    percent={progressToNext}
-                    label={`${souls}/${nextThreshold}`}
-                  />
-                </div>
-              )}
             </InsetBlock>
           )}
 
-          {/* Earn Slots */}
-          {!loading && !loadError && !isMobile && !allSlotsMaxed && (
-            <>
-              <div style={{ marginBottom: 8, display: 'flex', justifyContent: 'center' }}>
-                <button
-                  onClick={() => setEarnSlotsExpanded(v => !v)}
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    color: '#8a8980',
-                    fontSize: 12,
-                    cursor: 'pointer',
-                    padding: '4px 0',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 6,
-                    transition: 'color 0.15s',
-                    fontFamily: 'var(--font-cinzel)',
-                  }}
-                  onMouseEnter={(e) => { e.currentTarget.style.color = '#c8a050'; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.color = '#8a8980'; }}
-                >
-                  <span style={{
-                    fontSize: 10,
-                    transition: 'transform 0.2s',
-                    transform: earnSlotsExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
-                  }}>
-                    ▼
-                  </span>
-                  How to unlock more slots?
-                </button>
-              </div>
-
+          {/* Mission */}
+          {!loading && !loadError && (
+            <InsetBlock label="Mission" style={{ marginBottom: 10 }}>
               <div style={{
-                overflow: 'hidden',
-                maxHeight: earnSlotsExpanded ? 600 : 0,
-                transition: 'max-height 0.3s ease',
-                marginBottom: 10,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                padding: '6px 8px',
+                background: 'rgba(0,0,0,0.12)',
+                border: '1px solid #2a2520',
+                borderRadius: 2,
               }}>
-                <InsetBlock>
-                  {/* Missions */}
-                  <div style={{ marginBottom: 12 }}>
-                    <div style={{ fontSize: 11, color: '#c8a050', marginBottom: 6, fontWeight: 'bold' }}>
-                      Missions
-                    </div>
-                    <div style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 8,
-                      padding: '6px 8px',
-                      background: 'rgba(0,0,0,0.12)',
-                      border: '1px solid #2a2520',
-                      borderRadius: 2,
-                    }}>
-                      <span style={{ fontSize: 16, color: hasSharedFirstGrave ? '#68a060' : '#6a6960' }}>
-                        {hasSharedFirstGrave ? '✓' : '☐'}
-                      </span>
-                      <span style={{ fontSize: 12, color: hasSharedFirstGrave ? '#68a060' : '#8a8980', fontStyle: 'italic' }}>
-                        {slotUnlockProgress.socialLabel}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Cremation Progress */}
-                  <div>
-                    <div style={{ fontSize: 11, color: '#c8a050', marginBottom: 6, fontWeight: 'bold' }}>
-                      Cremation Progress
-                    </div>
-
-                    {/* Show unlocked slots */}
-                    {slotUnlockProgress.unlockedSoulLabels.map((label) => (
-                      <div key={label} style={{ marginBottom: 6 }}>
-                        <div style={{ fontSize: 11, color: '#68a060', marginBottom: 2 }}>
-                          ✓ {label}
-                        </div>
-                      </div>
-                    ))}
-
-                    {/* Show next slot progress */}
-                    {nextThreshold && slotUnlockProgress.nextSoulLabel && (
-                      <div style={{ marginBottom: 6 }}>
-                        <div style={{ fontSize: 11, color: '#aaa9a0', marginBottom: 3 }}>
-                          {slotUnlockProgress.nextSoulLabel}
-                        </div>
-                        <ProgressBar
-                          percent={progressToNext}
-                          label={`${souls}/${nextThreshold}`}
-                        />
-                      </div>
-                    )}
-
-                    {/* Helper text */}
-                    <div style={{
-                      fontSize: 11,
-                      color: '#6a6960',
-                      marginTop: 8,
-                      padding: '6px 8px',
-                      background: 'rgba(0,0,0,0.08)',
-                      borderRadius: 2,
-                      lineHeight: 1.5,
-                    }}>
-                      GitHub cremation = <strong style={{ color: '#c8a050' }}>3 Souls</strong>
-                      <br />
-                      Skill cremation = <strong style={{ color: '#c8a050' }}>1 Soul</strong>
-                    </div>
-                  </div>
-                </InsetBlock>
+                <span style={{ fontSize: 16, color: hasSharedFirstGrave ? '#68a060' : '#6a6960' }}>
+                  {hasSharedFirstGrave ? '✓' : '☐'}
+                </span>
+                <span style={{ fontSize: 12, color: hasSharedFirstGrave ? '#68a060' : '#8a8980', fontStyle: 'italic' }}>
+                  {slotUnlockProgress.socialLabel}
+                </span>
               </div>
-            </>
+            </InsetBlock>
           )}
 
           {/* YOUR PROJECTS */}
@@ -523,22 +366,25 @@ export default function ProfileModal() {
               }}>
                 No projects laid to rest yet. The cemetery awaits your offerings.
               </p>
-              <StoneButton onClick={openBury}>
-                Bury or Cremate Your First Project
-              </StoneButton>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                <StoneButton onClick={openBury} active>
+                  Bury
+                </StoneButton>
+                <StoneButton onClick={openCremate} disabled={cremateDisabled} title={cremateDisabled ? 'Use your available grave slots before cremating.' : 'Cremate projects into the Crematory'}>
+                  Cremate
+                </StoneButton>
+              </div>
             </div>
           ) : null}
 
-          {/* CTA — bury flow handles slot/cremation logic internally */}
+          {/* CTA */}
           {!loading && !loadError && totalBurials > 0 && (
-            <div style={{ textAlign: 'center', marginBottom: 8 }}>
-              {slotsUsed >= slotsUnlocked && !allSlotsMaxed && (
-                <div style={{ fontSize: 11, color: '#6a6960', marginBottom: 6, fontStyle: 'italic' }}>
-                  Cremate projects to earn Souls and unlock more grave slots
-                </div>
-              )}
-              <StoneButton onClick={openBury}>
-                Bury Another
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
+              <StoneButton onClick={openBury} active>
+                Bury
+              </StoneButton>
+              <StoneButton onClick={openCremate} disabled={cremateDisabled} title={cremateDisabled ? 'Use your available grave slots before cremating.' : 'Cremate projects into the Crematory'}>
+                Cremate
               </StoneButton>
             </div>
           )}

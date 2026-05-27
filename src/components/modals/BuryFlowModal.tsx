@@ -15,7 +15,7 @@ import StepDone from './bury/StepDone';
 import type { DeadRepo, GraveData, BuryResult } from '@/types/game';
 import { GRAVEDIGGER_BURIAL, GRAVEDIGGER_MASS_BURIAL } from '@/gravedigger/phrases';
 import { cemeteryEvents } from '@/game/events';
-import { calculateSouls, calculateUserSlotEconomy, isAutoAssignableGraveSlotType } from '@/lib/slot-economy';
+import { calculateUserSlotEconomy, isAutoAssignableGraveSlotType } from '@/lib/slot-economy';
 import { getDemoGraveBonusSlots } from '@/demo/mode';
 import { savePendingBurialCeremony } from '@/lib/pending-burial-ceremony';
 import type { SlotPositionData } from '@/game/events';
@@ -214,9 +214,7 @@ export default function BuryFlowModal() {
 
   const userCrematedCount = userCremated.length;
 
-  const souls = calculateSouls(userCremated);
   const slotEconomy = calculateUserSlotEconomy({
-    souls,
     slotsUsed: userGravesCount,
     hasSharedFirstGrave,
     bonusSlots: getDemoGraveBonusSlots(username),

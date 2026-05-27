@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import { decideCemeteryCtaState } from '../src/components/hud/CTAButtons'
 
 test.describe('cemetery CTA buttons', () => {
-  test('enables shovel and disables fire while grave slots are available', () => {
+  test('enables burial and blocks cremation while grave slots are available', () => {
     expect(decideCemeteryCtaState(1)).toEqual({
       shovelDisabled: false,
       fireDisabled: true,

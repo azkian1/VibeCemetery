@@ -239,7 +239,7 @@ export default function GraveModal() {
             <div style={{ display: 'flex', gap: 8, justifyContent: 'center', margin: '0 0 14px' }}>
               {[
                 { label: 'Graves buried', value: totalGraves },
-                { label: 'Souls cremated', value: totalCremated },
+                { label: 'Projects cremated', value: totalCremated },
                 { label: 'Respects paid', value: totalF },
               ].map((s) => (
                 <div key={s.label} style={{

@@ -172,7 +172,7 @@ export default function StepCause({
       <p style={{ color: '#6a6960', fontSize: 12, lineHeight: 1.5, margin: '12px 0 0', textAlign: 'center' }}>
         {burialOnly
           ? 'Buried projects appear on the cemetery map. One project, one grave.'
-          : 'Buried projects appear on the cemetery map. Cremated projects go to the Crematory and earn Souls.'}
+          : 'Buried projects appear on the cemetery map. Cremated projects go to the Crematory.'}
       </p>
     </div>
   );
