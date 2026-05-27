@@ -395,7 +395,7 @@ export default function BuryFlowModal() {
               if (cremRes.ok) {
                 const cremData = await cremRes.json();
                 dispatch({ type: 'ADD_CREMATED', cremated: cremData });
-                buryResults.push({ name: repo.name, success: true, type: 'cremated', error: 'no grave slots — cremated' });
+                buryResults.push({ name: repo.name, success: true, type: 'cremated', cremated: cremData, error: 'no grave slots - cremated' });
               } else if (cremRes.status === 429) {
                 rateLimited = true;
                 buryResults.push({ name: repo.name, success: false, type: 'cremated', error: 'daily limit reached — come back tomorrow' });
@@ -439,7 +439,7 @@ export default function BuryFlowModal() {
             if (cremRes.ok) {
               const cremData = await cremRes.json();
               dispatch({ type: 'ADD_CREMATED', cremated: cremData });
-              buryResults.push({ name: repo.name, success: true, type: 'cremated' });
+              buryResults.push({ name: repo.name, success: true, type: 'cremated', cremated: cremData });
 
               dispatch({
                 type: 'ADD_CHAT_MESSAGE',
@@ -541,6 +541,8 @@ export default function BuryFlowModal() {
               filteredCount={filteredCount}
               recordsLoading={state.gravesLoading || state.crematedLoading}
               burialOnly={flowUi.isBurial}
+              cremationOnly={flowUi.isCremation}
+              onOpenSkill={() => open('skill')}
               onScanned={handleScanned}
               onError={setError}
               onNext={() => setStep(2)}
@@ -590,6 +592,7 @@ export default function BuryFlowModal() {
               onClose={close}
               onOpenSkill={() => open('skill')}
               onOpenProfile={() => open('profile')}
+              onOpenUrn={(cremated) => open('urn', { crematedItem: cremated })}
             />
           )}
 

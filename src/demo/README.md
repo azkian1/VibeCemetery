@@ -13,7 +13,7 @@ What it does:
 - Seeds `/api/graves` with 28 local demo graves.
 - Seeds NextAuth with a connected `demo-gravedigger` GitHub identity.
 - Returns 10 fake dead repos from `/api/github/scan`.
-- Lets SHOVEL burial and FIRE cremation write in memory only.
+- Lets Bury and Cremate ritual actions write in memory only.
 
 Cleanup after recording:
 

@@ -6,6 +6,16 @@ import type { DeadRepo, GitHubScanResult } from '@/types/game';
 import { getBuryLoginCallbackUrl } from '@/lib/bury-intent';
 
 export const BURY_GITHUB_CONNECT_LABEL = 'Connect GitHub';
+export const LOCAL_TERMINAL_CREMATION_COPY = 'For local folders, set up /bury terminal cremation';
+export const LOCAL_TERMINAL_CREMATION_PROMPT_MARGIN_TOP = 28;
+
+export function shouldShowRescanAfterSuccessfulScan(): boolean {
+  return false;
+}
+
+export function shouldShowCremationSkillPrompt(cremationOnly: boolean): boolean {
+  return cremationOnly;
+}
 
 interface StepScanProps {
   repos: DeadRepo[];
@@ -15,6 +25,8 @@ interface StepScanProps {
   filteredCount: number;
   recordsLoading?: boolean;
   burialOnly?: boolean;
+  cremationOnly?: boolean;
+  onOpenSkill?: () => void;
   onScanned: (repos: DeadRepo[], total: number) => void;
   onError: (err: string) => void;
   onNext: () => void;
@@ -29,6 +41,8 @@ export default function StepScan({
   filteredCount,
   recordsLoading = false,
   burialOnly = false,
+  cremationOnly = false,
+  onOpenSkill,
   onScanned,
   onError,
   onNext,
@@ -232,7 +246,27 @@ export default function StepScan({
       >
         Next
       </button>
-      {rescanButton}
+      {shouldShowCremationSkillPrompt(cremationOnly) && onOpenSkill && (
+        <button
+          onClick={onOpenSkill}
+          style={{
+            display: 'block',
+            margin: `${LOCAL_TERMINAL_CREMATION_PROMPT_MARGIN_TOP}px auto 0`,
+            color: '#7898b8',
+            fontSize: 13,
+            cursor: 'pointer',
+            textDecoration: 'none',
+            background: 'none',
+            border: 'none',
+            borderBottom: '1px solid rgba(120,152,184,0.3)',
+            padding: 0,
+            fontFamily: 'inherit',
+          }}
+        >
+          {LOCAL_TERMINAL_CREMATION_COPY}
+        </button>
+      )}
+      {shouldShowRescanAfterSuccessfulScan() && rescanButton}
     </div>
   );
 }

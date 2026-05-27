@@ -56,7 +56,7 @@ test.describe('home scanner entry flow', () => {
     expect(decideHomeRepoAction(availableSlots)).toEqual({ label: 'Cremate', flowMode: 'home-preselected-cremation' })
   })
 
-  test('demo bonus keeps five grave slots available above seeded graves', () => {
+  test('demo seeded graves exhaust burial slots for cremation testing', () => {
     const graves = new Map<number, GraveData>()
     for (let i = 0; i < 28; i++) {
       graves.set(i + 1, grave({ slot_id: i + 1, author_github: 'demo-gravedigger', github_repo_id: i + 1 }))
@@ -67,11 +67,10 @@ test.describe('home scanner entry flow', () => {
       cremated: [],
       username: 'demo-gravedigger',
       hasSharedFirstGrave: true,
-      bonusSlots: 5,
     })
 
-    expect(availableSlots).toBe(5)
-    expect(decideHomeRepoAction(availableSlots)).toEqual({ label: 'Bury', flowMode: 'home-preselected-burial' })
+    expect(availableSlots).toBe(0)
+    expect(decideHomeRepoAction(availableSlots)).toEqual({ label: 'Cremate', flowMode: 'home-preselected-cremation' })
   })
 
   test('ignores non-auto graves when map slot positions are known', () => {

@@ -32,6 +32,7 @@ export interface BuryResult {
   success: boolean;
   type: 'grave' | 'cremated';
   grave?: GraveData;
+  cremated?: CrematedData;
   error?: string;
 }
 

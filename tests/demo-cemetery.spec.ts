@@ -4,6 +4,7 @@ import { NextRequest } from 'next/server'
 import { GET as scanGithub } from '../src/app/api/github/scan/route'
 import { GET as getGraves, POST as postGrave } from '../src/app/api/graves/route'
 import { GET as getCremated, POST as postCremated } from '../src/app/api/cremated/route'
+import { DEMO_GRAVE_BONUS_SLOTS, getDemoGraveBonusSlots } from '../src/demo/mode'
 import {
   DEMO_USERNAME,
   createDemoCremation,
@@ -91,6 +92,22 @@ test.describe('local demo cemetery data', () => {
     expect(source).toContain('if (demoSession)')
     expect(source).toContain('session={demoSession}')
     expect(source).toContain('<SessionProvider>{children}</SessionProvider>')
+  })
+
+  test('demo mode has no bonus grave slots while testing cremation', () => {
+    const previous = process.env.NEXT_PUBLIC_VIBECEMETERY_DEMO
+    process.env.NEXT_PUBLIC_VIBECEMETERY_DEMO = '1'
+
+    try {
+      expect(DEMO_GRAVE_BONUS_SLOTS).toBe(0)
+      expect(getDemoGraveBonusSlots(DEMO_USERNAME)).toBe(0)
+    } finally {
+      if (previous === undefined) {
+        delete process.env.NEXT_PUBLIC_VIBECEMETERY_DEMO
+      } else {
+        process.env.NEXT_PUBLIC_VIBECEMETERY_DEMO = previous
+      }
+    }
   })
 
   test('demo cemetery endpoints serve seeded graves and local cremations', async () => {

@@ -91,8 +91,8 @@ Canonical Agent Ash docs live in [`docs/agent-layer/README.md`](docs/agent-layer
 ## Product Surface
 
 - **Pixel Cemetery Map** - a hand-crafted Phaser cemetery with grave slots, day/night mood, lamps, fog, particles, camera movement, and modal interactions.
-- **GitHub Burial Flow** - sign in, scan inactive repos, choose what deserves a grave, write the cause of death, and place it on the map.
-- **Crematory** - for projects that should burn instead of taking a map slot, including local `/bury` cremations.
+- **GitHub Burial Flow** - sign in, scan inactive repos, pick a dead repo, write the cause of death, and place it on the map when grave slots are available.
+- **Crematory** - for projects that burn into ashes instead of taking a map slot, including local `/bury` cremations and GitHub repos when grave slots are exhausted.
 - **The Crypt** - a searchable ledger of graves.
 - **Necropolis Leaderboard** - top gravediggers, causes of death, and cemetery activity.
 - **Press F** - pay respects to graves, one vote per user per grave.
@@ -123,15 +123,16 @@ Use the website when you want an abandoned GitHub repo to receive a grave or cre
 
 ```text
 1. Sign in with GitHub.
-2. Click BURY.
-3. Scan your own repos.
-4. Pick repos inactive for 7+ days.
-5. Choose grave or cremation.
-6. Write the cause of death.
-7. Leave the project in the cemetery.
+2. Click Scan GitHub on the home page, or enter the cemetery and choose a ritual.
+3. Pick repos inactive for 7+ days.
+4. Click Bury when grave slots are available, or Cremate when they are exhausted.
+5. Write the cause of death.
+6. Leave the project as a grave on the map or as ashes in the Crematory.
 ```
 
-GitHub repos are verified on the server before grave creation. The repo owner must match the signed-in user, forks are rejected, and map placement comes from parsed cemetery slots.
+On `/cemetery`, the old single BURY CTA is split into two actions: **Bury** puts one selected GitHub repo on the map, while **Cremate** saves selected repos as urns. Bury is disabled when no grave slots remain; Cremate is disabled while the user still has grave slots.
+
+GitHub repos are verified on the server before grave creation or cremation. The repo owner must match the signed-in user, forks are rejected, and map placement comes from parsed cemetery slots.
 
 ## Human CLI: /bury
 

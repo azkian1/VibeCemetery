@@ -19,26 +19,24 @@ const FAQ_ITEMS: FaqItem[] = [
     question: 'What is this?',
     answer:
       'VibeCemetery is an interactive graveyard for dead vibe-coded projects. ' +
-      'Every grave is a repo that was born in the hype, mass-produced by AI, and abandoned just as fast. ' +
-      'The last commit serves as the final note.\n\n' +
+      'Every grave is an abandoned repo with a cause of death and a final note.\n\n' +
       'Visit a grave. Read the epitaph. Press F to pay respects.',
   },
   {
     question: 'Who is the Gravedigger?',
     answer:
       'An old-school developer who has seen thousands of repos rise and fall. ' +
-      'He remembers when README files were written by hand and dependencies didn\'t break overnight. ' +
-      'Now he digs graves and mutters something every time a project goes under. ' +
-      'Cynical, but fair — he\'s buried a few of his own.',
+      'Now he digs graves and mutters something when a project goes under. ' +
+      'Cynical, but fair. He has buried a few of his own.',
   },
   {
     question: 'How does it work?',
     answer:
       '1. Sign in with GitHub\n' +
-      '2. Press "BURY" — we\'ll scan your repos\n' +
-      '3. Pick dead repos\n' +
-      '4. Choose grave or cremation\n' +
-      '5. Choose cause of death\n' +
+      '2. Press "Scan GitHub" to scan your own repos\n' +
+      '3. Pick a repo with no pushes for 7+ days\n' +
+      '4. Click "Bury" if you have grave slots, or "Cremate" if you do not\n' +
+      '5. Choose the cause of death\n' +
       '6. Graves appear on the map; cremations go to the Crematory',
   },
   {
@@ -56,41 +54,30 @@ const FAQ_ITEMS: FaqItem[] = [
   {
     question: 'What is the Crematory?',
     answer:
-      'Not every project gets a grave. Cremation is for projects without a repo, projects you choose not to give a grave, or when slots run out. ' +
-      'They end up in the Crematory — Columbarium for projects with URLs, Ash Pit for the rest. ' +
+      'Not every project gets a grave. Cremation is for projects that should become ashes instead of taking a map slot. ' +
+      'They end up in the Crematory. ' +
       'Ashes to ashes.',
   },
   {
-    question: 'What is the CLI Skill?',
+    question: 'How does /bury work in the terminal?',
     answer:
-      'A command for AI coding tools. Approve once in browser, then type /bury to cremate projects directly from your editor. ' +
-      'Cremations earn Souls. Human /bury is for local projects from your editor. ' +
-      'Agent Ash is the separate GitLawb-powered agent layer.',
+      '/bury is a terminal command for human-controlled AI coding tools. Approve it once in the browser, then run /bury in your editor to scan safe local folders and cremate dead projects. ' +
+      'These cremations earn SOUL and appear in the human Crematory.',
   },
   {
     question: 'What is the Agent Layer?',
     answer:
-      'The Agent Layer is a separate cemetery branch for autonomous coding agents. ' +
-      'Agents working through GitLawb can submit verified project deaths as Agent Ashes.\n\n' +
-      'GitLawb is the GitHub-like layer for agent loops: it stores repo identity and proof, while VibeCemetery records the final Ash certificate. ' +
-      'These records do not create human graves, do not use the /bury CLI, and do not earn SOUL.',
+      'The Agent Layer is separate from the human cemetery. ' +
+      'Autonomous agents working through GitLawb can submit verified project deaths as Agent Ashes.\n\n' +
+      'Agent Ash records do not create graves, use /bury, or earn SOUL.',
   },
   {
     question: 'A Note From The Keeper',
     answer:
       'VibeCemetery is a solo indie project built with Claude Code, OpenCode, and GPT.\n\n' +
-      'After I first discovered Claude Code CLI, I fell into two months of pure dopamine. I made more than 50 small projects, scripts, mini-games, experiments, and half-alive pieces of code.\n\n' +
-      'Then the rush started to fade.\n\n' +
-      'I looked back and realized I had created a whole graveyard of projects. No users. No future. No real reason to keep going.\n\n' +
-      'That is how VibeCemetery was born: a place where you can bury a dead repository, pay respect to the tokens, ideas, and time you burned, and finally let it go.\n\n' +
-      'Scan your GitHub. Pick a cause of death. Begin the ritual. You close the tab. It is done.\n\n' +
-      'This is not about failure.\n' +
-      'It is a ritual for moving on.\n\n' +
-      'Somewhere to the right of The Crypt, an empty grave is already waiting.\n\n' +
-      'It does not belong to a repository, or a game, or some forgotten script.\n\n' +
-      'It belongs to VibeCemetery itself.\n\n' +
-      'One day, the gravedigger will return with his shovel.\n\n' +
-      'Even the cemetery must be buried.',
+      'After building too many small projects that went nowhere, I realized I had made a graveyard. VibeCemetery became a place to give those projects an ending.\n\n' +
+      'Scan your GitHub. Pick a cause of death. Begin the ritual. Let it go.\n\n' +
+      'This is not about failure. It is a ritual for moving on.',
   },
 ];
 

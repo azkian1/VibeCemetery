@@ -14,12 +14,19 @@ import {
   shouldFallbackGraveToCremation,
   withDefaultGraveForSelectedRepo,
 } from '../src/components/modals/BuryFlowModal'
+import { getStepDonePrimaryAction } from '../src/components/modals/bury/StepDone'
 import {
   shouldShowStepSelectActionToggles,
   shouldShowStepSelectBulkToggle,
   shouldShowStepSelectCheckboxes,
   shouldShowStepSelectStatusBlock,
 } from '../src/components/modals/bury/StepSelect'
+import {
+  LOCAL_TERMINAL_CREMATION_COPY,
+  LOCAL_TERMINAL_CREMATION_PROMPT_MARGIN_TOP,
+  shouldShowCremationSkillPrompt,
+  shouldShowRescanAfterSuccessfulScan,
+} from '../src/components/modals/bury/StepScan'
 import { shouldHighlightShareGrave } from '../src/components/modals/GraveModal'
 import type { GraveData } from '../src/types/game'
 
@@ -110,6 +117,19 @@ test.describe('BuryFlowModal default grave selection', () => {
   test('cremation-only selection hides grave/fire choices and slot status', () => {
     expect(shouldShowStepSelectActionToggles(true)).toBe(false)
     expect(shouldShowStepSelectStatusBlock(true, false, false, false, false, false)).toBe(false)
+  })
+
+  test('cremation completion opens urn instead of profile', () => {
+    expect(getStepDonePrimaryAction([{ name: 'ashes', success: true, type: 'cremated', cremated: cremation({ name: 'ashes' }) }])).toBe('urn')
+    expect(getStepDonePrimaryAction([{ name: 'grave', success: true, type: 'grave', grave: grave({}) }])).toBe('profile')
+  })
+
+  test('successful scan shows only Next, while cremation scan shows local terminal setup copy', () => {
+    expect(shouldShowRescanAfterSuccessfulScan()).toBe(false)
+    expect(shouldShowCremationSkillPrompt(true)).toBe(true)
+    expect(shouldShowCremationSkillPrompt(false)).toBe(false)
+    expect(LOCAL_TERMINAL_CREMATION_COPY).toBe('For local folders, set up /bury terminal cremation')
+    expect(LOCAL_TERMINAL_CREMATION_PROMPT_MARGIN_TOP).toBe(28)
   })
 
   test('mixed selection keeps grave/fire choices and slot status visible', () => {
@@ -203,5 +223,16 @@ function repo(overrides: { id: number; name: string }) {
     language: 'TypeScript',
     created_at: '2026-01-01T00:00:00Z',
     pushed_at: '2026-05-01T00:00:00Z',
+  }
+}
+
+function cremation(overrides: { name: string }) {
+  return {
+    id: 1,
+    name: overrides.name,
+    cause: 'dead',
+    author_github: 'octocat',
+    created_at: '2026-05-01T00:00:00Z',
+    source: 'github' as const,
   }
 }

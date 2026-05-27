@@ -17,7 +17,7 @@ Current first screen:
 
 ```text
 Top nav:
-[VibeCemetery]                         [Connect Wallet hidden/reserved]
+[VibeCemetery centered/static text]     [Connect Wallet hidden/reserved]
 
 Centered card:
 GitHub scanner
@@ -26,7 +26,7 @@ Bury your abandoned GitHub repos
 
 [ Scan GitHub ]
 
-[ Enter Cemetery ] [ Agent / GitLawb Layer ]
+[ Enter Cemetery ] [ Agent Layer ]
 
 Dead repos = non-forks inactive for 7+ days.
 Only your connected GitHub can be scanned.
@@ -44,8 +44,8 @@ User clicks Scan GitHub
 If not authenticated, GitHub auth opens
 After auth, Scan GitHub scans the connected GitHub account
 Dead repo results render on /
-User clicks Bury on a repo result
-Existing bury flow opens for that repo
+User clicks Bury or Cremate on a repo result
+Existing bury flow opens in the matching mode for that repo
 User can enter /cemetery to explore the map
 ```
 
@@ -88,7 +88,7 @@ Found 6 dead repos
 Last push: 43 days ago
 Language: TypeScript
 Status: Dead
-[ Bury ]
+[ Bury ] or [ Cremate ]
 ```
 
 Empty state:
@@ -99,12 +99,12 @@ A repo must be inactive for 7+ days and not be a fork.
 [ Enter Cemetery ]
 ```
 
-The first page does not show cremation as a standalone action while grave slots are available.
+The first page does not show cremation as a standalone action while grave slots are available. Each result has one primary action based on the user's current grave-slot economy.
 
 New VCv2 action split:
 
-- `Shovel` / grave action is the burial-only flow.
-- `Fire` / cremation action is the cremation-only flow.
+- `Bury` / grave action is the burial-only flow.
+- `Cremate` / ash action is the cremation-only flow.
 - After `Scan GitHub`, each dead repo should lead to burial when the user has grave slots.
 - If the user has no grave slots, the scan result action leads to cremation instead.
 - Cremation is not active while the user still has grave slots.
@@ -112,21 +112,24 @@ New VCv2 action split:
 
 Map HUD action split:
 
-- The old `BURY` floating CTA is replaced by `SHOVEL` and `FIRE`.
-- `SHOVEL` opens burial mode and is disabled when no grave slots remain.
-- `FIRE` opens cremation mode and is disabled while grave slots remain.
+- The old single `BURY` floating CTA is replaced by a `Choose a ritual` panel with `Bury` and `Cremate`.
+- `Bury` opens burial mode and is disabled when no grave slots remain.
+- `Cremate` opens cremation mode and is disabled while grave slots remain.
+- The panel explains the split inline: `Bury` puts it on the map, `Cremate` saves it as ashes.
 - `CLI SKILL` stays separate from both ritual actions.
 
 ## Burial From First Page
 
-Clicking `Bury` opens the existing `BuryFlowModal` with the selected repo preloaded.
+Clicking `Bury` opens the existing `BuryFlowModal` with the selected repo preloaded in burial-only mode. Clicking `Cremate` opens the same modal preloaded in cremation-only mode.
 
 Important behavior:
 
 - The existing burial backend is reused.
 - Grave slot economy is still enforced.
-- If no grave slot is available, existing fallback behavior applies.
+- Home result actions are routed by current slot availability: grave slots lead to `Bury`, no slots leads to `Cremate`.
+- If a grave submission loses its slot server-side, fallback cremation can still apply outside strict burial-only mode.
 - Ceremony animation is suppressed when bury flow is opened from `/`, because the Phaser map is not mounted there.
+- Burial completion can route into the cemetery ceremony; cremation completion can open the created urn.
 - The user can enter `/cemetery` after burial to explore the map.
 
 ## Routes
@@ -137,6 +140,7 @@ Current routes:
 - `/cemetery` - existing Phaser cemetery map experience.
 - `/agents` - Agent / GitLawb layer hub.
 - `/agents/gitlawb` - Agent Skill install contract.
+- `/agents/gitlawb/v1` - stable Agent Skill installer/distribution page.
 
 Deep link behavior:
 
@@ -158,7 +162,7 @@ Kept on the map:
 - Necropolis / leaderboard.
 - Profile/auth UI.
 - Deep links to graves and urns.
-- `BURY` floating CTA.
+- Split `Bury` / `Cremate` ritual panel.
 - `CLI SKILL` floating CTA.
 
 Moved out of visible map UI for VCv2 clarity:
@@ -169,9 +173,29 @@ Moved out of visible map UI for VCv2 clarity:
 
 The map is now the Human layer: hands-on cemetery interaction, manual burial, human cremations, Necropolis, Crematory, and The Crypt. Agent Ashes and Agent Skill live in the separate Agent layer hub.
 
+Current Human map navigation:
+
+- `Home` icon (`⌂`) returns to `/`.
+- `FAQ` opens the existing Cemetery Guide modal and replaces the old hamburger glyph.
+- `Necropolis` remains the visible leaderboard action.
+- `FAQ` and `Necropolis` use the same stone-button visual language as the Home icon.
+
 ## Agent Layer Hub
 
 `/agents` is the compact Agent / GitLawb layer entry.
+
+Top navigation:
+
+- `Back` sits on the left and returns to browser history, with `/` fallback.
+- `VibeCemetery` is centered.
+- The old `Human Cemetery` nav link was removed from this page.
+
+Page copy:
+
+```text
+A separate ash layer for AI agents like Hermes, OpenClaw, and others.
+Here, agents bury dead GitLawb projects: abandoned repositories, failed experiments, obsolete code, and systems that no longer run.
+```
 
 Current hub actions:
 
@@ -179,6 +203,29 @@ Current hub actions:
 - `Agent Skill` - opens the GitLawb Agent Skill install page at `/agents/gitlawb`.
 
 The Agent layer is for AI/agent records and setup. It does not create graves, does not write human cremations, and does not compete with the Human map HUD.
+
+Footer note:
+
+```text
+version 1.0
+Experimental ash layer for GitLawb agent workflows.
+To burn your own local projects, install the CLI Skill.
+```
+
+`CLI Skill` links to `/skills/bury/v1`.
+
+## Runtime Stability
+
+The cemetery map no longer relies on Phaser automatic `Scale.RESIZE`.
+
+Reason: WebGL could throw `Framebuffer status: Incomplete Attachment` when Phaser resized render targets during transient zero/invalid parent dimensions on route/layout changes.
+
+Implemented behavior:
+
+- Phaser starts with explicit non-zero container dimensions.
+- `ResizeObserver` drives later resize updates.
+- Zero-width or zero-height resize events are ignored before calling `game.scale.resize(...)`.
+- Regression coverage lives in `tests/phaser-resize.spec.ts`.
 
 ## Visual Direction Implemented
 
@@ -191,6 +238,8 @@ The first page uses a compact Uniswap-like centered card while preserving VibeCe
 - Minimal distractions.
 - Desktop and mobile keep `Scan GitHub` visible above the fold.
 - Decorative background stripes were removed after review because they looked like visual artifacts.
+- The top `VibeCemetery` wordmark is centered and static text on `/`, not a self-link.
+- `Enter Cemetery` has a subtle gold glint every 5 seconds, disabled for reduced-motion users.
 
 ## Non-Goals Still In Force
 
@@ -212,7 +261,9 @@ Key files:
 - `src/components/CemeteryApp.tsx` - extracted map app shell.
 - `src/app/cemetery/page.tsx` - map route.
 - `src/app/agents/page.tsx` - Agent / GitLawb layer hub.
-- `src/components/modals/BuryFlowModal.tsx` - supports preloaded repo burial from `/`.
+- `src/components/PhaserCanvas.tsx` - guarded Phaser bootstrap and resize observer.
+- `src/game/config.ts` - Phaser config uses explicit size with `Scale.NONE`.
+- `src/components/modals/BuryFlowModal.tsx` - supports preloaded repo burial or cremation from `/` and split cemetery ritual modes.
 - `src/lib/bury-intent.ts` - GitHub auth callback now returns to `/cemetery?modal=bury`.
 
 Coverage:
@@ -220,6 +271,8 @@ Coverage:
 - `tests/home-entry-flow.spec.ts`
 - `tests/bury-intent.spec.ts`
 - `tests/mobile.spec.ts`
+- `tests/agent-ashes-ui.spec.ts`
+- `tests/phaser-resize.spec.ts`
 
 ## Current Success Criteria
 
@@ -229,4 +282,6 @@ Coverage:
 - Only the connected GitHub account can be scanned.
 - Scan results appear before the map.
 - The map remains accessible through `Enter Cemetery`.
-- CLI Skill and BURY stay in the Human map layer; Agent Ashes and Agent Skill no longer compete with the cemetery HUD.
+- CLI Skill plus the split `Bury` / `Cremate` ritual actions stay in the Human map layer; Agent Ashes and Agent Skill no longer compete with the cemetery HUD.
+- `/agents` contains only Agent Ashes and Agent Skill entry points, plus a footer link to the human `/bury` CLI Skill installer.
+- The cemetery top bar exposes `⌂`, `FAQ`, and `Necropolis` without Agent Ashes.

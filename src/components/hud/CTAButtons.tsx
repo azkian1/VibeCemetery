@@ -55,40 +55,43 @@ export default function CTAButtons() {
         Choose a ritual:
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-        <button
-          onClick={() => open('bury', { flowMode: 'cemetery-shovel' })}
-          disabled={shovelDisabled}
-          title={shovelDisabled ? 'No grave slots left. Cremation is available.' : 'Bury repos in grave slots'}
-          style={ritualButtonStyle('bury', shovelDisabled)}
-          onMouseEnter={(e) => {
-            if (shovelDisabled) return;
-            Object.assign(e.currentTarget.style, ritualButtonHoverStyle);
-          }}
-          onMouseLeave={(e) => {
-            Object.assign(e.currentTarget.style, ritualButtonStyle('bury', shovelDisabled));
-          }}
-        >
-          Bury
-        </button>
-        <button
-          onClick={() => open('bury', { flowMode: 'cemetery-fire' })}
-          disabled={fireDisabled}
-          title={fireDisabled ? 'Use your available grave slots before cremating.' : 'Cremate repos into the Crematory'}
-          style={ritualButtonStyle('cremate', fireDisabled)}
-          onMouseEnter={(e) => {
-            if (fireDisabled) return;
-            Object.assign(e.currentTarget.style, ritualButtonHoverStyle);
-          }}
-          onMouseLeave={(e) => {
-            Object.assign(e.currentTarget.style, ritualButtonStyle('cremate', fireDisabled));
-          }}
-        >
-          Cremate
-        </button>
+        <div style={{ display: 'grid', gap: 5 }}>
+          <button
+            onClick={() => open('bury', { flowMode: 'cemetery-shovel' })}
+            disabled={shovelDisabled}
+            title={shovelDisabled ? 'No grave slots left. Cremation is available.' : 'Bury repos in grave slots'}
+            style={ritualButtonStyle('bury', shovelDisabled)}
+            onMouseEnter={(e) => {
+              if (shovelDisabled) return;
+              Object.assign(e.currentTarget.style, ritualButtonHoverStyle);
+            }}
+            onMouseLeave={(e) => {
+              Object.assign(e.currentTarget.style, ritualButtonStyle('bury', shovelDisabled));
+            }}
+          >
+            Bury
+          </button>
+          <span style={ritualHintStyle}>Puts it on the map.</span>
+        </div>
+        <div style={{ display: 'grid', gap: 5 }}>
+          <button
+            onClick={() => open('bury', { flowMode: 'cemetery-fire' })}
+            disabled={fireDisabled}
+            title={fireDisabled ? 'Use your available grave slots before cremating.' : 'Cremate repos into the Crematory'}
+            style={ritualButtonStyle('cremate', fireDisabled)}
+            onMouseEnter={(e) => {
+              if (fireDisabled) return;
+              Object.assign(e.currentTarget.style, ritualButtonHoverStyle);
+            }}
+            onMouseLeave={(e) => {
+              Object.assign(e.currentTarget.style, ritualButtonStyle('cremate', fireDisabled));
+            }}
+          >
+            Cremate
+          </button>
+          <span style={ritualHintStyle}>Saves it as ashes.</span>
+        </div>
       </div>
-      <p style={{ margin: '6px 0 0', color: '#8f897d', fontFamily: "var(--font-geist-sans), Arial, sans-serif", fontSize: 10.5, lineHeight: 1.25 }}>
-        Bury puts it on the map. Cremate saves it as ashes.
-      </p>
     </div>
   );
 }
@@ -143,4 +146,12 @@ function ritualButtonStyle(kind: 'bury' | 'cremate', disabled: boolean): React.C
 const ritualButtonHoverStyle: React.CSSProperties = {
   background: 'linear-gradient(180deg, #6a2828 0%, #4a1818 100%)',
   boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05), 0 2px 12px rgba(90, 32, 32, 0.3), 0 0 20px rgba(139, 105, 20, 0.15)',
+};
+
+const ritualHintStyle: React.CSSProperties = {
+  color: '#8f897d',
+  fontFamily: "var(--font-geist-sans), Arial, sans-serif",
+  fontSize: 10.5,
+  lineHeight: 1.2,
+  textAlign: 'center',
 };

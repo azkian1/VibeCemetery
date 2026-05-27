@@ -1,6 +1,7 @@
 'use client';
 
 import type { BuryResult } from '@/types/game';
+import { LOCAL_TERMINAL_CREMATION_COPY } from './StepScan';
 
 interface StepDoneProps {
   results: BuryResult[];
@@ -10,6 +11,13 @@ interface StepDoneProps {
   onClose: () => void;
   onOpenSkill?: () => void;
   onOpenProfile?: () => void;
+  onOpenUrn?: (cremated: NonNullable<BuryResult['cremated']>) => void;
+}
+
+export function getStepDonePrimaryAction(results: BuryResult[]): 'urn' | 'profile' | null {
+  if (results.some((r) => r.success && r.type === 'grave')) return 'profile';
+  if (results.some((r) => r.success && r.type === 'cremated' && r.cremated)) return 'urn';
+  return null;
 }
 
 export default function StepDone({
@@ -20,6 +28,7 @@ export default function StepDone({
   onClose,
   onOpenSkill,
   onOpenProfile,
+  onOpenUrn,
 }: StepDoneProps) {
 
   const graves = results.filter((r) => r.success && r.type === 'grave');
@@ -27,6 +36,8 @@ export default function StepDone({
   const failures = results.filter((r) => !r.success);
   const anySuccess = graves.length > 0 || cremated.length > 0;
   const allFailed = failures.length > 0 && !anySuccess;
+  const primaryAction = getStepDonePrimaryAction(results);
+  const firstCrematedRecord = cremated.find((r) => r.cremated)?.cremated;
 
   if (burying) {
     return (
@@ -85,7 +96,7 @@ export default function StepDone({
         </div>
       )}
 
-      {onOpenSkill && (
+      {cremated.length > 0 && onOpenSkill && (
         <button
           onClick={onOpenSkill}
           aria-label="Open cremation command setup"
@@ -102,12 +113,29 @@ export default function StepDone({
             fontFamily: 'inherit',
           }}
         >
-          Set up /bury for local terminal cremations
+          {LOCAL_TERMINAL_CREMATION_COPY}
         </button>
       )}
 
       <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginTop: 16 }}>
-        {anySuccess && onOpenProfile && (
+        {primaryAction === 'urn' && firstCrematedRecord && onOpenUrn && (
+          <button
+            onClick={() => onOpenUrn(firstCrematedRecord)}
+            style={{
+              padding: '8px 24px',
+              border: '1px solid #3a3530',
+              borderRadius: 2,
+              background: 'linear-gradient(180deg, #2a2825 0%, #1e1c18 100%)',
+              color: '#aaa9a0',
+              cursor: 'pointer',
+              fontSize: 14,
+              fontFamily: 'inherit',
+            }}
+          >
+            View Urn
+          </button>
+        )}
+        {primaryAction === 'profile' && onOpenProfile && (
           <button
             onClick={onOpenProfile}
             style={{

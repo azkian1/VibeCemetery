@@ -1,6 +1,6 @@
 export const DEMO_ENV_FLAG = 'NEXT_PUBLIC_VIBECEMETERY_DEMO'
 export const DEMO_USERNAME = 'demo-gravedigger'
-export const DEMO_GRAVE_BONUS_SLOTS = 5
+export const DEMO_GRAVE_BONUS_SLOTS = 0
 
 export function isDemoMode(): boolean {
   if (process.env.NEXT_PUBLIC_VIBECEMETERY_DEMO !== '1') return false
