@@ -492,22 +492,11 @@ test.describe.serial('API smoke', () => {
     expect(await res.json()).toEqual({ error: 'Missing required query parameter: username' })
   })
 
-  test('GET /api/github/scan authenticates before validating username outside demo mode', async ({ request }) => {
-    const previous = process.env.NEXT_PUBLIC_VIBECEMETERY_DEMO
-    delete process.env.NEXT_PUBLIC_VIBECEMETERY_DEMO
+  test('GET /api/github/scan authenticates before validating username', async ({ request }) => {
+    const res = await request.get('/api/github/scan')
 
-    try {
-      const res = await request.get('/api/github/scan')
-
-      expect(res.status()).toBe(401)
-      expect(await res.json()).toEqual({ error: 'Sign in with GitHub first' })
-    } finally {
-      if (previous === undefined) {
-        delete process.env.NEXT_PUBLIC_VIBECEMETERY_DEMO
-      } else {
-        process.env.NEXT_PUBLIC_VIBECEMETERY_DEMO = previous
-      }
-    }
+    expect(res.status()).toBe(401)
+    expect(await res.json()).toEqual({ error: 'Sign in with GitHub first' })
   })
 
   test('GET /api/github/last-commit rejects unauthenticated requests', async ({ request }) => {

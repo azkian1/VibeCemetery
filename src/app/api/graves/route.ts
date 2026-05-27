@@ -7,7 +7,6 @@ import { checkRateLimit, getClientIp } from '@/lib/rate-limit'
 import { getAutoAssignableGraveSlots, pickRandomFreeSlot } from '@/lib/map-slots'
 import { sanitizePublicText } from '@/lib/sanitize-public-text'
 import { generateEpitaph } from '@/gravedigger/epitaphs'
-import { addDemoGraveFromBody, getDemoGraves, isDemoMode } from '@/demo/cemetery'
 import { insertGraveAtomicallyWithSlotRetry, type AtomicInsertRpcResult } from './atomicInsertWithSlotRetry'
 import { insertOutcomeResponse } from './insertOutcomeResponse'
 import {
@@ -46,10 +45,6 @@ async function syncUserGravesCount(authorGithub: string): Promise<void> {
 // GET /api/graves — list all graves, optionally filtered by author
 // ---------------------------------------------------------------------------
 export async function GET(req: NextRequest) {
-  if (isDemoMode()) {
-    return NextResponse.json(getDemoGraves())
-  }
-
   const { searchParams } = new URL(req.url)
   const author = searchParams.get('author')
 
@@ -108,34 +103,6 @@ export async function POST(req: NextRequest) {
       { error: 'Agent Ash ingest tokens cannot create graves' },
       { status: 403 },
     )
-  }
-
-  if (isDemoMode()) {
-    let body: Record<string, unknown>
-    try {
-      body = await req.json()
-    } catch {
-      return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
-    }
-
-    if (!body || typeof body !== 'object' || Array.isArray(body)) {
-      return NextResponse.json({ error: 'Request body must be a JSON object' }, { status: 400 })
-    }
-
-    if (isAgentAshEnvelope(body)) {
-      return NextResponse.json(
-        { error: 'Agent Ash submissions cannot create graves' },
-        { status: 403 },
-      )
-    }
-
-    const demoName = typeof body.name === 'string' ? sanitizePublicText(body.name, 100) : ''
-    const demoCause = typeof body.cause === 'string' ? sanitizePublicText(body.cause, 200) : ''
-    if (!demoName || !demoCause) {
-      return NextResponse.json({ error: 'name and cause are required' }, { status: 400 })
-    }
-
-    return NextResponse.json(addDemoGraveFromBody({ ...body, name: demoName, cause: demoCause }), { status: 201 })
   }
 
   // 1. Authenticate

@@ -4,7 +4,6 @@ import { useSession } from 'next-auth/react';
 import { useGame, useModal } from '@/context/GameContext';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import { calculateUserSlotEconomy, isAutoAssignableGraveSlotType } from '@/lib/slot-economy';
-import { getDemoGraveBonusSlots } from '@/demo/mode';
 
 export function decideCemeteryCtaState(availableGraveSlots: number): { shovelDisabled: boolean; fireDisabled: boolean } {
   return {
@@ -21,11 +20,10 @@ export default function CTAButtons() {
   const username = session?.user?.github_username ?? null;
   const hasSharedFirstGrave = Boolean(session?.user?.x_first_grave_shared_at);
   const availableGraveSlots = username
-    ? calculateUserSlotEconomy({
-        slotsUsed: countUserAutoAssignableGraves(state, username),
-        hasSharedFirstGrave,
-        bonusSlots: getDemoGraveBonusSlots(username),
-      }).availableSlots
+      ? calculateUserSlotEconomy({
+          slotsUsed: countUserAutoAssignableGraves(state, username),
+          hasSharedFirstGrave,
+        }).availableSlots
     : 0;
   const { shovelDisabled, fireDisabled } = decideCemeteryCtaState(availableGraveSlots);
 

@@ -34,14 +34,6 @@ test.describe('user slot economy', () => {
     })
   })
 
-  test('adds explicit demo bonus grave slots above the normal limit', () => {
-    expect(calculateUserSlotEconomy({ slotsUsed: 28, hasSharedFirstGrave: true, bonusSlots: 5 })).toMatchObject({
-      slotsUnlocked: 33,
-      availableSlots: 5,
-      canCreateGrave: true,
-    })
-  })
-
   test('labels the share mission by unlock state', () => {
     expect(getSlotUnlockProgress({ hasSharedFirstGrave: false })).toEqual({
       socialLabel: 'Share your Grave for +1 Slot',

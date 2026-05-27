@@ -6,7 +6,6 @@ const AUTO_ASSIGNABLE_GRAVE_SLOT_TYPE_SET = new Set<string>(AUTO_ASSIGNABLE_GRAV
 export interface UserSlotEconomyInput {
   slotsUsed: number;
   hasSharedFirstGrave: boolean;
-  bonusSlots?: number;
 }
 
 export interface UserSlotEconomy {
@@ -28,14 +27,10 @@ export function isAutoAssignableGraveSlotType(type: string): boolean {
 export function calculateUserSlotEconomy({
   slotsUsed,
   hasSharedFirstGrave,
-  bonusSlots = 0,
 }: UserSlotEconomyInput): UserSlotEconomy {
   const socialSlot = hasSharedFirstGrave ? 1 : 0;
   const normalSlotsUnlocked = NORMAL_SLOT_MAX + socialSlot;
-  const normalizedBonusSlots = Math.max(0, Math.floor(bonusSlots));
-  const slotsUnlocked = normalizedBonusSlots > 0
-    ? Math.max(normalSlotsUnlocked, slotsUsed) + normalizedBonusSlots
-    : normalSlotsUnlocked;
+  const slotsUnlocked = normalSlotsUnlocked;
   const availableSlots = Math.max(0, slotsUnlocked - slotsUsed);
 
   return {

@@ -13,7 +13,6 @@ import StoneButton from '@/components/ui/StoneButton';
 import InsetBlock from '@/components/ui/InsetBlock';
 import LoadErrorState from '@/components/ui/LoadErrorState';
 import { calculateUserSlotEconomy, getSlotUnlockProgress, isAutoAssignableGraveSlotType } from '@/lib/slot-economy';
-import { getDemoGraveBonusSlots } from '@/demo/mode';
 
 function ProjectRow({ emoji, name, color, onClick, title, ariaLabel }: {
   emoji: string; name: string; color: string;
@@ -132,7 +131,6 @@ export default function ProfileModal() {
   const slotEconomy = calculateUserSlotEconomy({
     slotsUsed,
     hasSharedFirstGrave,
-    bonusSlots: getDemoGraveBonusSlots(user?.github_username),
   });
   const slotsUnlocked = slotEconomy.slotsUnlocked;
   const slotsAvailable = slotEconomy.availableSlots;

@@ -57,23 +57,6 @@ test.describe('home scanner entry flow', () => {
     expect(decideHomeRepoAction(availableSlots)).toEqual({ label: 'Cremate', flowMode: 'home-preselected-cremation' })
   })
 
-  test('demo bonus keeps ten grave slots available above seeded graves', () => {
-    const graves = new Map<number, GraveData>()
-    for (let i = 0; i < 28; i++) {
-      graves.set(i + 1, grave({ slot_id: i + 1, author_github: 'demo-gravedigger', github_repo_id: i + 1 }))
-    }
-
-    const availableSlots = calculateAvailableGraveSlotsForHome({
-      graves,
-      username: 'demo-gravedigger',
-      hasSharedFirstGrave: true,
-      bonusSlots: 10,
-    })
-
-    expect(availableSlots).toBe(10)
-    expect(decideHomeRepoAction(availableSlots)).toEqual({ label: 'Bury', flowMode: 'home-preselected-burial' })
-  })
-
   test('ignores non-auto graves when map slot positions are known', () => {
     const graves = new Map<number, GraveData>([[99, grave({ slot_id: 99, author_github: 'octocat' })]])
 

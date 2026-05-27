@@ -16,7 +16,6 @@ import type { DeadRepo, GraveData, BuryResult } from '@/types/game';
 import { GRAVEDIGGER_BURIAL, GRAVEDIGGER_MASS_BURIAL } from '@/gravedigger/phrases';
 import { cemeteryEvents } from '@/game/events';
 import { calculateUserSlotEconomy, isAutoAssignableGraveSlotType } from '@/lib/slot-economy';
-import { getDemoGraveBonusSlots } from '@/demo/mode';
 import { savePendingBurialCeremony } from '@/lib/pending-burial-ceremony';
 import type { SlotPositionData } from '@/game/events';
 
@@ -211,7 +210,6 @@ export default function BuryFlowModal() {
   const slotEconomy = calculateUserSlotEconomy({
     slotsUsed: userGravesCount,
     hasSharedFirstGrave,
-    bonusSlots: getDemoGraveBonusSlots(username),
   });
   const slotsUnlocked = slotEconomy.slotsUnlocked;
   const availableSlots = slotEconomy.availableSlots;
