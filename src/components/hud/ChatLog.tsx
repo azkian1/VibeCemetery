@@ -196,7 +196,7 @@ export default function ChatLog() {
     <div
       style={{
         position: 'absolute',
-        bottom: 16,
+        bottom: 126,
         left: 16,
         width: 340,
         height: 220,

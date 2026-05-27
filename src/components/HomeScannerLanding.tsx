@@ -7,6 +7,8 @@ import { GameProvider, useModal } from '@/context/GameContext';
 import { useGame } from '@/context/GameContext';
 import { GameDataLoaders, ModalLayer } from '@/components/CemeteryApp';
 import { calculateSouls, calculateUserSlotEconomy, isAutoAssignableGraveSlotType } from '@/lib/slot-economy';
+import { getDemoGraveBonusSlots } from '@/demo/mode';
+import type { BuryFlowMode } from '@/components/modals/BuryFlowModal';
 import type { CrematedData, DeadRepo, GitHubScanResult, GraveData } from '@/types/game';
 import type { SlotPositionData } from '@/game/events';
 
@@ -53,12 +55,14 @@ export function calculateAvailableGraveSlotsForHome({
   username,
   hasSharedFirstGrave,
   slotPositions = [],
+  bonusSlots = 0,
 }: {
   graves: Map<number, GraveData>;
   cremated: CrematedData[];
   username: string | null;
   hasSharedFirstGrave: boolean;
   slotPositions?: SlotPositionData[];
+  bonusSlots?: number;
 }): number {
   if (!username) return 0;
 
@@ -76,13 +80,17 @@ export function calculateAvailableGraveSlotsForHome({
     cremated.filter((item) => item.author_github.toLowerCase() === username.toLowerCase()),
   );
 
-  return calculateUserSlotEconomy({ souls, slotsUsed, hasSharedFirstGrave }).availableSlots;
+  return calculateUserSlotEconomy({ souls, slotsUsed, hasSharedFirstGrave, bonusSlots }).availableSlots;
 }
 
-export function decideHomeRepoAction(availableSlots: number): { label: 'Bury' | 'Cremate'; mode: 'burial' | 'cremation' } {
+export function decideHomeRepoAction(availableSlots: number): { label: 'Bury' | 'Cremate'; flowMode: BuryFlowMode } {
   return availableSlots > 0
-    ? { label: 'Bury', mode: 'burial' }
-    : { label: 'Cremate', mode: 'cremation' };
+    ? { label: 'Bury', flowMode: 'home-preselected-burial' }
+    : { label: 'Cremate', flowMode: 'home-preselected-cremation' };
+}
+
+export function shouldShowHomeScannerChrome(repos: DeadRepo[] | null): boolean {
+  return repos === null;
 }
 
 function ScannerShell() {
@@ -99,6 +107,7 @@ function ScannerShell() {
     username: authenticatedUsername,
     hasSharedFirstGrave,
     slotPositions: state.slotPositions,
+    bonusSlots: getDemoGraveBonusSlots(authenticatedUsername),
   });
   const repoAction = decideHomeRepoAction(availableGraveSlots);
   const [isCompactViewport, setIsCompactViewport] = useState(false);
@@ -106,6 +115,7 @@ function ScannerShell() {
   const [totalRepos, setTotalRepos] = useState(0);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const showScannerChrome = shouldShowHomeScannerChrome(repos);
 
   useEffect(() => {
     if (state.slotPositions.length > 0) {
@@ -220,51 +230,61 @@ function ScannerShell() {
       </nav>
 
       <section style={{ position: 'relative', zIndex: 1, minHeight: isCompactViewport ? 'calc(100dvh - 115px)' : 'calc(100dvh - 73px)', display: 'grid', placeItems: isCompactViewport ? 'start center' : 'center', padding: isCompactViewport ? '42px 16px 40px' : '18px 16px 40px' }}>
-        <div style={{ width: 'min(100%, 430px)', border: '1px solid rgba(232,213,163,0.16)', borderRadius: 18, background: 'linear-gradient(180deg, rgba(42,40,37,0.96), rgba(20,18,16,0.98))', boxShadow: '0 18px 44px rgba(0,0,0,0.42), inset 0 1px 0 rgba(255,255,255,0.04)', padding: 'clamp(20px, 4vw, 28px)', textAlign: 'center' }}>
-          <p style={{ margin: '0 0 10px', color: '#9a7562', fontSize: 11, letterSpacing: 2, textTransform: 'uppercase' }}>GitHub scanner</p>
-          <h1 style={{ margin: '0 auto 12px', maxWidth: 360, fontSize: 'clamp(24px, 3.2vw, 27px)', lineHeight: 1.16, letterSpacing: -0.1 }}>Bury your abandoned GitHub repos</h1>
-          <div style={{ display: 'grid', gap: 10, marginTop: 22 }}>
-            <button
-              type="button"
-              onClick={() => { void runScan(); }}
-              disabled={loading || status === 'loading' || recordsLoading}
-              style={{ border: '1px solid #6a3020', borderRadius: 12, background: loading ? '#3a2520' : 'linear-gradient(180deg, #7a2a24 0%, #421512 100%)', color: '#f4dfaa', padding: '16px 18px', fontWeight: 700, letterSpacing: 1, cursor: loading ? 'wait' : 'pointer', fontFamily: 'inherit', fontSize: 15, boxShadow: '0 0 28px rgba(122,42,36,0.25)' }}
-            >
-              {loading ? 'Scanning GitHub...' : recordsLoading ? 'Opening Ledger...' : authenticatedUsername ? `Scan @${authenticatedUsername}` : 'Scan GitHub'}
-            </button>
-          </div>
+        <div style={{ width: repos ? 'min(100%, 1040px)' : 'min(100%, 430px)', border: '1px solid rgba(232,213,163,0.16)', borderRadius: 18, background: 'linear-gradient(180deg, rgba(42,40,37,0.96), rgba(20,18,16,0.98))', boxShadow: '0 18px 44px rgba(0,0,0,0.42), inset 0 1px 0 rgba(255,255,255,0.04)', padding: 'clamp(20px, 4vw, 28px)', textAlign: 'center' }}>
+          {showScannerChrome && (
+            <>
+              <p style={{ margin: '0 0 10px', color: '#9a7562', fontSize: 11, letterSpacing: 2, textTransform: 'uppercase' }}>GitHub scanner</p>
+              <h1 style={{ margin: '0 auto 12px', maxWidth: 360, fontSize: 'clamp(24px, 3.2vw, 27px)', lineHeight: 1.16, letterSpacing: -0.1 }}>Bury your abandoned GitHub repos</h1>
+              <div style={{ display: 'grid', gap: 10, marginTop: 22 }}>
+                <button
+                  type="button"
+                  onClick={() => { void runScan(); }}
+                  disabled={loading || status === 'loading' || recordsLoading}
+                  style={{ border: '1px solid #6a3020', borderRadius: 12, background: loading ? '#3a2520' : 'linear-gradient(180deg, #7a2a24 0%, #421512 100%)', color: '#f4dfaa', padding: '16px 18px', fontWeight: 700, letterSpacing: 1, cursor: loading ? 'wait' : 'pointer', fontFamily: 'inherit', fontSize: 15, boxShadow: '0 0 28px rgba(122,42,36,0.25)' }}
+                >
+                  {loading ? 'Scanning GitHub...' : recordsLoading ? 'Opening Ledger...' : authenticatedUsername ? `Scan @${authenticatedUsername}` : 'Scan GitHub'}
+                </button>
+              </div>
+            </>
+          )}
 
-          <div style={{ display: 'grid', gridTemplateColumns: isCompactViewport ? '1fr' : '1fr 1fr', gap: 10, marginTop: 14 }}>
-            <Link href="/cemetery" style={enterCemeteryLinkStyle}>Enter Cemetery</Link>
-            <Link href="/agents" style={secondaryLinkStyle}>Agent Layer</Link>
-          </div>
+          {showScannerChrome && (
+            <div style={{ display: 'grid', gridTemplateColumns: isCompactViewport ? '1fr' : '1fr 1fr', gap: 10, marginTop: 14 }}>
+              <Link href="/cemetery" style={enterCemeteryLinkStyle}>Enter Cemetery</Link>
+              <Link href="/agents" style={secondaryLinkStyle}>Agent Layer</Link>
+            </div>
+          )}
 
-          <p style={{ margin: '16px 0 0', color: '#777168', fontSize: 12, fontFamily: "var(--font-geist-sans), Arial, sans-serif" }}>Dead repos = non-forks inactive for 7+ days. Only your connected GitHub can be scanned.</p>
+          {showScannerChrome && (
+            <p style={{ margin: '16px 0 0', color: '#777168', fontSize: 12, fontFamily: "var(--font-geist-sans), Arial, sans-serif" }}>Dead repos = non-forks inactive for 7+ days. Only your connected GitHub can be scanned.</p>
+          )}
           {message && <p style={{ margin: '14px 0 0', color: '#c78373', fontSize: 13, fontFamily: "var(--font-geist-sans), Arial, sans-serif" }}>{message}</p>}
 
           {repos && (
-            <section style={{ marginTop: 24, display: 'grid', gap: 10 }}>
+            <section style={{ marginTop: showScannerChrome ? 24 : 0, display: 'grid', gap: 10 }}>
               {repos.length > 0 ? (
                 <>
                   <h2 style={{ margin: 0, fontSize: 18 }}>Found {repos.length} dead repo{repos.length === 1 ? '' : 's'}</h2>
-                  {repos.map((repo) => (
-                    <article key={repo.id} style={{ border: '1px solid #34302a', borderRadius: 12, background: 'rgba(13,12,11,0.64)', padding: 14 }}>
-                      <div style={{ display: 'grid', justifyItems: 'center', gap: 12 }}>
-                        <div>
-                          <h3 style={{ margin: '0 0 6px', fontSize: 16 }}>{repo.name}</h3>
-                          <p style={repoMetaStyle}>Last push: {formatLastPushAge(repo.pushed_at)}</p>
-                          <p style={repoMetaStyle}>Language: {repo.language ?? 'Unknown'}</p>
-                          <p style={repoMetaStyle}>Status: Dead</p>
+                  <div style={{ display: 'grid', gridTemplateColumns: isCompactViewport ? '1fr' : 'repeat(3, minmax(0, 1fr))', gap: 10 }}>
+                    {repos.map((repo) => (
+                      <article key={repo.id} style={{ border: '1px solid #34302a', borderRadius: 12, background: 'rgba(13,12,11,0.64)', padding: 14 }}>
+                        <div style={{ display: 'grid', justifyItems: 'center', gap: 12 }}>
+                          <div>
+                            <h3 style={{ margin: '0 0 6px', fontSize: 16 }}>{repo.name}</h3>
+                            <p style={repoMetaStyle}>Last push: {formatLastPushAge(repo.pushed_at)}</p>
+                            <p style={repoMetaStyle}>Language: {repo.language ?? 'Unknown'}</p>
+                            <p style={repoMetaStyle}>Status: Dead</p>
+                          </div>
+                          <button type="button" onClick={() => open('bury', { initialDeadRepos: [repo], flowMode: repoAction.flowMode })} style={{ ...navButtonStyle, color: repoAction.flowMode === 'home-preselected-burial' ? '#e8d5a3' : '#e8b8a3' }}>{repoAction.label}</button>
                         </div>
-                        <button type="button" onClick={() => open('bury', { initialDeadRepos: [repo], initialMode: repoAction.mode, suppressCeremony: true })} style={{ ...navButtonStyle, color: repoAction.mode === 'burial' ? '#e8d5a3' : '#e8b8a3' }}>{repoAction.label}</button>
-                      </div>
-                    </article>
-                  ))}
+                      </article>
+                    ))}
+                  </div>
                 </>
               ) : (
                 <div style={{ border: '1px solid #34302a', padding: 16, background: 'rgba(13,12,11,0.64)' }}>
-                  <h2 style={{ margin: '0 0 8px', fontSize: 18 }}>No dead repos found.</h2>
-                  <p style={{ ...repoMetaStyle, marginBottom: 14 }}>A repo must be inactive for 7+ days and not be a fork. Scanned {totalRepos} non-fork repo{totalRepos === 1 ? '' : 's'}.</p>
+                  <h2 style={{ margin: '0 0 8px', fontSize: 18 }}>No suitable projects found.</h2>
+                  <p style={{ ...repoMetaStyle, marginBottom: 14 }}>You do not have eligible projects to bury right now. A repo must be inactive for 7+ days and not be a fork. Scanned {totalRepos} non-fork repo{totalRepos === 1 ? '' : 's'}.</p>
                   <Link href="/cemetery" style={secondaryLinkStyle}>Enter Cemetery</Link>
                 </div>
               )}

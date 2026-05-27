@@ -1,17 +1,26 @@
 import { expect, test } from '@playwright/test'
 import {
   countUserAutoAssignableGraves,
+  getBuryFlowUi,
   getDefaultGraveSetForSelectAll,
   getInitialSelectedRepoSet,
   getNextSelectedRepoSet,
   getRepoSubmissionType,
   getSelectedReposForSubmit,
+  resolveBuryFlowMode,
   shouldAllowGraveToggle,
   shouldAutoAssignGraveOnSelection,
   shouldCremateAfterSlotExhaustion,
   shouldFallbackGraveToCremation,
   withDefaultGraveForSelectedRepo,
 } from '../src/components/modals/BuryFlowModal'
+import {
+  shouldShowStepSelectActionToggles,
+  shouldShowStepSelectBulkToggle,
+  shouldShowStepSelectCheckboxes,
+  shouldShowStepSelectStatusBlock,
+} from '../src/components/modals/bury/StepSelect'
+import { shouldHighlightShareGrave } from '../src/components/modals/GraveModal'
 import type { GraveData } from '../src/types/game'
 
 test.describe('BuryFlowModal grave fallback', () => {
@@ -33,6 +42,33 @@ test.describe('BuryFlowModal grave fallback', () => {
 })
 
 test.describe('BuryFlowModal default grave selection', () => {
+  test('resolves explicit bury flow modes without inferring from stale local state', () => {
+    expect(resolveBuryFlowMode({ flowMode: 'home-preselected-burial' })).toBe('home-preselected-burial')
+    expect(resolveBuryFlowMode({ flowMode: 'home-preselected-cremation' })).toBe('home-preselected-cremation')
+    expect(resolveBuryFlowMode({ flowMode: 'cemetery-shovel' })).toBe('cemetery-shovel')
+    expect(resolveBuryFlowMode({ flowMode: 'cemetery-fire' })).toBe('cemetery-fire')
+    expect(resolveBuryFlowMode(null)).toBe('default-scanner')
+  })
+
+  test('flow mode UI rules separate home preselected burial from map shovel', () => {
+    expect(getBuryFlowUi('home-preselected-burial')).toMatchObject({
+      isBurial: true,
+      isCremation: false,
+      isSingleSelection: true,
+      startsAtSelect: true,
+      selectedProjectOnly: true,
+      closeSelectBack: true,
+    })
+    expect(getBuryFlowUi('cemetery-shovel')).toMatchObject({
+      isBurial: true,
+      isCremation: false,
+      isSingleSelection: true,
+      startsAtSelect: false,
+      selectedProjectOnly: false,
+      closeSelectBack: false,
+    })
+  })
+
   test('keeps auto grave assignment enabled in burial mode after modal scan', () => {
     expect(shouldAutoAssignGraveOnSelection('burial')).toBe(true)
   })
@@ -71,6 +107,34 @@ test.describe('BuryFlowModal default grave selection', () => {
     expect(shouldCremateAfterSlotExhaustion('burial')).toBe(false)
   })
 
+  test('cremation-only selection hides grave/fire choices and slot status', () => {
+    expect(shouldShowStepSelectActionToggles(true)).toBe(false)
+    expect(shouldShowStepSelectStatusBlock(true, false, false, false, false, false)).toBe(false)
+  })
+
+  test('mixed selection keeps grave/fire choices and slot status visible', () => {
+    expect(shouldShowStepSelectActionToggles(false)).toBe(true)
+    expect(shouldShowStepSelectStatusBlock(false, false, false, false, false, false)).toBe(true)
+  })
+
+  test('burial-only preselected project hides selection controls and slot status', () => {
+    expect(shouldShowStepSelectBulkToggle(true, false)).toBe(false)
+    expect(shouldShowStepSelectCheckboxes(true)).toBe(false)
+    expect(shouldShowStepSelectActionToggles(false, true)).toBe(false)
+    expect(shouldShowStepSelectStatusBlock(false, true, false, false, false, false)).toBe(false)
+  })
+
+  test('map shovel scan keeps one-project selection controls visible', () => {
+    expect(shouldShowStepSelectBulkToggle(false, false)).toBe(true)
+    expect(shouldShowStepSelectCheckboxes(false)).toBe(true)
+    expect(shouldShowStepSelectActionToggles(false, false)).toBe(true)
+    expect(shouldShowStepSelectStatusBlock(false, false, true, false, false, false)).toBe(false)
+  })
+
+  test('mixed selection keeps slot status visible', () => {
+    expect(shouldShowStepSelectStatusBlock(false, false, false, false, false, false)).toBe(true)
+  })
+
   test('marks a newly selected repo for grave when a grave slot is available', () => {
     const graveSet = withDefaultGraveForSelectedRepo(new Set(), 101, 1)
 
@@ -99,6 +163,15 @@ test.describe('BuryFlowModal slot counting', () => {
       slotPositions: [],
       username: 'octocat',
     })).toBe(1)
+  })
+})
+
+test.describe('GraveModal sharing', () => {
+  test('highlights Share Grave only for own unshared grave', () => {
+    expect(shouldHighlightShareGrave({ isOwnGrave: true, firstGraveSharedAt: null, shareUnlockStatus: 'idle' })).toBe(true)
+    expect(shouldHighlightShareGrave({ isOwnGrave: true, firstGraveSharedAt: '2026-05-27T00:00:00.000Z', shareUnlockStatus: 'idle' })).toBe(false)
+    expect(shouldHighlightShareGrave({ isOwnGrave: false, firstGraveSharedAt: null, shareUnlockStatus: 'idle' })).toBe(false)
+    expect(shouldHighlightShareGrave({ isOwnGrave: true, firstGraveSharedAt: null, shareUnlockStatus: 'unlocked' })).toBe(false)
   })
 })
 

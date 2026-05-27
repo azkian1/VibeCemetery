@@ -82,7 +82,7 @@ export interface CemeteryEventMap {
   // React → Phaser: trigger burial ceremony animation
   burial_ceremony: { slot_id: number; id: string; name: string; chatText: string; gravediggerPhrase: string };
   // Phaser → React: ceremony finished
-  burial_ceremony_done: { slot_id: number };
+  burial_ceremony_done: { slot_id: number; willContinue?: boolean };
   // React → Phaser: zoom buttons
   zoom_change: { delta: number };
 }

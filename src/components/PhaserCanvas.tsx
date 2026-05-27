@@ -3,8 +3,9 @@
 import { useRef, useEffect, useCallback, useState } from 'react';
 import { cemeteryEvents, type SlotEventData, type SlotsReadyData, type RenderGraveData } from '../game/events';
 import { useGame } from '@/context/GameContext';
-import type { ModalType } from '@/context/GameContext';
+import { createModalInstanceId, type ModalType } from '@/context/GameContext';
 import StoneButton from '@/components/ui/StoneButton';
+import { readPendingBurialCeremony } from '@/lib/pending-burial-ceremony';
 
 function getContainerSize(element: HTMLElement) {
   const rect = element.getBoundingClientRect();
@@ -30,22 +31,44 @@ export default function PhaserCanvas() {
   const [assetLoadError, setAssetLoadError] = useState<{ assetKey: string; assetUrl: string } | null>(null);
   const { state, dispatch } = useGame();
   const sentSlotIdsRef = useRef(new Set<number>());
-  const ceremonyChatRef = useRef<{ chatText: string; gravediggerPhrase: string } | null>(null);
+  const ceremonyChatsRef = useRef(new Map<number, { chatText: string; gravediggerPhrase: string }>());
+  const ceremonyDoneTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const activeModalRef = useRef(state.activeModal);
+  const gravesRef = useRef(state.graves);
+
+  useEffect(() => {
+    activeModalRef.current = state.activeModal;
+  }, [state.activeModal]);
+
+  useEffect(() => {
+    gravesRef.current = state.graves;
+  }, [state.graves]);
+
+  useEffect(() => {
+    const data = readPendingBurialCeremony();
+    if (!data) return;
+    sentSlotIdsRef.current.add(data.slot_id);
+    if (data.chatText && data.gravediggerPhrase) {
+      ceremonyChatsRef.current.set(data.slot_id, { chatText: data.chatText, gravediggerPhrase: data.gravediggerPhrase });
+    }
+  }, []);
 
   const handleGraveClick = useCallback((data: SlotEventData) => {
-    if (!state.graves.has(data.slotId) && data.type !== 'meta_grave') return;
+    if (!gravesRef.current.has(data.slotId) && data.type !== 'meta_grave') return;
     dispatch({
       type: 'OPEN_MODAL',
+      id: createModalInstanceId(),
       modal: 'grave',
       data: { slotId: data.slotId, slotType: data.type },
     });
-  }, [dispatch, state.graves]);
+  }, [dispatch]);
 
   const handleBuildingClick = useCallback((data: SlotEventData) => {
     const modal: ModalType =
       data.name === 'Crematory' ? 'crematory' : 'mausoleum';
     dispatch({
       type: 'OPEN_MODAL',
+      id: createModalInstanceId(),
       modal,
       data: { buildingName: data.name },
     });
@@ -68,13 +91,13 @@ export default function PhaserCanvas() {
   const handleBurialCeremony = useCallback((data: { slot_id: number; chatText: string; gravediggerPhrase: string }) => {
     // Pre-register slot_id so graves-sync effect skips it (ceremony renders it later)
     sentSlotIdsRef.current.add(data.slot_id);
-    ceremonyChatRef.current = { chatText: data.chatText, gravediggerPhrase: data.gravediggerPhrase };
+    ceremonyChatsRef.current.set(data.slot_id, { chatText: data.chatText, gravediggerPhrase: data.gravediggerPhrase });
   }, []);
 
-  const handleBurialCeremonyDone = useCallback(() => {
-    const chat = ceremonyChatRef.current;
+  const handleBurialCeremonyDone = useCallback((data: { slot_id: number; willContinue?: boolean }) => {
+    const chat = ceremonyChatsRef.current.get(data.slot_id);
     if (!chat) return;
-    ceremonyChatRef.current = null;
+    ceremonyChatsRef.current.delete(data.slot_id);
     dispatch({
       type: 'ADD_CHAT_MESSAGE',
       message: { id: crypto.randomUUID(), type: 'burial', text: chat.chatText, timestamp: Date.now() },
@@ -83,6 +106,35 @@ export default function PhaserCanvas() {
       type: 'ADD_CHAT_MESSAGE',
       message: { id: crypto.randomUUID(), type: 'gravedigger', text: chat.gravediggerPhrase, timestamp: Date.now() },
     });
+    if (data.willContinue) return;
+
+    const scheduleCeremonyDoneTimer = (fn: () => void, delay: number) => {
+      const timer = setTimeout(() => {
+        ceremonyDoneTimersRef.current = ceremonyDoneTimersRef.current.filter((item) => item !== timer);
+        fn();
+      }, delay);
+      ceremonyDoneTimersRef.current.push(timer);
+    };
+
+    const openWhenReady = (graveAttempt = 0) => {
+      if (activeModalRef.current) {
+        scheduleCeremonyDoneTimer(() => openWhenReady(graveAttempt), 250);
+        return;
+      }
+      if (!gravesRef.current.has(data.slot_id)) {
+        if (graveAttempt >= 20) return;
+        scheduleCeremonyDoneTimer(() => openWhenReady(graveAttempt + 1), 250);
+        return;
+      }
+      dispatch({
+        type: 'OPEN_MODAL',
+        id: createModalInstanceId(),
+        modal: 'grave',
+        data: { slotId: data.slot_id },
+      });
+    };
+
+    scheduleCeremonyDoneTimer(() => openWhenReady(), 1000);
   }, [dispatch]);
 
   useEffect(() => {
@@ -102,6 +154,8 @@ export default function PhaserCanvas() {
       cemeteryEvents.off('load_error', handleLoadError);
       cemeteryEvents.off('burial_ceremony', handleBurialCeremony);
       cemeteryEvents.off('burial_ceremony_done', handleBurialCeremonyDone);
+      for (const timer of ceremonyDoneTimersRef.current) clearTimeout(timer);
+      ceremonyDoneTimersRef.current = [];
     };
   }, [handleGraveClick, handleBuildingClick, handleSlotsReady, handleSceneReady, handleLoadError, handleBurialCeremony, handleBurialCeremonyDone]);
 

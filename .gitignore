@@ -62,8 +62,6 @@ test-results/
 .playwright-mcp/
 tome.md
 .opencode/
-src/demo/
-tests/demo-cemetery.spec.ts
 
 # Internal docs (strategy, agent prompts, archives, map design)
 /docs/SAVEBACKUPS.md

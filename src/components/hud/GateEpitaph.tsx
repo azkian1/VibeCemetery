@@ -3,10 +3,11 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { cemeteryEvents } from '@/game/events';
 import { useIsMobile } from '@/hooks/useIsMobile';
+import { hasPendingBurialCeremony } from '@/lib/pending-burial-ceremony';
 
 export default function GateEpitaph() {
   const isMobile = useIsMobile();
-  const [visible, setVisible] = useState(true);
+  const [visible, setVisible] = useState(() => !hasPendingBurialCeremony());
   const [fading, setFading] = useState(false);
   const fadingRef = useRef(false);
 

@@ -58,6 +58,14 @@ test.describe('user slot economy', () => {
     })
   })
 
+  test('adds explicit demo bonus grave slots above the normal limit', () => {
+    expect(calculateUserSlotEconomy({ souls: 999, slotsUsed: 28, hasSharedFirstGrave: true, bonusSlots: 5 })).toMatchObject({
+      slotsUnlocked: 33,
+      availableSlots: 5,
+      canCreateGrave: true,
+    })
+  })
+
   test('labels social and souls slots by unlock source', () => {
     expect(getSlotUnlockProgress({ souls: 30, hasSharedFirstGrave: false })).toEqual({
       socialLabel: 'Social slot coming soon',

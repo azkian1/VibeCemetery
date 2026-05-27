@@ -14,6 +14,18 @@ import { cemeteryEvents } from '@/game/events';
 import { epitaphFallback } from '@/gravedigger/epitaphs';
 import { buildGraveTweetIntentUrl } from '@/lib/grave-share';
 
+export function shouldHighlightShareGrave({
+  isOwnGrave,
+  firstGraveSharedAt,
+  shareUnlockStatus = 'idle',
+}: {
+  isOwnGrave: boolean;
+  firstGraveSharedAt: string | null | undefined;
+  shareUnlockStatus?: 'idle' | 'unlocking' | 'unlocked' | 'error';
+}): boolean {
+  return isOwnGrave && !firstGraveSharedAt && shareUnlockStatus !== 'unlocked';
+}
+
 export default function GraveModal() {
   const { modalData, close, closeAll } = useModal();
   const { state, dispatch } = useGame();
@@ -265,6 +277,11 @@ export default function GraveModal() {
 
   const g = grave as NonNullable<typeof grave>;
   const socialUnlockStatus = shareUnlockState.graveId === g.id ? shareUnlockState.status : 'idle';
+  const highlightShareGrave = shouldHighlightShareGrave({
+    isOwnGrave,
+    firstGraveSharedAt: session?.user?.x_first_grave_shared_at,
+    shareUnlockStatus: socialUnlockStatus,
+  });
 
   const livedDays =
     g.born_at && g.died_at
@@ -424,7 +441,15 @@ export default function GraveModal() {
             <StoneButton
               onClick={handleShare}
               disabled={socialUnlockStatus === 'unlocking'}
-              style={{ flex: 1 }}
+              style={{
+                flex: 1,
+                ...(highlightShareGrave ? {
+                  animation: 'vc-share-grave-glint 5s ease-in-out infinite',
+                  color: '#f2dfad',
+                  borderColor: 'rgba(232,213,163,0.42)',
+                  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06), 0 0 14px rgba(232,213,163,0.18)',
+                } : {}),
+              }}
               aria-label="Share grave link"
             >
               {socialUnlockStatus === 'unlocking' ? 'Sharing...' : copied ? 'Opened X. F.' : 'Share Grave'}
@@ -442,6 +467,16 @@ export default function GraveModal() {
               {copied ? 'X composer opened' : ''}
             </span>
           </div>
+          {highlightShareGrave && (
+            <style jsx global>{`
+              @keyframes vc-share-grave-glint {
+                0%, 62%, 100% { border-color: rgba(232,213,163,0.32); color: #d8c891; box-shadow: inset 0 1px 0 rgba(255,255,255,0.06), 0 0 14px rgba(232,213,163,0.18); }
+                70% { border-color: rgba(232,213,163,0.95); color: #fff4c8; box-shadow: inset 0 1px 0 rgba(255,255,255,0.12), 0 0 34px rgba(232,213,163,0.46), 0 0 58px rgba(200,160,80,0.26); }
+                78% { border-color: rgba(200,160,80,0.7); color: #f2dfad; box-shadow: inset 0 1px 0 rgba(255,255,255,0.1), 0 0 26px rgba(232,213,163,0.36), 0 0 48px rgba(200,160,80,0.2); }
+                88% { border-color: rgba(232,213,163,0.32); color: #d8c891; box-shadow: inset 0 1px 0 rgba(255,255,255,0.06), 0 0 14px rgba(232,213,163,0.18); }
+              }
+            `}</style>
+          )}
           {socialUnlockStatus === 'unlocked' && (
             <p role="status" aria-live="polite" style={{ margin: '10px 0 0', fontSize: 12, color: '#c8a050', fontStyle: 'italic', textAlign: 'center' }}>
               Social slot unlocked. One more grave may rise.

@@ -106,6 +106,8 @@ export class CemeteryScene extends Phaser.Scene {
   private lastCamEmit = 0;
   private modalOpen = false;
   private pendingCeremony: { slot_id: number; id: string; name: string } | null = null;
+  private ceremonyQueue: Array<{ slot_id: number; id: string; name: string }> = [];
+  private ceremonyScheduled = false;
   private ceremonyInProgress = false;
   private ceremonyObjects: Phaser.GameObjects.GameObject[] = [];
   private buryModalOpen = false;
@@ -803,7 +805,13 @@ export class CemeteryScene extends Phaser.Scene {
   private onRenderGrave = (data: RenderGraveData) => {
     this.renderGraveOnMap(data);
   };
+
+  private isCeremonyBlockingInput() {
+    return this.ceremonyScheduled || this.ceremonyInProgress || !!this.pendingCeremony;
+  }
+
   private onMinimapClick = (data: MinimapClickData) => {
+    if (this.isCeremonyBlockingInput()) return;
     const cam = this.cameras?.main;
     if (!cam) return;
     const vw = cam.width / cam.zoom;
@@ -821,16 +829,19 @@ export class CemeteryScene extends Phaser.Scene {
 
   private onModalState = (data: { open: boolean }) => {
     this.modalOpen = data.open;
-    this.input.enabled = !data.open;
     // Start ceremony after bury modal closes (200ms buffer for CSS fade-out)
-    if (!data.open && this.pendingCeremony && this.buryModalOpen) {
+    if (!data.open && this.pendingCeremony && this.buryModalOpen && !this.ceremonyScheduled) {
       const ceremonyData = this.pendingCeremony;
       this.pendingCeremony = null;
       this.buryModalOpen = false;
+      this.ceremonyScheduled = true;
+      this.input.enabled = false;
       this.timers.push(this.time.delayedCall(200, () => {
         this.playBurialCeremony(ceremonyData);
       }));
+      return;
     }
+    this.input.enabled = !data.open && !this.ceremonyScheduled && !this.ceremonyInProgress && !this.pendingCeremony;
   };
 
   private slotHighlightGfx: Phaser.GameObjects.Graphics | null = null;
@@ -889,8 +900,10 @@ export class CemeteryScene extends Phaser.Scene {
 
 
   private onZoomChange = (data: { delta: number }) => {
+    if (this.isCeremonyBlockingInput()) return;
     const cam = this.cameras.main;
     if (!cam) return;
+    this.stopCameraMotion(cam);
     const newZoom = Phaser.Math.Clamp(cam.zoom + data.delta, this.minZoom, 2.0);
     cam.setZoom(newZoom);
     // Clamp scroll into valid range after zoom change
@@ -901,16 +914,66 @@ export class CemeteryScene extends Phaser.Scene {
   };
 
   private onBurialCeremony = (data: { slot_id: number; id: string; name: string }) => {
+    if (this.ceremonyInProgress || this.ceremonyScheduled || this.pendingCeremony) {
+      this.ceremonyQueue.push(data);
+      return;
+    }
     this.pendingCeremony = data;
     this.buryModalOpen = true; // track that the bury modal is the one currently open
+    if (!this.modalOpen) {
+      const ceremonyData = this.pendingCeremony;
+      this.pendingCeremony = null;
+      this.buryModalOpen = false;
+      this.ceremonyScheduled = true;
+      this.input.enabled = false;
+      this.timers.push(this.time.delayedCall(200, () => {
+        this.playBurialCeremony(ceremonyData);
+      }));
+    }
   };
 
+  private stopCameraMotion(cam: Phaser.Cameras.Scene2D.Camera) {
+    this.tweens.killTweensOf(cam);
+    const cameraEffects = cam as Phaser.Cameras.Scene2D.Camera & {
+      panEffect?: { reset: () => void };
+      zoomEffect?: { reset: () => void };
+    };
+    cameraEffects.panEffect?.reset();
+    cameraEffects.zoomEffect?.reset();
+  }
+
+  private clampCameraCenter(cam: Phaser.Cameras.Scene2D.Camera, targetX: number, targetY: number, zoom: number) {
+    const halfW = cam.width / (zoom * 2);
+    const halfH = cam.height / (zoom * 2);
+    return {
+      x: Phaser.Math.Clamp(targetX, halfW, 1920 - halfW),
+      y: Phaser.Math.Clamp(targetY, halfH, 1920 - halfH),
+    };
+  }
+
+  private finishBurialCeremony(slotId: number) {
+    this.ceremonyInProgress = false;
+    const next = this.ceremonyQueue.shift();
+    const willContinue = Boolean(next);
+    cemeteryEvents.emit('burial_ceremony_done', { slot_id: slotId, willContinue });
+    if (next) {
+      this.ceremonyScheduled = true;
+      this.input.enabled = false;
+      this.timers.push(this.time.delayedCall(200, () => {
+        this.playBurialCeremony(next);
+      }));
+      return;
+    }
+    this.input.enabled = !this.modalOpen;
+  }
+
   private playBurialCeremony(data: { slot_id: number; id: string; name: string }) {
+    this.ceremonyScheduled = false;
     const slot = this.slots.get(data.slot_id);
     if (!slot) {
       // Fallback: render instantly
       this.renderGraveOnMap(data);
-      cemeteryEvents.emit('burial_ceremony_done', { slot_id: data.slot_id });
+      this.finishBurialCeremony(data.slot_id);
       return;
     }
 
@@ -919,24 +982,27 @@ export class CemeteryScene extends Phaser.Scene {
     this.input.enabled = false;
 
     const cam = this.cameras.main;
+    this.stopCameraMotion(cam);
     const cx = slot.x + slot.width / 2;
     const cy = slot.y + slot.height / 2;
     const originalZoom = cam.zoom;
     const CEREMONY_ZOOM = 1.5;
+    const dest = this.clampCameraCenter(cam, cx, cy, CEREMONY_ZOOM);
 
     // Phase 1: Camera pan + zoom to slot (1200ms)
     // Tween a proxy object, apply centerOn each frame so slot stays centered at any zoom
     const panTarget = { x: cam.midPoint.x, y: cam.midPoint.y, zoom: cam.zoom };
     this.tweens.add({
       targets: panTarget,
-      x: cx,
-      y: cy,
+      x: dest.x,
+      y: dest.y,
       zoom: CEREMONY_ZOOM,
       duration: 1200,
       ease: 'Sine.easeInOut',
       onUpdate: () => {
-        cam.centerOn(panTarget.x, panTarget.y);
         cam.setZoom(panTarget.zoom);
+        const clamped = this.clampCameraCenter(cam, panTarget.x, panTarget.y, panTarget.zoom);
+        cam.centerOn(clamped.x, clamped.y);
       },
       onComplete: () => {
         // Phase 2: Dirt burst + shake (1000ms)
@@ -958,12 +1024,11 @@ export class CemeteryScene extends Phaser.Scene {
                 ease: 'Sine.easeInOut',
                 onUpdate: () => {
                   cam.setZoom(zoomOut.zoom);
-                  cam.centerOn(cx, cy);
+                  const clamped = this.clampCameraCenter(cam, cx, cy, zoomOut.zoom);
+                  cam.centerOn(clamped.x, clamped.y);
                 },
                 onComplete: () => {
-                  this.ceremonyInProgress = false;
-                  this.input.enabled = !this.modalOpen;
-                  cemeteryEvents.emit('burial_ceremony_done', { slot_id: data.slot_id });
+                  this.finishBurialCeremony(data.slot_id);
                 },
               });
             });
@@ -1325,6 +1390,8 @@ export class CemeteryScene extends Phaser.Scene {
     cemeteryEvents.off('burial_ceremony', this.onBurialCeremony);
     cemeteryEvents.off('zoom_change', this.onZoomChange);
     this.pendingCeremony = null;
+    this.ceremonyQueue = [];
+    this.ceremonyScheduled = false;
     this.buryModalOpen = false;
     // Destroy any ceremony game objects left mid-animation
     for (const obj of this.ceremonyObjects) {

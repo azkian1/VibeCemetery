@@ -10,6 +10,8 @@ interface StepSelectProps {
   slotsUnlocked: number;
   dailyCremationsLeft: number;
   singleSelection?: boolean;
+  cremationOnly?: boolean;
+  burialOnly?: boolean;
   onToggle: (id: number) => void;
   onToggleAll: () => void;
   onToggleGrave: (id: number) => void;
@@ -24,6 +26,29 @@ function monthsAgo(dateStr: string): string {
   return `${months} month${months !== 1 ? 's' : ''} ago`;
 }
 
+export function shouldShowStepSelectActionToggles(cremationOnly: boolean, burialOnly = false): boolean {
+  return !cremationOnly && !burialOnly;
+}
+
+export function shouldShowStepSelectBulkToggle(burialOnly: boolean, cremationOnly: boolean): boolean {
+  return !burialOnly && !cremationOnly;
+}
+
+export function shouldShowStepSelectCheckboxes(burialOnly: boolean): boolean {
+  return !burialOnly;
+}
+
+export function shouldShowStepSelectStatusBlock(
+  cremationOnly: boolean,
+  burialOnly: boolean,
+  singleSelection: boolean,
+  overLimit: boolean,
+  limitReached: boolean,
+  noBurialSlots: boolean,
+): boolean {
+  return (!cremationOnly && !burialOnly && !singleSelection) || overLimit || limitReached || noBurialSlots;
+}
+
 export default function StepSelect({
   repos,
   selected,
@@ -32,6 +57,8 @@ export default function StepSelect({
   slotsUnlocked,
   dailyCremationsLeft,
   singleSelection = false,
+  cremationOnly = false,
+  burialOnly = false,
   onToggle,
   onToggleAll,
   onToggleGrave,
@@ -44,84 +71,103 @@ export default function StepSelect({
   const limitReached = dailyCremationsLeft === 0;
   const overLimit = cremateCount > dailyCremationsLeft && dailyCremationsLeft !== Infinity;
   const noBurialSlots = singleSelection && availableSlots <= 0;
+  const showStatusBlock = shouldShowStepSelectStatusBlock(cremationOnly, burialOnly, singleSelection, overLimit, limitReached, noBurialSlots);
+  const showActionToggles = shouldShowStepSelectActionToggles(cremationOnly, burialOnly);
+  const showBulkToggle = shouldShowStepSelectBulkToggle(burialOnly, cremationOnly);
+  const showCheckboxes = shouldShowStepSelectCheckboxes(burialOnly);
 
   return (
     <div>
       {/* Status block */}
-      <div style={{
-        padding: '10px 14px',
-        marginBottom: 10,
-        background: 'rgba(58, 57, 53, 0.3)',
-        border: '1px solid #3a3530',
-        borderRadius: 2,
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 6,
-      }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span style={{ color: availableSlots > 0 ? '#e8d5a3' : '#8a8980', fontSize: 14 }}>
-            &#x26B0;&#xFE0F; Graves: {availableSlots > 0
-              ? <>{availableSlots} free</>
-              : <>full</>
-            }
-          </span>
-          <span>
-            <span style={{ color: '#aaa9a0', fontSize: 13, fontWeight: 600 }}>{slotsUnlocked - availableSlots}/{slotsUnlocked}</span>
-            <span style={{ color: '#6a6960', fontSize: 12 }}> used</span>
-          </span>
-        </div>
-        {!singleSelection && (
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ color: limitReached ? '#b86858' : dailyCremationsLeft === Infinity ? '#e8d5a3' : '#aaa9a0', fontSize: 14 }}>
-              &#x1F525; Crematory: {limitReached
-                ? <>closed today</>
-                : dailyCremationsLeft === Infinity
-                  ? <>open</>
-                  : <>{dailyCremationsLeft} left today</>
-              }
-            </span>
-            {dailyCremationsLeft !== Infinity && (
-              <span>
-                <span style={{ color: '#aaa9a0', fontSize: 13, fontWeight: 600 }}>{3 - dailyCremationsLeft}/3</span>
-                <span style={{ color: '#6a6960', fontSize: 12 }}> today</span>
+      {showStatusBlock && (
+        <div style={{
+          padding: '10px 14px',
+          marginBottom: 10,
+          background: 'rgba(58, 57, 53, 0.3)',
+          border: '1px solid #3a3530',
+          borderRadius: 2,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 6,
+        }}>
+          {!cremationOnly && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ color: availableSlots > 0 ? '#e8d5a3' : '#8a8980', fontSize: 14 }}>
+                &#x26B0;&#xFE0F; Graves: {availableSlots > 0
+                  ? <>{availableSlots} free</>
+                  : <>full</>
+                }
               </span>
-            )}
-          </div>
-        )}
-        {overLimit && !limitReached && (
-          <div style={{ color: '#8a8980', fontSize: 12, textAlign: 'center', marginTop: 2, borderTop: '1px solid #3a3530', paddingTop: 6 }}>
-            {cremateCount - dailyCremationsLeft} selected will be skipped
-          </div>
-        )}
-        {noBurialSlots && (
-          <div style={{ color: '#b86858', fontSize: 12, textAlign: 'center', marginTop: 2, borderTop: '1px solid #3a3530', paddingTop: 6 }}>
-            No grave slots left. Cremation is available from FIRE.
-          </div>
-        )}
-        <div style={{ color: '#6a6960', fontSize: 12, lineHeight: 1.5, textAlign: 'center', marginTop: 2, borderTop: '1px solid #3a3530', paddingTop: 6 }}>
-          {singleSelection
-            ? 'SHOVEL creates graves only. Use FIRE for cremation.'
-            : 'Coffin = grave on the map. Fire = crematory record. Cremations earn Souls for more grave slots.'}
+              <span>
+                <span style={{ color: '#aaa9a0', fontSize: 13, fontWeight: 600 }}>{slotsUnlocked - availableSlots}/{slotsUnlocked}</span>
+                <span style={{ color: '#6a6960', fontSize: 12 }}> used</span>
+              </span>
+            </div>
+          )}
+          {!singleSelection && !cremationOnly && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ color: limitReached ? '#b86858' : dailyCremationsLeft === Infinity ? '#e8d5a3' : '#aaa9a0', fontSize: 14 }}>
+                &#x1F525; Crematory: {limitReached
+                  ? <>closed today</>
+                  : dailyCremationsLeft === Infinity
+                    ? <>open</>
+                    : <>{dailyCremationsLeft} left today</>
+                }
+              </span>
+              {dailyCremationsLeft !== Infinity && (
+                <span>
+                  <span style={{ color: '#aaa9a0', fontSize: 13, fontWeight: 600 }}>{3 - dailyCremationsLeft}/3</span>
+                  <span style={{ color: '#6a6960', fontSize: 12 }}> today</span>
+                </span>
+              )}
+            </div>
+          )}
+          {limitReached && cremationOnly && (
+            <div style={{ color: '#b86858', fontSize: 12, textAlign: 'center' }}>
+              Crematory is closed today. Come back tomorrow.
+            </div>
+          )}
+          {overLimit && !limitReached && (
+            <div style={{ color: '#8a8980', fontSize: 12, textAlign: 'center', marginTop: 2, borderTop: '1px solid #3a3530', paddingTop: 6 }}>
+              {cremateCount - dailyCremationsLeft} selected will be skipped
+            </div>
+          )}
+          {noBurialSlots && (
+            <div style={{ color: '#b86858', fontSize: 12, textAlign: 'center', marginTop: 2, borderTop: '1px solid #3a3530', paddingTop: 6 }}>
+              No grave slots left. Cremation is available from FIRE.
+            </div>
+          )}
+          {!cremationOnly && !burialOnly && (
+            <div style={{ color: '#6a6960', fontSize: 12, lineHeight: 1.5, textAlign: 'center', marginTop: 2, borderTop: '1px solid #3a3530', paddingTop: 6 }}>
+              {singleSelection
+                ? 'SHOVEL creates graves only. Use FIRE for cremation.'
+                : 'Coffin = grave on the map. Fire = crematory record. Cremations earn Souls for more grave slots.'}
+            </div>
+          )}
         </div>
-      </div>
+      )}
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-        <span style={{ color: '#e8d5a3', fontSize: 14 }}>{singleSelection ? 'Select one project' : 'Select projects'}</span>
-        <button
-          onClick={onToggleAll}
-          style={{
-            background: 'none',
-            border: 'none',
-            color: '#7898b8',
-            cursor: 'pointer',
-            fontSize: 13,
-            fontFamily: 'inherit',
-            textDecoration: 'underline',
-          }}
-        >
-          {singleSelection ? (allSelected ? 'Clear' : 'Select first') : (allSelected ? 'Deselect all' : 'Select all')}
-        </button>
-      </div>
+      {!burialOnly && (
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+          <span style={{ color: '#e8d5a3', fontSize: 14 }}>{singleSelection ? 'Select one project' : 'Select projects'}</span>
+          {showBulkToggle && (
+            <button
+              onClick={onToggleAll}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: '#7898b8',
+                cursor: 'pointer',
+                fontSize: 13,
+                fontFamily: 'inherit',
+                textDecoration: 'underline',
+              }}
+            >
+              {singleSelection ? (allSelected ? 'Clear' : 'Select first') : (allSelected ? 'Deselect all' : 'Select all')}
+            </button>
+          )}
+        </div>
+      )}
 
       <div
         style={{
@@ -146,23 +192,44 @@ export default function StepSelect({
                 gap: 8,
                 padding: '6px 8px',
                 borderBottom: '1px solid rgba(58, 57, 53, 0.5)',
-                fontSize: 13,
+                fontSize: burialOnly ? 16 : 13,
               }}
             >
-              <input
-                type="checkbox"
-                checked={isSelected}
-                onChange={() => onToggle(repo.id)}
-                style={{ accentColor: '#e8d5a3', flexShrink: 0 }}
-              />
-              <span style={{ color: '#aaa9a0', flex: 1, minWidth: 0 }}>
-                <strong>{repo.name}</strong>
+              {showCheckboxes && (
+                <button
+                  type="button"
+                  role="checkbox"
+                  aria-checked={isSelected}
+                  onClick={() => onToggle(repo.id)}
+                  style={{
+                    width: 22,
+                    height: 22,
+                    flexShrink: 0,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    border: `1px solid ${isSelected ? '#d8c891' : '#5a554c'}`,
+                    borderRadius: 3,
+                    background: isSelected ? 'linear-gradient(180deg, #e8d5a3 0%, #b79a55 100%)' : 'rgba(20,18,16,0.84)',
+                    color: isSelected ? '#211b12' : 'transparent',
+                    cursor: 'pointer',
+                    fontSize: 16,
+                    lineHeight: 1,
+                    padding: 0,
+                    boxShadow: isSelected ? '0 0 10px rgba(232,213,163,0.18)' : 'inset 0 1px 0 rgba(255,255,255,0.04)',
+                  }}
+                >
+                  &#10003;
+                </button>
+              )}
+              <span style={{ color: burialOnly ? '#f4efe2' : '#aaa9a0', flex: 1, minWidth: 0, lineHeight: burialOnly ? 1.45 : undefined }}>
+                <strong style={{ color: burialOnly ? '#fff7df' : undefined, fontSize: burialOnly ? 18 : undefined }}>{repo.name}</strong>
                 {repo.language && (
-                  <span style={{ color: '#6a6960' }}> — {repo.language}</span>
+                  <span style={{ color: burialOnly ? '#d8cfba' : '#6a6960' }}> — {repo.language}</span>
                 )}
-                <span style={{ color: '#4a4944' }}> — {monthsAgo(repo.pushed_at)}</span>
+                <span style={{ color: burialOnly ? '#c6bca8' : '#4a4944' }}> — {monthsAgo(repo.pushed_at)}</span>
               </span>
-              {isSelected && (
+              {isSelected && showActionToggles && (
                 <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
                   <button
                     onClick={() => onToggleGrave(repo.id)}

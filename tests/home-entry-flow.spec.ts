@@ -5,6 +5,7 @@ import {
   decideHomeRepoAction,
   filterFreshDeadRepos,
   formatLastPushAge,
+  shouldShowHomeScannerChrome,
 } from '../src/components/HomeScannerLanding'
 import type { CrematedData, DeadRepo, GraveData } from '../src/types/game'
 
@@ -38,7 +39,7 @@ test.describe('home scanner entry flow', () => {
     })
 
     expect(availableSlots).toBe(1)
-    expect(decideHomeRepoAction(availableSlots)).toEqual({ label: 'Bury', mode: 'burial' })
+    expect(decideHomeRepoAction(availableSlots)).toEqual({ label: 'Bury', flowMode: 'home-preselected-burial' })
   })
 
   test('routes first-page repo action to cremation when no grave slots remain', () => {
@@ -52,7 +53,25 @@ test.describe('home scanner entry flow', () => {
     })
 
     expect(availableSlots).toBe(0)
-    expect(decideHomeRepoAction(availableSlots)).toEqual({ label: 'Cremate', mode: 'cremation' })
+    expect(decideHomeRepoAction(availableSlots)).toEqual({ label: 'Cremate', flowMode: 'home-preselected-cremation' })
+  })
+
+  test('demo bonus keeps five grave slots available above seeded graves', () => {
+    const graves = new Map<number, GraveData>()
+    for (let i = 0; i < 28; i++) {
+      graves.set(i + 1, grave({ slot_id: i + 1, author_github: 'demo-gravedigger', github_repo_id: i + 1 }))
+    }
+
+    const availableSlots = calculateAvailableGraveSlotsForHome({
+      graves,
+      cremated: [],
+      username: 'demo-gravedigger',
+      hasSharedFirstGrave: true,
+      bonusSlots: 5,
+    })
+
+    expect(availableSlots).toBe(5)
+    expect(decideHomeRepoAction(availableSlots)).toEqual({ label: 'Bury', flowMode: 'home-preselected-burial' })
   })
 
   test('ignores non-auto graves when map slot positions are known', () => {
@@ -67,6 +86,12 @@ test.describe('home scanner entry flow', () => {
     })).toBe(1)
   })
 
+  test('hides scanner chrome after scan results exist', () => {
+    expect(shouldShowHomeScannerChrome(null)).toBe(true)
+    expect(shouldShowHomeScannerChrome([])).toBe(false)
+    expect(shouldShowHomeScannerChrome([repo({ id: 4, name: 'dead' })])).toBe(false)
+  })
+
   test('home keeps wallet hidden and routes Agent Layer to the hub', () => {
     const source = readFileSync('src/components/HomeScannerLanding.tsx', 'utf8')
 
@@ -75,9 +100,16 @@ test.describe('home scanner entry flow', () => {
     expect(source).toContain("display: 'none'")
     expect(source).toContain('Agent Layer')
     expect(source).toContain('href="/agents"')
-    expect(source).toContain('initialMode: repoAction.mode')
+    expect(source).toContain('flowMode: repoAction.flowMode')
     expect(source).not.toContain('Agent / GitLawb Layer')
     expect(source).not.toContain('href="/agents/gitlawb"')
+  })
+
+  test('lays scanned repo cards out as three columns on desktop', () => {
+    const source = readFileSync('src/components/HomeScannerLanding.tsx', 'utf8')
+
+    expect(source).toContain("gridTemplateColumns: isCompactViewport ? '1fr' : 'repeat(3, minmax(0, 1fr))'")
+    expect(source).toContain("width: repos ? 'min(100%, 1040px)' : 'min(100%, 430px)'")
   })
 })
 

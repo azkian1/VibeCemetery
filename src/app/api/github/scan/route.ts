@@ -7,6 +7,7 @@ import {
   validateGitHubRootContentsEligibility,
 } from "@/app/api/graves/githubRepoEligibility";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
+import { DEMO_USERNAME, getDemoDeadRepos, isDemoMode } from "@/demo/cemetery";
 
 interface GitHubRepo {
   id: number;
@@ -79,6 +80,20 @@ function pruneContentEligibilityCache() {
 }
 
 export async function GET(request: NextRequest) {
+  const rawUsername = request.nextUrl.searchParams.get("username");
+  const requestedUsername = rawUsername?.trim().toLowerCase();
+
+  if (requestedUsername && isDemoMode() && requestedUsername === DEMO_USERNAME.toLowerCase()) {
+    const deadRepos = getDemoDeadRepos();
+    return NextResponse.json({
+      dead_repos: deadRepos,
+      total_repos: deadRepos.length,
+      dead_count: deadRepos.length,
+    });
+  }
+
+  const forceRefresh = request.nextUrl.searchParams.get("refresh") === "1";
+
   /* ── Auth: only logged-in user can scan, and only their own GitHub ── */
   const session = await getServerSession(authOptions);
   if (!session?.user?.github_username) {
@@ -97,9 +112,6 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const rawUsername = request.nextUrl.searchParams.get("username");
-  const forceRefresh = request.nextUrl.searchParams.get("refresh") === "1";
-
   if (!rawUsername) {
     return NextResponse.json(
       { error: "Missing required query parameter: username" },
@@ -108,7 +120,7 @@ export async function GET(request: NextRequest) {
   }
 
   // GitHub usernames are case-insensitive — normalize for cache/rate-limit
-  const username = rawUsername.trim().toLowerCase();
+  const username = requestedUsername ?? "";
 
   /* ── Only allow scanning your own GitHub ── */
   if (username !== session.user.github_username.toLowerCase()) {

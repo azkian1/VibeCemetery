@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useMemo, useRef, type SetStateAction } from 'react';
 import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 import { useModal, useGame } from '@/context/GameContext';
 import ModalOverlay from './ModalOverlay';
 import { useIsMobile } from '@/hooks/useIsMobile';
@@ -15,12 +16,40 @@ import type { DeadRepo, GraveData, BuryResult } from '@/types/game';
 import { GRAVEDIGGER_BURIAL, GRAVEDIGGER_MASS_BURIAL } from '@/gravedigger/phrases';
 import { cemeteryEvents } from '@/game/events';
 import { calculateSouls, calculateUserSlotEconomy, isAutoAssignableGraveSlotType } from '@/lib/slot-economy';
+import { getDemoGraveBonusSlots } from '@/demo/mode';
+import { savePendingBurialCeremony } from '@/lib/pending-burial-ceremony';
 import type { SlotPositionData } from '@/game/events';
 
 const DEATH_CAUSES_DEFAULT = 'Developer lost interest';
 const USER_GRAVE_SLOTS_EXHAUSTED = 'USER_GRAVE_SLOTS_EXHAUSTED';
 
 type InitialMode = 'burial' | 'cremation';
+export type BuryFlowMode = 'default-scanner' | 'home-preselected-burial' | 'home-preselected-cremation' | 'cemetery-shovel' | 'cemetery-fire';
+
+export function resolveBuryFlowMode(modalData: { flowMode?: BuryFlowMode; initialDeadRepos?: DeadRepo[]; initialMode?: InitialMode } | null | undefined): BuryFlowMode {
+  if (modalData?.flowMode) return modalData.flowMode;
+  const hasInitialRepos = (modalData?.initialDeadRepos?.length ?? 0) > 0;
+  if (hasInitialRepos && modalData?.initialMode === 'burial') return 'home-preselected-burial';
+  if (hasInitialRepos && modalData?.initialMode === 'cremation') return 'home-preselected-cremation';
+  if (modalData?.initialMode === 'burial') return 'cemetery-shovel';
+  if (modalData?.initialMode === 'cremation') return 'cemetery-fire';
+  return 'default-scanner';
+}
+
+export function getBuryFlowUi(flowMode: BuryFlowMode) {
+  const isBurial = flowMode === 'home-preselected-burial' || flowMode === 'cemetery-shovel';
+  const isCremation = flowMode === 'home-preselected-cremation' || flowMode === 'cemetery-fire';
+  const selectedProjectOnly = flowMode === 'home-preselected-burial';
+  return {
+    isBurial,
+    isCremation,
+    isSingleSelection: isBurial,
+    startsAtSelect: flowMode === 'home-preselected-burial' || flowMode === 'home-preselected-cremation',
+    selectedProjectOnly,
+    closeSelectBack: selectedProjectOnly,
+    initialMode: isBurial ? 'burial' as const : isCremation ? 'cremation' as const : undefined,
+  };
+}
 
 export async function shouldFallbackGraveToCremation(res: Response): Promise<boolean> {
   if (res.status === 507) return true;
@@ -145,15 +174,18 @@ export default function BuryFlowModal() {
   const { close, open, modalData } = useModal();
   const { state, dispatch } = useGame();
   const { data: session } = useSession();
+  const router = useRouter();
   const isMobile = useIsMobile();
   const username = session?.user?.github_username ?? null;
   const hasSharedFirstGrave = Boolean(session?.user?.x_first_grave_shared_at);
+  const flowMode = resolveBuryFlowMode(modalData);
+  const flowUi = getBuryFlowUi(flowMode);
   const initialDeadRepos = modalData?.initialDeadRepos;
-  const initialMode = modalData?.initialMode;
+  const initialMode = flowUi.initialMode;
   const initialRepos = useMemo(() => initialDeadRepos ?? [], [initialDeadRepos]);
   const suppressCeremony = modalData?.suppressCeremony === true;
 
-  const [step, setStep] = useState<1 | 2 | 3 | 4>(initialRepos.length > 0 ? 2 : 1);
+  const [step, setStep] = useState<1 | 2 | 3 | 4>(flowUi.startsAtSelect ? 2 : 1);
   const [repos, setRepos] = useState<DeadRepo[]>(initialRepos);
   const [filteredCount, setFilteredCount] = useState(0);
   const [selected, setSelected] = useState<Set<number>>(() => getInitialSelectedRepoSet(initialRepos.map((repo) => repo.id), initialMode));
@@ -187,6 +219,7 @@ export default function BuryFlowModal() {
     souls,
     slotsUsed: userGravesCount,
     hasSharedFirstGrave,
+    bonusSlots: getDemoGraveBonusSlots(username),
   });
   const slotsUnlocked = slotEconomy.slotsUnlocked;
   const availableSlots = slotEconomy.availableSlots;
@@ -381,8 +414,16 @@ export default function BuryFlowModal() {
             const gravediggerPhrase = GRAVEDIGGER_BURIAL[Math.floor(Math.random() * GRAVEDIGGER_BURIAL.length)];
             if (!suppressCeremony) {
               const ceremonyData = { slot_id: grave.slot_id, id: grave.id, name: grave.name, chatText, gravediggerPhrase };
-              cemeteryEvents.emit('burial_ceremony', ceremonyData);
-              ceremonyRef.current = ceremonyData;
+              let ceremonyScheduled = false;
+              if (typeof window !== 'undefined' && window.location.pathname !== '/cemetery') {
+                ceremonyScheduled = savePendingBurialCeremony(ceremonyData);
+                if (ceremonyScheduled) router.push('/cemetery');
+                else router.push(`/cemetery?grave=${encodeURIComponent(grave.id)}`);
+              } else {
+                cemeteryEvents.emit('burial_ceremony', ceremonyData);
+                ceremonyScheduled = true;
+              }
+              if (ceremonyScheduled) ceremonyRef.current = ceremonyData;
             }
             dispatch({ type: 'ADD_GRAVE', grave });
             buryResults.push({ name: repo.name, success: true, type: 'grave', grave });
@@ -453,7 +494,7 @@ export default function BuryFlowModal() {
     if (hasCeremony && !hasOtherResults) {
       close();
     }
-  }, [repos, selected, graveSet, causes, dispatch, burying, close, suppressCeremony, initialMode]);
+  }, [repos, selected, graveSet, causes, dispatch, burying, close, suppressCeremony, initialMode, router]);
 
   return (
     <ModalOverlay onClose={burying ? (() => {}) : close}>
@@ -467,7 +508,7 @@ export default function BuryFlowModal() {
 
           <h2 style={{ margin: '0 0 16px', fontSize: 20, color: '#e8d5a3', textAlign: 'center' }}>
             {step === 1 && 'Scan Repositories'}
-            {step === 2 && 'Select Projects'}
+            {step === 2 && (flowUi.selectedProjectOnly ? 'Selected Project' : 'Select Projects')}
             {step === 3 && 'Cause of Death'}
             {step === 4 && (() => {
               if (burying) return 'Processing...';
@@ -499,7 +540,7 @@ export default function BuryFlowModal() {
               username={username}
               filteredCount={filteredCount}
               recordsLoading={state.gravesLoading || state.crematedLoading}
-              burialOnly={initialMode === 'burial'}
+              burialOnly={flowUi.isBurial}
               onScanned={handleScanned}
               onError={setError}
               onNext={() => setStep(2)}
@@ -515,12 +556,14 @@ export default function BuryFlowModal() {
               availableSlots={selectableGraveSlots}
               slotsUnlocked={slotsUnlocked}
               dailyCremationsLeft={dailyCremationsLeft}
-              singleSelection={initialMode === 'burial'}
+              singleSelection={flowUi.isSingleSelection}
+              cremationOnly={flowUi.isCremation}
+              burialOnly={flowUi.selectedProjectOnly}
               onToggle={handleToggle}
               onToggleAll={handleToggleAll}
               onToggleGrave={handleToggleGrave}
               onNext={() => setStep(3)}
-              onBack={() => setStep(1)}
+              onBack={() => { if (flowUi.closeSelectBack) close(); else setStep(1); }}
             />
           )}
 

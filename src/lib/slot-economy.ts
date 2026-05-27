@@ -14,6 +14,7 @@ export interface UserSlotEconomyInput {
   souls: number;
   slotsUsed: number;
   hasSharedFirstGrave: boolean;
+  bonusSlots?: number;
 }
 
 export interface UserSlotEconomy {
@@ -54,10 +55,15 @@ export function calculateUserSlotEconomy({
   souls,
   slotsUsed,
   hasSharedFirstGrave,
+  bonusSlots = 0,
 }: UserSlotEconomyInput): UserSlotEconomy {
   const soulSlots = SOUL_SLOT_THRESHOLDS.filter((threshold) => souls >= threshold).length;
   const socialSlot = hasSharedFirstGrave ? 1 : 0;
-  const slotsUnlocked = Math.min(NORMAL_SLOT_MAX, 1 + socialSlot + soulSlots);
+  const normalSlotsUnlocked = Math.min(NORMAL_SLOT_MAX, 1 + socialSlot + soulSlots);
+  const normalizedBonusSlots = Math.max(0, Math.floor(bonusSlots));
+  const slotsUnlocked = normalizedBonusSlots > 0
+    ? Math.max(normalSlotsUnlocked, slotsUsed) + normalizedBonusSlots
+    : normalSlotsUnlocked;
   const availableSlots = Math.max(0, slotsUnlocked - slotsUsed);
   const nextSoulThreshold = SOUL_SLOT_THRESHOLDS[soulSlots] ?? null;
 
@@ -67,7 +73,7 @@ export function calculateUserSlotEconomy({
     slotsUnlocked,
     availableSlots,
     nextSoulThreshold,
-    allSlotsMaxed: slotsUnlocked >= NORMAL_SLOT_MAX,
+    allSlotsMaxed: normalSlotsUnlocked >= NORMAL_SLOT_MAX,
     canCreateGrave: availableSlots > 0,
   };
 }

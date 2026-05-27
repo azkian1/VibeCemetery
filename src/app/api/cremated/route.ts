@@ -11,6 +11,7 @@ import { resolveCliActor } from '@/lib/cli-auth'
 import { checkRateLimit, getClientIp } from '@/lib/rate-limit'
 import { sanitizePublicText } from '@/lib/sanitize-public-text'
 import { supabaseAdmin } from '@/lib/supabase'
+import { addDemoCremationFromBody, getDemoCremations, isDemoMode } from '@/demo/cemetery'
 
 const GITHUB_REPO_VERIFY_LIMIT = 15
 const GITHUB_REPO_VERIFY_WINDOW_MS = 60_000
@@ -47,6 +48,16 @@ export async function POST(request: NextRequest) {
       { error: 'Agent Ash submissions must use /api/agent-ashes' },
       { status: 403 },
     )
+  }
+
+  if (isDemoMode()) {
+    const demoName = typeof body.name === 'string' ? sanitizePublicText(body.name, 100) : ''
+    const demoCause = typeof body.cause === 'string' ? sanitizePublicText(body.cause, 200) : ''
+    if (!demoName || !demoCause) {
+      return NextResponse.json({ error: 'name and cause are required' }, { status: 400 })
+    }
+
+    return NextResponse.json(addDemoCremationFromBody({ ...body, name: demoName, cause: demoCause }), { status: 201 })
   }
 
   const actor = await resolveCliActor(request)
@@ -319,6 +330,10 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET() {
+  if (isDemoMode()) {
+    return NextResponse.json(getDemoCremations())
+  }
+
   const { data, error } = await supabaseAdmin
     .from('cremated')
     .select('id, name, cause, author_github, github_url, last_commit_message, created_at, source')

@@ -4,6 +4,7 @@ import { useSession } from 'next-auth/react';
 import { useGame, useModal } from '@/context/GameContext';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import { calculateSouls, calculateUserSlotEconomy, isAutoAssignableGraveSlotType } from '@/lib/slot-economy';
+import { getDemoGraveBonusSlots } from '@/demo/mode';
 
 export function decideCemeteryCtaState(availableGraveSlots: number): { shovelDisabled: boolean; fireDisabled: boolean } {
   return {
@@ -24,6 +25,7 @@ export default function CTAButtons() {
         souls: calculateSouls(state.cremated.filter((item) => item.author_github.toLowerCase() === username.toLowerCase())),
         slotsUsed: countUserAutoAssignableGraves(state, username),
         hasSharedFirstGrave,
+        bonusSlots: getDemoGraveBonusSlots(username),
       }).availableSlots
     : 1;
   const { shovelDisabled, fireDisabled } = decideCemeteryCtaState(availableGraveSlots);
@@ -33,84 +35,60 @@ export default function CTAButtons() {
   return (
     <div
       style={{
-        position: 'fixed',
+        position: 'absolute',
         bottom: 16,
-        right: 16,
-        zIndex: 45,
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'flex-end',
-        gap: 8,
+        left: 16,
+        zIndex: 40,
+        width: 340,
+        height: 94,
+        boxSizing: 'border-box',
         pointerEvents: 'auto',
+        border: '1px solid #3a3530',
+        borderRadius: 2,
+        background: 'rgba(20, 18, 16, 0.60)',
+        boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03), 0 1px 2px rgba(0,0,0,0.3)',
         padding: 8,
+        fontFamily: "var(--font-cinzel), 'Cinzel', Georgia, serif",
       }}
     >
-      {/* SHOVEL */}
-      <button
-        onClick={() => open('bury', { initialMode: 'burial' })}
-        disabled={shovelDisabled}
-        title={shovelDisabled ? 'No grave slots left. Cremation is available.' : 'Bury repos in grave slots'}
-        style={ritualButtonStyle('shovel', shovelDisabled)}
-        onMouseEnter={(e) => {
-          if (shovelDisabled) return;
-          e.currentTarget.style.background = 'linear-gradient(180deg, #6a2828 0%, #4a1818 100%)';
-          e.currentTarget.style.boxShadow = 'inset 0 1px 0 rgba(255,255,255,0.05), 0 2px 12px rgba(90, 32, 32, 0.3), 0 0 20px rgba(139, 105, 20, 0.15)';
-        }}
-        onMouseLeave={(e) => {
-          Object.assign(e.currentTarget.style, ritualButtonStyle('shovel', shovelDisabled));
-        }}
-      >
-        SHOVEL
-      </button>
-
-      {/* FIRE */}
-      <button
-        onClick={() => open('bury', { initialMode: 'cremation' })}
-        disabled={fireDisabled}
-        title={fireDisabled ? 'Use your available grave slots before cremating.' : 'Cremate repos into the Crematory'}
-        style={ritualButtonStyle('fire', fireDisabled)}
-        onMouseEnter={(e) => {
-          if (fireDisabled) return;
-          e.currentTarget.style.background = 'linear-gradient(180deg, #6a2828 0%, #4a1818 100%)';
-          e.currentTarget.style.boxShadow = 'inset 0 1px 0 rgba(255,255,255,0.05), 0 2px 12px rgba(90, 32, 32, 0.3), 0 0 20px rgba(139, 105, 20, 0.15)';
-        }}
-        onMouseLeave={(e) => {
-          Object.assign(e.currentTarget.style, ritualButtonStyle('fire', fireDisabled));
-        }}
-      >
-        FIRE
-      </button>
-
-      {/* CLI SKILL */}
-      <button
-        onClick={() => open('skill')}
-        style={{
-          width: 160,
-          height: 48,
-          border: '1px solid #3a3935',
-          borderRadius: 2,
-          background: 'linear-gradient(180deg, #2a2825 0%, #1e1c18 100%)',
-          color: '#aaa9a0',
-          fontFamily: "var(--font-cinzel), 'Cinzel', Georgia, serif",
-          fontSize: 14,
-          letterSpacing: 1,
-          cursor: 'pointer',
-          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03), 0 2px 6px rgba(0,0,0,0.3)',
-          transition: 'all 0.15s',
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.borderColor = '#5a4a30';
-          e.currentTarget.style.color = '#e8d5a3';
-          e.currentTarget.style.background = 'linear-gradient(180deg, #302e28 0%, #242018 100%)';
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.borderColor = '#3a3935';
-          e.currentTarget.style.color = '#aaa9a0';
-          e.currentTarget.style.background = 'linear-gradient(180deg, #2a2825 0%, #1e1c18 100%)';
-        }}
-      >
-        CLI SKILL
-      </button>
+      <div style={{ margin: '0 0 6px', color: '#e8d5a3', fontSize: 13, fontWeight: 700, letterSpacing: 0.7 }}>
+        Choose a ritual:
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+        <button
+          onClick={() => open('bury', { flowMode: 'cemetery-shovel' })}
+          disabled={shovelDisabled}
+          title={shovelDisabled ? 'No grave slots left. Cremation is available.' : 'Bury repos in grave slots'}
+          style={ritualButtonStyle('bury', shovelDisabled)}
+          onMouseEnter={(e) => {
+            if (shovelDisabled) return;
+            Object.assign(e.currentTarget.style, ritualButtonHoverStyle);
+          }}
+          onMouseLeave={(e) => {
+            Object.assign(e.currentTarget.style, ritualButtonStyle('bury', shovelDisabled));
+          }}
+        >
+          Bury
+        </button>
+        <button
+          onClick={() => open('bury', { flowMode: 'cemetery-fire' })}
+          disabled={fireDisabled}
+          title={fireDisabled ? 'Use your available grave slots before cremating.' : 'Cremate repos into the Crematory'}
+          style={ritualButtonStyle('cremate', fireDisabled)}
+          onMouseEnter={(e) => {
+            if (fireDisabled) return;
+            Object.assign(e.currentTarget.style, ritualButtonHoverStyle);
+          }}
+          onMouseLeave={(e) => {
+            Object.assign(e.currentTarget.style, ritualButtonStyle('cremate', fireDisabled));
+          }}
+        >
+          Cremate
+        </button>
+      </div>
+      <p style={{ margin: '6px 0 0', color: '#8f897d', fontFamily: "var(--font-geist-sans), Arial, sans-serif", fontSize: 10.5, lineHeight: 1.25 }}>
+        Bury puts it on the map. Cremate saves it as ashes.
+      </p>
     </div>
   );
 }
@@ -137,20 +115,20 @@ function countUserAutoAssignableGraves(state: ReturnType<typeof useGame>['state'
   return count;
 }
 
-function ritualButtonStyle(kind: 'shovel' | 'fire', disabled: boolean): React.CSSProperties {
-  const activeBackground = kind === 'shovel'
+function ritualButtonStyle(kind: 'bury' | 'cremate', disabled: boolean): React.CSSProperties {
+  const activeBackground = kind === 'bury'
     ? 'linear-gradient(180deg, #5a3b20 0%, #2f2112 100%)'
     : 'linear-gradient(180deg, #5a2020 0%, #3a1010 100%)';
 
   return {
-    width: 160,
-    height: 52,
+    width: '100%',
+    height: 34,
     border: disabled ? '1px solid #302c27' : '1px solid #6a3020',
     borderRadius: 2,
     background: disabled ? 'linear-gradient(180deg, #24221f 0%, #171512 100%)' : activeBackground,
     color: disabled ? '#4a4944' : '#e8d5a3',
     fontFamily: "var(--font-cinzel), 'Cinzel', Georgia, serif",
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: 'bold',
     letterSpacing: 1,
     cursor: disabled ? 'default' : 'pointer',
@@ -161,3 +139,8 @@ function ritualButtonStyle(kind: 'shovel' | 'fire', disabled: boolean): React.CS
     transition: 'all 0.15s',
   };
 }
+
+const ritualButtonHoverStyle: React.CSSProperties = {
+  background: 'linear-gradient(180deg, #6a2828 0%, #4a1818 100%)',
+  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05), 0 2px 12px rgba(90, 32, 32, 0.3), 0 0 20px rgba(139, 105, 20, 0.15)',
+};

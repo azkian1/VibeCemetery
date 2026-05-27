@@ -12,6 +12,7 @@ import {
 import { useSession } from 'next-auth/react';
 import type { GraveData, CrematedData, DeadRepo } from '@/types/game';
 import type { SlotPositionData } from '@/game/events';
+import type { BuryFlowMode } from '@/components/modals/BuryFlowModal';
 
 // ── Types ──────────────────────────────────────────────
 
@@ -33,11 +34,20 @@ export interface ModalData {
   slotType?: string;
   graveData?: GraveData;
   initialDeadRepos?: DeadRepo[];
+  flowMode?: BuryFlowMode;
   initialMode?: 'burial' | 'cremation';
   suppressCeremony?: boolean;
   buildingName?: string;
   crematedItem?: CrematedData;
   authorFilter?: string;
+}
+
+export type ModalInstanceId = string;
+
+export interface ModalStackEntry {
+  id: ModalInstanceId;
+  modal: ModalType;
+  data: ModalData | null;
 }
 
 export interface ChatMessage {
@@ -56,7 +66,7 @@ export interface GameState {
   gravesError: string | null;
   crematedError: string | null;
 
-  modalStack: Array<{ modal: ModalType; data: ModalData | null }>;
+  modalStack: ModalStackEntry[];
   activeModal: ModalType | null;    // derived from stack top
   modalData: ModalData | null;      // derived from stack top
 
@@ -79,8 +89,8 @@ export type GameAction =
   | { type: 'SET_CREMATED_ERROR'; error: string | null }
   | { type: 'ADD_CREMATED'; cremated: CrematedData }
   | { type: 'ADD_GRAVE'; grave: GraveData }
-  | { type: 'OPEN_MODAL'; modal: ModalType; data?: ModalData }
-  | { type: 'PUSH_MODAL'; modal: ModalType; data?: ModalData }
+  | { type: 'OPEN_MODAL'; id: ModalInstanceId; modal: ModalType; data?: ModalData }
+  | { type: 'PUSH_MODAL'; id: ModalInstanceId; modal: ModalType; data?: ModalData }
   | { type: 'CLOSE_MODAL' }
   | { type: 'CLOSE_ALL_MODALS' }
   | { type: 'ADD_CHAT_MESSAGE'; message: ChatMessage }
@@ -110,6 +120,10 @@ const initialState: GameState = {
   fVotes: new Set(),
   fStatusLoaded: false,
 };
+
+export function createModalInstanceId(): ModalInstanceId {
+  return crypto.randomUUID();
+}
 
 function withStackTop(state: GameState, stack: GameState['modalStack']): GameState {
   const top = stack.length > 0 ? stack[stack.length - 1] : null;
@@ -181,10 +195,10 @@ function gameReducer(state: GameState, action: GameAction): GameState {
       };
     }
     case 'OPEN_MODAL':
-      return withStackTop(state, [{ modal: action.modal, data: action.data ?? null }]);
+      return withStackTop(state, [{ id: action.id, modal: action.modal, data: action.data ?? null }]);
     case 'PUSH_MODAL': {
       const filtered = state.modalStack.filter((e) => e.modal !== action.modal);
-      return withStackTop(state, [...filtered, { modal: action.modal, data: action.data ?? null }]);
+      return withStackTop(state, [...filtered, { id: action.id, modal: action.modal, data: action.data ?? null }]);
     }
     case 'CLOSE_MODAL':
       return withStackTop(state, state.modalStack.slice(0, -1));
@@ -285,14 +299,14 @@ export function useModal() {
 
   const open = useCallback(
     (modal: ModalType, data?: ModalData) => {
-      dispatch({ type: 'OPEN_MODAL', modal, data });
+      dispatch({ type: 'OPEN_MODAL', id: createModalInstanceId(), modal, data });
     },
     [dispatch],
   );
 
   const push = useCallback(
     (modal: ModalType, data?: ModalData) => {
-      dispatch({ type: 'PUSH_MODAL', modal, data });
+      dispatch({ type: 'PUSH_MODAL', id: createModalInstanceId(), modal, data });
     },
     [dispatch],
   );
