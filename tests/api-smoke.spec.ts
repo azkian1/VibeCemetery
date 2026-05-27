@@ -368,7 +368,7 @@ test.describe.serial('API smoke', () => {
     }
   })
 
-  test('POST /api/cremated still works for authenticated browser sessions', async ({ request }) => {
+  test('POST /api/cremated rejects browser sessions without github_url', async ({ request }) => {
     const username = `api-smoke-session-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
     await createSmokeUser(username)
     const sessionHeaders = await createAuthHeaders(username)
@@ -382,10 +382,8 @@ test.describe.serial('API smoke', () => {
         },
       })
 
-      expect(res.status()).toBe(201)
-      const body = await res.json()
-      expect(body.author_github).toBe(username)
-      expect(body.source).toBe('github')
+      expect(res.status()).toBe(400)
+      expect(await res.json()).toEqual({ error: 'github_url is required for browser cremations' })
     } finally {
       await deleteSmokeCliData(username)
     }

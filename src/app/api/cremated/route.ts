@@ -141,6 +141,13 @@ export async function POST(request: NextRequest) {
     ? sanitizePublicText(last_commit_message, 200)
     : null
 
+  if (actor.source === 'session' && !trimmedGithubUrl) {
+    return NextResponse.json(
+      { error: 'github_url is required for browser cremations' },
+      { status: 400 },
+    )
+  }
+
   if (trimmedGithubUrl && !/^https:\/\/github\.com\/[a-zA-Z0-9_-][a-zA-Z0-9_.-]*\/[a-zA-Z0-9_-][a-zA-Z0-9_.-]*\/?$/.test(trimmedGithubUrl)) {
     return NextResponse.json({ error: 'github_url must be a valid GitHub repo URL' }, { status: 400 })
   }
