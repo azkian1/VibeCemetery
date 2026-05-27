@@ -127,7 +127,7 @@ If you only need to work on API routes, auth, CLI flows, or documentation, the m
 npm run dev
 ```
 
-Open `http://localhost:3000`.
+Open `http://localhost:3000`. The root route is the scanner landing page; the Phaser map lives at `http://localhost:3000/cemetery`.
 
 ## 7. Verification Commands
 

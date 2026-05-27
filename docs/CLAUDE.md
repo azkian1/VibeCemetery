@@ -28,7 +28,7 @@ vibecemetery/
 |-- src/
 |   |-- app/
 |   |   |-- layout.tsx                 # app shell, metadata, font setup
-|   |   |-- page.tsx                   # main SPA page
+|   |   |-- page.tsx                   # scanner landing page and legacy query redirects
 |   |   |-- globals.css                # base document styles
 |   |   |-- error.tsx                  # app error boundary UI
 |   |   |-- not-found.tsx              # 404 page
@@ -40,7 +40,10 @@ vibecemetery/
 |   |   |-- agent-ash/connect/
 |   |   |   |-- page.tsx               # Agent Ash approval page route
 |   |   |   `-- AgentAshConnectClient.tsx
+|   |   |-- agents/page.tsx            # Agent / GitLawb layer hub
 |   |   |-- agents/gitlawb/page.tsx    # Agent Ash install contract
+|   |   |-- agents/gitlawb/v1/page.tsx # stable Agent Skill distribution page
+|   |   |-- cemetery/page.tsx          # Phaser cemetery map experience
 |   |   |-- grave/[id]/
 |   |   |   |-- page.tsx               # grave deep-link redirect page
 |   |   |   |-- GraveRedirectClient.tsx
@@ -69,6 +72,8 @@ vibecemetery/
 |   |           `-- tokens/route.ts
 |   |-- components/
 |   |   |-- AppProviders.tsx           # top-level React providers
+|   |   |-- CemeteryApp.tsx            # extracted cemetery app shell and modal layer
+|   |   |-- HomeScannerLanding.tsx     # root scanner landing page
 |   |   |-- PhaserCanvas.tsx           # Phaser bootstrap wrapper
 |   |   |-- HoverTooltip.tsx
 |   |   |-- hud/
@@ -149,6 +154,8 @@ vibecemetery/
 |   |-- Tailes/
 |   `-- og-image.png
 |-- tests/
+|   |-- home-entry-flow.spec.ts
+|   |-- phaser-resize.spec.ts
 |   |-- agent-ashes-ui.spec.ts
 |   |-- api-smoke.spec.ts
 |   |-- bury-skill.spec.ts
@@ -187,16 +194,19 @@ vibecemetery/
 ```
 
 ## App Routes
-- `/` - main cemetery experience with Phaser canvas and React HUD
-- `/grave/[id]` - redirects into `?grave=<uuid>` flow
-- `/urn/[id]` - redirects into `?urn=<id>` flow
+- `/` - scanner landing page for connected-account GitHub scans; redirects legacy root grave, urn, and bury-modal query intents into `/cemetery`
+- `/cemetery` - Phaser cemetery map experience with React HUD and Human Layer rituals
+- `/grave/[id]` - redirects into `/cemetery?grave=<uuid>` flow
+- `/urn/[id]` - redirects into `/cemetery?urn=<id>` flow
 - `/cli/connect` - browser approval UI for CLI linking
 - `/agent-ash/connect` - browser approval UI for Agent Ash linking
+- `/agents` - compact Agent / GitLawb layer hub
 - `/agents/gitlawb` - Hermes/OpenClaw GitLawb Agent Ash install contract
+- `/agents/gitlawb/v1` - stable Agent Skill installer and distribution route
 - `/grave/[id]/opengraph-image` - dynamic grave share card image
 
 ## API Routes
-- `GET /api/github/scan?username=X` - scan public GitHub repos and return inactive non-forks
+- `GET /api/github/scan?username=X` - scan the signed-in user's own GitHub repos and return inactive non-forks; public username scanning is not supported
 - `GET /api/github/last-commit?owner=X&repo=Y` - fetch last commit message for a repo
 - `GET /api/graves` - list graves, optional `?author=username`
 - `POST /api/graves` - create grave for an authenticated user
@@ -224,14 +234,26 @@ vibecemetery/
 - `GET|POST /api/auth/[...nextauth]` - NextAuth handler
 
 ## Core Architecture Notes
-- `src/app/page.tsx` renders the main screen and coordinates deep-link handling.
+- `src/app/page.tsx` renders the scanner landing page and redirects legacy root query intents such as `/?grave=...`, `/?urn=...`, and `/?modal=bury` to `/cemetery`.
+- `src/app/cemetery/page.tsx` renders the Phaser cemetery map through `src/components/CemeteryApp.tsx`.
+- `src/app/agents/page.tsx` is the Agent / GitLawb layer hub with Agent Ashes and Agent Skill entry points.
 - `src/components/AppProviders.tsx` and `src/context/GameContext.tsx` hold the shared client state for graves, cremated items, modal stack, chat, user session-derived data, and event coordination.
-- `src/components/PhaserCanvas.tsx` embeds Phaser client-side only and bridges React state into the game scene.
+- `src/components/HomeScannerLanding.tsx` owns the compact root scanner flow; `Scan GitHub` is the only landing-page GitHub auth entry point and scans `session.user.github_username` only.
+- `src/components/PhaserCanvas.tsx` embeds Phaser client-side only, starts with explicit non-zero dimensions, and ignores zero-size resize events before calling `game.scale.resize(...)`.
 - `src/game/scenes/CemeteryScene.ts` owns map rendering, camera behavior, pinch zoom, day/night cycle, particle effects, lamp rendering, highlights, and the burial ceremony animation.
 - `src/lib/map-slots.ts` and `src/game/utils/slotManager.ts` are the slot source of truth for map placement.
 - `src/lib/slot-economy.ts` is the source of truth for normal user slot progression: 4 base normal slots, +1 first-grave X share slot.
-- Browser cremation is cemetery-first: keep `Cremate` disabled while the user has available grave slots; cremations do not unlock slots.
+- Browser cremation is slot-gated: scan results and cemetery HUD lead to `Bury` while grave slots are available, and to `Cremate` only when no grave slots remain; cremations do not unlock slots.
 - `src/proxy.ts` applies shared API CORS handling and read rate limiting for `/api/*` requests.
+
+## Current Entry Flow
+- `/` answers what the user should do now: sign in through `Scan GitHub`, scan the connected GitHub account, and act on dead repo results before entering the map.
+- `/cemetery` answers what exists in the cemetery: graves, Crematory, The Crypt, Necropolis, profile/auth UI, deep links, CLI Skill, and the split Human Layer ritual panel.
+- The root page has no GitHub username input and no top-nav `Connect GitHub`; public username scan is intentionally outside the current MVP.
+- Home result actions preload `BuryFlowModal` in burial-only mode when grave slots remain, or cremation-only mode when slots are exhausted.
+- Ceremony animation is suppressed for burial started from `/` because the Phaser map is not mounted there; completion can route into the cemetery ceremony, while cremation can open the created urn.
+- The map HUD uses `Choose a ritual` with `Bury` and `Cremate`; `CLI SKILL` stays separate, and Agent Ashes / Agent Skill live in `/agents` instead of the Human map HUD.
+- The map top bar exposes Home, FAQ, and Necropolis in the stone-button visual language.
 
 ## Data Model
 - `users` - GitHub-linked user profile, progression counters, and first-grave X share unlock timestamp
@@ -251,11 +273,13 @@ vibecemetery/
 - Stone palette and Cinzel typography are part of the product identity; new UI should match the established cemetery visual language.
 - Shared modal chrome belongs in `src/components/ui/`; feature modal behavior belongs in `src/components/modals/`.
 - GitHub repos count as dead when they have no commits for 7+ days and are not forks.
+- The first page must not suggest public GitHub username scanning; scans use the authenticated user's GitHub username only.
 - `POST /api/graves` verifies the GitHub repository before insertion: URL and repo id must match, owner must be the signed-in user, forks are rejected, and pushed_at must be 7+ days old.
 - Grave placement must come from parsed map slots, not hardcoded coordinates.
 - Normal user graves are limited server-side by slot economy before map slot assignment.
 - Auto-assigned user graves can use only `grave` and `grave_tall` slots. `grave_special` is reserved for friends/welcome placements; Tier 2–3 slots are manual Gravedigger upgrades for best ideas.
 - Phaser input uses `windowEvents: false` to prevent pointer bleed-through into HTML overlays.
+- Phaser uses explicit sizing with `Scale.NONE`; `ResizeObserver` drives resize updates and zero-width or zero-height resize events are ignored to avoid WebGL framebuffer instability.
 - Grave burial ceremony is React-triggered and Phaser-rendered; cremations do not use the ceremony animation.
 - CLI auth uses browser approval plus a one-time `claim_token`; long-lived CLI tokens are server-issued and hashed at rest.
 - Settings-issued CLI tokens from `/api/cli/token` are for human-controlled agent setup and still post human-layer cremations to `/api/cremated`; they are not Agent Ashes ingest credentials.
@@ -265,13 +289,14 @@ vibecemetery/
 
 ## Modal Types
 ```ts
-type ModalType = 'grave' | 'crematory' | 'mausoleum' | 'leaderboard' | 'agentAshes' | 'bury' | 'skill' | 'burger' | 'profile' | 'urn'
+type ModalType = 'grave' | 'crematory' | 'mausoleum' | 'leaderboard' | 'agentAshes' | 'agentSkill' | 'bury' | 'skill' | 'burger' | 'profile' | 'urn'
 ```
 
 ## Deep Links
-- `?grave=<uuid>` - pan camera to a grave slot and open `GraveModal`
-- `?urn=<id>` - open `UrnModal`
-- `/grave/[id]` and `/urn/[id]` redirect into those query-param flows
+- `?grave=<uuid>` on `/cemetery` - pan camera to a grave slot and open `GraveModal`
+- `?urn=<id>` on `/cemetery` - open `UrnModal`
+- `/grave/[id]` and `/urn/[id]` redirect into `/cemetery` query-param flows
+- Root query intents for `grave`, `urn`, and `modal=bury` redirect to `/cemetery`
 
 ## Environment Variables
 ```text

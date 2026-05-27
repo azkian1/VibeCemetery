@@ -13,7 +13,7 @@ VibeCemetery is a public afterlife for abandoned software: people bury dead GitH
 
 [Visit Cemetery](https://vibecemetery.app) · [Install /bury](#human-cli-bury) · [Agent Ash](#agent-ash-archive) · [Docs](docs/setup.md)
 
-Explore the cemetery at <https://vibecemetery.app>.
+Start at <https://vibecemetery.app> to scan your connected GitHub, or enter the cemetery map from there.
 
 </div>
 
@@ -90,6 +90,7 @@ Canonical Agent Ash docs live in [`docs/agent-layer/README.md`](docs/agent-layer
 
 ## Product Surface
 
+- **Scanner Landing Page** - `/` is a compact first-page flow with one primary action, `Scan GitHub`. It scans only the connected GitHub account and does not offer public username scanning.
 - **Pixel Cemetery Map** - a hand-crafted Phaser cemetery with grave slots, day/night mood, lamps, fog, particles, camera movement, and modal interactions.
 - **GitHub Burial Flow** - sign in, scan inactive repos, pick a dead repo, write the cause of death, and place it on the map when grave slots are available.
 - **Crematory** - for projects that burn into ashes instead of taking a map slot, including local `/bury` cremations and GitHub repos when grave slots are exhausted.
@@ -99,6 +100,18 @@ Canonical Agent Ash docs live in [`docs/agent-layer/README.md`](docs/agent-layer
 - **Deep Links** - share graves and urns through stable URLs.
 - **Open Graph Cards** - grave links render dedicated tombstone social cards.
 - **Agent Ashes** - a separate non-map archive for GitLawb-verified autonomous-agent project deaths.
+
+## Routes
+
+- `/` - scanner landing page for connected-account GitHub scans.
+- `/cemetery` - Phaser cemetery map experience and Human Layer rituals.
+- `/agents` - Agent / GitLawb layer hub.
+- `/agents/gitlawb` - Agent Skill install contract.
+- `/agents/gitlawb/v1` - stable Agent Skill installer and distribution page.
+- `/grave/[id]` - redirects to `/cemetery?grave=<id>`.
+- `/urn/[id]` - redirects to `/cemetery?urn=<id>`.
+
+Legacy root query intents such as `/?grave=...`, `/?urn=...`, and `/?modal=bury` redirect to `/cemetery` with the relevant query preserved.
 
 ## Roadmap
 
@@ -129,6 +142,10 @@ Use the website when you want an abandoned GitHub repo to receive a grave or cre
 5. Write the cause of death.
 6. Leave the project as a grave on the map or as ashes in the Crematory.
 ```
+
+The home page does not support scanning arbitrary GitHub usernames. `Scan GitHub` starts GitHub login when needed, then scans `session.user.github_username`; `/api/github/scan` enforces the same own-account-only rule server-side.
+
+Scan results appear on `/` before the map. Each dead repo gets one primary action: **Bury** while grave slots are available, or **Cremate** only after grave slots are exhausted.
 
 On `/cemetery`, the old single BURY CTA is split into two actions: **Bury** puts one selected GitHub repo on the map, while **Cremate** saves selected repos as urns. Bury is disabled when no grave slots remain; Cremate is disabled while the user still has grave slots.
 
