@@ -373,6 +373,8 @@ export default function BuryFlowModal() {
           } else if (await shouldFallbackGraveToCremation(res)) {
             if (!shouldCremateAfterSlotExhaustionForFlow(flowAction)) {
               buryResults.push({ name: repo.name, success: false, type: 'grave', error: 'no grave slots left' });
+              setBuryDone((d) => d + 1);
+              setResults([...buryResults]);
               continue;
             }
             // Fallback: server says no slots — cremate instead

@@ -82,6 +82,12 @@ test.describe('BuryFlowModal grave fallback', () => {
 
     await expect(shouldFallbackGraveToCremation(res)).resolves.toBe(false)
   })
+
+  test('updates progress before skipping burial-only slot exhaustion', async () => {
+    const modalSource = await readFile('src/components/modals/BuryFlowModal.tsx', 'utf8')
+
+    expect(modalSource).toContain("error: 'no grave slots left' });\n              setBuryDone((d) => d + 1);\n              setResults([...buryResults]);\n              continue;")
+  })
 })
 
 test.describe('BuryFlowModal default grave selection', () => {
