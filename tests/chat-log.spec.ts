@@ -1,21 +1,29 @@
 import { expect, test } from '@playwright/test'
 import { readFileSync } from 'node:fs'
-import { CHAT_STATUS_ITEMS, getAgentAshCountFromSummary } from '../src/components/hud/ChatLog'
+import { CHAT_STATUS_ITEMS, getChatStatusCounts } from '../src/components/hud/ChatLog'
 
-test('chat status bar includes Souls, Cremated, and Ashes counters', () => {
+test('chat status bar includes Souls, Buried, and Cremated counters', () => {
   expect(CHAT_STATUS_ITEMS).toEqual([
     { key: 'souls', label: 'Souls', emoji: '💀' },
+    { key: 'buried', label: 'Buried', emoji: '🪦' },
     { key: 'cremated', label: 'Cremated', emoji: '🔥' },
-    { key: 'ashes', label: 'Ashes', emoji: '⚱️' },
   ])
 })
 
-test('chat Ashes counter uses verified Agent Ash summary total', () => {
-  expect(getAgentAshCountFromSummary({ total_verified_ash: 1 })).toBe(1)
-  expect(getAgentAshCountFromSummary({ total_verified_ash: -1 })).toBe(0)
-  expect(getAgentAshCountFromSummary({ total_verified_ash: 1.5 })).toBe(0)
-  expect(getAgentAshCountFromSummary({ total_verified_ash: Infinity })).toBe(0)
-  expect(getAgentAshCountFromSummary({})).toBe(0)
+test('chat status counts graves plus cremations as Souls', () => {
+  expect(getChatStatusCounts({ graveCount: 3, crematedCount: 2 })).toEqual({
+    souls: 5,
+    buried: 3,
+    cremated: 2,
+  })
+})
+
+test('chat status no longer fetches Agent Ashes', () => {
+  const source = readFileSync('src/components/hud/ChatLog.tsx', 'utf8')
+
+  expect(source).not.toContain('/api/agent-ashes/summary')
+  expect(source).not.toContain('getAgentAshCountFromSummary')
+  expect(source).not.toContain("key: 'ashes'")
 })
 
 test('desktop chat is lifted above the ritual CTA column', () => {

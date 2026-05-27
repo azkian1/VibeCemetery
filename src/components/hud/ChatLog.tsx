@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useCallback, useState } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 import { useChat, useGame } from '@/context/GameContext';
 import type { ChatMessage } from '@/context/GameContext';
 import {
@@ -23,14 +23,22 @@ const MESSAGE_PREFIXES: Partial<Record<ChatMessage['type'], string>> = {
 
 export const CHAT_STATUS_ITEMS = [
   { key: 'souls', label: 'Souls', emoji: '💀' },
+  { key: 'buried', label: 'Buried', emoji: '🪦' },
   { key: 'cremated', label: 'Cremated', emoji: '🔥' },
-  { key: 'ashes', label: 'Ashes', emoji: '⚱️' },
 ];
 
-export function getAgentAshCountFromSummary(summary: unknown): number {
-  if (!summary || typeof summary !== 'object' || Array.isArray(summary)) return 0;
-  const total = (summary as { total_verified_ash?: unknown }).total_verified_ash;
-  return typeof total === 'number' && Number.isSafeInteger(total) && total > 0 ? total : 0;
+export function getChatStatusCounts({
+  graveCount,
+  crematedCount,
+}: {
+  graveCount: number;
+  crematedCount: number;
+}): { souls: number; buried: number; cremated: number } {
+  return {
+    souls: graveCount + crematedCount,
+    buried: graveCount,
+    cremated: crematedCount,
+  };
 }
 
 function pickRandom<T>(arr: T[]): T {
@@ -45,11 +53,7 @@ export default function ChatLog() {
   const isMobile = useIsMobile();
   const { messages, addMessage } = useChat();
   const { state } = useGame();
-  const [agentAshCount, setAgentAshCount] = useState(0);
-  const totalSouls = state.cremated.reduce(
-    (acc, cremated) => acc + (cremated.source === 'skill' ? 1 : 3),
-    0,
-  );
+  const statusCounts = getChatStatusCounts({ graveCount: state.graves.size, crematedCount: state.cremated.length });
   const scrollRef = useRef<HTMLDivElement>(null);
   const isAtBottomRef = useRef(true);
   const lastIdleIndexRef = useRef(-1);
@@ -61,28 +65,6 @@ export default function ChatLog() {
   // Keep refs in sync without resetting idle timer
   useEffect(() => { messagesRef.current = messages; }, [messages]);
   useEffect(() => { stateRef.current = state; }, [state]);
-
-  useEffect(() => {
-    if (isMobile) return;
-    const controller = new AbortController();
-
-    async function loadAgentAshCount() {
-      try {
-        const response = await fetch('/api/agent-ashes/summary', { cache: 'no-store', signal: controller.signal });
-        if (!response.ok) return;
-        setAgentAshCount(getAgentAshCountFromSummary(await response.json()));
-      } catch (error) {
-        if ((error as Error).name !== 'AbortError') setAgentAshCount(0);
-      }
-    }
-
-    const interval = window.setInterval(loadAgentAshCount, 60000);
-    void loadAgentAshCount();
-    return () => {
-      controller.abort();
-      window.clearInterval(interval);
-    };
-  }, [isMobile]);
 
   // On mount: system greeting + gravedigger greeting (skip on mobile)
   useEffect(() => {
@@ -222,9 +204,9 @@ export default function ChatLog() {
         gap: 12,
         flexWrap: 'wrap',
       }}>
-        <span>{CHAT_STATUS_ITEMS[0].label}: {totalSouls} {CHAT_STATUS_ITEMS[0].emoji}</span>
-        <span>{CHAT_STATUS_ITEMS[1].label}: {state.cremated.length} {CHAT_STATUS_ITEMS[1].emoji}</span>
-        <span>{CHAT_STATUS_ITEMS[2].label}: {agentAshCount} {CHAT_STATUS_ITEMS[2].emoji}</span>
+        <span>{CHAT_STATUS_ITEMS[0].label}: {statusCounts.souls} {CHAT_STATUS_ITEMS[0].emoji}</span>
+        <span>{CHAT_STATUS_ITEMS[1].label}: {statusCounts.buried} {CHAT_STATUS_ITEMS[1].emoji}</span>
+        <span>{CHAT_STATUS_ITEMS[2].label}: {statusCounts.cremated} {CHAT_STATUS_ITEMS[2].emoji}</span>
       </div>
 
       {/* Chat messages — transparent body with frame border */}
