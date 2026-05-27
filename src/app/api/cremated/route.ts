@@ -148,6 +148,10 @@ export async function POST(request: NextRequest) {
     )
   }
 
+  // Grave-first is a product UX preference, not a cremation data invariant.
+  // Keep this endpoint independent from slot economy so CLI /bury and explicit
+  // direct human cremations remain valid.
+
   if (trimmedGithubUrl && !/^https:\/\/github\.com\/[a-zA-Z0-9_-][a-zA-Z0-9_.-]*\/[a-zA-Z0-9_-][a-zA-Z0-9_.-]*\/?$/.test(trimmedGithubUrl)) {
     return NextResponse.json({ error: 'github_url must be a valid GitHub repo URL' }, { status: 400 })
   }
