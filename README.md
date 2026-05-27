@@ -117,18 +117,18 @@ Legacy root query intents such as `/?grave=...`, `/?urn=...`, and `/?modal=bury`
 
 VibeCemetery is moving toward more original IP, deeper cemetery rituals, and a stronger native world.
 
-- **Cemetery Map 2.0** - original VibeCemetery art direction for the playable cemetery, built around the project's own visual identity.
-- **The Gravedigger** - a native cemetery character for lore, guidance, grave care, and future ritual interactions.
-- **Ritual Layer** - optional community rituals around remembrance, cleanup, cremation, symbolic burns, and interactions with the Gravedigger, designed for original or permissive VibeCemetery-owned surfaces.
+Implemented:
 
-The current product remains focused on human-controlled GitHub burials, cremations, `/bury`, and the separate non-map Agent Ash archive.
+- **Major UX and architecture cleanup** - the Human Layer and Agent Layer are now split, and the front page now starts with the GitHub Scanner.
 
-## Cemetery Rumors
+Next:
 
-A gravedigger may one day return to clean neglected graves.
+- **Cemetery Map 2.0** - rebuild the playable cemetery around original VibeCemetery-owned assets.
+- **Swamp of Shame** - expand the world with a new shame-themed cemetery zone.
+- **$GRAVE integration**
+- **The Gravedigger Agent** - introduce the native cemetery agent for guidance, lore, grave care, and future ritual interactions.
 
-They say he cleans neglected graves.
-They say he can clean neglected graves for a small fee.
+The current product remains focused on the core human cemetery: GitHub burials, cremations, and `/bury`. The Agent Layer remains experimental and will be revisited after the main cemetery experience is stronger.
 
 ## Human Web Burial
 
