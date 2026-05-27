@@ -119,6 +119,7 @@ export class CemeteryScene extends Phaser.Scene {
   private isMobile = false;
   private minZoom = 0;
   private assetLoadError: { assetKey: string; assetUrl: string } | null = null;
+  private cleanedUp = false;
 
   constructor() {
     super({ key: 'CemeteryScene' });
@@ -147,6 +148,9 @@ export class CemeteryScene extends Phaser.Scene {
     }
 
     this.renderedSlots.clear();
+    this.cleanedUp = false;
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, this.shutdown, this);
+    this.events.once(Phaser.Scenes.Events.DESTROY, this.shutdown, this);
 
     // Create tilemap
     this.map = this.make.tilemap({ key: 'cemetery-map' });
@@ -1309,6 +1313,9 @@ export class CemeteryScene extends Phaser.Scene {
   }
 
   shutdown() {
+    if (this.cleanedUp) return;
+    this.cleanedUp = true;
+
     // EventBus listeners
     cemeteryEvents.off('render_graves', this.onRenderGraves);
     cemeteryEvents.off('render_grave', this.onRenderGrave);
@@ -1354,6 +1361,9 @@ export class CemeteryScene extends Phaser.Scene {
     this.input.off('wheel');
 
     this.renderedSlots.clear();
+    this.gravesLayer = null;
+    this.fireLayer = null;
+    this.slots.clear();
   }
 
   private renderGraveOnMap(grave: RenderGraveData) {

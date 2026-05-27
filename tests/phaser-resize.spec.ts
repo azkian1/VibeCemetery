@@ -11,3 +11,12 @@ test('Phaser scale is driven by guarded ResizeObserver instead of automatic pare
   expect(canvasSource).toContain('width <= 0 || height <= 0')
   expect(canvasSource).toContain('game.scale.resize(width, height)')
 })
+
+test('Cemetery scene unregisters EventBus listeners on Phaser shutdown', () => {
+  const sceneSource = readFileSync('src/game/scenes/CemeteryScene.ts', 'utf8')
+
+  expect(sceneSource).toContain('Phaser.Scenes.Events.SHUTDOWN')
+  expect(sceneSource).toContain('Phaser.Scenes.Events.DESTROY')
+  expect(sceneSource).toContain('this.shutdown')
+  expect(sceneSource).toContain("cemeteryEvents.off('render_graves', this.onRenderGraves)")
+})

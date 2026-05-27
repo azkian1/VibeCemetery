@@ -106,6 +106,7 @@ export function renderGrave(
   variant: ReturnType<typeof pickTileVariant>,
 ) {
   if (!variant) return;
+  if (!layer.layer) return;
 
   if ('gid' in variant) {
     // 1x1
