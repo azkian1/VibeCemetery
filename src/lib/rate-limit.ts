@@ -130,6 +130,10 @@ export function __resetRateLimitStateForTests() {
   lastCleanup = Date.now();
 }
 
+function getForwardedClientIp(value: string): string {
+  return value.split(',')[0]?.trim() || '0.0.0.0';
+}
+
 /**
  * Extract client IP from request.
  * Forwarding headers are only safe when the deployment proxy strips inbound spoofed values.
@@ -142,10 +146,7 @@ export function getClientIp(req: NextRequest): string {
   const headers = req.headers;
   if (process.env.VERCEL === '1') {
     const xff = headers.get('x-forwarded-for');
-    if (xff) {
-      const parts = xff.split(',');
-      return parts[parts.length - 1].trim();
-    }
+    if (xff) return getForwardedClientIp(xff);
     return '0.0.0.0';
   }
 
@@ -157,9 +158,6 @@ export function getClientIp(req: NextRequest): string {
   const xri = headers.get('x-real-ip');
   if (xri) return xri;
   const xff = headers.get('x-forwarded-for');
-  if (xff) {
-    const parts = xff.split(',');
-    return parts[parts.length - 1].trim();
-  }
+  if (xff) return getForwardedClientIp(xff);
   return '0.0.0.0';
 }

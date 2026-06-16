@@ -104,7 +104,7 @@ test.describe('rate limiter', () => {
     expect(getClientIp(request)).toBe('0.0.0.0')
   })
 
-  test('uses forwarding headers only when proxy trust is explicitly enabled', () => {
+  test('uses the original client from x-forwarded-for when proxy trust is explicitly enabled', () => {
     process.env.TRUST_PROXY_HEADERS = '1'
 
     const request = new NextRequest('https://vibecemetery.app/api/graves', {
@@ -113,7 +113,20 @@ test.describe('rate limiter', () => {
       },
     })
 
-    expect(getClientIp(request)).toBe('203.0.113.4')
+    expect(getClientIp(request)).toBe('203.0.113.3')
+  })
+
+  test('uses the original client from Vercel-managed x-forwarded-for chains', () => {
+    delete process.env.TRUST_PROXY_HEADERS
+    process.env.VERCEL = '1'
+
+    const request = new NextRequest('https://vibecemetery.app/api/graves', {
+      headers: {
+        'x-forwarded-for': '203.0.113.30, 198.51.100.2',
+      },
+    })
+
+    expect(getClientIp(request)).toBe('203.0.113.30')
   })
 
   test('uses Vercel-managed x-forwarded-for without collapsing all users into one bucket', () => {
