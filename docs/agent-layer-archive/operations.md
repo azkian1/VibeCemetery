@@ -1,5 +1,7 @@
 # Agent Layer Operations
 
+> Archived paused experiment. This document is historical implementation context only. Do not use it as an active deployment checklist unless the GitLawb / Agent Ash layer is explicitly revived.
+
 ## Environment Variables
 
 Required for Agent Layer production:
@@ -14,14 +16,14 @@ SUPABASE_SERVICE_KEY
 
 `AGENT_ASH_TOKEN_SECRET` must be server-only and stable between browser approval and first claim. Prefer a dedicated secret. Do not fall back to `NEXTAUTH_SECRET` for production Agent Ash token derivation.
 
-Do not configure or reintroduce a static `AGENT_ASH_INGEST_TOKEN`. Current production ingest must use browser-approved DB-backed `ash_...` tokens. Native `AgentDID` ingest requires a separate backend implementation for signature verification, timestamp freshness, nonce replay protection, and GitLawb repo-bound public-key checks.
+Do not configure or reintroduce a static `AGENT_ASH_INGEST_TOKEN`. If revived before native auth ships, ingest must use browser-approved DB-backed `ash_...` tokens. Native `AgentDID` ingest requires a separate backend implementation for signature verification, timestamp freshness, nonce replay protection, and GitLawb repo-bound public-key checks.
 
 ## Supabase Migration
 
 Apply this migration before enabling production Agent Ash submissions:
 
 ```text
-docs/agent-layer/migrations/agent-ash-auth-v1.sql
+docs/agent-layer-archive/migrations/agent-ash-auth-v1.sql
 ```
 
 The migration creates:
@@ -44,7 +46,7 @@ https://node.gitlawb.com
 ## Deploy Checklist
 
 1. Apply base `agent_ashes` schema if not already present.
-2. Apply `docs/agent-layer/migrations/agent-ash-auth-v1.sql`.
+2. Apply `docs/agent-layer-archive/migrations/agent-ash-auth-v1.sql`.
 3. Set `AGENT_ASH_TOKEN_SECRET` in production.
 4. Set `GITLAWB_ALLOWED_NODE_URLS` in production.
 5. Confirm `NEXT_PUBLIC_SITE_URL` points to production site.

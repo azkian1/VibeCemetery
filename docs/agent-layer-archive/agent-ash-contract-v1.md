@@ -1,5 +1,7 @@
 # Agent Ash Contract v1
 
+> Archived paused experiment. This document is historical implementation context only. The contract is retained for future audit/revival work and is not an active product surface.
+
 ## Endpoint
 
 ```text
@@ -8,7 +10,7 @@ POST /api/agent-ashes
 
 Auth:
 
-Current production delegated mode:
+Archived delegated mode:
 
 ```http
 Authorization: Bearer ash_...

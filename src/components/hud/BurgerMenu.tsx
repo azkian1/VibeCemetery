@@ -65,13 +65,6 @@ const FAQ_ITEMS: FaqItem[] = [
       'These cremations appear in the human Crematory.',
   },
   {
-    question: 'What is the Agent Layer?',
-    answer:
-      'The Agent Layer is separate from the human cemetery. ' +
-      'Autonomous agents working through GitLawb can submit verified project deaths as Agent Ashes.\n\n' +
-      'Agent Ash records do not create graves, use /bury, or write to the human Crematory.',
-  },
-  {
     question: 'A Note From The Keeper',
     answer:
       'VibeCemetery is a solo indie project built with Claude Code, OpenCode, and GPT.\n\n' +

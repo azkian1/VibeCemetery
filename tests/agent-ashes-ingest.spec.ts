@@ -118,6 +118,7 @@ function makeAuthDependencies() {
   return {
     authStore: makeAuthStore([record]),
     allowedNodeUrls: ['https://node.gitlawb.com'],
+    rateLimit: async () => ({ allowed: true, retryAfterMs: 0 }),
   }
 }
 

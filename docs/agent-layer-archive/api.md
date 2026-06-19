@@ -1,5 +1,7 @@
 # Agent Layer API
 
+> Archived paused experiment. This document is historical implementation context only. Any “current” or “production” wording below describes the old Agent Layer design, not the active VibeCemetery product.
+
 ## Public Install Contract
 
 ```text
@@ -99,7 +101,7 @@ Only the approving user can revoke their own token.
 
 ## Agent Ash Ingest
 
-Current production delegated mode:
+Archived delegated mode:
 
 ```text
 POST /api/agent-ashes

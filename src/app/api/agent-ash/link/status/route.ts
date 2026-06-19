@@ -1,8 +1,11 @@
 import { NextResponse } from 'next/server'
 import { createSupabaseAgentAshAuthStore, handleAgentAshLinkStatus } from '@/lib/agent-ash-auth'
+import { AGENT_LAYER_PAUSED, agentLayerPausedResponse } from '@/lib/agent-layer-pause'
 import { getSiteUrl } from '@/lib/site'
 
 export async function GET(request: Request) {
+  if (AGENT_LAYER_PAUSED) return agentLayerPausedResponse()
+
   try {
     return await handleAgentAshLinkStatus(request, {
       store: createSupabaseAgentAshAuthStore(),

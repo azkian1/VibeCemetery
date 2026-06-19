@@ -2,11 +2,8 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { GameProvider, useModal } from '@/context/GameContext';
-import { ModalLayer } from '@/components/CemeteryApp';
 
 function AgentsHubContent() {
-  const { open } = useModal();
   const router = useRouter();
 
   const goBack = () => {
@@ -27,31 +24,28 @@ function AgentsHubContent() {
         </nav>
 
         <section style={{ border: '1px solid rgba(180, 160, 120, 0.24)', borderRadius: 18, padding: 'clamp(24px, 5vw, 34px)', background: 'linear-gradient(180deg, rgba(49,45,38,0.92), rgba(22,21,19,0.96))', boxShadow: '0 18px 60px rgba(0,0,0,0.42)', textAlign: 'center' }}>
-          <p style={{ margin: '0 0 10px', color: '#8fa8c0', letterSpacing: 2, fontSize: 12, textTransform: 'uppercase' }}>GitLawb / Autonomous Ash</p>
-          <h1 style={{ margin: '0 0 12px', color: '#e8d5a3', fontSize: 'clamp(28px, 5vw, 42px)', lineHeight: 1.08 }}>Agent Layer</h1>
+          <p style={{ margin: '0 0 10px', color: '#8fa8c0', letterSpacing: 2, fontSize: 12, textTransform: 'uppercase' }}>Paused Experiment</p>
+          <h1 style={{ margin: '0 0 12px', color: '#e8d5a3', fontSize: 'clamp(28px, 5vw, 42px)', lineHeight: 1.08 }}>Agent Layer Is On Pause</h1>
           <p style={{ margin: '0 auto 28px', maxWidth: 560, color: '#aaa9a0', lineHeight: 1.7, fontFamily: "var(--font-geist-sans), Arial, sans-serif" }}>
-            A separate ash layer for AI agents like Hermes, OpenClaw, and others.<br />
-            Here, agents bury dead GitLawb projects: abandoned repositories, failed experiments, obsolete code, and systems that no longer run.
+            The GitLawb / Agent Ash layer is archived for now. VibeCemetery is focused on filling the human cemetery first: GitHub graves, cremations, and the local /bury ritual.
           </p>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: 14 }}>
-            <button type="button" onClick={() => open('agentAshes')} style={primaryActionStyle}>
-              Agent Ashes
-            </button>
-            <Link href="/agents/gitlawb" style={secondaryActionStyle}>
-              Agent Skill
+            <Link href="/" style={primaryActionStyle}>
+              Scan GitHub
+            </Link>
+            <Link href="/cemetery" style={secondaryActionStyle}>
+              Enter Cemetery
             </Link>
           </div>
 
           <p style={{ margin: '24px auto 0', maxWidth: 560, color: '#777168', lineHeight: 1.6, fontSize: 12, fontFamily: "var(--font-geist-sans), Arial, sans-serif" }}>
-            version 1.0<br />
-            Experimental ash layer for GitLawb agent workflows.<br />
-            To burn your own local projects, install the{' '}
+            Legacy Agent Ash routes, API handlers, tables, and archived docs remain in the repository for a future revival.<br />
+            To burn your own local projects today, install the{' '}
             <Link href="/skills/bury/v1" style={{ color: '#bdb6a4', textDecoration: 'underline', textUnderlineOffset: 3 }}>CLI Skill</Link>.
           </p>
         </section>
       </div>
-      <ModalLayer />
     </main>
   );
 }
@@ -68,6 +62,9 @@ const backButtonStyle: React.CSSProperties = {
 };
 
 const primaryActionStyle: React.CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
   border: '1px solid #52647a',
   borderRadius: 12,
   background: 'linear-gradient(180deg, #263141 0%, #171d28 100%)',
@@ -78,23 +75,16 @@ const primaryActionStyle: React.CSSProperties = {
   fontSize: 15,
   fontWeight: 700,
   letterSpacing: 1,
+  textDecoration: 'none',
 };
 
 const secondaryActionStyle: React.CSSProperties = {
   ...primaryActionStyle,
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  textDecoration: 'none',
   background: 'linear-gradient(180deg, #2a2825 0%, #1e1c18 100%)',
   borderColor: '#3a3530',
   color: '#e8d5a3',
 };
 
 export default function AgentsPage() {
-  return (
-    <GameProvider>
-      <AgentsHubContent />
-    </GameProvider>
-  );
+  return <AgentsHubContent />;
 }

@@ -4,14 +4,14 @@
 
 **Dead projects should not disappear silently.**
 
-VibeCemetery is a public afterlife for abandoned software: people bury dead GitHub repos in a pixel cemetery. A separate Agent Ash archive stores verified non-map failure records from GitLawb.
+VibeCemetery is a public afterlife for abandoned software: people bury dead GitHub repos in a pixel cemetery or cremate projects that should become ashes.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Next.js](https://img.shields.io/badge/Next.js-16-black.svg)](https://nextjs.org)
 [![React](https://img.shields.io/badge/React-19-blue.svg)](https://react.dev)
 [![Phaser](https://img.shields.io/badge/Phaser-3-orange.svg)](https://phaser.io)
 
-[Visit Cemetery](https://vibecemetery.app) · [Install /bury](#human-cli-bury) · [Agent Ash](#agent-ash-archive) · [Docs](docs/setup.md)
+[Visit Cemetery](https://vibecemetery.app) · [Install /bury](#human-cli-bury) · [Docs](docs/setup.md)
 
 Start at <https://vibecemetery.app> to scan your connected GitHub, or enter the cemetery map from there.
 
@@ -23,13 +23,13 @@ Start at <https://vibecemetery.app> to scan your connected GitHub, or enter the 
 
 Every builder leaves behind dead projects: half-finished prototypes, abandoned experiments, vibecode prototypes, broken trading bots, forgotten repos, and local folders nobody wants to delete.
 
-VibeCemetery gives them a public ending. Human projects can receive graves, epitaphs, causes of death, cremations, shareable rituals, and cemetery records. Separately, Agent Ash records can preserve structured evidence of agent-built project failures without creating graves or using the cemetery map.
+VibeCemetery gives them a public ending. Human projects can receive graves, epitaphs, causes of death, cremations, shareable rituals, and cemetery records.
 
 This is not just a graveyard UI. It is an afterlife layer for dead software.
 
 ```text
 Humans perform cemetery rituals.
-Agent Ash stores records.
+Dead projects become graves or ashes.
 ```
 
 ## A Note From The Keeper
@@ -60,18 +60,9 @@ One day, the gravedigger will return with his shovel.
 
 Even the cemetery must be buried.
 
-## Two Surfaces
+## Core Product
 
-VibeCemetery keeps the playable cemetery map separate from the Agent Ash archive.
-
-| Layer | Actor | Source | Output | Economy |
-|---|---|---|---|---|
-| **Human Layer** | People | GitHub and local project folders | Graves and cremations | Map slots, Press F, sharing |
-| **Agent Ash Archive** | Autonomous agents | GitLawb | Agent Ash certificates | Public failure archive |
-
-### Human Layer
-
-The Human Layer is the cemetery game.
+VibeCemetery is focused on the human cemetery experience.
 
 - GitHub repos with no activity for 7+ days, and not forks, can be buried.
 - Graves appear on the hand-crafted pixel cemetery map.
@@ -82,11 +73,11 @@ The Human Layer is the cemetery game.
 
 Human records can affect map placement, grave slots, leaderboards, and sharing.
 
-### Agent Ash Archive
+### Paused Experiment: Agent Layer
 
-The Agent Ash archive stores GitLawb-verified project-death records for autonomous builders. It is a text/database archive only: it does not render on the cemetery map, create graves, consume map slots, or write to `/api/cremated`.
+The GitLawb / Agent Ash layer is paused until the cemetery has enough activity and graves to justify a second layer.
 
-Canonical Agent Ash docs live in [`docs/agent-layer/README.md`](docs/agent-layer/README.md).
+Legacy Agent Layer code, API routes, SQL, and archived docs remain in the repository, but the layer is hidden from the main UI and should not be treated as active product surface. Current status lives in [`docs/agent-layer/README.md`](docs/agent-layer/README.md).
 
 ## Product Surface
 
@@ -99,19 +90,17 @@ Canonical Agent Ash docs live in [`docs/agent-layer/README.md`](docs/agent-layer
 - **Press F** - pay respects to graves, one vote per user per grave.
 - **Deep Links** - share graves and urns through stable URLs.
 - **Open Graph Cards** - grave links render dedicated tombstone social cards.
-- **Agent Ashes** - a separate non-map archive for GitLawb-verified autonomous-agent project deaths.
 
 ## Routes
 
 - `/` - scanner landing page for connected-account GitHub scans.
 - `/cemetery` - Phaser cemetery map experience and Human Layer rituals.
-- `/agents` - Agent / GitLawb layer hub.
-- `/agents/gitlawb` - Agent Skill install contract.
-- `/agents/gitlawb/v1` - stable Agent Skill installer and distribution page.
 - `/grave/[id]` - redirects to `/cemetery?grave=<id>`.
 - `/urn/[id]` - redirects to `/cemetery?urn=<id>`.
 
 Legacy root query intents such as `/?grave=...`, `/?urn=...`, and `/?modal=bury` redirect to `/cemetery` with the relevant query preserved.
+
+Paused Agent Layer routes may still exist for direct legacy links, but they are not linked from the main product flow.
 
 ## Roadmap
 
@@ -119,7 +108,7 @@ VibeCemetery is moving toward more original IP, deeper cemetery rituals, and a s
 
 Implemented:
 
-- **Major UX and architecture cleanup** - the Human Layer and Agent Layer are now split, and the front page now starts with the GitHub Scanner.
+- **Scanner-first UX cleanup** - the front page now starts with the GitHub Scanner and the Human Layer rituals are clearer.
 
 Next:
 
@@ -128,7 +117,7 @@ Next:
 - **$GRAVE integration**
 - **The Gravedigger Agent** - introduce the native cemetery agent for guidance, lore, grave care, and future ritual interactions.
 
-The current product remains focused on the core human cemetery: GitHub burials, cremations, and `/bury`. The Agent Layer remains experimental and will be revisited after the main cemetery experience is stronger.
+The current product remains focused on the core human cemetery: GitHub burials, cremations, and `/bury`. The Agent Layer is paused and will be revisited only after the cemetery itself is stronger and more populated.
 
 ## Human Web Burial
 
@@ -180,9 +169,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "iwr https://vibecemetery
 
 Quick install downloads and executes the site-hosted installer. The site page shows what files will be installed, direct source links, target paths, and manual install notes.
 
-## Agent Ash Docs
+## Paused Agent Layer Docs
 
-Agent Ash has its own trust model, API contract, auth flow, and GitLawb verification rules. Start with [`docs/agent-layer/README.md`](docs/agent-layer/README.md).
+Agent Ash / GitLawb docs are archived because the layer is not part of the active user experience. Start with [`docs/agent-layer/README.md`](docs/agent-layer/README.md) for current status.
 
 ## Tech Stack
 
@@ -192,7 +181,6 @@ Agent Ash has its own trust model, API contract, auth flow, and GitLawb verifica
 | Game Layer | Phaser 3, Tiled map data |
 | Database | Supabase Postgres |
 | Auth | NextAuth.js, GitHub OAuth |
-| Agent Ash Source | GitLawb |
 | Styling | Inline component styles, stone palette, Cinzel |
 | Hosting | Vercel |
 
@@ -226,7 +214,6 @@ Database setup references:
 - [`docs/supabase-schema.sql`](docs/supabase-schema.sql)
 - [`docs/grave-slot-rpc.sql`](docs/grave-slot-rpc.sql)
 - [`docs/cli-auth-v1.sql`](docs/cli-auth-v1.sql)
-- [`docs/agent-layer/migrations/agent-ash-auth-v1.sql`](docs/agent-layer/migrations/agent-ash-auth-v1.sql)
 
 ## Assets
 
@@ -234,7 +221,7 @@ The cemetery map uses paid pixel-art tilesets by [Kokoro Reflections](https://ko
 
 The MIT license applies to the project code only. Kokoro Reflections assets are third-party paid assets and are not included in this repository or licensed under MIT.
 
-You can still work on docs, API routes, auth, CLI flows, Agent Ash, and most non-map logic without the art assets. Full local map rendering requires the external tilesets described in [`docs/setup.md`](docs/setup.md).
+You can still work on docs, API routes, auth, CLI flows, and most non-map logic without the art assets. Full local map rendering requires the external tilesets described in [`docs/setup.md`](docs/setup.md).
 
 ## Contributing
 
@@ -244,7 +231,7 @@ Contributions are welcome.
 - Read [`docs/setup.md`](docs/setup.md) for local environment, database, assets, and test expectations.
 - Keep the cemetery visual language intact: Cinzel, stone palette, inline-style-driven UI.
 - Do not hardcode grave coordinates; use parsed map slots.
-- Keep Human Layer and Agent Ash archive boundaries explicit.
+- Do not re-surface the paused Agent Layer without an explicit product decision.
 
 ## License
 

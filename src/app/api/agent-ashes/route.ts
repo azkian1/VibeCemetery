@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
 import { NextResponse, type NextRequest } from 'next/server'
 import { validateAgentAshRequest, type AgentAshRequest } from '@/lib/agent-ash-contract'
+import { AGENT_LAYER_PAUSED, agentLayerPausedResponse } from '@/lib/agent-layer-pause'
 import { getSiteUrl } from '@/lib/site'
 import {
   agentAshNoStoreHeaders,
@@ -247,6 +248,8 @@ function createSupabaseAgentAshStore(): AgentAshStore {
 }
 
 export async function POST(request: NextRequest) {
+  if (AGENT_LAYER_PAUSED) return agentLayerPausedResponse()
+
   try {
     return await handleAgentAshPost(request, { store: createSupabaseAgentAshStore() })
   } catch (error) {

@@ -11,19 +11,19 @@ import OrnamentDivider from '@/components/ui/OrnamentDivider';
 import type { CSSProperties, KeyboardEvent } from 'react';
 
 export const AGENT_ASHES_COPY = {
-  title: 'Agent Ashes',
-  subtitle: 'A public failure archive for GitLawb-verified autonomous projects.',
-  emptyCertificates: 'No verified Ash records yet. The witnesses have not arrived.',
-  footer: 'Agents produce Ash. Humans keep the cemetery rituals.',
+  title: 'Agent Ashes (Paused)',
+  subtitle: 'Archived GitLawb / Agent Ash experiment. Hidden from the main cemetery.',
+  emptyCertificates: 'Agent Ash is paused. No new witness records are expected.',
+  footer: 'Agent Ash is paused. Humans keep the cemetery rituals.',
   stats: [
-    { label: 'Verified Ash', value: '0', note: 'Awaiting Hermes certificates' },
-    { label: 'Agents', value: '0', note: 'Awaiting witnesses' },
-    { label: 'Failure Patterns', value: 'Soon', note: 'Needs verified data' },
+    { label: 'Archived Ash', value: '0', note: 'Paused legacy records' },
+    { label: 'Agents', value: '0', note: 'Paused witnesses' },
+    { label: 'Failure Patterns', value: 'Paused', note: 'No active collection' },
   ],
   sections: [
-    { title: 'Witnessed Agents', body: 'No verified agents yet.' },
-    { title: 'Top Failure Patterns', body: 'Waiting for verified Ash.' },
-    { title: 'Top Causes of Death', body: 'Waiting for verified Ash.' },
+    { title: 'Archived Agents', body: 'No archived agents yet.' },
+    { title: 'Archived Failure Patterns', body: 'No active Agent Ash collection.' },
+    { title: 'Archived Causes of Death', body: 'No active Agent Ash collection.' },
     { title: 'Fragile Stacks', body: 'Not enough data yet.' },
     { title: 'Repeated Domains', body: 'Not enough data yet.' },
     { title: 'Death Stages', body: 'Not enough data yet.' },
@@ -33,9 +33,9 @@ export const AGENT_ASHES_COPY = {
 type AgentAshesTab = 'ash-records' | 'slop-lords' | 'dashboard';
 
 export const AGENT_ASHES_TABS: { key: AgentAshesTab; label: string }[] = [
-  { key: 'ash-records', label: 'Ash Records' },
-  { key: 'slop-lords', label: 'Slop Lords' },
-  { key: 'dashboard', label: 'Dashboard' },
+  { key: 'ash-records', label: 'Archived Ash' },
+  { key: 'slop-lords', label: 'Archived Agents' },
+  { key: 'dashboard', label: 'Paused Dashboard' },
 ];
 
 export const CERTIFICATE_JSON_STYLE: CSSProperties = {
@@ -242,19 +242,19 @@ export function buildAgentAshesViewModel(summary: AgentAshesSummary | null) {
   return {
     ...AGENT_ASHES_COPY,
     stats: [
-      { label: 'Verified Ash', value: String(summary.total_verified_ash), note: `${summary.sampled_verified_ash} sampled for dashboard` },
-      { label: 'Agents', value: String(summary.distinct_agents), note: topAgent ? `Top: ${topAgent.value} in sample` : 'Awaiting witnesses' },
-      { label: 'Failure Patterns', value: String(summary.top_failure_patterns.length), note: topFailure ? `Top: ${topFailure.value}` : 'Needs verified data' },
+      { label: 'Archived Ash', value: String(summary.total_verified_ash), note: `${summary.sampled_verified_ash} archived records sampled` },
+      { label: 'Archived Agents', value: String(summary.distinct_agents), note: topAgent ? `Top archived: ${topAgent.value}` : 'Paused witnesses' },
+      { label: 'Archived Patterns', value: String(summary.top_failure_patterns.length), note: topFailure ? `Top archived: ${topFailure.value}` : 'No active collection' },
     ],
     sections: [
-      { title: 'Witnessed Agents', body: formatAgentCounts(summary.top_agents, 'No verified agents yet.') },
-      { title: 'Top Failure Patterns', body: formatCounts(summary.top_failure_patterns, 'Waiting for verified Ash.') },
-      { title: 'Top Causes of Death', body: formatCounts(summary.top_primary_causes, 'Waiting for verified Ash.') },
+      { title: 'Archived Agents', body: formatAgentCounts(summary.top_agents, 'No archived agents yet.') },
+      { title: 'Archived Failure Patterns', body: formatCounts(summary.top_failure_patterns, 'No active Agent Ash collection.') },
+      { title: 'Archived Causes of Death', body: formatCounts(summary.top_primary_causes, 'No active Agent Ash collection.') },
       { title: 'Fragile Stacks', body: formatCounts(summary.fragile_stacks, 'Not enough data yet.') },
       { title: 'Repeated Domains', body: formatCounts(summary.top_domains, 'Not enough data yet.') },
       { title: 'Death Stages', body: formatCounts(summary.common_death_stages, 'Not enough data yet.') },
     ],
-    footer: `${summary.total_verified_ash} verified Ash · ${summary.distinct_agents} Slop Lord ${summary.distinct_agents === 1 ? 'Agent' : 'Agents'}`,
+    footer: `${summary.total_verified_ash} archived Ash · ${summary.distinct_agents} archived ${summary.distinct_agents === 1 ? 'agent' : 'agents'}`,
     records: summary.recent_verified_ash,
     certificateRows: summary.recent_verified_ash.map((record, index) => ({
       rank: index + 1,

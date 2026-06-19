@@ -38,31 +38,29 @@ test('human cemetery top bar keeps Agent Ashes out of the map layer', () => {
   ])
 })
 
-test('Agent Layer hub hosts Agent Ashes and Agent Skill entry points', () => {
+test('Agent Layer page is a paused landing page without Agent Ash entry points', () => {
   const source = readFileSync('src/app/agents/page.tsx', 'utf8')
 
   expect(source).toContain('Back')
-  expect(source).toContain('Agent Ashes')
-  expect(source).toContain('Agent Skill')
-  expect(source).toContain('A separate ash layer for AI agents like Hermes, OpenClaw, and others.')
-  expect(source).toContain('version 1.0')
+  expect(source).toContain('Agent Layer Is On Pause')
+  expect(source).toContain('Legacy Agent Ash routes, API handlers, tables, and archived docs remain')
   expect(source).toContain('href="/skills/bury/v1"')
-  expect(source).toContain("open('agentAshes')")
-  expect(source).toContain('href="/agents/gitlawb"')
-  expect(source).not.toContain('Human Cemetery')
+  expect(source).toContain('href="/cemetery"')
+  expect(source).not.toContain("open('agentAshes')")
+  expect(source).not.toContain('href="/agents/gitlawb"')
   expect(source).not.toContain('Agent / GitLawb Layer')
 })
 
 test('Agent Ashes modal describes the dashboard placeholder', () => {
   expect(AGENT_ASHES_COPY).toMatchObject({
-    title: 'Agent Ashes',
-    subtitle: 'A public failure archive for GitLawb-verified autonomous projects.',
-    emptyCertificates: 'No verified Ash records yet. The witnesses have not arrived.',
-    footer: 'Agents produce Ash. Humans keep the cemetery rituals.',
+    title: 'Agent Ashes (Paused)',
+    subtitle: 'Archived GitLawb / Agent Ash experiment. Hidden from the main cemetery.',
+    emptyCertificates: 'Agent Ash is paused. No new witness records are expected.',
+    footer: 'Agent Ash is paused. Humans keep the cemetery rituals.',
   })
 })
 
-test('Agent Ashes subtitle uses public failure archive copy without linking GitLawb', () => {
+test('Agent Ashes subtitle uses paused archive copy without linking GitLawb', () => {
   const source = readFileSync('src/components/modals/AgentAshesModal.tsx', 'utf8')
 
   expect(source).toContain('viewModel.subtitle')
@@ -71,12 +69,12 @@ test('Agent Ashes subtitle uses public failure archive copy without linking GitL
 })
 
 test('Agent Ashes modal exposes certificate and dashboard tabs', () => {
-  expect(AGENT_ASHES_TABS.map((tab) => tab.label)).toEqual(['Ash Records', 'Slop Lords', 'Dashboard'])
+  expect(AGENT_ASHES_TABS.map((tab) => tab.label)).toEqual(['Archived Ash', 'Archived Agents', 'Paused Dashboard'])
 })
 
 test('Agent Ashes view model preserves empty archive copy', () => {
   expect(buildAgentAshesViewModel(null)).toMatchObject({
-    footer: 'Agents produce Ash. Humans keep the cemetery rituals.',
+    footer: 'Agent Ash is paused. Humans keep the cemetery rituals.',
     certificateRows: [],
     slopLordRows: [],
     records: [],
@@ -116,14 +114,14 @@ test('Agent Ashes view model renders verified summary data', () => {
 
   expect(viewModel).toMatchObject({
     stats: [
-      { label: 'Verified Ash', value: '7', note: '5 sampled for dashboard' },
-      { label: 'Agents', value: '1', note: 'Top: hermes in sample' },
-      { label: 'Failure Patterns', value: '1', note: 'Top: api changed before launch' },
+      { label: 'Archived Ash', value: '7', note: '5 archived records sampled' },
+      { label: 'Archived Agents', value: '1', note: 'Top archived: hermes' },
+      { label: 'Archived Patterns', value: '1', note: 'Top archived: api changed before launch' },
     ],
     sections: [
-      { title: 'Witnessed Agents', body: 'hermes (7 projects)' },
-      { title: 'Top Failure Patterns', body: 'api changed before launch (3)' },
-      { title: 'Top Causes of Death', body: 'external_api_break (4)' },
+      { title: 'Archived Agents', body: 'hermes (7 projects)' },
+      { title: 'Archived Failure Patterns', body: 'api changed before launch (3)' },
+      { title: 'Archived Causes of Death', body: 'external_api_break (4)' },
       { title: 'Fragile Stacks', body: 'python (5)' },
       { title: 'Repeated Domains', body: 'crypto (4)' },
       { title: 'Death Stages', body: 'prototype (6)' },
@@ -131,9 +129,9 @@ test('Agent Ashes view model renders verified summary data', () => {
     records: [expect.objectContaining({ subject_name: 'dead-agent-prototype', verification_status: 'gitlawb_http_verified' })],
   })
   expect(viewModel.sections.map((section) => section.title)).toEqual([
-    'Witnessed Agents',
-    'Top Failure Patterns',
-    'Top Causes of Death',
+    'Archived Agents',
+    'Archived Failure Patterns',
+    'Archived Causes of Death',
     'Fragile Stacks',
     'Repeated Domains',
     'Death Stages',
@@ -154,7 +152,7 @@ test('Agent Ashes view model renders verified summary data', () => {
     agentDidShort: expect.stringMatching(/^did:key:z6Mk\.\.\..+$/),
     verifiedAsh: '7 projects',
   })
-  expect(viewModel.footer).toBe('7 verified Ash · 1 Slop Lord Agent')
+  expect(viewModel.footer).toBe('7 archived Ash · 1 archived agent')
 })
 
 test('Agent Ashes view model uses distinct agent count beyond visible top agents', () => {
@@ -177,7 +175,7 @@ test('Agent Ashes view model uses distinct agent count beyond visible top agents
     fragile_stacks: [],
     top_domains: [],
     recent_verified_ash: [],
-  }).stats).toContainEqual({ label: 'Agents', value: '7', note: 'Top: hermes in sample' })
+  }).stats).toContainEqual({ label: 'Archived Agents', value: '7', note: 'Top archived: hermes' })
 })
 
 test('Agent Ashes certificate JSON wraps inside the modal', () => {

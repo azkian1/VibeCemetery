@@ -4,7 +4,8 @@ Project instructions for Claude Code. Detailed reference lives in `docs/CLAUDE.m
 
 ## Project Focus
 - Next.js 16 App Router app with a scanner landing page and Phaser-powered cemetery map at `/cemetery`.
-- Users can scan only their connected GitHub account, bury dead GitHub repos as map graves, cremate projects through browser/CLI flows, and use the separate Agent Layer hub at `/agents`.
+- Users can scan only their connected GitHub account, bury dead GitHub repos as map graves, and cremate projects through browser/CLI flows.
+- The GitLawb / Agent Layer experiment is paused and hidden from the primary UI until the cemetery is more populated.
 - Keep the existing cemetery visual language intact: Cinzel, stone palette, inline-style-driven UI.
 
 ## Commands
@@ -32,7 +33,7 @@ Project instructions for Claude Code. Detailed reference lives in `docs/CLAUDE.m
 - Do not add public GitHub username scanning; scans use the authenticated GitHub account only.
 - Do not hardcode grave coordinates; use parsed map slots.
 - Treat repos as dead only when inactive for 7+ days and not forks.
-- Human CLI `/bury` cremations stay in `/api/cremated`; they are not Agent Ashes ingest.
+- Human CLI `/bury` cremations stay in `/api/cremated`; do not route them into paused Agent Ash ingest.
 - Keep grave burial ceremony behavior intact; cremations do not use ceremony animation.
 - Preserve CLI auth flow: browser approval, `claim_token`, hashed long-lived CLI tokens.
 - Enforce `/bury` safety boundaries in code, not only in skill text or docs.
@@ -41,7 +42,7 @@ Project instructions for Claude Code. Detailed reference lives in `docs/CLAUDE.m
 
 ## References
 - `docs/CLAUDE.md`
-- `docs/agent-layer/README.md`
+- `docs/agent-layer/README.md` - paused Agent Layer status
 - `README.md`
 - `docs/cli-auth-v1.sql`
 - `docs/grave-slot-rpc.sql`

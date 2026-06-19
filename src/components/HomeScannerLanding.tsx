@@ -238,9 +238,8 @@ function ScannerShell() {
           )}
 
           {showScannerChrome && (
-            <div style={{ display: 'grid', gridTemplateColumns: isCompactViewport ? '1fr' : '1fr 1fr', gap: 10, marginTop: 14 }}>
+            <div style={{ display: 'grid', gap: 10, marginTop: 14 }}>
               <Link href="/cemetery" style={enterCemeteryLinkStyle}>Enter Cemetery</Link>
-              <Link href="/agents" style={secondaryLinkStyle}>Agent Layer</Link>
             </div>
           )}
 

@@ -3,7 +3,7 @@ import { join } from 'node:path'
 import { expect, test } from '@playwright/test'
 
 const schema = readFileSync(join(process.cwd(), 'docs', 'supabase-schema.sql'), 'utf8')
-const repoDidUniqueMigration = readFileSync(join(process.cwd(), 'docs', 'agent-ashes-repo-did-unique.sql'), 'utf8')
+const repoDidUniqueMigration = readFileSync(join(process.cwd(), 'docs', 'agent-layer-archive', 'agent-ashes-repo-did-unique.sql'), 'utf8')
 const normalizedSchema = schema.replace(/\s+/g, ' ').toLowerCase()
 const normalizedRepoDidUniqueMigration = repoDidUniqueMigration.replace(/\s+/g, ' ').toLowerCase()
 

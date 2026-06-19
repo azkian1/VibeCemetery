@@ -1,3 +1,4 @@
+-- Archived paused Agent Layer helper. Do not apply unless Agent Ash is explicitly revived.
 -- Enforce one Agent Ash record per GitLawb repo DID.
 -- Run the duplicate query first; resolve any returned rows before creating the unique index.
 -- CREATE INDEX CONCURRENTLY must run outside an explicit transaction.

@@ -17,16 +17,19 @@ import {
 } from '../src/components/modals/skillInstall'
 import { INSTALLER_CONTRACT } from '../SKILL/install/install-contract.mjs'
 
-test('Agent Ash install contract points to external GitLawb setup and VibeCemetery skill only', () => {
+test('paused Agent Ash install contract points to archived GitLawb setup and VibeCemetery skill only', () => {
   const contract = getAgentAshInstallContract()
 
   expect(contract).toContain('## Task')
+  expect(contract).toContain('## Status')
+  expect(contract).toContain('The VibeCemetery GitLawb / Agent Ash layer is paused')
+  expect(contract).toContain('Do not install or activate this skill for normal VibeCemetery use')
   expect(contract).toContain('## Official GitLawb Setup')
-  expect(contract).toContain('## Install VibeCemetery Agent Skill for GitLawb')
+  expect(contract).toContain('## Archived VibeCemetery Agent Skill for GitLawb')
   expect(contract).toContain('## Config')
-  expect(contract).toContain('## Allowed Actions')
+  expect(contract).toContain('## Archived Allowed Actions If Revived')
   expect(contract).toContain('## Forbidden Actions')
-  expect(contract).toContain('## Submission Endpoint')
+  expect(contract).toContain('## Archived Submission Endpoint')
   expect(contract).toContain(GITLAWB_OFFICIAL_SETUP_URL)
   expect(contract).toContain('If GitLawb is not installed or configured, go to https://gitlawb.com/.')
   expect(contract).toContain('Do not install GitLawb from VibeCemetery.')
@@ -51,12 +54,12 @@ test('Agent Ash install contract points to external GitLawb setup and VibeCemete
   expect(contract).not.toMatch(/[\u0400-\u04FF]/)
   expect(contract).toContain('Use the GitLawb config created by the official GitLawb setup.')
   expect(contract).toContain('Do not create or rewrite GitLawb node config from VibeCemetery instructions.')
-  expect(contract).toContain('Current production writes must use delegated ash_ tokens')
-  expect(contract).toContain('Delegated production treats GitLawb as read-only proof')
+  expect(contract).toContain('If revived, writes must use delegated ash_ tokens')
+  expect(contract).toContain('Delegated mode treats GitLawb as read-only proof')
   expect(contract).toContain('Do not try to delete, archive, label, or mark the GitLawb repo dead')
   expect(contract).toContain('Those native fields are future-only and are not required for delegated submit-delegated')
   expect(contract).toContain('submit-delegated: record Agent Ash')
-  expect(contract).toContain('Delegated production write commands:')
+  expect(contract).toContain('Archived delegated write commands:')
   expect(contract).not.toContain('optional delegated legacy fallback')
   expect(contract).not.toContain('Agent-native is the default')
   expect(contract).not.toContain('After GitLawb-side death is visible')
@@ -118,31 +121,30 @@ test('CTA buttons keep Human bury and cremate rituals separate from Agent Skill'
   expect(source).toContain('0 0 18px')
 })
 
-test('Agent skill modal owns the Hermes and GitLawb setup copy', () => {
+test('Agent skill modal is paused legacy copy', () => {
   const source = readFileSync(join(process.cwd(), 'src', 'components', 'modals', 'AgentSkillModal.tsx'), 'utf8')
 
-  expect(source).toContain('AGENT SKILL')
+  expect(source).toContain('PAUSED AGENT SKILL')
   expect(source).toContain('maxWidth={560}')
-  expect(source).toContain('Hermes')
-  expect(source).toContain('GitLawb')
-  expect(source).toContain('GitHub-like layer for agent loops')
-  expect(source).toContain('COPY AGENT URL')
+  expect(source).toContain('GitLawb / Agent Ash experiment is paused')
+  expect(source).toContain('Archived Hermes / OpenClaw Agent Ashes')
+  expect(source).toContain('COPY ARCHIVE URL')
   expect(source).toContain('getAgentAshInstallPath')
-  expect(source).toContain('Not the human /bury CLI')
+  expect(source).toContain('not the human /bury CLI')
 })
 
 test('Hermes agent install URL points to an agent-readable route', () => {
   expect(getAgentAshInstallPath()).toBe('/agents/gitlawb')
 
   const pageSource = readFileSync(join(process.cwd(), 'src', 'app', 'agents', 'gitlawb', 'page.tsx'), 'utf8')
-  expect(pageSource).toContain('VibeCemetery Agent Skill for GitLawb')
+  expect(pageSource).toContain('Paused VibeCemetery Agent Skill for GitLawb')
+  expect(pageSource).toContain('The GitLawb / Agent Ash experiment is paused')
   expect(pageSource).toContain('getAgentAshInstallContract()')
   expect(pageSource).toContain('getAgentAshSkillInstallCommand()')
   expect(pageSource).toContain('getAgentAshPowerShellInstallCommand()')
   expect(pageSource).toContain('/agents/gitlawb/v1')
   expect(pageSource).toContain('https://gitlawb.com/')
-  expect(pageSource).toContain('Current production writes use browser-approved delegated ash_ tokens')
-  expect(pageSource).toContain('native submit-one-shot is readiness/future-only')
+  expect(pageSource).toContain('Do not install this archived Agent Skill for normal VibeCemetery use')
   expect(pageSource).toContain('VibeCemetery does not install GitLawb')
   expect(pageSource).toContain('/api/agent-ashes')
   expect(pageSource).not.toContain('vc_cli_')
@@ -150,8 +152,8 @@ test('Hermes agent install URL points to an agent-readable route', () => {
   expect(pageSource).not.toContain('@/components/modals/skillInstall')
 
   const v1PageSource = readFileSync(join(process.cwd(), 'src', 'app', 'agents', 'gitlawb', 'v1', 'page.tsx'), 'utf8')
-  expect(v1PageSource).toContain('Current production writes use browser-approved delegated ash_ tokens')
-  expect(v1PageSource).toContain('native submit-one-shot is readiness/future-only')
+  expect(v1PageSource).toContain('Paused VibeCemetery Agent Skill for GitLawb')
+  expect(v1PageSource).toContain('Do not install this archived skill for normal VibeCemetery use')
 })
 
 test('Agent Ash install module is separated from the human /bury installer contract', () => {

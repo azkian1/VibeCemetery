@@ -74,14 +74,14 @@ test.describe('home scanner entry flow', () => {
     expect(shouldShowHomeScannerChrome([repo({ id: 4, name: 'dead' })])).toBe(false)
   })
 
-  test('home keeps wallet hidden and routes Agent Layer to the hub', () => {
+  test('home keeps wallet hidden and does not surface the paused Agent Layer', () => {
     const source = readFileSync('src/components/HomeScannerLanding.tsx', 'utf8')
 
     expect(source).toContain('Connect Wallet')
     expect(source).toContain('<span style={{ gridColumn: 2')
     expect(source).toContain("display: 'none'")
-    expect(source).toContain('Agent Layer')
-    expect(source).toContain('href="/agents"')
+    expect(source).not.toContain('Agent Layer')
+    expect(source).not.toContain('href="/agents"')
     expect(source).toContain('flowMode: repoAction.flowMode')
     expect(source).not.toContain('Agent / GitLawb Layer')
     expect(source).not.toContain('href="/agents/gitlawb"')

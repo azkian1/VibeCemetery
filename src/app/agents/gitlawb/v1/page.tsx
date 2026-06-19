@@ -17,7 +17,7 @@ function CodeBlock({ children }: { children: string }) {
 }
 
 export const metadata = {
-  title: 'VibeCemetery Agent Skill for GitLawb',
+  title: 'Paused VibeCemetery Agent Skill for GitLawb',
   robots: { index: false, follow: false },
 };
 
@@ -25,22 +25,31 @@ export default function GitlawbAgentSkillV1Page() {
   return (
     <main style={{ minHeight: '100vh', background: '#10100f', color: '#d8d0bc', fontFamily: 'Cinzel, Georgia, serif', padding: '48px 18px' }}>
       <div style={{ maxWidth: 900, margin: '0 auto', border: '1px solid rgba(180, 160, 120, 0.24)', borderRadius: 18, padding: '32px 28px', background: 'linear-gradient(180deg, rgba(49,45,38,0.92), rgba(22,21,19,0.96))', boxShadow: '0 18px 60px rgba(0,0,0,0.42)' }}>
-        <p style={{ margin: '0 0 8px', color: '#8d887b', letterSpacing: 2, fontSize: 12 }}>AGENT SKILL</p>
-        <h1 style={{ margin: '0 0 14px', color: '#e8d5a3', fontSize: 34 }}>VibeCemetery Agent Skill for GitLawb</h1>
+        <p style={{ margin: '0 0 8px', color: '#8d887b', letterSpacing: 2, fontSize: 12 }}>PAUSED AGENT SKILL</p>
+        <h1 style={{ margin: '0 0 14px', color: '#e8d5a3', fontSize: 34 }}>Paused VibeCemetery Agent Skill for GitLawb</h1>
         <p style={{ margin: '0 0 28px', color: '#aaa9a0', lineHeight: 1.7 }}>
-          Stable VibeCemetery-hosted installer and source mirror for the VibeCemetery Agent Skill for GitLawb. VibeCemetery does not install GitLawb itself; use the official GitLawb setup first.
-          Current production writes use browser-approved delegated ash_ tokens; native submit-one-shot is readiness/future-only until backend AgentDID verification lands.
+          Archived VibeCemetery-hosted installer and source mirror for the GitLawb / Agent Ash experiment. The experiment is paused until the human cemetery is more populated.
         </p>
+
+        <section style={{ marginBottom: 28, border: '1px solid rgba(200,80,60,0.42)', borderRadius: 12, padding: 16, background: 'rgba(80,20,12,0.18)' }}>
+          <h2 style={{ color: '#e8a08a', fontSize: 20 }}>Paused status</h2>
+          <p style={{ color: '#c6b6a6', lineHeight: 1.7 }}>
+            Do not install this archived skill for normal VibeCemetery use. Current product focus is GitHub scanning, graves, cremations, and /bury.
+          </p>
+        </section>
 
         <section style={{ marginBottom: 28 }}>
           <h2 style={{ color: '#e8d5a3', fontSize: 20 }}>What this installs</h2>
           <p style={{ color: '#aaa9a0', lineHeight: 1.7 }}>
-            The quick installer writes only the VibeCemetery GitLawb skill files into {targetRoot}. It gives GitLawb-aware agents instructions and a helper script for browser-approved Agent Ash submissions to /api/agent-ashes.
+            The archived installer writes only the VibeCemetery GitLawb skill files into {targetRoot}. It is retained for audit and possible future revival of browser-approved Agent Ash submissions to /api/agent-ashes.
           </p>
         </section>
 
         <section style={{ marginBottom: 28 }}>
           <h2 style={{ color: '#e8d5a3', fontSize: 20 }}>Official GitLawb setup</h2>
+          <p style={{ color: '#aaa9a0', lineHeight: 1.7 }}>
+            VibeCemetery does not install GitLawb.
+          </p>
           <CodeBlock>https://gitlawb.com/</CodeBlock>
         </section>
 
@@ -53,7 +62,7 @@ export default function GitlawbAgentSkillV1Page() {
         </section>
 
         <section style={{ marginBottom: 28 }}>
-          <h2 style={{ color: '#e8d5a3', fontSize: 20 }}>Install commands</h2>
+          <h2 style={{ color: '#e8d5a3', fontSize: 20 }}>Archived install commands</h2>
           <p style={{ color: '#aaa9a0' }}>macOS/Linux</p>
           <CodeBlock>{macInstallCommand}</CodeBlock>
           <p style={{ color: '#aaa9a0' }}>Windows PowerShell</p>
@@ -75,7 +84,7 @@ export default function GitlawbAgentSkillV1Page() {
         <section style={{ marginBottom: 28 }}>
           <h2 style={{ color: '#e8d5a3', fontSize: 20 }}>Security boundaries</h2>
           <p style={{ color: '#aaa9a0', lineHeight: 1.7 }}>
-            The mirror serves only manifest.json, the installer files, SKILL.md, and scripts/gitlawb-helper.mjs from a fixed allowlist. Unknown paths and path traversal attempts return 404. Agent Ash uses browser-approved delegated ash_ tokens for current production writes and submits verified records only to /api/agent-ashes.
+            The mirror serves only manifest.json, the installer files, SKILL.md, and scripts/gitlawb-helper.mjs from a fixed allowlist. Unknown paths and path traversal attempts return 404. If revived, Agent Ash must use browser-approved delegated ash_ tokens and submit verified records only to /api/agent-ashes.
           </p>
         </section>
 

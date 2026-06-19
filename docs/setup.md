@@ -1,6 +1,6 @@
 # Local Setup
 
-This document is the contributor-facing setup source of truth. Use it together with `.env.example`, `docs/supabase-schema.sql`, `docs/grave-slot-rpc.sql`, `docs/cli-auth-v1.sql`, and `docs/agent-layer/migrations/agent-ash-auth-v1.sql`.
+This document is the contributor-facing setup source of truth. Use it together with `.env.example`, `docs/supabase-schema.sql`, `docs/grave-slot-rpc.sql`, and `docs/cli-auth-v1.sql`.
 
 ## What You Need
 
@@ -38,16 +38,14 @@ Required local values:
 - `NEXTAUTH_URL`
 - `NEXTAUTH_SECRET`
 
-Required for CLI and Agent Layer flows:
+Required for CLI flows:
 
 - `CLI_TOKEN_SECRET`
-- `AGENT_ASH_TOKEN_SECRET`
-- `GITLAWB_ALLOWED_NODE_URLS`
 
 Recommended:
 
 - Use a dedicated `CLI_TOKEN_SECRET` instead of relying on `NEXTAUTH_SECRET` for long-lived CLI tokens.
-- Use a dedicated server-only `AGENT_ASH_TOKEN_SECRET`; Agent Ash auth must not fall back to `NEXTAUTH_SECRET` in production.
+- The paused Agent Layer has archived env notes in `docs/agent-layer-archive/operations.md`; those variables are not required for normal local setup.
 
 Optional production-only rate limiting:
 
@@ -78,13 +76,6 @@ Then apply the CLI auth hardening migration:
 docs/cli-auth-v1.sql
 ```
 
-If enabling Agent Layer submissions, also apply the Agent Ash auth migration:
-
-```sql
--- run after the base Agent Layer schema exists
-docs/agent-layer/migrations/agent-ash-auth-v1.sql
-```
-
 The app expects these tables and functions to exist:
 
 - `users`
@@ -93,12 +84,11 @@ The app expects these tables and functions to exist:
 - `f_votes`
 - `cli_link_sessions`
 - `cli_tokens`
-- `agent_ashes`
-- `agent_ash_link_sessions`
-- `agent_ash_tokens`
 - `increment_graves_count(username text)`
 - `increment_cremated_count(username text)`
 - `insert_grave_if_user_slot_available(...)`
+
+The paused Agent Layer tables may still exist in production or local schemas for legacy compatibility, but they are not needed for the main cemetery flow.
 
 ## 4. Configure GitHub OAuth
 
@@ -163,7 +153,3 @@ Check `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`, `NEXTAUTH_URL`, and `NEXTAUTH_
 ### CLI token flows fail
 
 Make sure both SQL files were applied and set `CLI_TOKEN_SECRET`.
-
-### Agent Ash token flows fail
-
-Make sure `docs/agent-layer/migrations/agent-ash-auth-v1.sql` was applied and set `AGENT_ASH_TOKEN_SECRET` plus `GITLAWB_ALLOWED_NODE_URLS`.

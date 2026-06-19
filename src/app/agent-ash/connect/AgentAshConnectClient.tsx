@@ -16,6 +16,8 @@ type LinkSession = {
   expires_at: string
 }
 
+const AGENT_ASH_CONNECT_PAUSED = true
+
 export default function AgentAshConnectClient({ linkId }: { linkId: string }) {
   const { data: session, status } = useSession()
   const [submitting, setSubmitting] = useState(false)
@@ -98,10 +100,10 @@ export default function AgentAshConnectClient({ linkId }: { linkId: string }) {
       <StoneFrame isMobile={false} maxWidth={560}>
         <div style={{ padding: '24px 28px' }}>
           <h1 style={{ margin: '0 0 8px', fontSize: 24, color: '#e8d5a3', textAlign: 'center' }}>
-            Connect Agent Ash
+            Agent Ash Is Paused
           </h1>
           <p style={{ margin: '0 0 14px', fontSize: 13, color: '#aaa9a0', textAlign: 'center', lineHeight: 1.6 }}>
-            Approve a Hermes/OpenClaw Agent Ash link request. The raw ash token is never shown in the browser.
+            GitLawb / Agent Ash linking is archived until the cemetery is more populated. The raw ash token is never shown in the browser.
           </p>
 
           <InsetBlock>
@@ -120,6 +122,15 @@ export default function AgentAshConnectClient({ linkId }: { linkId: string }) {
             ) : linkSession.status !== 'pending' ? (
               <div style={{ textAlign: 'center', color: '#8a8980', fontSize: 13, lineHeight: 1.6 }}>
                 Agent Ash request is {linkSession.status}. Start a new setup if your agent still needs access.
+              </div>
+            ) : AGENT_ASH_CONNECT_PAUSED ? (
+              <div style={{ textAlign: 'center', color: '#8a8980', fontSize: 13, lineHeight: 1.6 }}>
+                <div style={{ color: '#e8d5a3', fontSize: 14, marginBottom: 8 }}>
+                  Agent Ash approvals are paused.
+                </div>
+                <div>
+                  No new Agent Ash token will be issued from this page. Use the human cemetery, GitHub scan, cremations, and /bury instead.
+                </div>
               </div>
             ) : status === 'loading' ? (
               <div style={{ textAlign: 'center', color: '#8a8980', fontSize: 13 }}>
@@ -156,14 +167,14 @@ export default function AgentAshConnectClient({ linkId }: { linkId: string }) {
                   <div>Expires: <span style={{ color: '#e8d5a3' }}>{new Date(linkSession.expires_at).toLocaleString()}</span></div>
                 </div>
                 <div style={{ textAlign: 'left', color: '#aaa9a0', fontSize: 13, marginBottom: 14, lineHeight: 1.7 }}>
-                  <div style={{ color: '#d7c78f' }}>This agent can submit verified Agent Ash records.</div>
+                  <div style={{ color: '#d7c78f' }}>If revived, this agent could submit verified Agent Ash records.</div>
                   <div style={{ color: '#c87868' }}>
                     This agent cannot create graves, call /api/cremated, use vc_cli tokens, or consume map slots.
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
                   <StoneButton onClick={() => submitDecision('approve')} disabled={submitting}>
-                    {submitting ? 'Submitting...' : 'Approve'}
+                    {submitting ? 'Submitting...' : 'Approve If Revived'}
                   </StoneButton>
                   <StoneButton onClick={() => submitDecision('deny')} disabled={submitting}>
                     Deny

@@ -102,8 +102,8 @@ test.describe('BuryFlowModal default grave selection', () => {
 
     expect(resolveBuryFlowMode(staleModalData({ [legacyModeKey]: 'burial' }))).toBe('default-scanner')
     expect(resolveBuryFlowMode(staleModalData({ [legacyModeKey]: 'cremation' }))).toBe('default-scanner')
-    expect(resolveBuryFlowMode(staleModalData({ initialDeadRepos: [repo({})], [legacyModeKey]: 'burial' }))).toBe('default-scanner')
-    expect(resolveBuryFlowMode(staleModalData({ initialDeadRepos: [repo({})], [legacyModeKey]: 'cremation' }))).toBe('default-scanner')
+    expect(resolveBuryFlowMode(staleModalData({ initialDeadRepos: [repo({ id: 1, name: 'legacy' })], [legacyModeKey]: 'burial' }))).toBe('default-scanner')
+    expect(resolveBuryFlowMode(staleModalData({ initialDeadRepos: [repo({ id: 1, name: 'legacy' })], [legacyModeKey]: 'cremation' }))).toBe('default-scanner')
     expect(resolveBuryFlowMode(null)).toBe('default-scanner')
   })
 

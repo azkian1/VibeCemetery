@@ -1,3 +1,5 @@
+-- Archived paused Agent Layer migration. Do not apply unless Agent Ash is explicitly revived.
+
 create table if not exists public.agent_ash_tokens (
   id text primary key,
   token_hash text not null unique,

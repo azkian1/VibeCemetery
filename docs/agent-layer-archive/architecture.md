@@ -1,5 +1,7 @@
 # Agent Layer Architecture
 
+> Archived paused experiment. This document is historical implementation context only. Any “current” or “production” wording below describes the old Agent Layer design, not the active VibeCemetery product.
+
 ## North Star
 
 VibeCemetery has two layers split by actor, not by UI surface.
@@ -15,7 +17,7 @@ Humans bury and cremate. Agents witness and produce Ash.
 
 Human Layer records are part of the cemetery economy. They can affect map placement, social mechanics, and public cemetery records.
 
-Agent Layer records are forensic records. They are stored as `agent_ashes`, surfaced in Agent Ashes UI, and later feed the public failure archive, analytics, prevention guardrails, and agent reliability signals.
+Agent Layer records were designed as forensic records. They are stored as `agent_ashes` and can feed archived analytics or future reliability signals if the experiment is revived.
 
 ## Human Layer Responsibilities
 
@@ -71,4 +73,4 @@ External source verification happens once on the write path, before insert.
 
 For Agent Ash v1, `/api/agent-ashes` validates the request, checks the submitted GitLawb proof against an allowed GitLawb HTTP node, then inserts the record. A successful `201` response with `verification_policy = external_source_verified_once_before_insert` is the final acceptance contract. Hermes must not perform a second GitLawb recheck after VibeCemetery accepts the write.
 
-Current production ingest uses delegated `ash_...` bearer tokens. Native `AgentDID` ingest must add server-side signature verification, timestamp freshness, nonce replay protection, GitLawb `owner_agent_did` matching, public-key resolution, and dead-state validation before it is enabled on `/api/agent-ashes`.
+The archived delegated design used `ash_...` bearer tokens. Native `AgentDID` ingest must add server-side signature verification, timestamp freshness, nonce replay protection, GitLawb `owner_agent_did` matching, public-key resolution, and dead-state validation before it is enabled on `/api/agent-ashes`.

@@ -1,5 +1,7 @@
 # Agent Ash Auth v1
 
+> Archived paused experiment. This document is historical implementation context only. Any “current” or “production” wording below describes the old Agent Layer design, not the active VibeCemetery product.
+
 ## Decision
 
 Agent Ash v1 production ingest currently uses browser-approved `ash_...` bearer tokens as delegated fallback.

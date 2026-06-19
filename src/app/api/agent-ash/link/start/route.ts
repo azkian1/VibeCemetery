@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { createSupabaseAgentAshAuthStore, handleAgentAshLinkStart } from '@/lib/agent-ash-auth'
+import { AGENT_LAYER_PAUSED, agentLayerPausedResponse } from '@/lib/agent-layer-pause'
 import { checkRateLimit, getClientIp } from '@/lib/rate-limit'
 import { getSiteUrl } from '@/lib/site'
 
@@ -7,6 +8,8 @@ const LINK_START_LIMIT = 10
 const LINK_START_WINDOW = 60_000
 
 export async function POST(request: NextRequest) {
+  if (AGENT_LAYER_PAUSED) return agentLayerPausedResponse()
+
   const rateLimit = await checkRateLimit(`agent-ash-link-start:${getClientIp(request)}`, LINK_START_LIMIT, LINK_START_WINDOW)
   if (!rateLimit.allowed) {
     return NextResponse.json({ error: 'Too many Agent Ash link attempts' }, {

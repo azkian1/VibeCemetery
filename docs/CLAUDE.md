@@ -3,7 +3,7 @@
 This file is the detailed project reference. The actual Claude Code entrypoint should live at the repo root in `CLAUDE.md`.
 
 ## Project Overview
-VibeCemetery is a Next.js + Phaser web app where users bury abandoned GitHub repositories on a hand-crafted pixel-art cemetery map, cremate projects through browser/CLI flows, and run a separate Agent Layer for GitLawb-verified autonomous-agent project deaths.
+VibeCemetery is a Next.js + Phaser web app where users bury abandoned GitHub repositories on a hand-crafted pixel-art cemetery map and cremate projects through browser/CLI flows. The GitLawb / Agent Layer experiment is paused and hidden from the primary UI until the cemetery is more populated.
 
 ## Tech Stack
 - Framework: Next.js 16 (App Router, TypeScript, React 19)
@@ -37,12 +37,12 @@ vibecemetery/
 |   |   |-- cli/connect/
 |   |   |   |-- page.tsx               # CLI approval page route
 |   |   |   `-- CliConnectClient.tsx   # client approval flow
-|   |   |-- agent-ash/connect/
-|   |   |   |-- page.tsx               # Agent Ash approval page route
+|   |   |-- agent-ash/connect/        # paused legacy Agent Ash approval route
+|   |   |   |-- page.tsx
 |   |   |   `-- AgentAshConnectClient.tsx
-|   |   |-- agents/page.tsx            # Agent / GitLawb layer hub
-|   |   |-- agents/gitlawb/page.tsx    # Agent Ash install contract
-|   |   |-- agents/gitlawb/v1/page.tsx # stable Agent Skill distribution page
+|   |   |-- agents/page.tsx            # paused Agent / GitLawb landing page
+|   |   |-- agents/gitlawb/page.tsx    # paused Agent Ash install contract
+|   |   |-- agents/gitlawb/v1/page.tsx # paused Agent Skill distribution page
 |   |   |-- cemetery/page.tsx          # Phaser cemetery map experience
 |   |   |-- grave/[id]/
 |   |   |   |-- page.tsx               # grave deep-link redirect page
@@ -61,8 +61,8 @@ vibecemetery/
 |   |       |-- graves/githubRepoEligibility.ts
 |   |       |-- graves/[id]/f/route.ts
 |   |       |-- graves/[id]/share-confirm/route.ts
-|   |       |-- agent-ashes/            # Agent Ash ingest and read APIs
-|   |       |-- agent-ash/              # Agent Ash browser-approved auth APIs
+|   |       |-- agent-ashes/            # paused legacy Agent Ash ingest/read APIs
+|   |       |-- agent-ash/              # paused legacy Agent Ash auth APIs
 |   |       `-- cli/
 |   |           |-- link/start/route.ts
 |   |           |-- link/approve/route.ts
@@ -126,7 +126,7 @@ vibecemetery/
 |   |   `-- fillTemplate.ts
 |   |-- hooks/useIsMobile.ts
 |   |-- lib/
-|   |   |-- agent-ash-auth.ts
+|   |   |-- agent-ash-auth.ts          # paused legacy Agent Ash support
 |   |   |-- agent-ash-contract.ts
 |   |   |-- agent-ash-install.ts
 |   |   |-- agent-ash-security.ts
@@ -156,7 +156,7 @@ vibecemetery/
 |-- tests/
 |   |-- home-entry-flow.spec.ts
 |   |-- phaser-resize.spec.ts
-|   |-- agent-ashes-ui.spec.ts
+|   |-- agent-ashes-ui.spec.ts        # paused legacy Agent Ash coverage
 |   |-- api-smoke.spec.ts
 |   |-- bury-skill.spec.ts
 |   |-- ceremony.spec.ts
@@ -175,9 +175,11 @@ vibecemetery/
 |-- SKILL/
 |   |-- commands/bury.md
 |   |-- skills/bury-workflow/
-|   `-- skills/gitlawb/
+|   `-- skills/gitlawb/               # paused legacy Agent Skill
 |-- docs/
 |   |-- agent-layer/
+|   |-- agent-layer-archive/        # archived paused GitLawb / Agent Ash docs
+|   |-- archive/agent-layer-planning/
 |   |-- atomic-grave-slot-insert-plan.md
 |   |-- CLAUDE.md
 |   |-- cli-auth-v1.sql
@@ -199,11 +201,14 @@ vibecemetery/
 - `/grave/[id]` - redirects into `/cemetery?grave=<uuid>` flow
 - `/urn/[id]` - redirects into `/cemetery?urn=<id>` flow
 - `/cli/connect` - browser approval UI for CLI linking
-- `/agent-ash/connect` - browser approval UI for Agent Ash linking
-- `/agents` - compact Agent / GitLawb layer hub
-- `/agents/gitlawb` - Hermes/OpenClaw GitLawb Agent Ash install contract
-- `/agents/gitlawb/v1` - stable Agent Skill installer and distribution route
 - `/grave/[id]/opengraph-image` - dynamic grave share card image
+
+Paused legacy Agent Layer routes remain for direct links, but are hidden from the primary UI:
+
+- `/agent-ash/connect` - paused Agent Ash browser approval UI
+- `/agents` - paused Agent / GitLawb landing page
+- `/agents/gitlawb` - paused GitLawb Agent Ash install contract
+- `/agents/gitlawb/v1` - paused Agent Skill installer/distribution route
 
 ## API Routes
 - `GET /api/github/scan?username=X` - scan the signed-in user's own GitHub repos and return inactive non-forks; public username scanning is not supported
@@ -221,22 +226,25 @@ vibecemetery/
 - `POST /api/cli/token` - issue a one-time visible settings token for human-controlled agent setup
 - `GET /api/cli/tokens` - list current user's CLI tokens
 - `POST /api/cli/token/revoke` - revoke a CLI token
-- `POST /api/agent-ash/link/start` - create Agent Ash link session and claim token
-- `GET /api/agent-ash/link/session?link_id=...` - read public link metadata for browser approval
-- `POST /api/agent-ash/link/approve` - signed-in browser approval or denial for Agent Ash access
-- `GET /api/agent-ash/link/status?link_id=...` - agent polling endpoint, guarded by claim token
-- `GET /api/agent-ash/tokens` - list current user's connected Agent Ash credentials as safe metadata
-- `POST /api/agent-ash/token/revoke` - revoke an Agent Ash token
-- `GET /api/agent-ashes/summary` - Agent Ash dashboard summary
-- `GET /api/agent-ashes/[id]` - read Agent Ash record metadata
-- `GET /api/agent-ashes/[id]/certificate` - read raw stored Agent Ash certificate JSON
-- `POST /api/agent-ashes` - ingest GitLawb-verified `agent_ash.v1` records with DB-backed `ash_...` bearer auth
 - `GET|POST /api/auth/[...nextauth]` - NextAuth handler
+
+Paused legacy Agent Layer API routes remain in the codebase, but are not part of the active product flow:
+
+- `POST /api/agent-ash/link/start`
+- `GET /api/agent-ash/link/session?link_id=...`
+- `POST /api/agent-ash/link/approve`
+- `GET /api/agent-ash/link/status?link_id=...`
+- `GET /api/agent-ash/tokens`
+- `POST /api/agent-ash/token/revoke`
+- `GET /api/agent-ashes/summary`
+- `GET /api/agent-ashes/[id]`
+- `GET /api/agent-ashes/[id]/certificate`
+- `POST /api/agent-ashes`
 
 ## Core Architecture Notes
 - `src/app/page.tsx` renders the scanner landing page and redirects legacy root query intents such as `/?grave=...`, `/?urn=...`, and `/?modal=bury` to `/cemetery`.
 - `src/app/cemetery/page.tsx` renders the Phaser cemetery map through `src/components/CemeteryApp.tsx`.
-- `src/app/agents/page.tsx` is the Agent / GitLawb layer hub with Agent Ashes and Agent Skill entry points.
+- `src/app/agents/page.tsx` is a paused legacy Agent / GitLawb landing page, not an active product hub.
 - `src/components/AppProviders.tsx` and `src/context/GameContext.tsx` hold the shared client state for graves, cremated items, modal stack, chat, user session-derived data, and event coordination.
 - `src/components/HomeScannerLanding.tsx` owns the compact root scanner flow; `Scan GitHub` is the only landing-page GitHub auth entry point and scans `session.user.github_username` only.
 - `src/components/PhaserCanvas.tsx` embeds Phaser client-side only, starts with explicit non-zero dimensions, and ignores zero-size resize events before calling `game.scale.resize(...)`.
@@ -252,7 +260,7 @@ vibecemetery/
 - The root page has no GitHub username input and no top-nav `Connect GitHub`; public username scan is intentionally outside the current MVP.
 - Home result actions preload `BuryFlowModal` in burial-only mode when grave slots remain, or cremation-only mode when slots are exhausted.
 - Ceremony animation is suppressed for burial started from `/` because the Phaser map is not mounted there; completion can route into the cemetery ceremony, while cremation can open the created urn.
-- The map HUD uses `Choose a ritual` with `Bury` and `Cremate`; `CLI SKILL` stays separate, and Agent Ashes / Agent Skill live in `/agents` instead of the Human map HUD.
+- The map HUD uses `Choose a ritual` with `Bury` and `Cremate`; `CLI SKILL` stays separate, and the paused Agent Layer is hidden from the Human map HUD.
 - The map top bar exposes Home, FAQ, and Necropolis in the stone-button visual language.
 
 ## Data Model
@@ -262,9 +270,9 @@ vibecemetery/
 - `f_votes` - idempotent respect votes keyed per user and grave
 - `cli_link_sessions` - short-lived browser approval sessions for CLI auth
 - `cli_tokens` - hashed long-lived CLI tokens, never stored raw
-- `agent_ashes` - verified Agent Ash records for the separate Agent Layer
-- `agent_ash_tokens` - hashed browser-approved `ash_...` Agent Ash tokens
-- `agent_ash_link_sessions` - short-lived browser approval sessions for Agent Ash auth
+- `agent_ashes` - paused legacy Agent Ash records; retained for compatibility/data preservation
+- `agent_ash_tokens` - paused legacy hashed Agent Ash tokens
+- `agent_ash_link_sessions` - paused legacy Agent Ash browser approval sessions
 - RPC: `increment_cremated_count(username)` for atomic cremation counter updates
 - RPC: `insert_grave_if_user_slot_available(...)` for atomic grave slot economy enforcement and grave insertion
 
@@ -282,10 +290,10 @@ vibecemetery/
 - Phaser uses explicit sizing with `Scale.NONE`; `ResizeObserver` drives resize updates and zero-width or zero-height resize events are ignored to avoid WebGL framebuffer instability.
 - Grave burial ceremony is React-triggered and Phaser-rendered; cremations do not use the ceremony animation.
 - CLI auth uses browser approval plus a one-time `claim_token`; long-lived CLI tokens are server-issued and hashed at rest.
-- Settings-issued CLI tokens from `/api/cli/token` are for human-controlled agent setup and still post human-layer cremations to `/api/cremated`; they are not Agent Ashes ingest credentials.
-- Agent Ash auth uses browser approval plus a one-time `claim_token`; long-lived `ash_...` tokens are server-issued, hashed at rest, and scoped to `agent_ashes:write`.
-- Agent Ash ingest must never accept `vc_cli_*` tokens or a static ingest token fallback.
-- Canonical Agent Layer docs live in `docs/agent-layer/README.md`.
+- Settings-issued CLI tokens from `/api/cli/token` are for human-controlled agent setup and still post human-layer cremations to `/api/cremated`; do not reuse them for paused Agent Ash ingest.
+- Paused Agent Ash auth used browser approval plus a one-time `claim_token`; keep its `ash_...` token boundary intact while the legacy code remains.
+- Paused Agent Ash ingest must never accept `vc_cli_*` tokens or a static ingest token fallback.
+- Current Agent Layer status lives in `docs/agent-layer/README.md`; detailed docs are archived under `docs/agent-layer-archive/`.
 
 ## Modal Types
 ```ts
@@ -310,17 +318,17 @@ GITHUB_TOKEN
 NEXTAUTH_URL
 NEXTAUTH_SECRET
 CLI_TOKEN_SECRET
-AGENT_ASH_TOKEN_SECRET
-GITLAWB_ALLOWED_NODE_URLS
 UPSTASH_REDIS_REST_URL
 UPSTASH_REDIS_REST_TOKEN
 ```
+
+Paused Agent Layer legacy routes also reference `AGENT_ASH_TOKEN_SECRET` and `GITLAWB_ALLOWED_NODE_URLS`, but they are not required for the main cemetery, GitHub scan, cremation, or `/bury` flows.
 
 ## Security Notes
 - Security headers and CSP are defined in `next.config.ts`.
 - When adding a new browser-side external origin, update the relevant CSP directive first.
 - CLI link and token endpoints use `Cache-Control: no-store`.
-- `AGENT_ASH_TOKEN_SECRET` is server-only and derives browser-approved `ash_...` Agent Ash tokens. Agent Ash ingest checks hashed tokens in `agent_ash_tokens`; never add a static ingest token path or reuse `vc_cli_*` human cremation tokens.
+- If the paused Agent Layer is revived, `AGENT_ASH_TOKEN_SECRET` must remain server-only and Agent Ash ingest must keep rejecting static ingest tokens and `vc_cli_*` human cremation tokens.
 - Shared rate limiting uses Upstash when configured and in-memory fallback otherwise.
 - `/bury` installer and helper safety boundaries must be enforced in code, not only in prompt text or documentation.
 - Quick-install sources are served from `https://vibecemetery.app/skills/bury/v1`; GitHub can mirror later, but production install must not require GitHub raw URLs.
@@ -339,7 +347,8 @@ UPSTASH_REDIS_REST_TOKEN
 
 ## Related Docs
 - `README.md` - product overview and local setup
-- `docs/agent-layer/README.md` - canonical Agent Layer docs for Hermes/OpenClaw, GitLawb, Agent Ash auth, APIs, database, and operations
+- `docs/agent-layer/README.md` - current paused Agent Layer status
+- `docs/agent-layer-archive/` - archived GitLawb / Agent Ash docs
 - `docs/cli-auth-v1.sql` - Supabase schema for CLI auth tables
 - `docs/grave-slot-rpc.sql` - Supabase RPC for atomic grave slot inserts
 - `public/map/docs/CLAUDEMAP.md` - map slot and tile reference

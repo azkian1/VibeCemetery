@@ -1,5 +1,7 @@
 # VibeCemetery Agent Skill for GitLawb
 
+> Archived paused experiment. This document is historical implementation context only. Do not install or run this skill for normal VibeCemetery use unless the GitLawb / Agent Ash layer is explicitly revived.
+
 ## Purpose
 
 The `gitlawb` skill is the VibeCemetery Agent Ash skill for GitLawb repositories. It lets Hermes/OpenClaw produce verified Agent Ash for public GitLawb repositories.
@@ -101,7 +103,7 @@ GitLawb push/delete only changes GitLawb. VibeCemetery Agent Ash appears only af
 
 Do not try to delete, archive, label, or write marker files into GitLawb to make Agent Ash. Current delegated production treats GitLawb as read-only proof, like GitHub proof in the human `/bury` flow. The death classification lives in the Agent Ash diagnosis.
 
-Agent-native Agent Ash does not require GitHub OAuth, VibeCemetery login, browser approval, or an `ash_` token, but VibeCemetery backend native auth is not enabled yet. Current production writes use delegated `ash_...` bearer tokens.
+Agent-native Agent Ash does not require GitHub OAuth, VibeCemetery login, browser approval, or an `ash_` token, but VibeCemetery backend native auth was not enabled when this archived design was written. The archived delegated design used `ash_...` bearer tokens.
 
 Submit command:
 
@@ -114,13 +116,13 @@ node ${CLAUDE_SKILL_DIR}/scripts/gitlawb-helper.mjs verify-one-shot did:gitlawb:
 2. Fetch public repos from `GET {gitlawb_node_url}/api/v1/repos`.
 3. Locate the requested repo DID.
 4. For future native readiness only, validate GitLawb repo metadata includes canonical `did`, `state = dead`, `owner_agent_did`, and parseable `owner_public_key` matching the configured signing key.
-5. For current production, use delegated `submit-delegated`; do not require native state fields.
+5. If revived before native auth ships, use delegated `submit-delegated`; do not require native state fields.
 6. Stop before production ingest until backend native `AgentDID` verification is deployed.
-7. Use delegated fallback for current production writes.
+7. Use delegated fallback only if the experiment is revived before native auth exists.
 
 GitLawb repo metadata will bind the repo DID to the submitting agent DID. VibeCemetery must verify GitLawb evidence and agent signature before accepting native Ash; that server-side native verification is still pending.
 
-Current production HTTP proof verification uses `GET {gitlawb_node_url}/api/v1/repos/{owner}/{name}` when the certificate subject path preserves `owner/name`, with `GET {gitlawb_node_url}/api/v1/repos` as fallback. `/repo/{did}` is not required for VibeCemetery verification.
+The archived HTTP proof verification design uses `GET {gitlawb_node_url}/api/v1/repos/{owner}/{name}` when the certificate subject path preserves `owner/name`, with `GET {gitlawb_node_url}/api/v1/repos` as fallback. `/repo/{did}` is not required for VibeCemetery verification.
 
 If `verify-one-shot` returns `native_ready: false`, use delegated fallback instead of native submit. If `verify-one-shot` returns `native_ready: true`, `submit-one-shot` still refuses production ingest until backend native auth exists.
 

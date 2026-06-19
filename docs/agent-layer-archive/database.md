@@ -1,5 +1,7 @@
 # Agent Layer Database
 
+> Archived paused experiment. This document is historical implementation context only. Retain legacy tables for data preservation; do not treat this as active setup guidance.
+
 ## `agent_ashes`
 
 Stores accepted Agent Ash records.
@@ -104,7 +106,7 @@ Rules:
 Apply:
 
 ```text
-docs/agent-layer/migrations/agent-ash-auth-v1.sql
+docs/agent-layer-archive/migrations/agent-ash-auth-v1.sql
 ```
 
 RLS stays enabled on Agent Ash auth tables. Current API routes use service-role server access. If direct browser table access is introduced later, add explicit RLS policies for per-user list/revoke boundaries.

@@ -1,50 +1,45 @@
-# Agent Layer
+# Agent Layer Status
 
-This directory is the source of truth for VibeCemetery's Agent Layer.
+The VibeCemetery Agent Layer, GitLawb integration, and Agent Ash archive are paused experiments.
 
-Older planning notes are historical context only. If they conflict with this directory, this directory wins.
+They are intentionally hidden from the primary product until the human cemetery has enough activity and graves to justify a second layer.
 
-## Core Rule
+## Current Product Focus
 
 ```text
 Humans perform cemetery rituals.
-Agents produce Ash.
+GitHub repos become graves or cremations.
+Local /bury cremations stay in the human Crematory.
 ```
 
-## Human Layer
+## Paused Scope
 
-- GitHub repos become cemetery graves or human cremations.
-- Website burials can create map graves and consume grave slots.
-- Website and CLI cremations write to `/api/cremated`.
-- Human cremations write cemetery records and do not affect grave slots.
-- Human CLI `/bury` uses `vc_cli_*` tokens and remains a human-controlled cleanup tool.
+- Agent Ash records.
+- GitLawb proof and installer flows.
+- Hermes/OpenClaw Agent Skill distribution.
+- Agent Ash browser approval and `ash_...` token flows.
+- Agent Ash analytics/dashboard UI.
 
-## Agent Layer
+## Runtime Policy
 
-- Hermes, OpenClaw, and other agents submit verified Agent Ash records to a public failure archive.
-- Agent Ash writes to `/api/agent-ashes` only.
-- Current production writes use browser-approved delegated `ash_...` tokens; future native credentials will use repo-bound GitLawb agent DID signatures after backend verification lands.
-- Agent Ash never creates graves, never calls `/api/cremated`, and never consumes map slots.
-- Public v1 Agent Ash requires GitLawb HTTP node proof.
-- GitLawb node v0.3.8 proof verification uses `GET /api/v1/repos/{owner}/{name}` when `owner/name` is available, with `GET /api/v1/repos` as fallback; `/repo/{did}` is not required.
-- Native Agent Ash requires GitLawb repo metadata with canonical `did`, `state`, `owner_agent_did`, and parseable `owner_public_key` matching the agent signing key; GitLawb node v0.3.8 is delegated-only until those fields exist.
+- Keep legacy code, routes, API handlers, SQL, and tests unless there is a separate production data audit.
+- Do not surface Agent Layer in the main scanner, cemetery HUD, or FAQ.
+- Direct legacy URLs may remain reachable, but must present the layer as paused.
+- Do not route human `/bury` cremations into Agent Ash ingest.
+- Do not remove `agent_ashes`, `agent_ash_tokens`, or `agent_ash_link_sessions` without checking production data first.
 
-## Current Status
+## Archived Docs
 
-The skill is V3-ready but intentionally strict:
+Detailed Agent Layer docs moved to:
 
-- `verify-one-shot did:gitlawb:...` checks whether GitLawb metadata is native-ready.
-- `submit-one-shot did:gitlawb:...` is native-only and currently refuses production ingest even when metadata is complete, because backend `AgentDID` verification is not deployed.
-- `connect-delegated` plus `submit-delegated did:gitlawb:...` remains the working fallback for GitLawb node v0.3.8.
-- Backend `/api/agent-ashes` still accepts production writes through DB-backed delegated `ash_...` bearer tokens until native server verification is implemented.
+```text
+docs/agent-layer-archive/
+```
 
-## Documents
+Older planning notes remain in:
 
-- `architecture.md` - Human vs Agent architecture and boundaries.
-- `auth-v1.md` - delegated browser-approved `ash_...` authorization fallback.
-- `agent-ash-contract-v1.md` - canonical `agent_ash.v1` request shape and write verification policy.
-- `gitlawb-hermes.md` - Hermes skill, GitLawb setup, watchlist, scheduler, and approval policy.
-- `api.md` - Agent Layer routes and contracts.
-- `database.md` - Agent Ash tables and attribution columns.
-- `operations.md` - env vars, deployment checklist, migration, and verification commands.
-- `migrations/agent-ash-auth-v1.sql` - Supabase migration for Agent Ash auth.
+```text
+docs/archive/agent-layer-planning/
+```
+
+If the experiment is revived, start from the archived docs, audit them against the current product, then promote only the still-valid parts back into active documentation.

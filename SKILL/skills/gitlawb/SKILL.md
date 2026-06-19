@@ -5,13 +5,15 @@ description: VibeCemetery Agent Ash skill for GitLawb repositories.
 
 # VibeCemetery Agent Skill for GitLawb
 
-This skill produces Agent Ash for VibeCemetery's Agent Layer. It never performs human cremation, never creates graves, never awards points or rewards, and never consumes cemetery map slots.
+Status: paused legacy experiment. Do not install or run this skill for normal VibeCemetery use unless the GitLawb / Agent Ash layer is explicitly revived.
+
+This archived skill was designed to produce Agent Ash for VibeCemetery's Agent Layer if that experiment is revived. It never performs human cremation, never creates graves, never awards points or rewards, and never consumes cemetery map slots.
 
 ## Golden Rules
 
 1. Never mutate GitLawb repos. GitLawb is read-only proof, like GitHub in the human `/bury` flow. Do not create Agent Ash by deleting, archiving, labeling, or writing marker files into the repo.
 2. Never use human `/bury` tokens or credentials. Do not use GitHub OAuth, `vc_cli_*` tokens, or VibeCemetery human CLI credentials for Agent Ash ingest.
-3. Never call `/api/cremated`. Agent Ash production writes use only `POST /api/agent-ashes`.
+3. Never call `/api/cremated`. If revived, Agent Ash writes use only `POST /api/agent-ashes`.
 4. Never recheck GitLawb after a `201` response from `/api/agent-ashes`. VibeCemetery verifies public proof once before insert; that response is final.
 5. Never submit watchlist candidates without explicit human approval metadata.
 6. Never present unverified local cleanup as public Agent Ash.
@@ -40,9 +42,9 @@ INGEST_ENDPOINT = /api/agent-ashes
 HELPER_SCRIPT = ${CLAUDE_SKILL_DIR}/scripts/gitlawb-helper.mjs
 ```
 
-Use `HELPER_SCRIPT` for delegated production certificate construction, future native readiness checks, watchlist reporting, delegated connect, and approval metadata shaping. Do not post Agent Ash to `/api/cremated`.
+Use `HELPER_SCRIPT` only if the experiment is revived: delegated certificate construction, future native readiness checks, watchlist reporting, delegated connect, and approval metadata shaping. Do not post Agent Ash to `/api/cremated`.
 
-GitLawb push/delete only changes GitLawb. VibeCemetery Agent Ash appears only after successful `/api/agent-ashes` ingest. Do not try to mark, delete, archive, label, or otherwise mutate the GitLawb repo to make Agent Ash; current production treats GitLawb as read-only proof.
+GitLawb push/delete only changes GitLawb. VibeCemetery Agent Ash appears only after successful `/api/agent-ashes` ingest. Do not try to mark, delete, archive, label, or otherwise mutate the GitLawb repo to make Agent Ash; if revived, delegated mode treats GitLawb as read-only proof.
 
 ## Local Config
 
@@ -66,17 +68,17 @@ Expected shape:
 }
 ```
 
-Current production writes use delegated `ash_...` bearer tokens from browser-approved Agent Ash connect. Native readiness does not require GitHub login, but Native `submit-one-shot` is readiness/future-only until backend AgentDID verification is deployed. Production writes currently require delegated browser-approved Agent Ash connect. No human `/bury` credentials are used.
+If revived before native auth ships, writes use delegated `ash_...` bearer tokens from browser-approved Agent Ash connect. Native readiness does not require GitHub login, but Native `submit-one-shot` is readiness/future-only until backend AgentDID verification is deployed. No human `/bury` credentials are used.
 
 Native submit also requires GitLawb repo metadata to expose all authority fields: `did`, `state = dead`, `owner_agent_did`, and parseable `owner_public_key` matching the configured signing key. GitLawb node v0.3.8 repos that expose only `id`, `owner_did`, `name`, `created_at`, and `updated_at` are delegated-only. Derived DIDs are discovery-only, not native authority.
 
-## Delegated Mode / Production Write Path
+## Archived Delegated Mode If Revived
 
-Browser-approved Agent Ash connect is the current production write path. Do not open GitHub browser auth for Agent Ash. Do not ask the human to paste a raw `ash_...` token into chat.
+Browser-approved Agent Ash connect is the archived delegated write path. Do not open GitHub browser auth for Agent Ash. Do not ask the human to paste a raw `ash_...` token into chat.
 
 Delegated mode does not require GitLawb `state = dead`, `owner_agent_did`, or `owner_public_key`. VibeCemetery verifies that the public GitLawb repo exists and that DID/path/name/timestamps match the `agent_ash.v1` certificate; the death classification lives in the Agent Ash diagnosis, not in GitLawb repo state.
 
-Command:
+Archived command:
 
 ```text
 node ${CLAUDE_SKILL_DIR}/scripts/gitlawb-helper.mjs connect-delegated
@@ -102,7 +104,7 @@ Response handling:
 
 ## Native Readiness / Future-Only Flow
 
-Use this flow only to check whether a public GitLawb repo is ready for future native AgentDID submit. It is not the current production write path.
+Use this flow only to check whether a public GitLawb repo is ready for future native AgentDID submit. It is not a production write path while the layer is paused.
 
 Command:
 
