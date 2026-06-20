@@ -33,3 +33,16 @@ test('desktop chat is lifted above the ritual CTA column', () => {
   expect(source).toContain('bottom: 126')
   expect(source).toContain('width: 340')
 })
+
+test('desktop chat clears its delayed greeting timer on unmount', () => {
+  const source = readFileSync('src/components/hud/ChatLog.tsx', 'utf8')
+  const greetingEffect = source.slice(
+    source.indexOf('// On mount: system greeting + gravedigger greeting'),
+    source.indexOf('// Idle timer: random gravedigger phrase'),
+  )
+
+  expect(source).not.toContain('mountedRef')
+  expect(greetingEffect).toContain('gravediggerGreetingSentRef.current = true')
+  expect(greetingEffect).toContain('const greetingTimer = setTimeout')
+  expect(greetingEffect).toContain('return () => clearTimeout(greetingTimer)')
+})

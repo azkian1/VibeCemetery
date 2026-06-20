@@ -18,6 +18,28 @@ function getAllowedOrigins(): string[] {
   return [...origins]
 }
 
+function getCorsHeaders(origin: string): Record<string, string> {
+  return {
+    'Access-Control-Allow-Origin': origin,
+    Vary: 'Origin',
+  }
+}
+
+function appendVaryOrigin(headers: Headers) {
+  const vary = headers.get('Vary')
+  if (!vary) {
+    headers.set('Vary', 'Origin')
+    return
+  }
+
+  const variesByOrigin = vary
+    .split(',')
+    .some((value) => value.trim().toLowerCase() === 'origin')
+  if (!variesByOrigin) {
+    headers.set('Vary', `${vary}, Origin`)
+  }
+}
+
 /** Per-IP read rate limit: 60 requests per 60 seconds */
 const READ_LIMIT = 60
 const READ_WINDOW = 60_000
@@ -29,11 +51,11 @@ export async function proxy(req: NextRequest) {
   const isAuthRoute = pathname.startsWith('/api/auth/')
 
   if (req.method === 'OPTIONS') {
-    if (!isAllowed) return new NextResponse(null, { status: 403 })
+    if (!isAllowed) return new NextResponse(null, { status: 403, headers: { Vary: 'Origin' } })
     return new NextResponse(null, {
       status: 204,
       headers: {
-        'Access-Control-Allow-Origin': origin,
+        ...getCorsHeaders(origin),
         'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
         'Access-Control-Allow-Headers': 'Content-Type, Authorization',
         'Access-Control-Max-Age': '86400',
@@ -46,17 +68,24 @@ export async function proxy(req: NextRequest) {
     const ip = getClientIp(req)
     const result = await checkRateLimit(`read:${ip}`, READ_LIMIT, READ_WINDOW)
     if (!result.allowed) {
+      const headers = new Headers({
+        'Retry-After': String(Math.ceil(result.retryAfterMs / 1000)),
+      })
+      appendVaryOrigin(headers)
+      if (isAllowed) headers.set('Access-Control-Allow-Origin', origin)
+
       return NextResponse.json(
         { error: 'Too many requests' },
         {
           status: 429,
-          headers: { 'Retry-After': String(Math.ceil(result.retryAfterMs / 1000)) },
+          headers,
         },
       )
     }
   }
 
   const res = NextResponse.next()
+  appendVaryOrigin(res.headers)
   if (isAllowed) {
     res.headers.set('Access-Control-Allow-Origin', origin)
   }

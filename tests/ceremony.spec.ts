@@ -186,6 +186,17 @@ test('missing-slot ceremony fallback uses the shared ceremony cleanup path', () 
   expect(fallbackBlock).not.toContain('this.ceremonyQueue.shift()');
 });
 
+test('gate epitaph clears delayed fade timers on unmount', () => {
+  const source = readFileSync('src/components/hud/GateEpitaph.tsx', 'utf8');
+  const cleanupStart = source.indexOf('useEffect(() => () => {');
+  const cleanupBlock = source.slice(cleanupStart, source.indexOf('}, []);', cleanupStart));
+
+  expect(source).toContain('hideTimerRef');
+  expect(source).toContain('sceneReadyTimerRef');
+  expect(cleanupBlock).toContain('clearTimeout(hideTimerRef.current)');
+  expect(cleanupBlock).toContain('clearTimeout(sceneReadyTimerRef.current)');
+});
+
 test.describe('Ceremony plumbing (mobile 390×844)', () => {
   test.use({ viewport: { width: 390, height: 844 } });
 

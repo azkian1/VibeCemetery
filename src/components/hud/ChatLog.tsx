@@ -60,7 +60,8 @@ export default function ChatLog() {
   const lastGravediggerTimeRef = useRef(0);
   const messagesRef = useRef(messages);
   const stateRef = useRef(state);
-  const mountedRef = useRef(false);
+  const systemGreetingAddedRef = useRef(false);
+  const gravediggerGreetingSentRef = useRef(false);
 
   // Keep refs in sync without resetting idle timer
   useEffect(() => { messagesRef.current = messages; }, [messages]);
@@ -69,17 +70,21 @@ export default function ChatLog() {
   // On mount: system greeting + gravedigger greeting (skip on mobile)
   useEffect(() => {
     if (isMobile) return;
-    if (mountedRef.current) return;
-    mountedRef.current = true;
 
-    addMessage({
-      id: crypto.randomUUID(),
-      type: 'system',
-      text: 'Connecting to the cemetery...',
-      timestamp: Date.now(),
-    });
+    if (!systemGreetingAddedRef.current) {
+      systemGreetingAddedRef.current = true;
+      addMessage({
+        id: crypto.randomUUID(),
+        type: 'system',
+        text: 'Connecting to the cemetery...',
+        timestamp: Date.now(),
+      });
+    }
 
-    setTimeout(() => {
+    if (gravediggerGreetingSentRef.current) return;
+
+    const greetingTimer = setTimeout(() => {
+      gravediggerGreetingSentRef.current = true;
       addMessage({
         id: crypto.randomUUID(),
         type: 'gravedigger',
@@ -87,6 +92,8 @@ export default function ChatLog() {
         timestamp: Date.now(),
       });
     }, 1200);
+
+    return () => clearTimeout(greetingTimer);
   }, [addMessage, isMobile]);
 
   // Idle timer: random gravedigger phrase every ~75s (skip on mobile)

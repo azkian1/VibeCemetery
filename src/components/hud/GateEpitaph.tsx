@@ -10,21 +10,39 @@ export default function GateEpitaph() {
   const [visible, setVisible] = useState(() => !hasPendingBurialCeremony());
   const [fading, setFading] = useState(false);
   const fadingRef = useRef(false);
+  const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const sceneReadyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const dismiss = useCallback(() => {
     if (fadingRef.current) return;
     fadingRef.current = true;
     setFading(true);
-    setTimeout(() => setVisible(false), 800);
+    if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+    hideTimerRef.current = setTimeout(() => {
+      hideTimerRef.current = null;
+      setVisible(false);
+    }, 800);
+  }, []);
+
+  useEffect(() => () => {
+    if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+    if (sceneReadyTimerRef.current) clearTimeout(sceneReadyTimerRef.current);
   }, []);
 
   useEffect(() => {
     const onReady = () => {
       // Scene is ready, zoom-in tween takes 2000ms — start fade near the end
-      setTimeout(() => dismiss(), 1600);
+      if (sceneReadyTimerRef.current) clearTimeout(sceneReadyTimerRef.current);
+      sceneReadyTimerRef.current = setTimeout(() => {
+        sceneReadyTimerRef.current = null;
+        dismiss();
+      }, 1600);
     };
 
-    const onLoadError = () => dismiss();
+    const onLoadError = () => {
+      if (sceneReadyTimerRef.current) clearTimeout(sceneReadyTimerRef.current);
+      dismiss();
+    };
 
     cemeteryEvents.on('scene_ready', onReady);
     cemeteryEvents.on('load_error', onLoadError);
