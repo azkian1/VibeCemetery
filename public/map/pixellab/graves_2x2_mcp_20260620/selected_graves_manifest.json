@@ -1,0 +1,163 @@
+{
+  "asset_set": "graves_2x2_selected_20260625",
+  "created": "2026-06-25",
+  "updated": "2026-06-25",
+  "purpose": "User-selected 2x2 grave candidates from the curated graves_2x2_mcp_20260620/source folder after cleanup.",
+  "map": "Xmap/Map4.tmx",
+  "source_directory": "Xmap/pixellab/graves_2x2_mcp_20260620/source/",
+  "contact_sheets": [
+    "Xmap/pixellab/graves_2x2_mcp_20260620/contact_sheets/grave_2x2_selected_13_review_sheet.png"
+  ],
+  "count": 12,
+  "footprint": "2x2",
+  "expected_size": "64x64",
+  "status": "selected_and_imported_as_review",
+  "notes": [
+    "This manifest replaces the temporary generation manifests for batch01, batch02, and batch03.",
+    "Only files currently present in source/ are listed here.",
+    "Map4.tmx GraveVariantsReview_31 contains 12 selected 2x2 review objects (gid 86-97).",
+    "GraveObj has 14 logical 2x2 slots, so two additional selected variants are still needed if every 2x2 slot should have a unique sprite. Reuse is possible if 12 variants are enough."
+  ],
+  "items": [
+    {
+      "index": 1,
+      "asset": "xl_concrete_gpu",
+      "pixellab_id": "20b21ad2-e0e8-43e6-bb72-1595bc252541",
+      "source_batch": "batch01",
+      "actual": "64x64",
+      "status": "selected_not_imported",
+      "local_source": "Xmap/pixellab/graves_2x2_mcp_20260620/source/grave_2x2_batch01_03_xl_concrete_gpu_64x64_20b21ad2.png",
+      "download_url": "https://api.pixellab.ai/mcp/map-objects/20b21ad2-e0e8-43e6-bb72-1595bc252541/download",
+      "bytes": 4093
+    },
+    {
+      "index": 2,
+      "asset": "concrete_blue_screen_monitor",
+      "pixellab_id": "7b1b6556-60ae-4f6e-a7a0-bafdfff17244",
+      "source_batch": "batch02_strict_topdown_40",
+      "actual": "64x64",
+      "status": "selected_not_imported",
+      "local_source": "Xmap/pixellab/graves_2x2_mcp_20260620/source/grave_2x2_batch02_strict_01_concrete_blue_screen_monitor_64x64_7b1b6556.png",
+      "download_url": "https://api.pixellab.ai/mcp/map-objects/7b1b6556-60ae-4f6e-a7a0-bafdfff17244/download",
+      "bytes": 2326
+    },
+    {
+      "index": 3,
+      "asset": "pc_case_tomb",
+      "pixellab_id": "2dd577cb-195a-4715-9929-2a74a7a29b43",
+      "source_batch": "batch02_strict_topdown_40",
+      "actual": "64x64",
+      "status": "selected_not_imported",
+      "local_source": "Xmap/pixellab/graves_2x2_mcp_20260620/source/grave_2x2_batch02_strict_02_pc_case_tomb_64x64_2dd577cb.png",
+      "download_url": "https://api.pixellab.ai/mcp/map-objects/2dd577cb-195a-4715-9929-2a74a7a29b43/download",
+      "bytes": 2063
+    },
+    {
+      "index": 4,
+      "asset": "deploy_rocket_crater",
+      "pixellab_id": "212f5865-e9cd-4219-b017-9cff618a987e",
+      "source_batch": "batch02_strict_topdown_40",
+      "actual": "64x64",
+      "status": "selected_not_imported",
+      "local_source": "Xmap/pixellab/graves_2x2_mcp_20260620/source/grave_2x2_batch02_strict_07_deploy_rocket_crater_64x64_212f5865.png",
+      "download_url": "https://api.pixellab.ai/mcp/map-objects/212f5865-e9cd-4219-b017-9cff618a987e/download",
+      "bytes": 3591
+    },
+    {
+      "index": 5,
+      "asset": "router_monument",
+      "pixellab_id": "428c1528-e0e8-4b99-906a-6c4f4ee4d431",
+      "source_batch": "batch02_strict_topdown_40",
+      "actual": "64x64",
+      "status": "selected_not_imported",
+      "local_source": "Xmap/pixellab/graves_2x2_mcp_20260620/source/grave_2x2_batch02_strict_08_router_monument_64x64_428c1528.png",
+      "download_url": "https://api.pixellab.ai/mcp/map-objects/428c1528-e0e8-4b99-906a-6c4f4ee4d431/download",
+      "bytes": 2582
+    },
+    {
+      "index": 6,
+      "asset": "database_collapse",
+      "pixellab_id": "4967252c-8a63-438e-a272-1d4a43747f32",
+      "source_batch": "batch02_strict_topdown_40",
+      "actual": "64x64",
+      "status": "selected_not_imported",
+      "local_source": "Xmap/pixellab/graves_2x2_mcp_20260620/source/grave_2x2_batch02_strict_09_database_collapse_64x64_4967252c.png",
+      "download_url": "https://api.pixellab.ai/mcp/map-objects/4967252c-8a63-438e-a272-1d4a43747f32/download",
+      "bytes": 5937
+    },
+    {
+      "index": 7,
+      "asset": "docker_whale_rubble",
+      "pixellab_id": "bfec4dbe-e99d-4a11-be19-5365d1b0f2ea",
+      "source_batch": "batch02_strict_topdown_40",
+      "actual": "64x64",
+      "status": "selected_not_imported",
+      "local_source": "Xmap/pixellab/graves_2x2_mcp_20260620/source/grave_2x2_batch02_strict_10_docker_whale_rubble_64x64_bfec4dbe.png",
+      "download_url": "https://api.pixellab.ai/mcp/map-objects/bfec4dbe-e99d-4a11-be19-5365d1b0f2ea/download",
+      "bytes": 3457
+    },
+    {
+      "index": 8,
+      "asset": "eternal_loading_spinner",
+      "pixellab_id": "3147adeb-f088-4255-8a2f-b51c71fe65d6",
+      "source_batch": "batch02_strict_topdown_40",
+      "actual": "64x64",
+      "status": "selected_not_imported",
+      "local_source": "Xmap/pixellab/graves_2x2_mcp_20260620/source/grave_2x2_batch02_strict_14_eternal_loading_spinner_64x64_3147adeb.png",
+      "download_url": "https://api.pixellab.ai/mcp/map-objects/3147adeb-f088-4255-8a2f-b51c71fe65d6/download",
+      "bytes": 4577
+    },
+    {
+      "index": 9,
+      "asset": "broken_qr_slab",
+      "pixellab_id": "960bf698-dd08-465b-964c-f49027b3e724",
+      "source_batch": "batch02_strict_topdown_40",
+      "actual": "64x64",
+      "status": "selected_not_imported",
+      "local_source": "Xmap/pixellab/graves_2x2_mcp_20260620/source/grave_2x2_batch02_strict_18_broken_qr_slab_64x64_960bf698.png",
+      "download_url": "https://api.pixellab.ai/mcp/map-objects/960bf698-dd08-465b-964c-f49027b3e724/download",
+      "bytes": 3626
+    },
+    {
+      "index": 10,
+      "asset": "neural_lattice_ossuary",
+      "pixellab_id": "c5a5aa0c-991a-4465-a21b-a02314ac2ab0",
+      "source_batch": "batch02_strict_topdown_40",
+      "actual": "64x64",
+      "status": "selected_not_imported",
+      "local_source": "Xmap/pixellab/graves_2x2_mcp_20260620/source/grave_2x2_batch02_strict_33_neural_lattice_ossuary_64x64_c5a5aa0c.png",
+      "download_url": "https://api.pixellab.ai/mcp/map-objects/c5a5aa0c-991a-4465-a21b-a02314ac2ab0/download",
+      "bytes": 4803
+    },
+    {
+      "index": 11,
+      "asset": "product_hunt_clone",
+      "pixellab_id": "b406f6d3-4287-4094-965f-48fda3530ea1",
+      "source_batch": "batch03_saas_games_50",
+      "actual": "64x64",
+      "status": "selected_not_imported",
+      "local_source": "Xmap/pixellab/graves_2x2_mcp_20260620/source/grave_2x2_batch03_saas_games_21_product_hunt_clone_64x64_b406f6d3.png",
+      "download_url": "https://api.pixellab.ai/mcp/map-objects/b406f6d3-4287-4094-965f-48fda3530ea1/download",
+      "bytes": 3355
+    },
+    {
+      "index": 12,
+      "asset": "file_manager",
+      "pixellab_id": "cfa2a5a1-3784-4fa2-a4a4-e162ddd1695e",
+      "source_batch": "batch03_saas_games_50",
+      "actual": "64x64",
+      "status": "selected_not_imported",
+      "local_source": "Xmap/pixellab/graves_2x2_mcp_20260620/source/grave_2x2_batch03_saas_games_48_file_manager_64x64_cfa2a5a1.png",
+      "download_url": "https://api.pixellab.ai/mcp/map-objects/cfa2a5a1-3784-4fa2-a4a4-e162ddd1695e/download",
+      "bytes": 3807
+    }
+  ],
+  "removed_from_selected_source": [
+    {
+      "asset": "ai_wrapper_robot",
+      "pixellab_id": "6abed8d4-ea7c-46c0-880a-89bc37d34624",
+      "local_source": "Xmap/pixellab/graves_2x2_mcp_20260620/source/grave_2x2_batch02_strict_17_ai_wrapper_robot_64x64_6abed8d4.png",
+      "reason": "Removed by user during final selection cleanup."
+    }
+  ]
+}

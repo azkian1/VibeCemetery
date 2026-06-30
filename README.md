@@ -112,7 +112,8 @@ Implemented:
 
 Next:
 
-- **Cemetery Map 2.0** - rebuild the playable cemetery around original VibeCemetery-owned assets.
+- **Cemetery Map 2.0** - new 140×104 pixel map with custom PixelLab art at `/cemetery/v2`. Deployed alongside v1 at `/cemetery`.
+- **Map v1** - original 40×40 map remains view-only at `/cemetery`.
 - **Swamp of Shame** - expand the world with a new shame-themed cemetery zone.
 - **$GRAVE integration**
 - **The Gravedigger Agent** - introduce the native cemetery agent for guidance, lore, grave care, and future ritual interactions.

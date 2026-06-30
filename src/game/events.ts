@@ -44,6 +44,7 @@ export interface RenderGraveData {
   slot_id: number;
   id: string;
   name: string;
+  grave_gid?: number | null;
 }
 
 // Minimap raster: Uint8Array where each byte is a color index for a tile

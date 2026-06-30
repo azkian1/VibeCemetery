@@ -1,0 +1,202 @@
+﻿[
+    {
+        "asset":  "tree_medium_a_cemetery_oak_64x96",
+        "id":  "f20a2074-0a51-4b87-ad27-d0189f67ca01",
+        "requested":  "64x96",
+        "actual":  "64x96",
+        "status":  "completed",
+        "download":  "https://api.pixellab.ai/mcp/map-objects/f20a2074-0a51-4b87-ad27-d0189f67ca01/download",
+        "path":  "Xmap\\pixellab\\tree_batch_mcp_20260605\\source\\tree_medium_a_cemetery_oak_64x96_f20a2074.png",
+        "notes":  ""
+    },
+    {
+        "asset":  "tree_medium_b_crooked_deadwood_64x96",
+        "id":  "9556f66f-a831-4f61-9b9c-f8e311f7520c",
+        "requested":  "64x96",
+        "actual":  "64x96",
+        "status":  "completed",
+        "download":  "https://api.pixellab.ai/mcp/map-objects/9556f66f-a831-4f61-9b9c-f8e311f7520c/download",
+        "path":  "Xmap\\pixellab\\tree_batch_mcp_20260605\\source\\tree_medium_b_crooked_deadwood_64x96_9556f66f.png",
+        "notes":  ""
+    },
+    {
+        "asset":  "tree_medium_c_dark_leafy_yew_64x96",
+        "id":  "b43f7f4d-150d-4244-a7db-b708b35a3fc4",
+        "requested":  "64x96",
+        "actual":  "64x96",
+        "status":  "completed",
+        "download":  "https://api.pixellab.ai/mcp/map-objects/b43f7f4d-150d-4244-a7db-b708b35a3fc4/download",
+        "path":  "Xmap\\pixellab\\tree_batch_mcp_20260605\\source\\tree_medium_c_dark_leafy_yew_64x96_b43f7f4d.png",
+        "notes":  ""
+    },
+    {
+        "asset":  "tree_small_thin_a_crooked_sapling_32x64",
+        "id":  "2f5d3182-2842-4ade-8d8a-0ce167c718a6",
+        "requested":  "32x64",
+        "actual":  "32x64",
+        "status":  "completed",
+        "download":  "https://api.pixellab.ai/mcp/map-objects/2f5d3182-2842-4ade-8d8a-0ce167c718a6/download",
+        "path":  "Xmap\\pixellab\\tree_batch_mcp_20260605\\source\\tree_small_thin_a_crooked_sapling_32x64_2f5d3182.png",
+        "notes":  ""
+    },
+    {
+        "asset":  "tree_small_thin_b_dark_yew_32x64",
+        "id":  "066c250a-57c8-4744-8abc-36cab36f2db7",
+        "requested":  "32x64",
+        "actual":  "32x64",
+        "status":  "completed",
+        "download":  "https://api.pixellab.ai/mcp/map-objects/066c250a-57c8-4744-8abc-36cab36f2db7/download",
+        "path":  "Xmap\\pixellab\\tree_batch_mcp_20260605\\source\\tree_small_thin_b_dark_yew_32x64_066c250a.png",
+        "notes":  ""
+    },
+    {
+        "asset":  "tree_small_thin_c_dead_shrub_tree_32x64",
+        "id":  "dac67e5b-1958-4c7d-81ba-59507174a246",
+        "requested":  "32x64",
+        "actual":  "32x64",
+        "status":  "completed",
+        "download":  "https://api.pixellab.ai/mcp/map-objects/dac67e5b-1958-4c7d-81ba-59507174a246/download",
+        "path":  "Xmap\\pixellab\\tree_batch_mcp_20260605\\source\\tree_small_thin_c_dead_shrub_tree_32x64_dac67e5b.png",
+        "notes":  ""
+    },
+    {
+        "asset":  "tree_compact_round_a_low_yew_64x64",
+        "id":  "23cbd478-f43d-4858-adb5-c6bbfa69eb24",
+        "requested":  "64x64",
+        "actual":  "64x64",
+        "status":  "completed",
+        "download":  "https://api.pixellab.ai/mcp/map-objects/23cbd478-f43d-4858-adb5-c6bbfa69eb24/download",
+        "path":  "Xmap\\pixellab\\tree_batch_mcp_20260605\\source\\tree_compact_round_a_low_yew_64x64_23cbd478.png",
+        "notes":  ""
+    },
+    {
+        "asset":  "tree_compact_round_b_mossy_bush_tree_64x64",
+        "id":  "0332a520-81fa-4be7-a38c-1c2492338d67",
+        "requested":  "64x64",
+        "actual":  "64x64",
+        "status":  "completed",
+        "download":  "https://api.pixellab.ai/mcp/map-objects/0332a520-81fa-4be7-a38c-1c2492338d67/download",
+        "path":  "Xmap\\pixellab\\tree_batch_mcp_20260605\\source\\tree_compact_round_b_mossy_bush_tree_64x64_0332a520.png",
+        "notes":  ""
+    },
+    {
+        "asset":  "tree_compact_round_c_dead_low_tree_64x64",
+        "id":  "34b86931-64a3-4c00-8ff8-a274d4304914",
+        "requested":  "64x64",
+        "actual":  "64x64",
+        "status":  "completed",
+        "download":  "https://api.pixellab.ai/mcp/map-objects/34b86931-64a3-4c00-8ff8-a274d4304914/download",
+        "path":  "Xmap\\pixellab\\tree_batch_mcp_20260605\\source\\tree_compact_round_c_dead_low_tree_64x64_34b86931.png",
+        "notes":  ""
+    },
+    {
+        "asset":  "tree_cluster_a_dense_yews_96x96",
+        "id":  "ea0c08ab-0783-41f1-a02a-81abac16eec3",
+        "requested":  "96x96",
+        "actual":  "96x96",
+        "status":  "completed",
+        "download":  "https://api.pixellab.ai/mcp/map-objects/ea0c08ab-0783-41f1-a02a-81abac16eec3/download",
+        "path":  "Xmap\\pixellab\\tree_batch_mcp_20260605\\source\\tree_cluster_a_dense_yews_96x96_ea0c08ab.png",
+        "notes":  ""
+    },
+    {
+        "asset":  "tree_cluster_b_dead_branch_cluster_96x96",
+        "id":  "672af227-2162-4faf-8bc4-be76b9daa5b4",
+        "requested":  "96x96",
+        "actual":  "96x96",
+        "status":  "completed",
+        "download":  "https://api.pixellab.ai/mcp/map-objects/672af227-2162-4faf-8bc4-be76b9daa5b4/download",
+        "path":  "Xmap\\pixellab\\tree_batch_mcp_20260605\\source\\tree_cluster_b_dead_branch_cluster_96x96_672af227.png",
+        "notes":  ""
+    },
+    {
+        "asset":  "tree_cluster_c_mixed_moss_oaks_96x96",
+        "id":  "e61d00b7-d3d9-4ba2-8aa8-1667ed0c46e2",
+        "requested":  "96x96",
+        "actual":  "96x96",
+        "status":  "completed",
+        "download":  "https://api.pixellab.ai/mcp/map-objects/e61d00b7-d3d9-4ba2-8aa8-1667ed0c46e2/download",
+        "path":  "Xmap\\pixellab\\tree_batch_mcp_20260605\\source\\tree_cluster_c_mixed_moss_oaks_96x96_e61d00b7.png",
+        "notes":  ""
+    },
+    {
+        "asset":  "tree_tall_thin_cypress_a_straight_32x96",
+        "id":  "533454c2-1c7a-42f0-b40a-b886b3ffd97a",
+        "requested":  "32x96",
+        "actual":  "32x96",
+        "status":  "completed",
+        "download":  "https://api.pixellab.ai/mcp/map-objects/533454c2-1c7a-42f0-b40a-b886b3ffd97a/download",
+        "path":  "Xmap\\pixellab\\tree_batch_mcp_20260605\\source\\tree_tall_thin_cypress_a_straight_32x96_533454c2.png",
+        "notes":  ""
+    },
+    {
+        "asset":  "tree_tall_thin_cypress_b_bent_32x96",
+        "id":  "59a95dc6-8591-4b7e-b954-d0e1348573ea",
+        "requested":  "32x96",
+        "actual":  "32x96",
+        "status":  "completed",
+        "download":  "https://api.pixellab.ai/mcp/map-objects/59a95dc6-8591-4b7e-b954-d0e1348573ea/download",
+        "path":  "Xmap\\pixellab\\tree_batch_mcp_20260605\\source\\tree_tall_thin_cypress_b_bent_32x96_59a95dc6.png",
+        "notes":  ""
+    },
+    {
+        "asset":  "tree_tall_thin_cypress_c_dead_spire_32x96",
+        "id":  "387da91e-a9ab-4abf-9c9e-8ba4226d2617",
+        "requested":  "32x96",
+        "actual":  "32x96",
+        "status":  "completed",
+        "download":  "https://api.pixellab.ai/mcp/map-objects/387da91e-a9ab-4abf-9c9e-8ba4226d2617/download",
+        "path":  "Xmap\\pixellab\\tree_batch_mcp_20260605\\source\\tree_tall_thin_cypress_c_dead_spire_32x96_387da91e.png",
+        "notes":  ""
+    },
+    {
+        "asset":  "tree_round_leafy_large_a_old_oak_96x128",
+        "id":  "330f4e2f-c326-420e-8f3f-ed99e4caa847",
+        "requested":  "96x128",
+        "actual":  "96x128",
+        "status":  "completed",
+        "download":  "https://api.pixellab.ai/mcp/map-objects/330f4e2f-c326-420e-8f3f-ed99e4caa847/download",
+        "path":  "Xmap\\pixellab\\tree_batch_mcp_20260605\\source\\tree_round_leafy_large_a_old_oak_96x128_330f4e2f.png",
+        "notes":  ""
+    },
+    {
+        "asset":  "tree_round_leafy_large_b_broad_mossy_tree_96x128",
+        "id":  "802c5e35-ac81-4d85-8f8f-72b0882290a3",
+        "requested":  "96x128",
+        "actual":  "96x128",
+        "status":  "completed",
+        "download":  "https://api.pixellab.ai/mcp/map-objects/802c5e35-ac81-4d85-8f8f-72b0882290a3/download",
+        "path":  "Xmap\\pixellab\\tree_batch_mcp_20260605\\source\\tree_round_leafy_large_b_broad_mossy_tree_96x128_802c5e35.png",
+        "notes":  ""
+    },
+    {
+        "asset":  "tree_round_leafy_large_c_split_crown_oak_96x128",
+        "id":  "bb607937-0f8e-4f75-b534-eedcce438076",
+        "requested":  "96x128",
+        "actual":  "96x128",
+        "status":  "completed",
+        "download":  "https://api.pixellab.ai/mcp/map-objects/bb607937-0f8e-4f75-b534-eedcce438076/download",
+        "path":  "Xmap\\pixellab\\tree_batch_mcp_20260605\\source\\tree_round_leafy_large_c_split_crown_oak_96x128_bb607937.png",
+        "notes":  ""
+    },
+    {
+        "asset":  "tree_hero_old_a_graveyard_ancient_oak_96x160",
+        "id":  "43f295f6-c738-4d2e-9487-5052c5e0c08d",
+        "requested":  "96x160",
+        "actual":  "96x160",
+        "status":  "completed",
+        "download":  "https://api.pixellab.ai/mcp/map-objects/43f295f6-c738-4d2e-9487-5052c5e0c08d/download",
+        "path":  "Xmap\\pixellab\\tree_batch_mcp_20260605\\source\\tree_hero_old_a_graveyard_ancient_oak_96x160_43f295f6.png",
+        "notes":  ""
+    },
+    {
+        "asset":  "tree_hero_old_b_dead_witness_tree_96x160",
+        "id":  "2eccfb1a-b022-4505-a13e-7b7a141a50d6",
+        "requested":  "96x160",
+        "actual":  "96x160",
+        "status":  "completed",
+        "download":  "https://api.pixellab.ai/mcp/map-objects/2eccfb1a-b022-4505-a13e-7b7a141a50d6/download",
+        "path":  "Xmap\\pixellab\\tree_batch_mcp_20260605\\source\\tree_hero_old_b_dead_witness_tree_96x160_2eccfb1a.png",
+        "notes":  ""
+    }
+]

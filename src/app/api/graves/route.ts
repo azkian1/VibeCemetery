@@ -16,15 +16,17 @@ import {
   validateGitHubRepoEligibility,
   validateGitHubRootContentsEligibility,
 } from './githubRepoEligibility'
+import { pickRandomGraveGid } from '@/game/utils/tileRegistry-v2'
 
 const GITHUB_REPO_VERIFY_LIMIT = 30
 const GITHUB_REPO_VERIFY_WINDOW_MS = 60_000
 
-async function syncUserGravesCount(authorGithub: string): Promise<void> {
+async function syncUserGravesCount(authorGithub: string, mapVersion: string = 'v1'): Promise<void> {
   const { count, error: countError } = await supabaseAdmin
     .from('graves')
     .select('*', { count: 'exact', head: true })
     .eq('author_github', authorGithub)
+    .eq('map_version', mapVersion)
 
   if (countError) {
     console.error('Failed to recount graves for user:', authorGithub, countError)
@@ -47,6 +49,7 @@ async function syncUserGravesCount(authorGithub: string): Promise<void> {
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const author = searchParams.get('author')
+  const mapVersion = searchParams.get('map_version') ?? 'v1'
 
   const limitParam = parseInt(searchParams.get('limit') ?? '500', 10)
   const limit = Math.min(Math.max(1, limitParam || 500), 500)
@@ -58,11 +61,31 @@ export async function GET(req: NextRequest) {
     .order('slot_id', { ascending: true })
     .range(offset, offset + limit - 1)
 
+  // Filter by map_version when column exists; gracefully skip if migration not applied
+  query = query.eq('map_version', mapVersion)
+
   if (author) {
     query = query.eq('author_github', author)
   }
 
-  const { data, error } = await query
+  let { data, error } = await query
+
+  // If map_version column doesn't exist yet, retry without the filter
+  if (error && error.message?.includes('map_version')) {
+    let fallbackQuery = supabaseAdmin
+      .from('graves')
+      .select('*')
+      .order('slot_id', { ascending: true })
+      .range(offset, offset + limit - 1)
+
+    if (author) {
+      fallbackQuery = fallbackQuery.eq('author_github', author)
+    }
+
+    const fallback = await fallbackQuery
+    data = fallback.data
+    error = fallback.error
+  }
 
   if (error) {
     return NextResponse.json({ error: 'Failed to fetch graves' }, { status: 500 })
@@ -113,20 +136,6 @@ export async function POST(req: NextRequest) {
 
   const author_github = session.user.github_username
 
-  // Rate limit: quick pre-check (non-authoritative, just to fail fast)
-  const { count: preCheck } = await supabaseAdmin
-    .from('graves')
-    .select('*', { count: 'exact', head: true })
-    .eq('author_github', author_github)
-    .gte('created_at', new Date(Date.now() - 86400000).toISOString());
-
-  if ((preCheck ?? 0) >= 20) {
-    return NextResponse.json(
-      { error: 'Rate limit: max 20 graves per day' },
-      { status: 429 },
-    );
-  }
-
   // 2. Parse body
   let body: Record<string, unknown>
   try {
@@ -156,6 +165,7 @@ export async function POST(req: NextRequest) {
     description,
     stack,
     last_commit_message,
+    map_version,
   } = body as {
     github_url?: string
     github_repo_id?: number
@@ -166,6 +176,30 @@ export async function POST(req: NextRequest) {
     description?: string
     stack?: string[]
     last_commit_message?: string
+    map_version?: string
+  }
+
+  const mapVersion = typeof map_version === 'string' ? map_version : 'v1';
+
+  // Rate limit: quick pre-check (non-authoritative, just to fail fast)
+  let preCheck = 0
+  try {
+    const { count } = await supabaseAdmin
+      .from('graves')
+      .select('*', { count: 'exact', head: true })
+      .eq('author_github', author_github)
+      .eq('map_version', mapVersion)
+      .gte('created_at', new Date(Date.now() - 86400000).toISOString());
+    preCheck = count ?? 0
+  } catch {
+    // map_version column may not exist yet — skip rate-limit check
+  }
+
+  if ((preCheck ?? 0) >= 20) {
+    return NextResponse.json(
+      { error: 'Rate limit: max 20 graves per day' },
+      { status: 429 },
+    );
   }
 
   // 3. Validate github_url format
@@ -329,7 +363,9 @@ export async function POST(req: NextRequest) {
     last_commit_message: typeof last_commit_message === 'string' ? sanitizePublicText(last_commit_message, 500) : null,
   }
 
-  const autoSlotIds = getAutoAssignableGraveSlots().map((slot) => slot.id)
+  const autoSlotIds = getAutoAssignableGraveSlots(mapVersion).map((slot) => slot.id)
+  // For v2: the slot type is needed to pick a random GID; capture it during slot-pick
+  let pickedSlotType = ''
 
   type InsertedGrave = { id: string; slot_id: number } & Record<string, unknown>
   let insertOutcome: Awaited<ReturnType<typeof insertGraveAtomicallyWithSlotRetry<InsertedGrave>>>
@@ -337,19 +373,37 @@ export async function POST(req: NextRequest) {
     insertOutcome = await insertGraveAtomicallyWithSlotRetry({
       maxAttempts: 5,
       loadUsedSlotIds: async () => {
-        const { data: usedSlots, error } = await supabaseAdmin
+        const usedQuery = supabaseAdmin
           .from('graves')
           .select('slot_id')
 
-        if (error) {
-          throw error
+        // Filter by map_version when column exists; gracefully skip if migration not applied
+        try {
+          const { data: usedSlots, error } = await usedQuery.eq('map_version', mapVersion)
+          if (error && error.message?.includes('map_version')) {
+            const { data: allSlots } = await supabaseAdmin
+              .from('graves')
+              .select('slot_id')
+            return (allSlots ?? []).map((row) => row.slot_id)
+          }
+          if (error) throw error
+          return (usedSlots ?? []).map((row) => row.slot_id)
+        } catch {
+          const { data: allSlots } = await supabaseAdmin
+            .from('graves')
+            .select('slot_id')
+          return (allSlots ?? []).map((row) => row.slot_id)
         }
 
-        return (usedSlots ?? []).map((row) => row.slot_id)
       },
-      pickSlot: pickRandomFreeSlot,
+      pickSlot: (usedIds) => {
+        const slot = pickRandomFreeSlot(usedIds, mapVersion)
+        if (slot) pickedSlotType = slot.type
+        return slot
+      },
       insertGrave: async (slotId) => {
-        const { data, error } = await supabaseAdmin.rpc('insert_grave_if_user_slot_available', {
+        const graveGid = mapVersion === 'v2' ? pickRandomGraveGid(pickedSlotType) : null
+        const rpcParams: Record<string, unknown> = {
           p_author_github: author_github,
           p_auto_slot_ids: autoSlotIds,
           p_slot_id: slotId,
@@ -363,7 +417,12 @@ export async function POST(req: NextRequest) {
           p_github_url: graveRow.github_url,
           p_github_repo_id: graveRow.github_repo_id,
           p_last_commit_message: graveRow.last_commit_message,
-        })
+          p_map_version: mapVersion,
+        }
+        if (graveGid !== null) {
+          rpcParams.p_grave_gid = graveGid
+        }
+        const { data, error } = await supabaseAdmin.rpc('insert_grave_if_user_slot_available', rpcParams)
 
         if (error) {
           return { status: 'failed', message: error.message }
@@ -400,7 +459,7 @@ export async function POST(req: NextRequest) {
 
   if (rpcError) {
     console.error('increment_graves_count RPC failed, syncing exact count instead:', rpcError)
-    await syncUserGravesCount(author_github)
+    await syncUserGravesCount(author_github, mapVersion)
   }
 
   return NextResponse.json(grave, { status: 201 })

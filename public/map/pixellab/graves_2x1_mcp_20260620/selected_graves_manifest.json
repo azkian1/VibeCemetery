@@ -1,0 +1,140 @@
+{
+  "asset_set": "graves_2x1_selected_20260620",
+  "created": "2026-06-20",
+  "updated": "2026-06-20",
+  "purpose": "User-selected grave candidates from the curated graves_2x1_mcp_20260620/source folder after cleanup.",
+  "map": "Xmap/Map4.tmx",
+  "source_directory": "Xmap/pixellab/graves_2x1_mcp_20260620/source/",
+  "contact_sheets": [
+    "Xmap/pixellab/graves_2x1_mcp_20260620/contact_sheets/grave_2x1_batch01_12_review_sheet.png",
+    "Xmap/pixellab/graves_2x1_mcp_20260620/contact_sheets/grave_2x1_batch02_caps_style_3_review_sheet.png"
+  ],
+  "count": 9,
+  "status": "selected_not_imported_as_new_batch",
+  "notes": [
+    "This manifest replaces the stale batch01_12 and batch02_caps_style_3 manifests.",
+    "Only files currently present in source/ are listed here.",
+    "The stone keyboard file keeps its original 32x64 source orientation; previous Map4 review import treats that asset as a horizontal 2x1 grave after rotation/import."
+  ],
+  "items": [
+    {
+      "index": 1,
+      "source_batch": "2x1-01",
+      "source_slot": "02",
+      "asset": "broken_keyboard",
+      "pixellab_id": "119f29ea-76a6-4555-8282-97dac274a98e",
+      "requested": "64x32",
+      "actual": "64x32",
+      "footprint": "2x1",
+      "status": "selected_not_imported_as_new_batch",
+      "local_source": "Xmap/pixellab/graves_2x1_mcp_20260620/source/grave_2x1_batch01_02_broken_keyboard_64x32_119f29ea.png",
+      "download_url": "https://api.pixellab.ai/mcp/map-objects/119f29ea-76a6-4555-8282-97dac274a98e/download"
+    },
+    {
+      "index": 2,
+      "source_batch": "2x1-01",
+      "source_slot": "04",
+      "asset": "concrete_gpu",
+      "pixellab_id": "f659da76-852b-459e-87ff-88b70cde26f9",
+      "requested": "64x32",
+      "actual": "64x32",
+      "footprint": "2x1",
+      "status": "selected_not_imported_as_new_batch",
+      "local_source": "Xmap/pixellab/graves_2x1_mcp_20260620/source/grave_2x1_batch01_04_concrete_gpu_64x32_f659da76.png",
+      "download_url": "https://api.pixellab.ai/mcp/map-objects/f659da76-852b-459e-87ff-88b70cde26f9/download"
+    },
+    {
+      "index": 3,
+      "source_batch": "2x1-01",
+      "source_slot": "06",
+      "asset": "router_slab",
+      "pixellab_id": "bc369ea5-e7c8-4c6e-a22c-976bc14349c1",
+      "requested": "64x32",
+      "actual": "64x32",
+      "footprint": "2x1",
+      "status": "selected_not_imported_as_new_batch",
+      "local_source": "Xmap/pixellab/graves_2x1_mcp_20260620/source/grave_2x1_batch01_06_router_slab_64x32_bc369ea5.png",
+      "download_url": "https://api.pixellab.ai/mcp/map-objects/bc369ea5-e7c8-4c6e-a22c-976bc14349c1/download"
+    },
+    {
+      "index": 4,
+      "source_batch": "2x1-01",
+      "source_slot": "07",
+      "asset": "404_slab",
+      "pixellab_id": "0a60d502-8efa-4287-a83e-1c44276faf30",
+      "requested": "64x32",
+      "actual": "64x32",
+      "footprint": "2x1",
+      "status": "selected_not_imported_as_new_batch",
+      "local_source": "Xmap/pixellab/graves_2x1_mcp_20260620/source/grave_2x1_batch01_07_404_slab_64x32_0a60d502.png",
+      "download_url": "https://api.pixellab.ai/mcp/map-objects/0a60d502-8efa-4287-a83e-1c44276faf30/download"
+    },
+    {
+      "index": 5,
+      "source_batch": "2x1-01",
+      "source_slot": "10",
+      "asset": "shift_key",
+      "pixellab_id": "7dd8c393-c985-4c71-b8b7-6246787c7ab0",
+      "requested": "64x32",
+      "actual": "64x32",
+      "footprint": "2x1",
+      "status": "selected_not_imported_as_new_batch",
+      "local_source": "Xmap/pixellab/graves_2x1_mcp_20260620/source/grave_2x1_batch01_10_shift_key_64x32_7dd8c393.png",
+      "download_url": "https://api.pixellab.ai/mcp/map-objects/7dd8c393-c985-4c71-b8b7-6246787c7ab0/download"
+    },
+    {
+      "index": 6,
+      "source_batch": "2x1-01",
+      "source_slot": "11",
+      "asset": "caps_key",
+      "pixellab_id": "7c778c3f-62db-42a9-bc26-8bb32a2e6877",
+      "requested": "64x32",
+      "actual": "64x32",
+      "footprint": "2x1",
+      "status": "selected_not_imported_as_new_batch",
+      "local_source": "Xmap/pixellab/graves_2x1_mcp_20260620/source/grave_2x1_batch01_11_caps_key_64x32_7c778c3f.png",
+      "download_url": "https://api.pixellab.ai/mcp/map-objects/7c778c3f-62db-42a9-bc26-8bb32a2e6877/download"
+    },
+    {
+      "index": 7,
+      "source_batch": "2x1-01",
+      "source_slot": "12",
+      "asset": "tab_key",
+      "pixellab_id": "ecf7d4f0-6f1b-42c6-91b1-2c03fa74e458",
+      "requested": "64x32",
+      "actual": "64x32",
+      "footprint": "2x1",
+      "status": "selected_not_imported_as_new_batch",
+      "local_source": "Xmap/pixellab/graves_2x1_mcp_20260620/source/grave_2x1_batch01_12_tab_key_64x32_ecf7d4f0.png",
+      "download_url": "https://api.pixellab.ai/mcp/map-objects/ecf7d4f0-6f1b-42c6-91b1-2c03fa74e458/download"
+    },
+    {
+      "index": 8,
+      "source_batch": "2x1-02",
+      "source_slot": "01",
+      "asset": "enter_key_caps_style",
+      "pixellab_id": "076aedb0-1b5d-4661-b1e9-7a34a640dc0c",
+      "requested": "64x32",
+      "actual": "64x32",
+      "footprint": "2x1",
+      "status": "selected_not_imported_as_new_batch",
+      "local_source": "Xmap/pixellab/graves_2x1_mcp_20260620/source/grave_2x1_batch02_caps_style_01_enter_key_64x32_076aedb0.png",
+      "download_url": "https://api.pixellab.ai/mcp/map-objects/076aedb0-1b5d-4661-b1e9-7a34a640dc0c/download"
+    },
+    {
+      "index": 9,
+      "source_batch": "1x2-04",
+      "source_slot": "A",
+      "asset": "stone_keyboard",
+      "pixellab_id": null,
+      "pixellab_short_id": "6a70d0a0",
+      "requested": "32x64",
+      "actual": "32x64",
+      "footprint": "2x1_after_rotation_import",
+      "status": "selected_existing_review_asset",
+      "local_source": "Xmap/pixellab/graves_2x1_mcp_20260620/source/grave_1x2_batch04_a_stone_keyboard_32x64_6a70d0a0.png",
+      "download_url": null,
+      "note": "Full PixelLab id was not found in workspace manifests; short id is preserved from the filename."
+    }
+  ]
+}

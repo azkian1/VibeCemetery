@@ -1,0 +1,102 @@
+﻿[
+    {
+        "asset":  "tree_small_thin_a_crooked_sapling_32x64",
+        "source":  "Xmap/pixellab/tree_batch_mcp_20260605/source/tree_small_thin_a_crooked_sapling_32x64_2f5d3182.png",
+        "cleaned":  "Xmap/pixellab/tree_batch_mcp_20260605/cleaned_no_soil/tree_small_thin_a_crooked_sapling_32x64_2f5d3182_clean_no_soil.png",
+        "size":  "32x64",
+        "y_start":  50,
+        "removed_pixels":  78,
+        "status":  "cleaned / preview candidate",
+        "notes":  "small 1x2 sapling, remove root grass"
+    },
+    {
+        "asset":  "tree_small_thin_b_dark_yew_32x64",
+        "source":  "Xmap/pixellab/tree_batch_mcp_20260605/source/tree_small_thin_b_dark_yew_32x64_066c250a.png",
+        "cleaned":  "Xmap/pixellab/tree_batch_mcp_20260605/cleaned_no_soil/tree_small_thin_b_dark_yew_32x64_066c250a_clean_no_soil.png",
+        "size":  "32x64",
+        "y_start":  50,
+        "removed_pixels":  91,
+        "status":  "cleaned / preview candidate",
+        "notes":  "small 1x2 dark yew, remove small base"
+    },
+    {
+        "asset":  "tree_small_thin_c_dead_shrub_tree_32x64",
+        "source":  "Xmap/pixellab/tree_batch_mcp_20260605/source/tree_small_thin_c_dead_shrub_tree_32x64_dac67e5b.png",
+        "cleaned":  "Xmap/pixellab/tree_batch_mcp_20260605/cleaned_no_soil/tree_small_thin_c_dead_shrub_tree_32x64_dac67e5b_clean_no_soil.png",
+        "size":  "32x64",
+        "y_start":  48,
+        "removed_pixels":  84,
+        "status":  "cleaned / preview candidate",
+        "notes":  "small 1x2 dead shrub, remove grass clump"
+    },
+    {
+        "asset":  "tree_tall_thin_cypress_a_straight_32x96",
+        "source":  "Xmap/pixellab/tree_batch_mcp_20260605/source/tree_tall_thin_cypress_a_straight_32x96_533454c2.png",
+        "cleaned":  "Xmap/pixellab/tree_batch_mcp_20260605/cleaned_no_soil/tree_tall_thin_cypress_a_straight_32x96_533454c2_clean_no_soil.png",
+        "size":  "32x96",
+        "y_start":  74,
+        "removed_pixels":  227,
+        "status":  "cleaned / preview candidate",
+        "notes":  "1x3 straight cypress, remove diamond base"
+    },
+    {
+        "asset":  "tree_tall_thin_cypress_b_bent_32x96",
+        "source":  "Xmap/pixellab/tree_batch_mcp_20260605/source/tree_tall_thin_cypress_b_bent_32x96_59a95dc6.png",
+        "cleaned":  "Xmap/pixellab/tree_batch_mcp_20260605/cleaned_no_soil/tree_tall_thin_cypress_b_bent_32x96_59a95dc6_clean_no_soil.png",
+        "size":  "32x96",
+        "y_start":  75,
+        "removed_pixels":  127,
+        "status":  "cleaned / preview candidate",
+        "notes":  "1x3 bent cypress, remove grass base"
+    },
+    {
+        "asset":  "tree_medium_b_crooked_deadwood_64x96",
+        "source":  "Xmap/pixellab/tree_batch_mcp_20260605/source/tree_medium_b_crooked_deadwood_64x96_9556f66f.png",
+        "cleaned":  "Xmap/pixellab/tree_batch_mcp_20260605/cleaned_no_soil/tree_medium_b_crooked_deadwood_64x96_9556f66f_clean_no_soil.png",
+        "size":  "64x96",
+        "y_start":  66,
+        "removed_pixels":  443,
+        "status":  "cleaned / preview candidate",
+        "notes":  "2x3 deadwood, remove diamond platform"
+    },
+    {
+        "asset":  "tree_medium_c_dark_leafy_yew_64x96",
+        "source":  "Xmap/pixellab/tree_batch_mcp_20260605/source/tree_medium_c_dark_leafy_yew_64x96_b43f7f4d.png",
+        "cleaned":  "Xmap/pixellab/tree_batch_mcp_20260605/cleaned_no_soil/tree_medium_c_dark_leafy_yew_64x96_b43f7f4d_clean_no_soil.png",
+        "size":  "64x96",
+        "y_start":  76,
+        "removed_pixels":  425,
+        "status":  "cleaned / preview candidate",
+        "notes":  "2x3 leafy yew, remove small green base"
+    },
+    {
+        "asset":  "tree_round_leafy_large_a_old_oak_96x128",
+        "source":  "Xmap/pixellab/tree_batch_mcp_20260605/source/tree_round_leafy_large_a_old_oak_96x128_330f4e2f.png",
+        "cleaned":  "Xmap/pixellab/tree_batch_mcp_20260605/cleaned_no_soil/tree_round_leafy_large_a_old_oak_96x128_330f4e2f_clean_no_soil.png",
+        "size":  "96x128",
+        "y_start":  92,
+        "removed_pixels":  944,
+        "status":  "cleaned / preview candidate",
+        "notes":  "3x4 old oak, remove diamond base"
+    },
+    {
+        "asset":  "tree_round_leafy_large_b_broad_mossy_tree_96x128",
+        "source":  "Xmap/pixellab/tree_batch_mcp_20260605/source/tree_round_leafy_large_b_broad_mossy_tree_96x128_802c5e35.png",
+        "cleaned":  "Xmap/pixellab/tree_batch_mcp_20260605/cleaned_no_soil/tree_round_leafy_large_b_broad_mossy_tree_96x128_802c5e35_clean_no_soil.png",
+        "size":  "96x128",
+        "y_start":  100,
+        "removed_pixels":  716,
+        "status":  "cleaned / preview candidate",
+        "notes":  "3x4 broad mossy tree, remove oval base"
+    },
+    {
+        "asset":  "tree_hero_old_b_dead_witness_tree_96x160",
+        "source":  "Xmap/pixellab/tree_batch_mcp_20260605/source/tree_hero_old_b_dead_witness_tree_96x160_2eccfb1a.png",
+        "cleaned":  "Xmap/pixellab/tree_batch_mcp_20260605/cleaned_no_soil/tree_hero_old_b_dead_witness_tree_96x160_2eccfb1a_clean_no_soil.png",
+        "size":  "96x160",
+        "y_start":  128,
+        "removed_pixels":  607,
+        "status":  "cleaned / preview candidate",
+        "notes":  "3x5 hero dead tree, remove grass strip"
+    }
+]

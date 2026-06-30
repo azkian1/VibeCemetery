@@ -10,7 +10,7 @@ export const TOPBAR_ACTIONS = [
   { modal: 'leaderboard', label: 'Necropolis', ariaLabel: 'Open Necropolis leaderboard' },
 ] as const;
 
-export default function TopBar() {
+export default function TopBar({ mapVersion = 'v1' }: { mapVersion?: string }) {
   const { open } = useModal();
   const isMobile = useIsMobile();
 
@@ -137,6 +137,37 @@ export default function TopBar() {
             {action.label}
           </button>
         ))}
+        <Link
+          href={mapVersion === 'v2' ? '/cemetery' : '/cemetery/v2'}
+          aria-label={mapVersion === 'v2' ? 'Switch to Cemetery v1' : 'Switch to Cemetery v2'}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            height: isMobile ? 30 : 33,
+            padding: isMobile ? '5px 8px' : '5px 12px',
+            color: '#aaa9a0',
+            textDecoration: 'none',
+            border: '1px solid #3a3530',
+            borderRadius: 2,
+            background: 'linear-gradient(180deg, #2a2825 0%, #1e1c18 100%)',
+            fontSize: isMobile ? 12 : 14,
+            fontFamily: "var(--font-cinzel), 'Cinzel', Georgia, serif",
+            letterSpacing: 0.5,
+            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03), 0 1px 2px rgba(0,0,0,0.3)',
+            transition: 'all 0.15s',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.borderColor = '#5a4a30';
+            e.currentTarget.style.color = '#8aadc0';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.borderColor = '#3a3530';
+            e.currentTarget.style.color = '#aaa9a0';
+          }}
+        >
+          {mapVersion === 'v2' ? 'v1' : 'v2'}
+        </Link>
       </div>
 
       {/* Center — medallion hanging below HUD */}

@@ -5,28 +5,57 @@ import { cemeteryEvents, type CameraMoveData, type SlotPositionData, type Minima
 import { useGame } from '@/context/GameContext';
 import { useIsMobile } from '@/hooks/useIsMobile';
 
-// Map is 40x40 tiles × 48px = 1920×1920 (square)
-const WORLD = 1920;
-const SIZE = 140;
-const SCALE = SIZE / WORLD;
-const TILE_PX = SIZE / 40; // pixels per tile on minimap (~3.5)
+const V1_MAP_TILES_X = 40;
+const V1_MAP_TILES_Y = 40;
+const V1_WORLD = 1920;
 
-// Tile color palette: index → color (lighter)
+const V2_MAP_TILES_X = 140;
+const V2_MAP_TILES_Y = 104;
+const V2_WORLD_W = 4480;
+const V2_WORLD_H = 3328;
+
+const SIZE = 140;
+
 const TILE_COLORS: Record<number, string> = {
-  0: '#1a1918',  // empty — dark void
-  1: '#3d3d2e',  // ground — earth
-  2: '#6a6050',  // roads — sandy path
-  3: '#2e3d2e',  // grass/decoration — green
+  0: '#1a1918',
+  1: '#3d3d2e',
+  2: '#6a6050',
+  3: '#2e3d2e',
 };
 
 const BUILDING_COLOR = '#e8d5a3';
 
-export default function Minimap() {
+function getMapConfig(v: string) {
+  if (v === 'v2') {
+    const scaleX = SIZE / V2_WORLD_W;
+    const scaleY = SIZE / V2_WORLD_H;
+    return {
+      worldW: V2_WORLD_W,
+      worldH: V2_WORLD_H,
+      scaleX,
+      scaleY,
+      tilePxX: SIZE / V2_MAP_TILES_X,
+      tilePxY: SIZE / V2_MAP_TILES_Y,
+    };
+  }
+  return {
+    worldW: V1_WORLD,
+    worldH: V1_WORLD,
+    scaleX: SIZE / V1_WORLD,
+    scaleY: SIZE / V1_WORLD,
+    tilePxX: SIZE / V1_MAP_TILES_X,
+    tilePxY: SIZE / V1_MAP_TILES_Y,
+  };
+}
+
+export default function Minimap({ mapVersion = 'v1' }: { mapVersion?: string }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const viewportRef = useRef<CameraMoveData | null>(null);
   const tileDataRef = useRef<MinimapTilesData | null>(null);
   const { state } = useGame();
   const isMobile = useIsMobile();
+
+  const cfg = useMemo(() => getMapConfig(mapVersion), [mapVersion]);
 
   const slotsRef = useRef(state.slotPositions);
   const gravesRef = useRef(state.graves);
@@ -56,43 +85,41 @@ export default function Minimap() {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Background
     ctx.fillStyle = '#1a1918';
     ctx.fillRect(0, 0, SIZE, SIZE);
 
-    // Draw tile raster (ground, roads, grass)
     const td = tileDataRef.current;
     if (td) {
+      const tilePxX = cfg.tilePxX;
+      const tilePxY = cfg.tilePxY;
       for (let y = 0; y < td.mapHeight; y++) {
         for (let x = 0; x < td.mapWidth; x++) {
           const val = td.tiles[y * td.mapWidth + x];
           if (val === 0) continue;
           ctx.fillStyle = TILE_COLORS[val] ?? TILE_COLORS[0];
           ctx.fillRect(
-            Math.floor(x * TILE_PX),
-            Math.floor(y * TILE_PX),
-            Math.ceil(TILE_PX),
-            Math.ceil(TILE_PX),
+            Math.floor(x * tilePxX),
+            Math.floor(y * tilePxY),
+            Math.ceil(tilePxX),
+            Math.ceil(tilePxY),
           );
         }
       }
     }
 
-    // Occupied graves as small bright dots
     for (const [slotId] of gravesRef.current) {
       const slot = slotMapRef.current.get(slotId);
       if (slot) {
         ctx.fillStyle = '#8a8';
-        ctx.fillRect(slot.x * SCALE, slot.y * SCALE, 2, 2);
+        ctx.fillRect(slot.x * cfg.scaleX, slot.y * cfg.scaleY, 2, 2);
       }
     }
 
-    // Buildings — filled + outlined
     for (const b of buildingsRef.current) {
-      const bx = b.x * SCALE;
-      const by = b.y * SCALE;
-      const bw = b.width * SCALE;
-      const bh = b.height * SCALE;
+      const bx = b.x * cfg.scaleX;
+      const by = b.y * cfg.scaleY;
+      const bw = b.width * cfg.scaleX;
+      const bh = b.height * cfg.scaleY;
       ctx.fillStyle = BUILDING_COLOR;
       ctx.globalAlpha = 0.4;
       ctx.fillRect(bx, by, bw, bh);
@@ -102,20 +129,18 @@ export default function Minimap() {
       ctx.strokeRect(bx, by, bw, bh);
     }
 
-    // Center marker — eye icon
     const vp = viewportRef.current;
     if (vp) {
-      const cx = (vp.scrollX + vp.viewWidth / 2) * SCALE;
-      const cy = (vp.scrollY + vp.viewHeight / 2) * SCALE;
+      const cx = (vp.scrollX + vp.viewWidth / 2) * cfg.scaleX;
+      const cy = (vp.scrollY + vp.viewHeight / 2) * cfg.scaleY;
       ctx.font = '12px serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillStyle = '#e8d5a3';
       ctx.fillText('\u{1F441}', cx, cy);
     }
-  }, []);
+  }, [cfg]);
 
-  // Listen for tile raster from Phaser scene
   useEffect(() => {
     if (isMobile) return;
     const onTiles = (data: MinimapTilesData) => {
@@ -128,7 +153,6 @@ export default function Minimap() {
     };
   }, [draw, isMobile]);
 
-  // Listen for camera moves
   useEffect(() => {
     if (isMobile) return;
     const onCameraMove = (data: CameraMoveData) => {
@@ -141,23 +165,21 @@ export default function Minimap() {
     };
   }, [draw, isMobile]);
 
-  // Redraw when slots or graves change
   useEffect(() => {
     if (isMobile) return;
     draw();
   }, [state.slotPositions, state.graves, draw, isMobile]);
 
-  // Click → teleport camera
   const handleClick = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
     const canvasX = e.clientX - rect.left;
     const canvasY = e.clientY - rect.top;
-    const worldX = canvasX / SCALE;
-    const worldY = canvasY / SCALE;
+    const worldX = canvasX / cfg.scaleX;
+    const worldY = canvasY / cfg.scaleY;
     cemeteryEvents.emit('minimap_click', { worldX, worldY });
-  }, []);
+  }, [cfg.scaleX, cfg.scaleY]);
 
   if (isMobile) return null;
 
@@ -172,7 +194,6 @@ export default function Minimap() {
         height: SIZE,
         zIndex: 40,
         borderRadius: '50%',
-        // Double ring frame: inner gold + outer dark
         boxShadow: [
           'inset 0 0 0 2px rgba(232, 213, 163, 0.7)',
           '0 0 0 2px rgba(40, 30, 15, 0.9)',
@@ -198,7 +219,6 @@ export default function Minimap() {
           imageRendering: 'pixelated',
         }}
       />
-      {/* Glass glare overlay */}
       <div
         style={{
           position: 'absolute',

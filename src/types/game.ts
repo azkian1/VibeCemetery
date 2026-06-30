@@ -14,6 +14,7 @@ export interface GraveData {
   tier: number;
   f_count?: number;
   last_commit_message?: string;
+  grave_gid?: number | null;
 }
 
 export interface CrematedData {

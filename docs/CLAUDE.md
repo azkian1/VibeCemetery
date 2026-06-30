@@ -43,7 +43,10 @@ vibecemetery/
 |   |   |-- agents/page.tsx            # paused Agent / GitLawb landing page
 |   |   |-- agents/gitlawb/page.tsx    # paused Agent Ash install contract
 |   |   |-- agents/gitlawb/v1/page.tsx # paused Agent Skill distribution page
-|   |   |-- cemetery/page.tsx          # Phaser cemetery map experience
+|   |   |-- cemetery/
+|   |   |   |-- page.tsx          # v1 cemetery map experience
+|   |   |   `-- v2/
+|   |   |       `-- page.tsx      # v2 cemetery map experience (Map4, 140×104, PixelLab)
 |   |   |-- grave/[id]/
 |   |   |   |-- page.tsx               # grave deep-link redirect page
 |   |   |   |-- GraveRedirectClient.tsx
@@ -72,9 +75,11 @@ vibecemetery/
 |   |           `-- tokens/route.ts
 |   |-- components/
 |   |   |-- AppProviders.tsx           # top-level React providers
-|   |   |-- CemeteryApp.tsx            # extracted cemetery app shell and modal layer
+|   |   |-- CemeteryApp.tsx            # v1 cemetery app shell and modal layer
+|   |   |-- CemeteryAppV2.tsx         # v2 cemetery app shell (Map4, 140×104)
 |   |   |-- HomeScannerLanding.tsx     # root scanner landing page
-|   |   |-- PhaserCanvas.tsx           # Phaser bootstrap wrapper
+|   |   |-- PhaserCanvas.tsx           # v1 Phaser bootstrap wrapper
+|   |   |-- PhaserCanvasV2.tsx        # v2 Phaser bootstrap wrapper
 |   |   |-- HoverTooltip.tsx
 |   |   |-- hud/
 |   |   |   |-- TopBar.tsx
@@ -113,11 +118,16 @@ vibecemetery/
 |   |-- context/GameContext.tsx        # shared cemetery state
 |   |-- game/
 |   |   |-- config.ts
+|   |   |-- config-v2.ts            # v2 Phaser game config
 |   |   |-- events.ts
-|   |   |-- scenes/CemeteryScene.ts
+|   |   |-- scenes/
+|   |   |   |-- CemeteryScene.ts    # v1 scene (az.tmj, 40×40, 48px)
+|   |   |   `-- CemeterySceneV2.ts  # v2 scene (Map4.tmj, 140×104, 32px)
 |   |   `-- utils/
 |   |       |-- slotManager.ts
-|   |       `-- tileRegistry.ts
+|   |       |-- slotManager-v2.ts   # v2 slot parser (GraveObj layer)
+|   |       |-- tileRegistry.ts
+|   |       `-- tileRegistry-v2.ts  # v2 tile catalog (PixelLab GIDs)
 |   |-- gravedigger/
 |   |   |-- character.md
 |   |   |-- phrases.ts
@@ -146,7 +156,10 @@ vibecemetery/
 |       `-- next-auth.d.ts
 |-- public/
 |   |-- map/
-|   |   |-- az.tmj
+|   |   |-- az.tmj                  # v1 map (40×40, 48px, read-only)
+|   |   |-- Map4.tmj               # v2 map (140×104, 32px, PixelLab)
+|   |   |-- pixellab/              # v2 PixelLab production assets
+|   |   |-- tilesets/              # v2 terrain spritesheet
 |   |   `-- docs/
 |   |       |-- CLAUDEMAP.md
 |   |       |-- LEVEL_DESIGN_RULES.md
@@ -184,8 +197,13 @@ vibecemetery/
 |   |-- CLAUDE.md
 |   |-- cli-auth-v1.sql
 |   |-- grave-slot-rpc.sql
+|   |-- map2.md                      # v2 integration plan and architecture
+|   |-- map-v2-migration.sql         # v2 DB migration (map_version, RPC)
+|   |-- map-v2-grave-gid.sql         # v2 grave sprite selection (grave_gid, RPC)
 |   |-- setup.md
 |   `-- supabase-schema.sql
+|-- scripts/
+|   `-- convert-tmx-to-tmj.mjs       # TMX→TMJ converter for Map4
 |-- next.config.ts
 |-- playwright.config.ts
 |-- playwright.unit.config.ts
@@ -198,6 +216,7 @@ vibecemetery/
 ## App Routes
 - `/` - scanner landing page for connected-account GitHub scans; redirects legacy root grave, urn, and bury-modal query intents into `/cemetery`
 - `/cemetery` - Phaser cemetery map experience with React HUD and Human Layer rituals
+- `/cemetery/v2` - Map v2 (140×104, 32px, PixelLab assets) with full functionality
 - `/grave/[id]` - redirects into `/cemetery?grave=<uuid>` flow
 - `/urn/[id]` - redirects into `/cemetery?urn=<id>` flow
 - `/cli/connect` - browser approval UI for CLI linking
@@ -243,13 +262,18 @@ Paused legacy Agent Layer API routes remain in the codebase, but are not part of
 
 ## Core Architecture Notes
 - `src/app/page.tsx` renders the scanner landing page and redirects legacy root query intents such as `/?grave=...`, `/?urn=...`, and `/?modal=bury` to `/cemetery`.
-- `src/app/cemetery/page.tsx` renders the Phaser cemetery map through `src/components/CemeteryApp.tsx`.
+- `src/app/cemetery/page.tsx` renders the v1 Phaser cemetery map through `src/components/CemeteryApp.tsx`.
+- `src/app/cemetery/v2/page.tsx` renders the v2 Phaser cemetery map through `src/components/CemeteryAppV2.tsx`.
 - `src/app/agents/page.tsx` is a paused legacy Agent / GitLawb landing page, not an active product hub.
 - `src/components/AppProviders.tsx` and `src/context/GameContext.tsx` hold the shared client state for graves, cremated items, modal stack, chat, user session-derived data, and event coordination.
 - `src/components/HomeScannerLanding.tsx` owns the compact root scanner flow; `Scan GitHub` is the only landing-page GitHub auth entry point and scans `session.user.github_username` only.
 - `src/components/PhaserCanvas.tsx` embeds Phaser client-side only, starts with explicit non-zero dimensions, and ignores zero-size resize events before calling `game.scale.resize(...)`.
-- `src/game/scenes/CemeteryScene.ts` owns map rendering, camera behavior, pinch zoom, day/night cycle, particle effects, lamp rendering, highlights, and the burial ceremony animation.
+- `src/components/PhaserCanvasV2.tsx` v2 counterpart, imports `createGameConfigV2` instead of `createGameConfig`.
+- `src/game/scenes/CemeteryScene.ts` owns v1 map rendering, camera behavior, pinch zoom, day/night cycle, particle effects, lamp rendering, highlights, and the burial ceremony animation.
+- `src/game/scenes/CemeterySceneV2.ts` v2 counterpart: 74 PixelLab tilesets, 3 grave types (tall/wide/large), building/tree preview sprites, adapted fog/camera/particles.
 - `src/lib/map-slots.ts` and `src/game/utils/slotManager.ts` are the slot source of truth for map placement.
+- `src/game/utils/slotManager-v2.ts` v2 slot parser: infers grave type from dimensions (32×64→tall, 64×32→wide, 64×64→large), hardcoded building map.
+- `src/game/utils/tileRegistry-v2.ts` v2 tile catalog: GID ranges 51-76 (1×2), 77-85 (2×1), 86-97 (2×2). Also exports `pickRandomGraveGid()` for server-side random sprite selection.
 - `src/lib/slot-economy.ts` is the source of truth for normal user slot progression: 4 base normal slots, +1 first-grave X share slot.
 - Browser cremation is slot-gated: scan results and cemetery HUD lead to `Bury` while grave slots are available, and to `Cremate` only when no grave slots remain; cremations do not unlock slots.
 - `src/proxy.ts` applies shared API CORS handling and read rate limiting for `/api/*` requests.
@@ -265,7 +289,10 @@ Paused legacy Agent Layer API routes remain in the codebase, but are not part of
 
 ## Data Model
 - `users` - GitHub-linked user profile, progression counters, and first-grave X share unlock timestamp
-- `graves` - mapped GitHub burials with slot assignment, epitaph, tier, and `f_count`
+- `graves` - mapped GitHub burials with slot assignment, epitaph, tier, `f_count`, `map_version`, and `grave_gid`
+  - `map_version` - partitions v1 and v2 graves (`'v1'` default, `'v2'` for Map4)
+  - `grave_gid` - the randomly selected PixelLab sprite GID (v2 only, nullable for v1)
+  - Unique constraint: `(slot_id, map_version)` — same slot can exist in both versions
 - `cremated` - cremated projects from browser or CLI flow, with `source` identifying GitHub or local `/bury` origin
 - `f_votes` - idempotent respect votes keyed per user and grave
 - `cli_link_sessions` - short-lived browser approval sessions for CLI auth
@@ -274,7 +301,7 @@ Paused legacy Agent Layer API routes remain in the codebase, but are not part of
 - `agent_ash_tokens` - paused legacy hashed Agent Ash tokens
 - `agent_ash_link_sessions` - paused legacy Agent Ash browser approval sessions
 - RPC: `increment_cremated_count(username)` for atomic cremation counter updates
-- RPC: `insert_grave_if_user_slot_available(...)` for atomic grave slot economy enforcement and grave insertion
+- RPC: `insert_grave_if_user_slot_available(...)` for atomic grave slot economy enforcement and grave insertion; supports `p_map_version` and `p_grave_gid`
 
 ## Key Conventions
 - Prefer inline styles for UI; `globals.css` is for app-wide base styling, not component-level theme work.
@@ -285,8 +312,12 @@ Paused legacy Agent Layer API routes remain in the codebase, but are not part of
 - `POST /api/graves` verifies the GitHub repository before insertion: URL and repo id must match, owner must be the signed-in user, forks are rejected, and pushed_at must be 7+ days old.
 - Grave placement must come from parsed map slots, not hardcoded coordinates.
 - Normal user graves are limited server-side by slot economy before map slot assignment.
-- Auto-assigned user graves can use only `grave` and `grave_tall` slots. `grave_special` is reserved for friends/welcome placements; Tier 2–3 slots are manual Gravedigger upgrades for best ideas.
-- Phaser input uses `windowEvents: false` to prevent pointer bleed-through into HTML overlays.
+- Auto-assigned user graves can use only `grave` and `grave_tall` slots in v1. In v2, only `grave_tall` is auto-assignable (87 slots). `grave_special` is reserved for friends/welcome placements; Tier 2–3 slots are manual Gravedigger upgrades for best ideas.
+- v2 grave sprites are single-PNG PixelLab assets rendered as Phaser sprites (not multi-tile compositions). The sprite GID is randomly selected server-side at burial time via `pickRandomGraveGid()` using `Math.random()`, stored in `grave_gid`, and rendered deterministically on subsequent page loads.
+- v2 slot type is inferred from GraveObj object dimensions: 32×64→`grave_tall`, 64×32→`grave_wide`, 64×64→`grave_large`.
+- v2 buildings are hardcoded in `slotManager-v2.ts` (Chapel, Gravedigger Lodge, Service Garage, Service Building, Main Gate, Side Wicket) and rendered from preview object layers.
+- v2 uses `pickRandomFreeSlot(usedIds, 'v2')` with bias `{grave_tall: 2, grave_wide: 1}` — grave_tall is twice as likely as grave_wide.
+- `/cemetery/v2` reuses all modals, HUD, and GameContext from v1. Only PhaserCanvas, CemeteryApp, and Minimap have v2 counterparts.
 - Phaser uses explicit sizing with `Scale.NONE`; `ResizeObserver` drives resize updates and zero-width or zero-height resize events are ignored to avoid WebGL framebuffer instability.
 - Grave burial ceremony is React-triggered and Phaser-rendered; cremations do not use the ceremony animation.
 - CLI auth uses browser approval plus a one-time `claim_token`; long-lived CLI tokens are server-issued and hashed at rest.
@@ -351,5 +382,8 @@ Paused Agent Layer legacy routes also reference `AGENT_ASH_TOKEN_SECRET` and `GI
 - `docs/agent-layer-archive/` - archived GitLawb / Agent Ash docs
 - `docs/cli-auth-v1.sql` - Supabase schema for CLI auth tables
 - `docs/grave-slot-rpc.sql` - Supabase RPC for atomic grave slot inserts
-- `public/map/docs/CLAUDEMAP.md` - map slot and tile reference
+- `docs/map-v2-migration.sql` - v2 DB migration (map_version column + RPC update)
+- `docs/map-v2-grave-gid.sql` - v2 grave sprite selection (grave_gid column + RPC update)
+- `docs/map2.md` - full v2 integration plan and architecture reference
+- `public/map/docs/CLAUDEMAP.md` - v1 map slot and tile reference
 - `public/map/docs/LEVEL_DESIGN_RULES.md` - map design constraints

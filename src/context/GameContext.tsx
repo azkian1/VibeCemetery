@@ -328,15 +328,16 @@ export function useModal() {
   };
 }
 
-export function useGraves(options?: { auto?: boolean }) {
+export function useGraves(options?: { auto?: boolean; mapVersion?: 'v1' | 'v2' }) {
   const { state, dispatch } = useGame();
   const auto = options?.auto ?? true;
+  const mapVersion = options?.mapVersion ?? 'v1';
 
   const fetchGraves = useCallback(async () => {
     dispatch({ type: 'SET_GRAVES_LOADING' });
 
     try {
-      const res = await fetch('/api/graves');
+      const res = await fetch(`/api/graves?map_version=${mapVersion}`);
       if (!res.ok) {
         console.error('[VibeCemetery] Failed to fetch graves:', res.status);
         dispatch({ type: 'SET_GRAVES_ERROR', error: 'The cemetery records could not be loaded.' });
@@ -350,7 +351,7 @@ export function useGraves(options?: { auto?: boolean }) {
       console.error('[VibeCemetery] Failed to fetch graves:', err);
       dispatch({ type: 'SET_GRAVES_ERROR', error: 'The cemetery records could not be loaded.' });
     }
-  }, [dispatch]);
+  }, [dispatch, mapVersion]);
 
   useEffect(() => {
     if (!auto) return;

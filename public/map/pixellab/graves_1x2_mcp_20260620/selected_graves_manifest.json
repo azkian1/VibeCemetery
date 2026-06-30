@@ -1,0 +1,61 @@
+{
+  "asset_set": "graves_1x2_selected_20260620",
+  "created": "2026-06-20",
+  "updated": "2026-06-28",
+  "purpose": "User-selected vertical 1x2 grave candidates from the curated graves_1x2_mcp_20260620/source folder after cleanup.",
+  "map": "Xmap/Map4.tmx",
+  "source_directory": "Xmap/pixellab/graves_1x2_mcp_20260620/source/",
+  "contact_sheets": [
+    "Xmap/pixellab/graves_1x2_mcp_20260620/contact_sheets/grave_1x2_selected_27_review_sheet.png"
+  ],
+  "count": 26,
+  "footprint": "1x2",
+  "expected_size": "32x64",
+  "status": "selected_source_of_truth_synced_to_existing_review_refs",
+  "notes": [
+    "This manifest replaces the stale batch manifests and current_1x2_selection_manifest.json.",
+    "Only files currently intended to remain in source/ are listed here.",
+    "Rejected black DEL v1 was removed from the selected source set and superseded by DEL v2.",
+    "Map4.tmx review layers were not rearranged in this cleanup pass; existing tileset image references were synced to current source paths. GraveObj remains the hidden logical hover/click layer."
+  ],
+  "items": [
+    { "index": 1, "asset": "laptop", "actual": "32x64", "bytes": 1596, "local_source": "Xmap/pixellab/graves_1x2_mcp_20260620/source/batch06_01_laptop_4c95c269.png" },
+    { "index": 2, "asset": "mvp_monolith", "actual": "32x64", "bytes": 2701, "local_source": "Xmap/pixellab/graves_1x2_mcp_20260620/source/batch06_03_mvp_monolith_0351632b.png" },
+    { "index": 3, "asset": "spinner", "actual": "32x64", "bytes": 3240, "local_source": "Xmap/pixellab/graves_1x2_mcp_20260620/source/batch06_05_spinner_d80d6e79.png" },
+    { "index": 4, "asset": "merge_conflict", "actual": "32x64", "bytes": 2434, "local_source": "Xmap/pixellab/graves_1x2_mcp_20260620/source/batch06_10_merge_conflict_7e179831.png" },
+    { "index": 5, "asset": "zip_archive", "actual": "32x64", "bytes": 1747, "local_source": "Xmap/pixellab/graves_1x2_mcp_20260620/source/batch06_15_zip_archive_df472bd8.png" },
+    { "index": 6, "asset": "kanban", "actual": "32x64", "bytes": 1525, "local_source": "Xmap/pixellab/graves_1x2_mcp_20260620/source/batch06_16_kanban_740c7863.png" },
+    { "index": 7, "asset": "chatbot", "actual": "32x64", "bytes": 1982, "local_source": "Xmap/pixellab/graves_1x2_mcp_20260620/source/batch06_17_chatbot_08238e46.png" },
+    { "index": 8, "asset": "api_endpoint", "actual": "32x64", "bytes": 1456, "local_source": "Xmap/pixellab/graves_1x2_mcp_20260620/source/batch06_18_api_endpoint_f7cdbd63.png" },
+    { "index": 9, "asset": "deploy_badge", "actual": "32x64", "bytes": 1429, "local_source": "Xmap/pixellab/graves_1x2_mcp_20260620/source/batch06_19_deploy_badge_b34e2468.png" },
+    { "index": 10, "asset": "almost_product", "actual": "32x64", "bytes": 1558, "local_source": "Xmap/pixellab/graves_1x2_mcp_20260620/source/batch06_24_almost_product_bca46cb2.png" },
+    { "index": 11, "asset": "winrar_cracked_stack", "actual": "32x64", "bytes": 2621, "local_source": "Xmap/pixellab/graves_1x2_mcp_20260620/source/batch07_winrar_02_cracked_stack_5be922bb.png" },
+    { "index": 12, "asset": "winrar_dark_archive", "actual": "32x64", "bytes": 2102, "local_source": "Xmap/pixellab/graves_1x2_mcp_20260620/source/batch07_winrar_03_dark_archive_83e7003d.png" },
+    { "index": 13, "asset": "flat_cross_slab", "actual": "32x64", "bytes": 1096, "local_source": "Xmap/pixellab/graves_1x2_mcp_20260620/source/grave_1x2_batch03_b_flat_cross_slab_32x64_a4654327.png" },
+    { "index": 14, "asset": "microchip_cross", "actual": "32x64", "bytes": 1364, "local_source": "Xmap/pixellab/graves_1x2_mcp_20260620/source/grave_1x2_batch05_02_microchip_cross_32x64_090b565c.png" },
+    { "index": 15, "asset": "broken_keyboard_slab", "actual": "32x64", "bytes": 1752, "local_source": "Xmap/pixellab/graves_1x2_mcp_20260620/source/grave_1x2_batch05_03_broken_keyboard_slab_32x64_63b07f55.png" },
+    { "index": 16, "asset": "dead_disk_slab", "actual": "32x64", "bytes": 1274, "local_source": "Xmap/pixellab/graves_1x2_mcp_20260620/source/grave_1x2_batch05_09_dead_disk_slab_32x64_ce37aadc.png" },
+    { "index": 17, "asset": "server_panel_slab", "actual": "32x64", "bytes": 2495, "local_source": "Xmap/pixellab/graves_1x2_mcp_20260620/source/grave_1x2_batch05_12_server_panel_slab_32x64_c1262087.png" },
+    { "index": 18, "asset": "cracked_crt_slab", "actual": "32x64", "bytes": 587, "local_source": "Xmap/pixellab/graves_1x2_mcp_20260620/source/grave_1x2_batch05_13_cracked_crt_slab_32x64_f4e23bcb.png" },
+    { "index": 19, "asset": "hourglass_inlay_slab", "actual": "32x64", "bytes": 1629, "local_source": "Xmap/pixellab/graves_1x2_mcp_20260620/source/grave_1x2_batch05_19_hourglass_inlay_slab_32x64_b9b476ad.png" },
+    { "index": 20, "asset": "concrete_capacitor_slab", "actual": "32x64", "bytes": 1691, "local_source": "Xmap/pixellab/graves_1x2_mcp_20260620/source/grave_1x2_batch05_22_concrete_capacitor_slab_32x64_44577a41.png" },
+    { "index": 21, "asset": "marble_iron_heatsink_slab", "actual": "32x64", "bytes": 1704, "local_source": "Xmap/pixellab/graves_1x2_mcp_20260620/source/grave_1x2_batch05_25_marble_iron_heatsink_slab_32x64_52a98cb4.png" },
+    { "index": 22, "asset": "iron_pci_slot_slab", "actual": "32x64", "bytes": 1709, "local_source": "Xmap/pixellab/graves_1x2_mcp_20260620/source/grave_1x2_batch05_26_iron_pci_slot_slab_32x64_99bbf84d.png" },
+    { "index": 23, "asset": "gpu_memory_slab", "actual": "32x64", "bytes": 1493, "local_source": "Xmap/pixellab/graves_1x2_mcp_20260620/source/grave_1x2_batch05_33_gpu_memory_slab_32x64_3d5b1ba6.png" },
+    { "index": 24, "asset": "atx_power_connector_slab", "actual": "32x64", "bytes": 2283, "local_source": "Xmap/pixellab/graves_1x2_mcp_20260620/source/grave_1x2_batch05_34_atx_power_connector_slab_32x64_1d45172d.png" },
+    { "index": 25, "asset": "numpad_plus_key_cross_style", "actual": "32x64", "bytes": 1685, "local_source": "Xmap/pixellab/graves_1x2_mcp_20260620/source/grave_1x2_batch08_02_numpad_plus_key_cross_style_32x64_9a47775a.png" },
+    { "index": 26, "asset": "del_key_cross_style_v2", "actual": "32x64", "bytes": 1649, "local_source": "Xmap/pixellab/graves_1x2_mcp_20260620/source/grave_1x2_batch08_03_del_key_cross_style_v2_32x64_586efee3.png" }
+  ],
+  "removed_from_selected_source": [
+    {
+      "asset": "del_key_cross_style_v1",
+      "local_source": "Xmap/pixellab/graves_1x2_mcp_20260620/source/grave_1x2_batch08_01_del_key_cross_style_32x64_a5c2432d.png",
+      "reason": "Rejected by user: too black, did not match the concrete dark-violet palette."
+    },
+    {
+      "asset": "terminal",
+      "local_source": "Xmap/pixellab/graves_1x2_mcp_20260620/source/batch06_02_terminal_2ddf4123.png",
+      "reason": "Removed by user during final selection cleanup."
+    }
+  ]
+}
