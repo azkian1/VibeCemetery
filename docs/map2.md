@@ -713,3 +713,56 @@ On `/cemetery`, show a subtle banner: "Viewing v1 — wallet connect disabled.
 4. **Buildings hardcoded** — Map4 has no building object layer; 6 buildings defined in `slotManager-v2.ts`
 5. **Tileset path map** — 74 tilesets use a `TILESET_IMAGE` dictionary because names don't match file paths (subdirectories)
 6. **Shared GameContext** — v1 and v2 reuse the same context, modals, and HUD; only game layer differs
+
+---
+
+## Debug Log (2026-06-29) — Why objects / fog are misplaced
+
+### Known working vs not working
+| Element | Status | Notes |
+|---------|--------|-------|
+| Terrain (grass/flagstone) | ✅ Visible | `load.spritesheet` with frameWidth 32, added `setPosition(768, 1312)` |
+| Buildings tile layer | ⚠️ Planning squares | Hidden in TMJ, force-visible shows blockout tiles, not real sprites |
+| Building sprites (Chapel, Gate, etc.) | ❌ Not visible | `renderBuildingPreviews()` calls `add.sprite` with correct offsets |
+| Tree sprites | ❌ Not visible | `renderTreeSprites()` calls `add.sprite` with correct TreeObj offset |
+| Grave slots (interactive zones) | ❌ Not testable | No API data without Supabase migration |
+| Fog layers | ❌ Not correct | Rendering at wrong position or not visible |
+| Camera start position | ⚠️ | `centerOn(1760, 3100)` at zoom 0.8-0.9 |
+| Camera bounds | ⚠️ | Tried `worldBounds`, then removed. Elastic bounds use WORLD_W/H |
+
+### Theories tested and disproven
+
+1. **Offset mismatch theory** — Coords from TMJ were compared against runtime. All matched:
+   - GraveObj: raw + 768,1312 = correct
+   - TreeObj: raw + 800,1344 = correct
+   - Building previews: raw + layer offset = correct
+   - Chapel: 2160+(-480)=1680, wrong behavior despite correct coords
+   
+2. **Fog offset theory** — If fog layers (fog_soft_inner, fog_soft_outer, fog_locked_blockout) are at TMJ offset (0,0) but terrain is at (768,1312), they're in different tile coordinate systems. Applying `setPosition(768,1312)` to ALL layers broke fog even more (fog tiles at wrong absolute world positions).
+
+3. **Tile size / frame slicing theory** — `load.image` vs `load.spritesheet`:
+   - With `load.image`: multi-tile spritesheets (terrain 4×4, blockout 9×1) render as frame 0 only = invisible
+   - With `load.spritesheet(frameWidth:32, frameHeight:32)`: frames are sliced correctly
+   - BUT some single-tile spritesheets (buildings with odd dimensions like 320×160, 160×256) may fail with `spritesheet` loader
+
+4. **Failed approach: all layers get setPosition(768,1312)** — Made fog appear at wrong world coordinates because fog's tile data sits at tile coords (0,0) covering the entire map — its tiles are NOT meant to be shifted.
+
+### Likely cause: object rendering vs tile layer alignment
+
+The TMJ uses MULTIPLE tile coordinate systems:
+- Terrain layer: tiles at grid (x=0..139, y=0..103) with visual offset (768,1312)
+- GraveObj objects: raw coords + layer offset (768,1312) → world space
+- TreeObj objects: raw coords + layer offset (800,1344) → world space
+- Fog layers: tiles at grid (x=0..139, y=0..103) with NO offset (0,0) — covers entire map
+
+The terrain and fog tile layers are INCOMPATIBLE rendering systems:
+- In Tiled, layer offset is visual-only — all tile layers share the same tile grid
+- In Phaser, `createLayer` + `setPosition` physically shifts the layer's tiles in world space
+- This means: terrain tiles at grid (24,41) are at world (768,1312) after shift
+- Fog tiles at grid (50,90) are at world (50×32, 90×32) = (1600, 2880) without shift
+- Camera is looking at world (1760, 3100) — in terrain space, but fog tiles are elsewhere
+
+### Next debugging steps
+1. Remove `setPosition(768,1312)` from terrain — render terrain at (0,0) like fog and adjust camera to match the combined visual
+2. OR apply `setPosition(768,1312)` to ALL layers (including fog) so they share the same world coordinate system — this is what Tiled does visually
+3. OR convert fog tile data to match terrain offset (i.e. shift all fog tile coordinates by -24 tiles in X, -41 tiles in Y) so fog overlays terrain correctly when both at (0,0)
