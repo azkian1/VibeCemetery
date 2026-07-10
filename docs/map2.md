@@ -33,14 +33,27 @@ v1 remains view-only (no wallet connect). v2 gets full functionality.
 
 ## Step 0 — Asset Preparation
 
-### 0.1 Convert TMX → TMJ
+### 0.1 Edit / Convert TMX → TMJ
 
-Open `C:\Users\az\Desktop\March\May\Xmap\Map4.tmx` in Tiled (v1.11.2).
-File → Export As → choose JSON format → save as `Map4.tmj`.
+The live v2 map file is:
 
-Place at: `C:\Users\az\Desktop\March\02\vibecemetery\public\map\Map4.tmj`
+```text
+C:\Users\az\Desktop\March\02\vibecemetery\public\map\Map4.tmj
+```
 
-Alternatively write `scripts/convert-tmx-to-tmj.mjs` using xml2js for automation.
+Open this file directly in Tiled when editing the project map. Saving it updates
+the file served by `/cemetery/v2` at `/map/Map4.tmj`; refresh the browser after
+save.
+
+If editing from a `.tmx` source instead, convert back into the live TMJ file:
+
+```bash
+node scripts/convert-tmx-to-tmj.mjs path/to/Map4.tmx public/map/Map4.tmj
+```
+
+The converter normalizes numeric attributes, including negative offsets, and
+adds explicit `x: 0`, `y: 0` to tile layers because Phaser's Tiled parser expects
+numeric layer positions when `createLayer()` uses TMJ offsets.
 
 ### 0.2 Copy PixelLab Assets
 
@@ -116,6 +129,30 @@ to `public/map/`:
 
 Remove any absolute paths that may have been embedded by Tiled.
 
+### 0.4 Coordinate Contract
+
+`Map4.tmj` contains layer offsets authored in Tiled. Phaser applies them during
+map parsing / layer creation, so runtime code must not add these offsets again.
+
+Current coordinate model:
+
+| Layer | TMJ position model | Runtime rule |
+|-------|--------------------|--------------|
+| `pixellab_dualgrid_reconstructed` | tile layer `x:0`, `y:0`, `offsetx:768`, `offsety:1312` | `createLayer()` uses the offset; do not call `setPosition(768, 1312)` |
+| `fog_soft_inner`, `fog_soft_outer`, `fog_locked_blockout` | tile layers at `x:0`, `y:0`, no offset | render at authored world coordinates; do not shift to terrain offset |
+| `Buildings` | hidden planning tile layer at `x:0`, `y:0`, no offset | not the visual building sprites; do not force-visible for production visuals |
+| `GraveObj` | object layer `offsetx:768`, `offsety:1312` | Phaser returns `obj.x/y` already in world space |
+| `TreeObj` | object layer `offsetx:800`, `offsety:1344` | Phaser returns `obj.x/y` already in world space |
+| Building preview object layers | object layer-specific offsets, including negative offsets | Phaser returns `obj.x/y` already in world space |
+
+Important rules:
+- Object layers from `map.getObjectLayer()` are already offset by Phaser. Use `obj.x` / `obj.y` directly.
+- Tile layers created with `map.createLayer(layerName, tilesets)` default to the `LayerData.x/y` parsed from `x/y + offsetx/offsety`. Use the default position unless the TMJ data itself is wrong.
+- `Map4.tmj` tile layers must keep numeric `x` and `y` fields. Missing `x/y` can produce `NaN` in Phaser 3.90's Tiled parser.
+- Negative object-layer offsets must be JSON numbers, not strings. String offsets can break object placement by causing string concatenation.
+
+Regression coverage for this lives in `tests/map-v2-coordinates.spec.ts`.
+
 ---
 
 ## Step 1 — Game Layer (src/game/)
@@ -169,6 +206,7 @@ export function parseSlotsV2(map: Phaser.Tilemaps.Tilemap): Map<number, SlotData
     for (const obj of graveLayer.objects) {
       const type = inferGraveType(obj.width ?? 0, obj.height ?? 0);
       slots.set(obj.id, {
+        // Phaser has already applied GraveObj offsetx/offsety.
         id: obj.id, type, x: obj.x ?? 0, y: obj.y ?? 0,
         width: obj.width ?? 0, height: obj.height ?? 0, name: '',
       });
@@ -191,12 +229,12 @@ function inferGraveType(w: number, h: number): string {
 }
 ```
 
-Building hardcoded map (extracted from Map4.tmx preview layers):
+Building hardcoded map (world coordinates after preview layer offsets):
 
 ```typescript
 const BUILDINGS = [
-  { id: 5000, name: 'Chapel',        x: 2160, y: 1664, width: 160, height: 256 },
-  { id: 5001, name: 'Gravedigger Lodge', x: 2272, y: 3104, width: 160, height: 160 },
+  { id: 5000, name: 'Chapel',        x: 1680, y: 1824, width: 160, height: 256 },
+  { id: 5001, name: 'Gravedigger Lodge', x: 2208, y: 3072, width: 160, height: 160 },
   { id: 5002, name: 'Service Garage',    x: 2880, y: 2880, width: 64,  height: 96  },
   { id: 5003, name: 'Service Building',  x: 2944, y: 2880, width: 128, height: 160 },
   { id: 5004, name: 'Main Gate',         x: 1600, y: 3136, width: 320, height: 160 },
@@ -387,6 +425,10 @@ const TILE_LAYER_NAMES = [
 ];
 ```
 
+Create these layers with `map.createLayer(layerName, tilesets)` and no manual
+`setPosition()`. Phaser reads `LayerData.x/y` from the TMJ layer `x/y` and
+`offsetx/offsety` values.
+
 Hidden reference layers (not rendered, used for data):
 - `Map` — planning grid (hidden)
 - `Phase1` — playable boundary mask (hidden)
@@ -398,17 +440,21 @@ Object layers (data only):
 - `TreeObj` — tree sprites with gid
 - Preview layers — building placement
 
+`getObjectLayer()` returns Phaser-parsed object coordinates with object-layer
+offsets already applied. Do not add `768/1312`, `800/1344`, or preview offsets
+in scene code.
+
 **Camera:**
 ```typescript
-// Start centered on chapel area
-cam.centerOn(WORLD_W * 0.45, WORLD_H * 0.45);
+// Start centered on the main gate area
+cam.centerOn(1760, 3100);
 const fitZoom = Math.max(
   this.scale.width / WORLD_W,
   this.scale.height / WORLD_H
 );
 this.minZoom = fitZoom;
-cam.setZoom(Math.max(fitZoom, 0.7));
-cam.zoomTo(Math.min(1.2, this.scale.width / 1600), 2000, 'Sine.easeInOut');
+cam.setZoom(0.8);
+cam.zoomTo(0.9, 2000, 'Sine.easeInOut');
 ```
 
 **Elastic bounds:**
@@ -647,7 +693,7 @@ On `/cemetery`, show a subtle banner: "Viewing v1 — wallet connect disabled.
 
 | Step | Task | Depends on |
 |------|------|------------|
-| 0.1 | Convert TMX → TMJ | Tiled app |
+| 0.1 | Edit live TMJ or convert TMX → TMJ | Tiled app / converter |
 | 0.2 | Copy assets to public/map/ | 0.1 |
 | 0.3 | Verify TMJ paths | 0.2 |
 | 1.1 | `config-v2.ts` | 0.3 |
@@ -667,8 +713,9 @@ On `/cemetery`, show a subtle banner: "Viewing v1 — wallet connect disabled.
 
 ## Open Decisions
 
-1. **TMX→TMJ**: Manual export in Tiled, or write `scripts/convert-tmx-to-tmj.mjs`?
-   → Manual first, script later if map is frequently edited.
+1. **TMX→TMJ**: Use `public/map/Map4.tmj` as the live editable project map.
+   If editing from TMX, run `scripts/convert-tmx-to-tmj.mjs` so numeric offsets
+   and tile-layer `x/y` defaults are normalized.
 
 2. **Building interactions in v2**: What does clicking Chapel do? What does clicking
    Main Gate do? We can reuse v1 modals (Mausoleum for Chapel, Crematory for Lodge)
@@ -683,13 +730,12 @@ On `/cemetery`, show a subtle banner: "Viewing v1 — wallet connect disabled.
 5. **Minimap size**: Keep 140px for consistency or enlarge? At 140px, v2 tiles are
    ~1px each — still readable as a minimap with dots for graves/buildings.
 
-6. **TreeObj rendering**: Tree sprites with GIDs in TreeObj layer — render them as
-   Phaser sprites (like graves) for visual correctness, or skip initially? Skip for
-   initial load, add later after verification.
+6. **TreeObj rendering**: Tree sprites with GIDs in TreeObj layer are rendered as
+   Phaser sprites from their parsed world coordinates.
 
 ---
 
-## Implementation Status (2026-06-29)
+## Implementation Status (2026-07-10)
 
 ### Completed
 - [x] Phase 0: TMX→TMJ conversion, 74 tileset assets copied to `public/map/pixellab/`
@@ -697,14 +743,15 @@ On `/cemetery`, show a subtle banner: "Viewing v1 — wallet connect disabled.
 - [x] Phase 2: `/cemetery/v2` route, `CemeteryAppV2.tsx`, `PhaserCanvasV2.tsx`, Minimap version-awareness
 - [x] Phase 3: `map_version` column (DB migration SQL), `grave_gid` column (DB migration SQL), API GET/POST updates, `GameContext` mapVersion parameter
 - [x] Phase 5: TopBar version switcher (v1↔v2)
-- [x] TypeScript: 0 errors
-- [x] ESLint: 0 errors
+- [x] TypeScript: 0 errors via `npm run build`
+- [x] ESLint: 0 errors (`npm run lint`; one warning remains in an untracked debug script)
 - [x] Build: successful
-- [x] Playwright: 431 tests passing (v1 regression OK)
+- [x] Map v2 coordinate regression tests passing: `tests/map-v2-coordinates.spec.ts`
+- [x] Browser smoke: `/cemetery/v2` loads all `/map/*` assets with 200 responses
 
 ### Pending
-- [ ] Run SQL migrations on Supabase: `docs/map-v2-migration.sql` then `docs/map-v2-grave-gid.sql`
-- [ ] Phase 6: Browser smoke test `/cemetery/v2` after DB migration
+- [ ] Resolve local API read rate-limit (`429`) before checking live grave API rendering
+- [ ] Run SQL migrations on Supabase if the target environment has not applied them: `docs/map-v2-migration.sql` then `docs/map-v2-grave-gid.sql`
 
 ### Key Architecture Decisions
 1. **Single `graves` table** — partitioned by `map_version` column, composite unique on `(slot_id, map_version)`
@@ -716,53 +763,37 @@ On `/cemetery`, show a subtle banner: "Viewing v1 — wallet connect disabled.
 
 ---
 
-## Debug Log (2026-06-29) — Why objects / fog are misplaced
+## Coordinate Repair Log (2026-07-10)
 
-### Known working vs not working
-| Element | Status | Notes |
-|---------|--------|-------|
-| Terrain (grass/flagstone) | ✅ Visible | `load.spritesheet` with frameWidth 32, added `setPosition(768, 1312)` |
-| Buildings tile layer | ⚠️ Planning squares | Hidden in TMJ, force-visible shows blockout tiles, not real sprites |
-| Building sprites (Chapel, Gate, etc.) | ❌ Not visible | `renderBuildingPreviews()` calls `add.sprite` with correct offsets |
-| Tree sprites | ❌ Not visible | `renderTreeSprites()` calls `add.sprite` with correct TreeObj offset |
-| Grave slots (interactive zones) | ❌ Not testable | No API data without Supabase migration |
-| Fog layers | ❌ Not correct | Rendering at wrong position or not visible |
-| Camera start position | ⚠️ | `centerOn(1760, 3100)` at zoom 0.8-0.9 |
-| Camera bounds | ⚠️ | Tried `worldBounds`, then removed. Elastic bounds use WORLD_W/H |
+### Root cause
 
-### Theories tested and disproven
+The v2 scene manually re-applied Tiled offsets that Phaser had already parsed:
+- `parseSlotsV2()` added `768/1312` to `GraveObj` objects even though Phaser had already applied `GraveObj.offsetx/offsety`.
+- `renderTreeSprites()` added `800/1344` to `TreeObj` objects even though Phaser had already applied the object-layer offset.
+- `renderBuildingPreviews()` added preview-layer offsets manually even though Phaser had already applied them.
+- All rendered tile layers were forced through `setPosition(768,1312)`, which shifted fog and planning layers out of their authored coordinate space.
 
-1. **Offset mismatch theory** — Coords from TMJ were compared against runtime. All matched:
-   - GraveObj: raw + 768,1312 = correct
-   - TreeObj: raw + 800,1344 = correct
-   - Building previews: raw + layer offset = correct
-   - Chapel: 2160+(-480)=1680, wrong behavior despite correct coords
-   
-2. **Fog offset theory** — If fog layers (fog_soft_inner, fog_soft_outer, fog_locked_blockout) are at TMJ offset (0,0) but terrain is at (768,1312), they're in different tile coordinate systems. Applying `setPosition(768,1312)` to ALL layers broke fog even more (fog tiles at wrong absolute world positions).
+### Fix
 
-3. **Tile size / frame slicing theory** — `load.image` vs `load.spritesheet`:
-   - With `load.image`: multi-tile spritesheets (terrain 4×4, blockout 9×1) render as frame 0 only = invisible
-   - With `load.spritesheet(frameWidth:32, frameHeight:32)`: frames are sliced correctly
-   - BUT some single-tile spritesheets (buildings with odd dimensions like 320×160, 160×256) may fail with `spritesheet` loader
+- Trust Phaser's parsed object coordinates from `getObjectLayer()`.
+- Trust Phaser's parsed tile-layer positions from `createLayer()` defaults.
+- Keep `Map4.tmj` tile-layer `x/y` numeric to avoid Phaser parser `NaN` positions.
+- Keep negative preview offsets as JSON numbers, not strings.
+- Add `tests/map-v2-coordinates.spec.ts` to lock this behavior.
 
-4. **Failed approach: all layers get setPosition(768,1312)** — Made fog appear at wrong world coordinates because fog's tile data sits at tile coords (0,0) covering the entire map — its tiles are NOT meant to be shifted.
+### Verified coordinates
 
-### Likely cause: object rendering vs tile layer alignment
+Runtime-equivalent Phaser parser output:
 
-The TMJ uses MULTIPLE tile coordinate systems:
-- Terrain layer: tiles at grid (x=0..139, y=0..103) with visual offset (768,1312)
-- GraveObj objects: raw coords + layer offset (768,1312) → world space
-- TreeObj objects: raw coords + layer offset (800,1344) → world space
-- Fog layers: tiles at grid (x=0..139, y=0..103) with NO offset (0,0) — covers entire map
+| Element | Parsed world coordinates |
+|---------|--------------------------|
+| Terrain layer | `x=768`, `y=1312` |
+| Fog layers | `x=0`, `y=0` |
+| `GraveObj` id `10` | `x=1568`, `y=2656`, size `32×64` |
+| Chapel preview | `x=1680`, `y=1824`, size `160×256` |
+| Gravedigger Lodge preview | `x=2208`, `y=3072`, size `160×160` |
 
-The terrain and fog tile layers are INCOMPATIBLE rendering systems:
-- In Tiled, layer offset is visual-only — all tile layers share the same tile grid
-- In Phaser, `createLayer` + `setPosition` physically shifts the layer's tiles in world space
-- This means: terrain tiles at grid (24,41) are at world (768,1312) after shift
-- Fog tiles at grid (50,90) are at world (50×32, 90×32) = (1600, 2880) without shift
-- Camera is looking at world (1760, 3100) — in terrain space, but fog tiles are elsewhere
-
-### Next debugging steps
-1. Remove `setPosition(768,1312)` from terrain — render terrain at (0,0) like fog and adjust camera to match the combined visual
-2. OR apply `setPosition(768,1312)` to ALL layers (including fog) so they share the same world coordinate system — this is what Tiled does visually
-3. OR convert fog tile data to match terrain offset (i.e. shift all fog tile coordinates by -24 tiles in X, -41 tiles in Y) so fog overlays terrain correctly when both at (0,0)
+Static/render checks:
+- 91 rendered object references (tree/shrub/building/gate previews) resolve to loaded tilesets.
+- All `/map/*` assets returned 200 in browser smoke.
+- One authored tree (`TreeObj` id `376`, hero dead witness tree) extends below the 3328px world by sprite height. Its origin is near the lower edge; this is map data, not a double-offset runtime bug.

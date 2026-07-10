@@ -828,6 +828,8 @@
     {
       "id": 1,
       "name": "Map",
+      "x": 0,
+      "y": 0,
       "width": 140,
       "height": 104,
       "offsetx": 0,
@@ -15400,6 +15402,8 @@
     {
       "id": 2,
       "name": "Phase1",
+      "x": 0,
+      "y": 0,
       "width": 140,
       "height": 104,
       "type": "tilelayer",
@@ -29970,6 +29974,8 @@
     {
       "id": 3,
       "name": "pixellab_dualgrid_reconstructed",
+      "x": 0,
+      "y": 0,
       "width": 140,
       "height": 104,
       "opacity": "0.75",
@@ -44543,6 +44549,8 @@
     {
       "id": 4,
       "name": "fog_soft_inner",
+      "x": 0,
+      "y": 0,
       "width": 140,
       "height": 104,
       "opacity": "0.22",
@@ -59114,6 +59122,8 @@
     {
       "id": 5,
       "name": "fog_soft_outer",
+      "x": 0,
+      "y": 0,
       "width": 140,
       "height": 104,
       "opacity": "0.45",
@@ -73685,6 +73695,8 @@
     {
       "id": 6,
       "name": "fog_locked_blockout",
+      "x": 0,
+      "y": 0,
       "width": 140,
       "height": 104,
       "opacity": "0.85",
@@ -90496,6 +90508,8 @@
     {
       "id": 9,
       "name": "GraveX",
+      "x": 0,
+      "y": 0,
       "width": 140,
       "height": 104,
       "type": "tilelayer",
@@ -105066,6 +105080,8 @@
     {
       "id": 10,
       "name": "TreeX",
+      "x": 0,
+      "y": 0,
       "width": 140,
       "height": 104,
       "type": "tilelayer",
@@ -119636,6 +119652,8 @@
     {
       "id": 11,
       "name": "Buildings",
+      "x": 0,
+      "y": 0,
       "width": 140,
       "height": 104,
       "type": "tilelayer",
@@ -134206,7 +134224,7 @@
     {
       "id": 19,
       "name": "ChapelPreview_8d_lowdetail_palette_copy",
-      "offsetx": "-480",
+      "offsetx": -480,
       "offsety": 160,
       "type": "objectgroup",
       "visible": false,
@@ -134225,8 +134243,8 @@
     {
       "id": 20,
       "name": "GravediggerLodgePreview_map4",
-      "offsetx": "-64",
-      "offsety": "-32",
+      "offsetx": -64,
+      "offsety": -32,
       "type": "objectgroup",
       "visible": false,
       "objects": [
@@ -134270,6 +134288,8 @@
     {
       "id": 22,
       "name": "gate1",
+      "x": 0,
+      "y": 0,
       "width": 140,
       "height": 104,
       "type": "tilelayer",
@@ -148874,6 +148894,8 @@
     {
       "id": 33,
       "name": "fence_connectors_32x32_v3_preview",
+      "x": 0,
+      "y": 0,
       "width": 140,
       "height": 104,
       "type": "tilelayer",

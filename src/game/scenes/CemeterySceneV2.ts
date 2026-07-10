@@ -250,12 +250,6 @@ export class CemeterySceneV2 extends Phaser.Scene {
     for (const layerName of TILE_LAYER_NAMES_V2) {
       const layer = this.map.createLayer(layerName, tilesets);
       if (!layer) continue;
-      if (layerName === 'Buildings') {
-        layer.setVisible(true);
-      }
-      // TMJ uses offset (768, 1312) for terrain; fog is at (0,0) but
-      // camera at gates needs fog aligned with terrain area
-      layer.setPosition(768, 1312);
     }
 
     // Render building preview sprites from object layers
@@ -434,16 +428,15 @@ export class CemeterySceneV2 extends Phaser.Scene {
   }
 
   private renderBuildingPreviews() {
-    // Each preview layer has its own TMJ offset; apply it manually
-    const previewLayers: Array<{ name: string; ox: number; oy: number }> = [
-      { name: 'ChapelPreview_8d_lowdetail_palette_copy', ox: -480, oy: 160 },
-      { name: 'GravediggerLodgePreview_map4', ox: -64, oy: -32 },
-      { name: 'ServiceBuildingsPreview_map4', ox: 0, oy: 0 },
-      { name: 'MainGate1dsQ4Preview_map4', ox: 0, oy: 0 },
-      { name: 'Side_map4', ox: 0, oy: 0 },
+    const previewLayers = [
+      'ChapelPreview_8d_lowdetail_palette_copy',
+      'GravediggerLodgePreview_map4',
+      'ServiceBuildingsPreview_map4',
+      'MainGate1dsQ4Preview_map4',
+      'Side_map4',
     ];
 
-    for (const { name: layerName, ox, oy } of previewLayers) {
+    for (const layerName of previewLayers) {
       const layer = this.map.getObjectLayer(layerName);
       if (!layer) continue;
 
@@ -452,8 +445,8 @@ export class CemeterySceneV2 extends Phaser.Scene {
         const ts = this.map.tilesets.find(t => t.firstgid === obj.gid);
         if (!ts) continue;
         this.add.sprite(
-          (obj.x ?? 0) + (obj.width ?? 0) / 2 + ox,
-          (obj.y ?? 0) + (obj.height ?? 0) / 2 + oy,
+          (obj.x ?? 0) + (obj.width ?? 0) / 2,
+          (obj.y ?? 0) + (obj.height ?? 0) / 2,
           ts.name,
           obj.gid - ts.firstgid,
         ).setDepth(700);
@@ -465,16 +458,13 @@ export class CemeterySceneV2 extends Phaser.Scene {
     const treeLayer = this.map.getObjectLayer('TreeObj');
     if (!treeLayer) return;
 
-    const TREE_OFFSET_X = 800;
-    const TREE_OFFSET_Y = 1344;
-
     for (const obj of treeLayer.objects) {
       if (!obj.gid) continue;
       const ts = this.map.tilesets.find(t => t.firstgid === obj.gid);
       if (!ts) continue;
       this.add.sprite(
-        (obj.x ?? 0) + (obj.width ?? 0) / 2 + TREE_OFFSET_X,
-        (obj.y ?? 0) + (obj.height ?? 0) / 2 + TREE_OFFSET_Y,
+        (obj.x ?? 0) + (obj.width ?? 0) / 2,
+        (obj.y ?? 0) + (obj.height ?? 0) / 2,
         ts.name,
         obj.gid - ts.firstgid,
       ).setDepth(600);

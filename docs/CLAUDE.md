@@ -316,6 +316,7 @@ Paused legacy Agent Layer API routes remain in the codebase, but are not part of
 - v2 grave sprites are single-PNG PixelLab assets rendered as Phaser sprites (not multi-tile compositions). The sprite GID is randomly selected server-side at burial time via `pickRandomGraveGid()` using `Math.random()`, stored in `grave_gid`, and rendered deterministically on subsequent page loads.
 - v2 slot type is inferred from GraveObj object dimensions: 32×64→`grave_tall`, 64×32→`grave_wide`, 64×64→`grave_large`.
 - v2 buildings are hardcoded in `slotManager-v2.ts` (Chapel, Gravedigger Lodge, Service Garage, Service Building, Main Gate, Side Wicket) and rendered from preview object layers.
+- v2 coordinate source of truth is `public/map/Map4.tmj`; Phaser applies Tiled tile/object layer offsets. Do not manually add object-layer offsets in `slotManager-v2.ts` or `CemeterySceneV2.ts`, and keep tile-layer `x/y` plus negative offsets numeric in the TMJ.
 - v2 uses `pickRandomFreeSlot(usedIds, 'v2')` with bias `{grave_tall: 2, grave_wide: 1}` — grave_tall is twice as likely as grave_wide.
 - `/cemetery/v2` reuses all modals, HUD, and GameContext from v1. Only PhaserCanvas, CemeteryApp, and Minimap have v2 counterparts.
 - Phaser uses explicit sizing with `Scale.NONE`; `ResizeObserver` drives resize updates and zero-width or zero-height resize events are ignored to avoid WebGL framebuffer instability.

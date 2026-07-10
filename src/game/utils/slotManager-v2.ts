@@ -29,9 +29,6 @@ const BUILDINGS: SlotData[] = [
   { id: 5005, name: 'Side Wicket', type: 'Building', x: 1504, y: 3136, width: 512, height: 96 },
 ];
 
-const GRAVE_OFFSET_X = 768;
-const GRAVE_OFFSET_Y = 1312;
-
 export function parseSlotsV2(map: Phaser.Tilemaps.Tilemap): Map<number, SlotData> {
   const slots = new Map<number, SlotData>();
 
@@ -39,11 +36,12 @@ export function parseSlotsV2(map: Phaser.Tilemaps.Tilemap): Map<number, SlotData
   if (graveLayer) {
     for (const obj of graveLayer.objects) {
       const type = inferGraveType(obj.width ?? 0, obj.height ?? 0);
+      // Phaser applies Tiled object-layer offsets while parsing the TMJ.
       slots.set(obj.id, {
         id: obj.id,
         type,
-        x: (obj.x ?? 0) + GRAVE_OFFSET_X,
-        y: (obj.y ?? 0) + GRAVE_OFFSET_Y,
+        x: obj.x ?? 0,
+        y: obj.y ?? 0,
         width: obj.width ?? 0,
         height: obj.height ?? 0,
         name: '',

@@ -13,16 +13,13 @@ const parseAttrs = (s) => {
   let m;
   while ((m = re.exec(s)) !== null) {
     let val = m[2];
-    if (/^\d+$/.test(val)) val = Number(val);
+    if (/^-?\d+(?:\.\d+)?$/.test(val)) val = Number(val);
     else if (val === 'true') val = true;
     else if (val === 'false') val = false;
     attrs[m[1]] = val;
   }
   return attrs;
 };
-
-const wrap = (tag) => new RegExp(`<${tag}\\b([^>]*)>(.*?)<\\/${tag}>`, 'gs');
-const selfClosing = (tag) => new RegExp(`<${tag}\\b([^>]*?)/>`, 'g');
 
 // --- Top-level map ---
 const mapMatch = /<map\b([^>]*)>/.exec(xml);
@@ -64,8 +61,6 @@ while ((tagMatch = tagPattern.exec(body)) !== null) {
 }
 tags.sort((a, b) => a.fullStart - b.fullStart);
 
-const tagNameFromTag = (t) => t.tag;
-
 for (let i = 0; i < tags.length; i++) {
   const t = tags[i];
   const closeTag = `</${t.tag}>`;
@@ -94,6 +89,8 @@ for (let i = 0; i < tags.length; i++) {
           const layer = { ...rawAttrs, type: layerType, visible };
 
           if (layerType === 'tilelayer') {
+            if (layer.x === undefined) layer.x = 0;
+            if (layer.y === undefined) layer.y = 0;
             // Parse data
             const dataMatch = /<data\s+encoding="csv">\s*([\s\S]*?)\s*<\/data>/.exec(content);
             if (dataMatch) {
