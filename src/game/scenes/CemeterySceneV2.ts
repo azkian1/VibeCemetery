@@ -98,6 +98,15 @@ const TILE_LAYER_NAMES_V2 = [
   'fog_locked_blockout',
 ];
 
+// Fog is a world-state overlay, not ground decoration. It must conceal every
+// world object, including sprites, particles, labels, and hover highlights.
+const FOG_LAYER_DEPTHS_V2: Record<string, number> = {
+  fog_soft_inner: 2000,
+  fog_soft_outer: 2001,
+  fog_locked_blockout: 2002,
+};
+const FOG_VIGNETTE_DEPTH_V2 = 2003;
+
 export class CemeterySceneV2 extends Phaser.Scene {
   private map!: Phaser.Tilemaps.Tilemap;
   private slots = new Map<number, SlotData>();
@@ -287,6 +296,8 @@ export class CemeterySceneV2 extends Phaser.Scene {
     for (const layerName of TILE_LAYER_NAMES_V2) {
       const layer = this.map.createLayer(layerName, tilesets);
       if (!layer) continue;
+      const fogDepth = FOG_LAYER_DEPTHS_V2[layerName];
+      if (fogDepth !== undefined) layer.setDepth(fogDepth);
     }
 
     // Render building preview sprites from object layers
@@ -688,7 +699,7 @@ export class CemeterySceneV2 extends Phaser.Scene {
     const color = 0x1a1a2e;
 
     const fog = this.add.graphics();
-    fog.setDepth(900);
+    fog.setDepth(FOG_VIGNETTE_DEPTH_V2);
 
     for (let i = 0; i < STEPS; i++) {
       const t = i / STEPS;

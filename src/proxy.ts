@@ -49,6 +49,14 @@ function isLocalPlaywrightE2ERequest(req: NextRequest): boolean {
     return false
   }
 
+  return isLocalHostname(req)
+}
+
+function isLocalDevelopmentRequest(req: NextRequest): boolean {
+  return process.env.NODE_ENV === 'development' && isLocalHostname(req)
+}
+
+function isLocalHostname(req: NextRequest): boolean {
   const hostname = req.nextUrl.hostname.toLowerCase()
   return hostname === 'localhost'
     || hostname === '127.0.0.1'
@@ -80,7 +88,11 @@ export async function proxy(req: NextRequest) {
   // the public per-IP budget. This bypass requires an explicit test flag, a
   // non-production runtime, and a localhost request, so it cannot relax a
   // deployed application's rate limit.
-  if (req.method === 'GET' && !isAuthRoute && !isLocalPlaywrightE2ERequest(req)) {
+  // Local development uses a single untrusted socket/IP value, so React Strict
+  // Mode and HMR can otherwise exhaust the public read bucket immediately.
+  // This bypass is confined to localhost outside production.
+  const bypassReadRateLimit = isLocalPlaywrightE2ERequest(req) || isLocalDevelopmentRequest(req)
+  if (req.method === 'GET' && !isAuthRoute && !bypassReadRateLimit) {
     const ip = getClientIp(req)
     const result = await checkRateLimit(`read:${ip}`, READ_LIMIT, READ_WINDOW)
     if (!result.allowed) {

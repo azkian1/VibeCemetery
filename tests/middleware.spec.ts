@@ -165,6 +165,20 @@ test.describe('api proxy', () => {
     }
   })
 
+  test('bypasses the shared read budget for local development requests', async () => {
+    delete process.env.PLAYWRIGHT_E2E
+    Object.assign(process.env, { NODE_ENV: 'development' })
+
+    let response: Awaited<ReturnType<typeof proxy>> | null = null
+    for (let i = 0; i < 61; i += 1) {
+      response = await proxy(new NextRequest('http://localhost:3000/api/graves', {
+        method: 'GET',
+      }))
+    }
+
+    expect(response?.status).toBe(200)
+  })
+
   test('bypasses the shared read budget only for explicit local Playwright E2E requests', async () => {
     Object.assign(process.env, { PLAYWRIGHT_E2E: '1', NODE_ENV: 'test' })
 
@@ -176,6 +190,20 @@ test.describe('api proxy', () => {
     }
 
     expect(response?.status).toBe(200)
+  })
+
+  test('keeps the read budget for non-local development requests', async () => {
+    delete process.env.PLAYWRIGHT_E2E
+    Object.assign(process.env, { NODE_ENV: 'development' })
+
+    let response: Awaited<ReturnType<typeof proxy>> | null = null
+    for (let i = 0; i < 61; i += 1) {
+      response = await proxy(new NextRequest('https://vibecemetery.app/api/graves', {
+        method: 'GET',
+      }))
+    }
+
+    expect(response?.status).toBe(429)
   })
 
   test('keeps the read budget for non-local or production requests even when the E2E flag is set', async () => {
