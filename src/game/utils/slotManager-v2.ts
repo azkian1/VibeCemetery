@@ -1,3 +1,5 @@
+import { getTiledObjectBounds } from './tiledObject';
+
 export interface SlotData {
   id: number;
   type: string;
@@ -15,19 +17,44 @@ function inferGraveType(w: number, h: number): string {
   return 'grave';
 }
 
-// Building world coordinates (after applying layer offsets from TMJ)
-const BUILDINGS: SlotData[] = [
-  // Chapel: raw (2160,1664) + offset (-480,160) = world (1680,1824)
-  { id: 5000, name: 'Chapel', type: 'Building', x: 1680, y: 1824, width: 160, height: 256 },
-  // Gravedigger Lodge: raw (2272,3104) + offset (-64,-32) = world (2208,3072)
-  { id: 5001, name: 'Gravedigger Lodge', type: 'Building', x: 2208, y: 3072, width: 160, height: 160 },
-  // Service: no offset — raw = world
-  { id: 5002, name: 'Service Garage', type: 'Building', x: 2880, y: 2880, width: 64, height: 96 },
-  { id: 5003, name: 'Service Building', type: 'Building', x: 2944, y: 2880, width: 128, height: 160 },
-  // Main Gate: no offset
-  { id: 5004, name: 'Main Gate', type: 'Building', x: 1600, y: 3136, width: 320, height: 160 },
-  { id: 5005, name: 'Side Wicket', type: 'Building', x: 1504, y: 3136, width: 512, height: 96 },
-];
+const BUILDING_SOURCES = [
+  {
+    id: 5000,
+    name: 'Chapel',
+    layerName: 'ChapelPreview_8d_lowdetail_palette_copy',
+    objectName: 'chapel_8d_160x256_lowdetail_palette_copy',
+  },
+  {
+    id: 5001,
+    name: 'Gravedigger Lodge',
+    layerName: 'GravediggerLodgePreview_map4',
+    objectName: 'gravedigger_lodge_sysadmin_complete_map4',
+  },
+  {
+    id: 5002,
+    name: 'Service Garage',
+    layerName: 'ServiceBuildingsPreview_map4',
+    objectName: 'service_garage_2x3_map4',
+  },
+  {
+    id: 5003,
+    name: 'Service Building',
+    layerName: 'ServiceBuildingsPreview_map4',
+    objectName: 'service_technical_building_4x5_map4',
+  },
+  {
+    id: 5004,
+    name: 'Main Gate',
+    layerName: 'MainGate1dsQ4Preview_map4',
+    objectName: 'main_gate_1ds_q4_full_320x160_map4_compare',
+  },
+  {
+    id: 5005,
+    name: 'Side Wicket',
+    layerName: 'Side_map4',
+    objectName: 'side_wicket_chek_q1_extensions_512x96_map4_compare',
+  },
+] as const;
 
 export function parseSlotsV2(map: Phaser.Tilemaps.Tilemap): Map<number, SlotData> {
   const slots = new Map<number, SlotData>();
@@ -49,8 +76,20 @@ export function parseSlotsV2(map: Phaser.Tilemaps.Tilemap): Map<number, SlotData
     }
   }
 
-  for (const b of BUILDINGS) {
-    slots.set(b.id, b);
+  for (const source of BUILDING_SOURCES) {
+    const layer = map.getObjectLayer(source.layerName);
+    const object = layer?.objects.find((candidate) => candidate.name === source.objectName);
+    if (!object?.gid) continue;
+
+    // Tile objects use Tiled's bottom-left origin. Phaser has already applied
+    // the object-layer offsets, so only the origin needs conversion.
+    const bounds = getTiledObjectBounds(object);
+    slots.set(source.id, {
+      id: source.id,
+      name: source.name,
+      type: 'Building',
+      ...bounds,
+    });
   }
 
   return slots;

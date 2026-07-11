@@ -1,6 +1,7 @@
 import * as Phaser from 'phaser';
 import { parseSlotsV2, SlotData } from '../utils/slotManager-v2';
 import { pickGraveGidV2 } from '../utils/tileRegistry-v2';
+import { getTiledObjectCenter } from '../utils/tiledObject';
 import { cemeteryEvents, SlotEventData, RenderGraveData, MinimapClickData, SyncGravesData } from '../events';
 import { isSameRenderedGrave, planGraveReconciliation } from '../graveReconciliation';
 
@@ -481,9 +482,10 @@ export class CemeterySceneV2 extends Phaser.Scene {
         if (!obj.gid) continue;
         const ts = this.map.tilesets.find(t => t.firstgid === obj.gid);
         if (!ts) continue;
+        const position = getTiledObjectCenter(obj);
         this.add.sprite(
-          (obj.x ?? 0) + (obj.width ?? 0) / 2,
-          (obj.y ?? 0) + (obj.height ?? 0) / 2,
+          position.x,
+          position.y,
           ts.name,
           obj.gid - ts.firstgid,
         ).setDepth(700);
@@ -499,9 +501,10 @@ export class CemeterySceneV2 extends Phaser.Scene {
       if (!obj.gid) continue;
       const ts = this.map.tilesets.find(t => t.firstgid === obj.gid);
       if (!ts) continue;
+      const position = getTiledObjectCenter(obj);
       this.add.sprite(
-        (obj.x ?? 0) + (obj.width ?? 0) / 2,
-        (obj.y ?? 0) + (obj.height ?? 0) / 2,
+        position.x,
+        position.y,
         ts.name,
         obj.gid - ts.firstgid,
       ).setDepth(600);

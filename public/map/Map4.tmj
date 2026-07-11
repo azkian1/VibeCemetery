@@ -105085,7 +105085,7 @@
       "width": 140,
       "height": 104,
       "type": "tilelayer",
-      "visible": true,
+      "visible": false,
       "data": [
         0,
         0,
@@ -164485,7 +164485,7 @@
       "offsetx": 768,
       "offsety": 1312,
       "type": "objectgroup",
-      "visible": true,
+      "visible": false,
       "objects": [
         {
           "id": 489,
