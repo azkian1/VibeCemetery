@@ -47,6 +47,17 @@ export interface RenderGraveData {
   grave_gid?: number | null;
 }
 
+/**
+ * Authoritative React snapshot for reconciling rendered graves in Phaser.
+ * Slots protected by a pending burial ceremony are deliberately left to that
+ * ceremony until it has finished rendering the grave.
+ */
+export interface SyncGravesData {
+  graves: RenderGraveData[];
+  protectedSlotIds: number[];
+  authoritative: boolean;
+}
+
 // Minimap raster: Uint8Array where each byte is a color index for a tile
 // 0 = empty, 1 = ground, 2 = road, 3 = grass/decoration
 export interface MinimapTilesData {
@@ -68,6 +79,7 @@ export interface CemeteryEventMap {
   // React → Phaser
   render_graves: { graves: RenderGraveData[] };
   render_grave: RenderGraveData;
+  sync_graves: SyncGravesData;
   // Phaser → React: simplified tile raster for minimap
   minimap_tiles: MinimapTilesData;
   // React → Phaser: modal open/close state

@@ -16,7 +16,16 @@ const MAX_BUCKETS = 5000;
 const CLEANUP_INTERVAL = 60_000;
 let lastCleanup = Date.now();
 
+function isLocalPlaywrightE2ERuntime(): boolean {
+  return process.env.PLAYWRIGHT_E2E === '1' && process.env.NODE_ENV !== 'production';
+}
+
 function getUpstashConfig() {
+  // Next loads .env.local itself after Playwright supplies webServer.env.
+  // Keep browser E2E hermetic even when a developer has shared Upstash
+  // credentials locally; production is never allowed to take this path.
+  if (isLocalPlaywrightE2ERuntime()) return null;
+
   const url = process.env.UPSTASH_REDIS_REST_URL?.trim();
   const token = process.env.UPSTASH_REDIS_REST_TOKEN?.trim();
   return url && token ? { url: url.replace(/\/+$/, ''), token } : null;

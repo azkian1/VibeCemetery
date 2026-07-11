@@ -58,20 +58,20 @@ test.describe('Ceremony plumbing (desktop 1440×900)', () => {
     await expect(page.locator('canvas').first()).toBeVisible();
   });
 
-  test('BuryFlowModal can be opened from the bury button', async ({ page }) => {
-    await page.goto('/cemetery');
-    await waitForApp(page);
+  test('unauthenticated CTA policy gates burial and opens the URL-intended scanner flow', async ({ page }) => {
     const buryBtn = page.getByRole('button', { name: /Bury/ });
     await expect(buryBtn).toBeVisible();
-    // Click should open modal (will show login prompt for unauth)
-    await buryBtn.click();
-    await page.waitForTimeout(1000);
-    // Modal overlay or auth prompt should appear
-    const hasModal = await page.evaluate(() => {
-      return document.querySelector('[style*="position: fixed"]') !== null ||
-             document.querySelector('[role="dialog"]') !== null;
-    });
-    expect(hasModal).toBeTruthy();
+    await expect(buryBtn).toBeDisabled();
+    await expect(buryBtn).toHaveAttribute('title', 'No grave slots left. Cremation is available.');
+
+    const cremateBtn = page.getByRole('button', { name: /Cremate/ });
+    await expect(cremateBtn).toBeEnabled();
+
+    // This is the callback intent used after login; it must open the scanner
+    // without relying on an authenticated test account or live slot state.
+    await page.goto('/cemetery?modal=bury');
+    await waitForApp(page);
+    await expect(page.getByRole('heading', { name: 'Scan Repositories' })).toBeVisible();
     await expect(page.locator('canvas').first()).toBeVisible();
   });
 

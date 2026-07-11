@@ -189,6 +189,16 @@ test.describe('BuryFlowModal default grave selection', () => {
     expect(LOCAL_TERMINAL_CREMATION_PROMPT_MARGIN_TOP).toBe(28)
   })
 
+  test('manual rescan supersedes active scan work and component cleanup aborts it', async () => {
+    const source = await readFile('src/components/modals/bury/StepScan.tsx', 'utf8')
+
+    expect(source).toContain('const scanRequestStateRef = useRef<LatestRequestState>(createLatestRequestState())')
+    expect(source).toContain('const request = beginLatestRequest(scanRequestStateRef.current)')
+    expect(source).toContain('signal: request.controller.signal')
+    expect(source).toContain('isLatestRequest(scanRequestStateRef.current, request)')
+    expect(source).toMatch(/return \(\) => \{\s*abortLatestRequest\(scanRequestState\);\s*\};/)
+  })
+
   test('mixed selection keeps grave/fire choices and slot status visible', () => {
     expect(shouldShowStepSelectActionToggles(false)).toBe(true)
     expect(shouldShowStepSelectStatusBlock(false, false, false, false, false, false)).toBe(true)

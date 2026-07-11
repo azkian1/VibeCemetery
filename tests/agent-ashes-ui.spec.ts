@@ -222,6 +222,24 @@ test('Agent Ashes certificate detail loader fetches raw certificate JSON by id',
   await expect(loadAgentAshCertificate('ash-404', async () => new Response('{}', { status: 404 }))).rejects.toThrow('certificate request failed')
 })
 
+test('Agent Ashes certificate detail request receives cancellation and latest-selection guards', async () => {
+  const controller = new AbortController()
+  let receivedSignal: AbortSignal | null | undefined
+
+  await loadAgentAshCertificate('ash-1', async (_url, init) => {
+    receivedSignal = init?.signal
+    return new Response(JSON.stringify({ subject: { name: 'newer-record' } }), { status: 200 })
+  }, { signal: controller.signal })
+
+  expect(receivedSignal).toBe(controller.signal)
+
+  const source = readFileSync('src/components/modals/AgentAshesModal.tsx', 'utf8')
+  expect(source).toContain('const certificateRequestStateRef = useRef<LatestRequestState>(createLatestRequestState())')
+  expect(source).toContain('beginLatestRequest(certificateRequestStateRef.current)')
+  expect(source).toContain('isLatestRequest(certificateRequestStateRef.current, request)')
+  expect(source).toContain('abortLatestRequest(certificateRequestStateRef.current)')
+})
+
 test('Agent Ashes certificate display redacts raw ash tokens', () => {
   const displayJson = stringifyAgentAshCertificateForDisplay({
     subject: { name: 'dead-agent-prototype' },

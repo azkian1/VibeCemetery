@@ -49,7 +49,9 @@ function getMapConfig(v: string) {
 }
 
 export default function Minimap({ mapVersion = 'v1' }: { mapVersion?: string }) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const terrainCanvasRef = useRef<HTMLCanvasElement>(null);
+  const markersCanvasRef = useRef<HTMLCanvasElement>(null);
+  const viewportCanvasRef = useRef<HTMLCanvasElement>(null);
   const viewportRef = useRef<CameraMoveData | null>(null);
   const tileDataRef = useRef<MinimapTilesData | null>(null);
   const { state } = useGame();
@@ -57,7 +59,6 @@ export default function Minimap({ mapVersion = 'v1' }: { mapVersion?: string }) 
 
   const cfg = useMemo(() => getMapConfig(mapVersion), [mapVersion]);
 
-  const slotsRef = useRef(state.slotPositions);
   const gravesRef = useRef(state.graves);
 
   const slotMap = useMemo(() => {
@@ -72,15 +73,10 @@ export default function Minimap({ mapVersion = 'v1' }: { mapVersion?: string }) 
   [state.slotPositions]);
   const buildingsRef = useRef(buildings);
 
-  useEffect(() => {
-    slotsRef.current = state.slotPositions;
-    gravesRef.current = state.graves;
-    slotMapRef.current = slotMap;
-    buildingsRef.current = buildings;
-  }, [state.slotPositions, state.graves, slotMap, buildings]);
-
-  const draw = useCallback(() => {
-    const canvas = canvasRef.current;
+  // Terrain is immutable between minimap_tiles events. Keeping it in its own
+  // canvas prevents a 140 × 104 raster pass on every camera_move event.
+  const drawTerrain = useCallback(() => {
+    const canvas = terrainCanvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
@@ -106,6 +102,17 @@ export default function Minimap({ mapVersion = 'v1' }: { mapVersion?: string }) 
         }
       }
     }
+  }, [cfg]);
+
+  // Graves and buildings are independent from the camera, so redraw this
+  // layer only when their source state changes.
+  const drawMarkers = useCallback(() => {
+    const canvas = markersCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    ctx.clearRect(0, 0, SIZE, SIZE);
 
     for (const [slotId] of gravesRef.current) {
       const slot = slotMapRef.current.get(slotId);
@@ -128,7 +135,17 @@ export default function Minimap({ mapVersion = 'v1' }: { mapVersion?: string }) 
       ctx.lineWidth = 1;
       ctx.strokeRect(bx, by, bw, bh);
     }
+  }, [cfg]);
 
+  // camera_move is emitted while panning. Its layer has only the viewport
+  // glyph, making each update a clear plus one draw operation.
+  const drawViewport = useCallback(() => {
+    const canvas = viewportCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    ctx.clearRect(0, 0, SIZE, SIZE);
     const vp = viewportRef.current;
     if (vp) {
       const cx = (vp.scrollX + vp.viewWidth / 2) * cfg.scaleX;
@@ -145,33 +162,38 @@ export default function Minimap({ mapVersion = 'v1' }: { mapVersion?: string }) 
     if (isMobile) return;
     const onTiles = (data: MinimapTilesData) => {
       tileDataRef.current = data;
-      draw();
+      drawTerrain();
     };
     cemeteryEvents.on('minimap_tiles', onTiles);
+    // Redraw a retained raster when the component switches map versions.
+    drawTerrain();
     return () => {
       cemeteryEvents.off('minimap_tiles', onTiles);
     };
-  }, [draw, isMobile]);
+  }, [drawTerrain, isMobile]);
+
+  useEffect(() => {
+    gravesRef.current = state.graves;
+    slotMapRef.current = slotMap;
+    buildingsRef.current = buildings;
+    if (!isMobile) drawMarkers();
+  }, [state.graves, slotMap, buildings, drawMarkers, isMobile]);
 
   useEffect(() => {
     if (isMobile) return;
     const onCameraMove = (data: CameraMoveData) => {
       viewportRef.current = data;
-      draw();
+      drawViewport();
     };
     cemeteryEvents.on('camera_move', onCameraMove);
+    drawViewport();
     return () => {
       cemeteryEvents.off('camera_move', onCameraMove);
     };
-  }, [draw, isMobile]);
-
-  useEffect(() => {
-    if (isMobile) return;
-    draw();
-  }, [state.slotPositions, state.graves, draw, isMobile]);
+  }, [drawViewport, isMobile]);
 
   const handleClick = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current;
+    const canvas = terrainCanvasRef.current;
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
     const canvasX = e.clientX - rect.left;
@@ -204,19 +226,52 @@ export default function Minimap({ mapVersion = 'v1' }: { mapVersion?: string }) 
       }}
     >
       <canvas
-        ref={canvasRef}
+        ref={terrainCanvasRef}
+        data-testid="minimap-terrain"
         width={SIZE}
         height={SIZE}
         onClick={handleClick}
         role="img"
         aria-label="Cemetery minimap"
         style={{
-          display: 'block',
+          position: 'absolute',
+          inset: 0,
           width: SIZE,
           height: SIZE,
           borderRadius: '50%',
           cursor: 'pointer',
           imageRendering: 'pixelated',
+        }}
+      />
+      <canvas
+        ref={markersCanvasRef}
+        data-testid="minimap-markers"
+        width={SIZE}
+        height={SIZE}
+        aria-hidden="true"
+        style={{
+          position: 'absolute',
+          inset: 0,
+          width: SIZE,
+          height: SIZE,
+          borderRadius: '50%',
+          imageRendering: 'pixelated',
+          pointerEvents: 'none',
+        }}
+      />
+      <canvas
+        ref={viewportCanvasRef}
+        data-testid="minimap-viewport"
+        width={SIZE}
+        height={SIZE}
+        aria-hidden="true"
+        style={{
+          position: 'absolute',
+          inset: 0,
+          width: SIZE,
+          height: SIZE,
+          borderRadius: '50%',
+          pointerEvents: 'none',
         }}
       />
       <div

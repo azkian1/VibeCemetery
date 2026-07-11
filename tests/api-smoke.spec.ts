@@ -1,18 +1,25 @@
 import { test, expect } from '@playwright/test'
 import { encode } from 'next-auth/jwt'
-import { createClient } from '@supabase/supabase-js'
+import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { randomUUID } from 'node:crypto'
 
+const apiSmokeRequiredEnv = [
+  'NEXTAUTH_SECRET',
+  'NEXT_PUBLIC_SUPABASE_URL',
+  'SUPABASE_SERVICE_KEY',
+] as const
+
+const missingApiSmokeEnv = apiSmokeRequiredEnv.filter((name) => !process.env[name]?.trim())
+const apiSmokeSkipReason = missingApiSmokeEnv.length > 0
+  ? `API smoke tests require ${missingApiSmokeEnv.join(', ')}; set the missing environment variables to run protected integration coverage.`
+  : ''
+
 function getNextAuthSecret(): string {
-  const secret = process.env.NEXTAUTH_SECRET
-  if (!secret) {
-    throw new Error('NEXTAUTH_SECRET is required for authenticated API smoke tests')
-  }
-  return secret
+  return getRequiredEnv('NEXTAUTH_SECRET')
 }
 
-function getRequiredEnv(name: 'NEXTAUTH_SECRET' | 'NEXT_PUBLIC_SUPABASE_URL' | 'SUPABASE_SERVICE_KEY'): string {
-  const value = process.env[name]
+function getRequiredEnv(name: (typeof apiSmokeRequiredEnv)[number]): string {
+  const value = process.env[name]?.trim()
   if (!value) {
     throw new Error(`${name} is required for API smoke tests`)
   }
@@ -45,17 +52,24 @@ async function createAuthHeaders(
   }
 }
 
-const supabaseAdmin = createClient(
-  getRequiredEnv('NEXT_PUBLIC_SUPABASE_URL'),
-  getRequiredEnv('SUPABASE_SERVICE_KEY'),
-)
+let supabaseAdmin: SupabaseClient | undefined
+
+function getSupabaseAdmin() {
+  if (!supabaseAdmin) {
+    supabaseAdmin = createClient(
+      getRequiredEnv('NEXT_PUBLIC_SUPABASE_URL'),
+      getRequiredEnv('SUPABASE_SERVICE_KEY'),
+    )
+  }
+  return supabaseAdmin
+}
 
 async function createSmokeGrave() {
   const timestamp = Date.now()
   const slotId = 900000 + Math.floor(Math.random() * 10000)
   const repoId = 900000000 + Math.floor(Math.random() * 1000000)
 
-  const { data, error } = await supabaseAdmin
+  const { data, error } = await getSupabaseAdmin()
     .from('graves')
     .insert({
       name: `API Smoke Grave ${timestamp}`,
@@ -82,7 +96,7 @@ async function createSmokeGraveFor(username: string, githubUrl: string) {
   const slotId = 910000 + Math.floor(Math.random() * 10000)
   const repoId = 910000000 + Math.floor(Math.random() * 1000000)
 
-  const { data, error } = await supabaseAdmin
+  const { data, error } = await getSupabaseAdmin()
     .from('graves')
     .insert({
       name: `API Smoke Grave ${timestamp}`,
@@ -105,12 +119,12 @@ async function createSmokeGraveFor(username: string, githubUrl: string) {
 }
 
 async function deleteSmokeGrave(graveId: string) {
-  await supabaseAdmin.from('f_votes').delete().eq('grave_id', graveId)
-  await supabaseAdmin.from('graves').delete().eq('id', graveId)
+  await getSupabaseAdmin().from('f_votes').delete().eq('grave_id', graveId)
+  await getSupabaseAdmin().from('graves').delete().eq('id', graveId)
 }
 
 async function createSmokeUser(username: string) {
-  const { error } = await supabaseAdmin
+  const { error } = await getSupabaseAdmin()
     .from('users')
     .upsert({
       github_id: 800000000 + Math.floor(Math.random() * 1000000),
@@ -124,13 +138,15 @@ async function createSmokeUser(username: string) {
 }
 
 async function deleteSmokeCliData(username: string) {
-  await supabaseAdmin.from('cremated').delete().eq('author_github', username)
-  await supabaseAdmin.from('cli_link_sessions').delete().eq('github_username', username)
-  await supabaseAdmin.from('cli_tokens').delete().eq('github_username', username)
-  await supabaseAdmin.from('users').delete().eq('github_username', username)
+  await getSupabaseAdmin().from('cremated').delete().eq('author_github', username)
+  await getSupabaseAdmin().from('cli_link_sessions').delete().eq('github_username', username)
+  await getSupabaseAdmin().from('cli_tokens').delete().eq('github_username', username)
+  await getSupabaseAdmin().from('users').delete().eq('github_username', username)
 }
 
 test.describe.serial('API smoke', () => {
+  test.skip(missingApiSmokeEnv.length > 0, apiSmokeSkipReason)
+
   test('GET /api/graves returns a bounded list', async ({ request }) => {
     const res = await request.get('/api/graves?limit=1')
 
@@ -484,6 +500,23 @@ test.describe.serial('API smoke', () => {
     expect(await res.json()).toEqual({ error: 'Invalid github_url — must be a GitHub repository URL' })
   })
 
+  test('POST /api/graves rejects unsupported map versions before external repository checks', async ({ request }) => {
+    const headers = await createAuthHeaders(`api-smoke-map-version-${Date.now()}`)
+    const res = await request.post('/api/graves', {
+      headers,
+      data: {
+        map_version: 'shadow',
+        github_url: 'https://github.com/example/repo',
+        github_repo_id: 42,
+        name: 'unsupported map namespace',
+        cause: 'security regression test',
+      },
+    })
+
+    expect(res.status()).toBe(400)
+    expect(await res.json()).toEqual({ error: 'map_version must be one of: v1, v2' })
+  })
+
   test('GET /api/github/scan requires username when authenticated', async ({ request }) => {
     const headers = await createAuthHeaders(`api-smoke-scan-${Date.now()}`)
     const res = await request.get('/api/github/scan', { headers })
@@ -541,24 +574,23 @@ test.describe.serial('API smoke', () => {
 
   test('POST /api/graves/[id]/f rate-limits repeated vote attempts', async ({ request }) => {
     const headers = await createAuthHeaders(`api-smoke-f-limit-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`)
-    const grave = await createSmokeGrave()
+    // The limiter runs before persistence. A valid missing UUID avoids doing
+    // 20 full vote/count/update round trips just to verify the limiter.
+    const missingGraveId = randomUUID()
+    let rateLimitedBody: unknown = null
 
-    try {
-      let rateLimitedBody: unknown = null
-
-      for (let i = 0; i < 22; i += 1) {
-        const res = await request.post(`/api/graves/${grave.id}/f`, { headers })
-        if (res.status() === 429) {
-          rateLimitedBody = await res.json()
-          expect(res.headers()['retry-after']).toBeTruthy()
-          break
-        }
+    for (let i = 0; i < 22; i += 1) {
+      const res = await request.post(`/api/graves/${missingGraveId}/f`, { headers })
+      if (res.status() === 429) {
+        rateLimitedBody = await res.json()
+        expect(res.headers()['retry-after']).toBeTruthy()
+        break
       }
 
-      expect(rateLimitedBody).toEqual({ error: 'Too many vote attempts. Please try again later.' })
-    } finally {
-      await deleteSmokeGrave(grave.id)
+      expect(res.status()).toBe(404)
     }
+
+    expect(rateLimitedBody).toEqual({ error: 'Too many vote attempts. Please try again later.' })
   })
 
   test('POST /api/graves/[id]/f is idempotent and visible in /api/f-status', async ({ request }) => {

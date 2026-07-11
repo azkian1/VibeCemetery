@@ -3,10 +3,11 @@
 import { Suspense, useEffect, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import dynamic from 'next/dynamic';
-import { createModalInstanceId, GameProvider, useGame, useGraves, useCremated, useFStatus, useModal, type ModalType } from '@/context/GameContext';
+import { CemeteryMapVersionContext, createModalInstanceId, GameProvider, useGame, useGraves, useCremated, useFStatus, useModal, type ModalType } from '@/context/GameContext';
 import { cemeteryEvents } from '@/game/events';
 import { removeBuryModalIntentFromUrl, shouldOpenBuryModalFromSearchParams } from '@/lib/bury-intent';
 import { consumePendingBurialCeremony } from '@/lib/pending-burial-ceremony';
+import { ModalOverlayTopContext } from './modals/ModalOverlay';
 
 const PhaserCanvasV2 = dynamic(() => import('./PhaserCanvasV2'), { ssr: false });
 const HoverTooltip = dynamic(() => import('./HoverTooltip'), { ssr: false });
@@ -126,20 +127,20 @@ function DeepLinkOpenerV2() {
   }, [state.gravesLoading, state.slotPositions.length, state.slotPositions, state.graves, searchParams, dispatch]);
 
   useEffect(() => {
-    if (state.slotPositions.length === 0) return;
+    if (state.slotPositions.length === 0 || state.crematedLoading) return;
     const urnId = searchParams.get('urn');
     if (!urnId || urnId === urnHandled.current) return;
-    urnHandled.current = urnId;
 
     const item = state.cremated.find(c => String(c.id) === urnId);
     if (!item) return;
+    urnHandled.current = urnId;
 
     const timer = setTimeout(() => {
       if (activeModalRef.current) return;
       dispatch({ type: 'OPEN_MODAL', id: createModalInstanceId(), modal: 'urn', data: { crematedItem: item } });
     }, 500);
     return () => clearTimeout(timer);
-  }, [state.slotPositions.length, state.cremated, searchParams, dispatch]);
+  }, [state.slotPositions.length, state.crematedLoading, state.cremated, searchParams, dispatch]);
 
   return null;
 }
@@ -175,7 +176,9 @@ function ModalLayer() {
             aria-hidden={!isTop}
             inert={!isTop || undefined}
           >
-            <C />
+            <ModalOverlayTopContext.Provider value={isTop}>
+              <C />
+            </ModalOverlayTopContext.Provider>
           </div>
         );
       })}
@@ -185,27 +188,29 @@ function ModalLayer() {
 
 export default function CemeteryAppV2() {
   return (
-    <GameProvider>
-      <GameDataLoadersV2 />
-      <Suspense fallback={null}>
-        <DeepLinkOpenerV2 />
-      </Suspense>
+    <CemeteryMapVersionContext.Provider value="v2">
+      <GameProvider>
+        <GameDataLoadersV2 />
+        <Suspense fallback={null}>
+          <DeepLinkOpenerV2 />
+        </Suspense>
 
-      <div style={{ display: 'flex', flexDirection: 'column', height: '100dvh', width: '100%', overflow: 'hidden', background: '#1a1918' }}>
-        <header style={{ flexShrink: 0, position: 'relative', zIndex: 10 }}>
-          <TopBar mapVersion="v2" />
-        </header>
-        <main style={{ flex: 1, position: 'relative', overflow: 'hidden', minHeight: 0 }}>
-          <PhaserCanvasV2 />
-          <GateEpitaph />
-          <HoverTooltip />
-          <Minimap mapVersion="v2" />
-          <CTAButtons />
-          <ChatLog />
-          <ZoomButtons />
-          <ModalLayer />
-        </main>
-      </div>
-    </GameProvider>
+        <div style={{ display: 'flex', flexDirection: 'column', height: '100dvh', width: '100%', overflow: 'hidden', background: '#1a1918' }}>
+          <header style={{ flexShrink: 0, position: 'relative', zIndex: 10 }}>
+            <TopBar mapVersion="v2" />
+          </header>
+          <main style={{ flex: 1, position: 'relative', overflow: 'hidden', minHeight: 0 }}>
+            <PhaserCanvasV2 />
+            <GateEpitaph />
+            <HoverTooltip />
+            <Minimap mapVersion="v2" />
+            <CTAButtons />
+            <ChatLog />
+            <ZoomButtons />
+            <ModalLayer />
+          </main>
+        </div>
+      </GameProvider>
+    </CemeteryMapVersionContext.Provider>
   );
 }

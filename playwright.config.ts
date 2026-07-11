@@ -22,6 +22,18 @@ function loadEnvLocal() {
 
 loadEnvLocal();
 
+// API smoke still receives its Supabase/auth settings, but browser and direct
+// route tests must never inherit a developer's shared rate-limit backend.
+delete process.env.UPSTASH_REDIS_REST_URL;
+delete process.env.UPSTASH_REDIS_REST_TOKEN;
+
+// Browser E2E runs must not mutate or wait on a developer's shared Upstash
+// instance. The local server uses the in-memory fallback instead.
+const e2eServerEnv = { ...process.env } as Record<string, string>;
+delete e2eServerEnv.UPSTASH_REDIS_REST_URL;
+delete e2eServerEnv.UPSTASH_REDIS_REST_TOKEN;
+e2eServerEnv.PLAYWRIGHT_E2E = '1';
+
 export default defineConfig({
   testDir: './tests',
   timeout: 30_000,
@@ -40,8 +52,10 @@ export default defineConfig({
   webServer: {
     command: 'npm run dev',
     url: 'http://localhost:3000',
-    reuseExistingServer: true,
+    // A reused developer server may retain real Upstash credentials and omit
+    // PLAYWRIGHT_E2E, defeating the isolated test environment above.
+    reuseExistingServer: false,
     timeout: 60_000,
-    env: process.env as Record<string, string>,
+    env: e2eServerEnv,
   },
 });

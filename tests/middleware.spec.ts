@@ -8,6 +8,8 @@ const ORIGINAL_ENV = {
   siteUrl: process.env.NEXT_PUBLIC_SITE_URL,
   upstashUrl: process.env.UPSTASH_REDIS_REST_URL,
   upstashToken: process.env.UPSTASH_REDIS_REST_TOKEN,
+  playwrightE2E: process.env.PLAYWRIGHT_E2E,
+  nodeEnv: process.env.NODE_ENV,
 }
 
 function restoreEnv(name: string, value: string | undefined) {
@@ -24,6 +26,8 @@ test.afterEach(() => {
   restoreEnv('NEXT_PUBLIC_SITE_URL', ORIGINAL_ENV.siteUrl)
   restoreEnv('UPSTASH_REDIS_REST_URL', ORIGINAL_ENV.upstashUrl)
   restoreEnv('UPSTASH_REDIS_REST_TOKEN', ORIGINAL_ENV.upstashToken)
+  restoreEnv('PLAYWRIGHT_E2E', ORIGINAL_ENV.playwrightE2E)
+  restoreEnv('NODE_ENV', ORIGINAL_ENV.nodeEnv)
   __resetRateLimitStateForTests()
 })
 
@@ -159,5 +163,31 @@ test.describe('api proxy', () => {
 
       expect(authSession.status).not.toBe(429)
     }
+  })
+
+  test('bypasses the shared read budget only for explicit local Playwright E2E requests', async () => {
+    Object.assign(process.env, { PLAYWRIGHT_E2E: '1', NODE_ENV: 'test' })
+
+    let response: Awaited<ReturnType<typeof proxy>> | null = null
+    for (let i = 0; i < 61; i += 1) {
+      response = await proxy(new NextRequest('http://localhost:3000/api/graves', {
+        method: 'GET',
+      }))
+    }
+
+    expect(response?.status).toBe(200)
+  })
+
+  test('keeps the read budget for non-local or production requests even when the E2E flag is set', async () => {
+    Object.assign(process.env, { PLAYWRIGHT_E2E: '1', NODE_ENV: 'production' })
+
+    let response: Awaited<ReturnType<typeof proxy>> | null = null
+    for (let i = 0; i < 61; i += 1) {
+      response = await proxy(new NextRequest('http://localhost:3000/api/graves', {
+        method: 'GET',
+      }))
+    }
+
+    expect(response?.status).toBe(429)
   })
 })

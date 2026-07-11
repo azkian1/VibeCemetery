@@ -135,3 +135,35 @@ export function renderGrave(
     }
   }
 }
+
+export function clearRenderedGrave(
+  layer: Phaser.Tilemaps.TilemapLayer,
+  tileX: number,
+  tileY: number,
+  variant: ReturnType<typeof pickTileVariant>,
+) {
+  if (!variant || !layer.layer) return;
+
+  const remove = (x: number, y: number) => layer.removeTileAt(x, y);
+
+  if ('gid' in variant) {
+    remove(tileX, tileY);
+  } else if ('top' in variant) {
+    remove(tileX, tileY);
+    remove(tileX, tileY + 1);
+  } else if ('left' in variant) {
+    remove(tileX, tileY);
+    remove(tileX + 1, tileY);
+  } else if ('tl' in variant) {
+    remove(tileX, tileY);
+    remove(tileX + 1, tileY);
+    remove(tileX, tileY + 1);
+    remove(tileX + 1, tileY + 1);
+  } else if ('rows' in variant) {
+    for (let row = 0; row < variant.rows.length; row++) {
+      for (let col = 0; col < variant.rows[row].length; col++) {
+        remove(tileX + col, tileY + row);
+      }
+    }
+  }
+}

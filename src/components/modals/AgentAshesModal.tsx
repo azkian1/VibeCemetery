@@ -8,6 +8,14 @@ import StoneFrame from '@/components/ui/StoneFrame';
 import CloseButton from '@/components/ui/CloseButton';
 import InsetBlock from '@/components/ui/InsetBlock';
 import OrnamentDivider from '@/components/ui/OrnamentDivider';
+import {
+  abortLatestRequest,
+  beginLatestRequest,
+  createLatestRequestState,
+  finishLatestRequest,
+  isLatestRequest,
+  type LatestRequestState,
+} from '@/lib/latest-request';
 import type { CSSProperties, KeyboardEvent } from 'react';
 
 export const AGENT_ASHES_COPY = {
@@ -183,9 +191,13 @@ function isValidAshLookupId(id: string): boolean {
   return id.length > 0 && id.length <= 160 && /^[A-Za-z0-9:_-]+$/.test(id);
 }
 
-export async function loadAgentAshCertificate(id: string, fetchImpl: CertificateFetch = fetch): Promise<Record<string, unknown>> {
+export async function loadAgentAshCertificate(
+  id: string,
+  fetchImpl: CertificateFetch = fetch,
+  init: RequestInit = {},
+): Promise<Record<string, unknown>> {
   if (!isValidAshLookupId(id)) throw new Error('Invalid Agent Ash id');
-  const response = await fetchImpl(`/api/agent-ashes/${id}/certificate`, { cache: 'no-store' });
+  const response = await fetchImpl(`/api/agent-ashes/${id}/certificate`, { ...init, cache: 'no-store' });
   if (!response.ok) throw new Error('certificate request failed');
   const certificate = await response.json();
   if (!certificate || typeof certificate !== 'object' || Array.isArray(certificate)) throw new Error('invalid certificate');
@@ -290,6 +302,7 @@ export default function AgentAshesModal() {
   const [certificateError, setCertificateError] = useState<string | null>(null);
   const [certificateLoading, setCertificateLoading] = useState(false);
   const mountedRef = useRef(false);
+  const certificateRequestStateRef = useRef<LatestRequestState>(createLatestRequestState());
   const viewModel = buildAgentAshesViewModel(summary);
   const subject = getObject(certificate?.subject);
   const raw = getObject(certificate?.raw);
@@ -347,23 +360,31 @@ export default function AgentAshesModal() {
   };
 
   async function openCertificate(record: AgentAshesSummaryRecord) {
+    const request = beginLatestRequest(certificateRequestStateRef.current);
     setSelectedRecordId(record.id);
     setCertificate(null);
     setCertificateError(null);
     setCertificateLoading(true);
     try {
-      const nextCertificate = await loadAgentAshCertificate(record.id);
-      if (mountedRef.current) setCertificate(nextCertificate);
+      const nextCertificate = await loadAgentAshCertificate(record.id, fetch, { signal: request.controller.signal });
+      if (!mountedRef.current || !isLatestRequest(certificateRequestStateRef.current, request)) return;
+      setCertificate(nextCertificate);
     } catch {
-      if (mountedRef.current) setCertificateError('Certificate JSON is temporarily unavailable.');
+      if (mountedRef.current && isLatestRequest(certificateRequestStateRef.current, request)) {
+        setCertificateError('Certificate JSON is temporarily unavailable.');
+      }
     } finally {
-      if (mountedRef.current) setCertificateLoading(false);
+      if (mountedRef.current && isLatestRequest(certificateRequestStateRef.current, request)) {
+        setCertificateLoading(false);
+      }
+      finishLatestRequest(certificateRequestStateRef.current, request);
     }
   }
 
   useEffect(() => {
     mountedRef.current = true;
     const controller = new AbortController();
+    const certificateRequestState = certificateRequestStateRef.current;
 
     async function loadSummary() {
       try {
@@ -382,6 +403,7 @@ export default function AgentAshesModal() {
     return () => {
       mountedRef.current = false;
       controller.abort();
+      abortLatestRequest(certificateRequestState);
     };
   }, []);
 
@@ -471,6 +493,7 @@ export default function AgentAshesModal() {
                         <button
                           type="button"
                           onClick={() => {
+                            abortLatestRequest(certificateRequestStateRef.current);
                             setSelectedRecordId(null);
                             setCertificate(null);
                             setCertificateError(null);

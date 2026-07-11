@@ -6,6 +6,7 @@ import { supabaseAdmin } from '@/lib/supabase'
 import { checkRateLimit, getClientIp } from '@/lib/rate-limit'
 import { getAutoAssignableGraveSlots, pickRandomFreeSlot } from '@/lib/map-slots'
 import { sanitizePublicText } from '@/lib/sanitize-public-text'
+import { parseMapVersion } from '@/lib/map-version'
 import { generateEpitaph } from '@/gravedigger/epitaphs'
 import { insertGraveAtomicallyWithSlotRetry, type AtomicInsertRpcResult } from './atomicInsertWithSlotRetry'
 import { insertOutcomeResponse } from './insertOutcomeResponse'
@@ -49,7 +50,12 @@ async function syncUserGravesCount(authorGithub: string, mapVersion: string = 'v
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const author = searchParams.get('author')
-  const mapVersion = searchParams.get('map_version') ?? 'v1'
+  const mapVersion = parseMapVersion(
+    searchParams.has('map_version') ? searchParams.get('map_version') : undefined,
+  )
+  if (!mapVersion) {
+    return NextResponse.json({ error: 'map_version must be one of: v1, v2' }, { status: 400 })
+  }
 
   const limitParam = parseInt(searchParams.get('limit') ?? '500', 10)
   const limit = Math.min(Math.max(1, limitParam || 500), 500)
@@ -179,7 +185,10 @@ export async function POST(req: NextRequest) {
     map_version?: string
   }
 
-  const mapVersion = typeof map_version === 'string' ? map_version : 'v1';
+  const mapVersion = parseMapVersion(map_version)
+  if (!mapVersion) {
+    return NextResponse.json({ error: 'map_version must be one of: v1, v2' }, { status: 400 })
+  }
 
   // Rate limit: quick pre-check (non-authoritative, just to fail fast)
   let preCheck = 0

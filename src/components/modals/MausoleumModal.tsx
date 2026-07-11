@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { useModal, useGame, useGraves } from '@/context/GameContext';
+import { useModal, useGame, useCemeteryMapVersion, useGraves } from '@/context/GameContext';
 import { filterGravesByAuthor } from '@/lib/crypt-filter';
 import ModalOverlay from './ModalOverlay';
 import { useIsMobile } from '@/hooks/useIsMobile';
@@ -37,7 +37,8 @@ function getTier(slotType: string | undefined): { label: string; color: string; 
 export default function MausoleumModal() {
   const { close, push, modalData } = useModal();
   const { state } = useGame();
-  const { error, refetch } = useGraves({ auto: false });
+  const mapVersion = useCemeteryMapVersion();
+  const { error, refetch } = useGraves({ auto: false, mapVersion });
   const isMobile = useIsMobile();
   const graves = state.graves;
   const [sortCol, setSortCol] = useState<SortCol>('f');

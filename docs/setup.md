@@ -76,6 +76,20 @@ Then apply the CLI auth hardening migration:
 docs/cli-auth-v1.sql
 ```
 
+Finally, apply the mandatory RLS hardening migration to the external Supabase
+project. It is idempotent and also protects tables created by earlier schema
+versions:
+
+```sql
+-- run after every base/optional application schema migration
+docs/supabase-rls-hardening.sql
+```
+
+The app reads and writes these records only through its server-side API using
+`SUPABASE_SERVICE_KEY`. Do not create browser `anon` or `authenticated` table
+policies unless a new client-side data path has received a separate security
+review.
+
 The app expects these tables and functions to exist:
 
 - `users`

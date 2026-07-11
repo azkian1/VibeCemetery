@@ -1,7 +1,8 @@
 import * as Phaser from 'phaser';
 import { parseSlotsV2, SlotData } from '../utils/slotManager-v2';
 import { pickGraveGidV2 } from '../utils/tileRegistry-v2';
-import { cemeteryEvents, SlotEventData, RenderGraveData, MinimapClickData } from '../events';
+import { cemeteryEvents, SlotEventData, RenderGraveData, MinimapClickData, SyncGravesData } from '../events';
+import { isSameRenderedGrave, planGraveReconciliation } from '../graveReconciliation';
 
 const MAP_TILES_X = 140;
 const MAP_TILES_Y = 104;
@@ -124,12 +125,41 @@ export class CemeterySceneV2 extends Phaser.Scene {
   private assetLoadError: { assetKey: string; assetUrl: string } | null = null;
   private cleanedUp = false;
   private renderedSlots = new Set<number>();
+  private renderedGraves = new Map<number, RenderGraveData>();
+  private desiredGraves = new Map<number, RenderGraveData>();
+  private graveSprites = new Map<number, Phaser.GameObjects.Sprite>();
+  private ceremonySlotIds = new Set<number>();
+  private snapshotProtectedSlotIds = new Set<number>();
+  private graveSnapshotAuthoritative = false;
   private hoverHighlight: Phaser.GameObjects.Graphics | null = null;
   private slotHighlightGfx: Phaser.GameObjects.Graphics | null = null;
   private slotHighlightTimer: Phaser.Time.TimerEvent | null = null;
 
   constructor() {
     super({ key: 'CemeterySceneV2' });
+  }
+
+  private scheduleDelayedCall(delay: number, callback: () => void) {
+    const timer = this.time.delayedCall(delay, () => {
+      this.untrackTimer(timer);
+      callback();
+    });
+    this.timers.push(timer);
+    return timer;
+  }
+
+  private untrackTimer(timer: Phaser.Time.TimerEvent) {
+    const index = this.timers.indexOf(timer);
+    if (index !== -1) this.timers.splice(index, 1);
+  }
+
+  private trackCeremonyObject<T extends Phaser.GameObjects.GameObject>(object: T): T {
+    this.ceremonyObjects.push(object);
+    object.once(Phaser.GameObjects.Events.DESTROY, () => {
+      const index = this.ceremonyObjects.indexOf(object);
+      if (index !== -1) this.ceremonyObjects.splice(index, 1);
+    });
+    return object;
   }
 
   preload() {
@@ -235,6 +265,12 @@ export class CemeterySceneV2 extends Phaser.Scene {
     if (this.assetLoadError) return;
 
     this.renderedSlots.clear();
+    this.renderedGraves.clear();
+    this.desiredGraves.clear();
+    this.graveSprites.clear();
+    this.ceremonySlotIds.clear();
+    this.snapshotProtectedSlotIds.clear();
+    this.graveSnapshotAuthoritative = false;
     this.cleanedUp = false;
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, this.shutdown, this);
     this.events.once(Phaser.Scenes.Events.DESTROY, this.shutdown, this);
@@ -386,6 +422,7 @@ export class CemeterySceneV2 extends Phaser.Scene {
 
     cemeteryEvents.on('render_graves', this.onRenderGraves);
     cemeteryEvents.on('render_grave', this.onRenderGrave);
+    cemeteryEvents.on('sync_graves', this.onSyncGraves);
 
     this.createBuildingLabels();
     this.createFogVignette();
@@ -744,18 +781,32 @@ export class CemeterySceneV2 extends Phaser.Scene {
     this.hoverHighlight.strokeRect(x, y, w, h);
   }
 
+  private removeGraveFromMap(slotId: number) {
+    const sprite = this.graveSprites.get(slotId);
+    if (sprite?.active) sprite.destroy();
+    this.graveSprites.delete(slotId);
+    this.renderedSlots.delete(slotId);
+    this.renderedGraves.delete(slotId);
+  }
+
   private renderGraveOnMap(grave: RenderGraveData) {
-    if (this.renderedSlots.has(grave.slot_id)) return;
+    const current = this.renderedGraves.get(grave.slot_id);
+    if (current && isSameRenderedGrave(current, grave)) return;
+
     const slot = this.slots.get(grave.slot_id);
     if (!slot) return;
 
     // Use server-picked GID if available, otherwise fall back to deterministic pick
     const gid = grave.grave_gid ?? pickGraveGidV2(slot.type, grave.slot_id);
-    if (!gid) return;
+    const tileset = gid ? this.map.tilesets.find(ts => ts.firstgid === gid) : null;
+    if (!gid || !tileset) {
+      this.removeGraveFromMap(grave.slot_id);
+      return;
+    }
 
-    const tileset = this.map.tilesets.find(ts => ts.firstgid === gid);
-    if (!tileset) return;
-
+    if (current || this.renderedSlots.has(grave.slot_id)) {
+      this.removeGraveFromMap(grave.slot_id);
+    }
     const sprite = this.add.sprite(
       slot.x + slot.width / 2,
       slot.y + slot.height / 2,
@@ -763,7 +814,9 @@ export class CemeterySceneV2 extends Phaser.Scene {
       gid - tileset.firstgid,
     );
     sprite.setDepth(800);
+    this.graveSprites.set(grave.slot_id, sprite);
     this.renderedSlots.add(grave.slot_id);
+    this.renderedGraves.set(grave.slot_id, grave);
   }
 
   private onRenderGraves = (data: { graves: RenderGraveData[] }) => {
@@ -772,6 +825,32 @@ export class CemeterySceneV2 extends Phaser.Scene {
   private onRenderGrave = (data: RenderGraveData) => {
     this.renderGraveOnMap(data);
   };
+
+  private onSyncGraves = (data: SyncGravesData) => {
+    this.desiredGraves = new Map<number, RenderGraveData>();
+    for (const grave of data.graves) {
+      this.desiredGraves.set(grave.slot_id, grave);
+    }
+    this.snapshotProtectedSlotIds = new Set(data.protectedSlotIds);
+    this.graveSnapshotAuthoritative = data.authoritative;
+    this.reconcileGraves();
+  };
+
+  private reconcileGraves() {
+    const protectedSlotIds = new Set([
+      ...this.ceremonySlotIds,
+      ...this.snapshotProtectedSlotIds,
+    ]);
+    const plan = planGraveReconciliation(
+      this.renderedGraves,
+      this.desiredGraves,
+      protectedSlotIds,
+      this.graveSnapshotAuthoritative,
+    );
+
+    for (const slotId of plan.remove) this.removeGraveFromMap(slotId);
+    for (const grave of plan.render) this.renderGraveOnMap(grave);
+  }
 
   private onMinimapClick = (data: MinimapClickData) => {
     if (this.isCeremonyBlockingInput()) return;
@@ -798,9 +877,9 @@ export class CemeterySceneV2 extends Phaser.Scene {
       this.buryModalOpen = false;
       this.ceremonyScheduled = true;
       this.input.enabled = false;
-      this.timers.push(this.time.delayedCall(200, () => {
+      this.scheduleDelayedCall(200, () => {
         this.playBurialCeremony(ceremonyData);
-      }));
+      });
       return;
     }
     this.input.enabled = !data.open && !this.ceremonyScheduled && !this.ceremonyInProgress && !this.pendingCeremony;
@@ -869,6 +948,7 @@ export class CemeterySceneV2 extends Phaser.Scene {
   };
 
   private onBurialCeremony = (data: { slot_id: number; id: string; name: string }) => {
+    this.ceremonySlotIds.add(data.slot_id);
     if (this.ceremonyInProgress || this.ceremonyScheduled || this.pendingCeremony) {
       this.ceremonyQueue.push(data);
       return;
@@ -881,9 +961,9 @@ export class CemeterySceneV2 extends Phaser.Scene {
       this.buryModalOpen = false;
       this.ceremonyScheduled = true;
       this.input.enabled = false;
-      this.timers.push(this.time.delayedCall(200, () => {
+      this.scheduleDelayedCall(200, () => {
         this.playBurialCeremony(ceremonyData);
-      }));
+      });
     }
   };
 
@@ -934,7 +1014,7 @@ export class CemeterySceneV2 extends Phaser.Scene {
         this.playDirtBurst(cx, cy);
         cam.shake(300, 0.005);
 
-        this.timers.push(this.time.delayedCall(1000, () => {
+        this.scheduleDelayedCall(1000, () => {
           this.renderGraveOnMap(data);
           this.playGraveReveal(slot, () => {
             this.playRIPGlow(slot, data.name, () => {
@@ -955,7 +1035,7 @@ export class CemeterySceneV2 extends Phaser.Scene {
               });
             });
           });
-        }));
+        });
       },
     });
   }
@@ -981,11 +1061,11 @@ export class CemeterySceneV2 extends Phaser.Scene {
     });
     particles.setDepth(920);
     particles.explode(20);
-    this.ceremonyObjects.push(particles);
+    this.trackCeremonyObject(particles);
 
-    this.timers.push(this.time.delayedCall(1000, () => {
+    this.scheduleDelayedCall(1000, () => {
       particles.destroy();
-    }));
+    });
   }
 
   private playGraveReveal(slot: SlotData, onComplete: () => void) {
@@ -998,7 +1078,7 @@ export class CemeterySceneV2 extends Phaser.Scene {
       1.0,
     );
     rect.setDepth(910);
-    this.ceremonyObjects.push(rect);
+    this.trackCeremonyObject(rect);
 
     this.tweens.add({
       targets: rect,
@@ -1019,7 +1099,7 @@ export class CemeterySceneV2 extends Phaser.Scene {
     const GLOW_STEPS = 10;
     const glowGfx = this.add.graphics();
     glowGfx.setDepth(905);
-    this.ceremonyObjects.push(glowGfx);
+    this.trackCeremonyObject(glowGfx);
     const glowState = { intensity: 0 };
 
     const drawGlow = () => {
@@ -1073,7 +1153,7 @@ export class CemeterySceneV2 extends Phaser.Scene {
     ripText.setOrigin(0.5, 0.5);
     ripText.setDepth(915);
     ripText.setAlpha(0);
-    this.ceremonyObjects.push(ripText);
+    this.trackCeremonyObject(ripText);
 
     const nameText = this.add.text(cx, cy + 8, name, {
       fontSize: '11px',
@@ -1086,7 +1166,7 @@ export class CemeterySceneV2 extends Phaser.Scene {
     nameText.setOrigin(0.5, 0.5);
     nameText.setDepth(915);
     nameText.setAlpha(0);
-    this.ceremonyObjects.push(nameText);
+    this.trackCeremonyObject(nameText);
 
     this.tweens.add({
       targets: [ripText, nameText],
@@ -1095,7 +1175,7 @@ export class CemeterySceneV2 extends Phaser.Scene {
       duration: 800,
       ease: 'Sine.easeOut',
       onComplete: () => {
-        this.timers.push(this.time.delayedCall(200, () => {
+        this.scheduleDelayedCall(200, () => {
           this.tweens.add({
             targets: [ripText, nameText],
             alpha: 0,
@@ -1107,22 +1187,25 @@ export class CemeterySceneV2 extends Phaser.Scene {
               onComplete();
             },
           });
-        }));
+        });
       },
     });
   }
 
   private finishBurialCeremony(slotId: number) {
     this.ceremonyInProgress = false;
+    this.ceremonySlotIds.delete(slotId);
+    this.snapshotProtectedSlotIds.delete(slotId);
+    this.reconcileGraves();
     const next = this.ceremonyQueue.shift();
     const willContinue = Boolean(next);
     cemeteryEvents.emit('burial_ceremony_done', { slot_id: slotId, willContinue });
     if (next) {
       this.ceremonyScheduled = true;
       this.input.enabled = false;
-      this.timers.push(this.time.delayedCall(200, () => {
+      this.scheduleDelayedCall(200, () => {
         this.playBurialCeremony(next);
-      }));
+      });
       return;
     }
     this.input.enabled = !this.modalOpen;
@@ -1134,6 +1217,7 @@ export class CemeterySceneV2 extends Phaser.Scene {
 
     cemeteryEvents.off('render_graves', this.onRenderGraves);
     cemeteryEvents.off('render_grave', this.onRenderGrave);
+    cemeteryEvents.off('sync_graves', this.onSyncGraves);
     cemeteryEvents.off('minimap_click', this.onMinimapClick);
     cemeteryEvents.off('highlight_slot', this.onHighlightSlot);
     cemeteryEvents.off('modal_state', this.onModalState);
@@ -1143,7 +1227,7 @@ export class CemeterySceneV2 extends Phaser.Scene {
     this.ceremonyQueue = [];
     this.ceremonyScheduled = false;
     this.buryModalOpen = false;
-    for (const obj of this.ceremonyObjects) {
+    for (const obj of [...this.ceremonyObjects]) {
       if (obj && obj.active) obj.destroy();
     }
     this.ceremonyObjects = [];
@@ -1167,7 +1251,16 @@ export class CemeterySceneV2 extends Phaser.Scene {
     this.input.off('pointerup');
     this.input.off('wheel');
 
+    for (const sprite of this.graveSprites.values()) {
+      if (sprite.active) sprite.destroy();
+    }
     this.renderedSlots.clear();
+    this.renderedGraves.clear();
+    this.desiredGraves.clear();
+    this.graveSprites.clear();
+    this.ceremonySlotIds.clear();
+    this.snapshotProtectedSlotIds.clear();
+    this.graveSnapshotAuthoritative = false;
     this.slots.clear();
   }
 }

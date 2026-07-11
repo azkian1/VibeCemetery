@@ -7,15 +7,21 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "test:unit": "playwright test -c playwright.unit.config.ts",
+    "test:e2e": "playwright test -c playwright.config.ts",
     "test:bury-skill": "playwright test -c tests/bury-skill-config.ts"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.98.0",
-    "next": "^16.2.4",
+    "@supabase/supabase-js": "~2.109.0",
+    "next": "^16.2.10",
     "next-auth": "^4.24.13",
     "phaser": "^3.90.0",
     "react": "19.2.3",
     "react-dom": "19.2.3"
+  },
+  "overrides": {
+    "uuid": "11.1.1",
+    "postcss": "8.5.10"
   },
   "devDependencies": {
     "@playwright/test": "^1.58.2",

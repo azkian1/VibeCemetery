@@ -7,12 +7,21 @@ import {
   useEffect,
   useCallback,
   useMemo,
+  useRef,
   type ReactNode,
 } from 'react';
 import { useSession } from 'next-auth/react';
 import type { GraveData, CrematedData, DeadRepo } from '@/types/game';
 import type { SlotPositionData } from '@/game/events';
 import type { BuryFlowMode } from '@/components/modals/BuryFlowModal';
+import {
+  abortLatestRequest,
+  beginLatestRequest,
+  createLatestRequestState,
+  finishLatestRequest,
+  isLatestRequest,
+  type LatestRequestState,
+} from '@/lib/latest-request';
 
 // ── Types ──────────────────────────────────────────────
 
@@ -41,6 +50,7 @@ export interface ModalData {
 }
 
 export type ModalInstanceId = string;
+export type CemeteryMapVersion = 'v1' | 'v2';
 
 export interface ModalStackEntry {
   id: ModalInstanceId;
@@ -253,12 +263,37 @@ function gameReducer(state: GameState, action: GameAction): GameState {
 const GameContext = createContext<{
   state: GameState;
   dispatch: React.Dispatch<GameAction>;
+  gravesRequestStateRef: { current: LatestRequestState };
+  crematedRequestStateRef: { current: LatestRequestState };
+  fStatusRequestStateRef: { current: LatestRequestState };
 } | null>(null);
+
+export const CemeteryMapVersionContext = createContext<CemeteryMapVersion>('v1');
 
 // ── Provider ───────────────────────────────────────────
 
 export function GameProvider({ children }: { children: ReactNode }) {
-  const [state, dispatch] = useReducer(gameReducer, initialState);
+  const [state, reducerDispatch] = useReducer(gameReducer, initialState);
+  const gravesRequestStateRef = useRef<LatestRequestState>(createLatestRequestState());
+  const crematedRequestStateRef = useRef<LatestRequestState>(createLatestRequestState());
+  const fStatusRequestStateRef = useRef<LatestRequestState>(createLatestRequestState());
+  const dispatch = useCallback((action: GameAction) => {
+    if (
+      action.type === 'ADD_GRAVE'
+      || action.type === 'UPDATE_F_COUNT'
+      || action.type === 'ADD_F_VOTE'
+      || action.type === 'REMOVE_F_VOTE'
+    ) {
+      abortLatestRequest(gravesRequestStateRef.current);
+    }
+    if (action.type === 'ADD_CREMATED') {
+      abortLatestRequest(crematedRequestStateRef.current);
+    }
+    if (action.type === 'SET_USER') {
+      abortLatestRequest(fStatusRequestStateRef.current);
+    }
+    reducerDispatch(action);
+  }, []);
   const { data: session, status } = useSession();
   const githubUsername = session?.user?.github_username ?? null;
 
@@ -275,10 +310,22 @@ export function GameProvider({ children }: { children: ReactNode }) {
           }
         : null,
     });
-  }, [status, githubUsername, session?.user?.image, session?.user?.name]);
+  }, [status, githubUsername, session?.user?.image, session?.user?.name, dispatch]);
+
+  useEffect(() => () => {
+    abortLatestRequest(gravesRequestStateRef.current);
+    abortLatestRequest(crematedRequestStateRef.current);
+    abortLatestRequest(fStatusRequestStateRef.current);
+  }, []);
 
   return (
-    <GameContext.Provider value={useMemo(() => ({ state, dispatch }), [state, dispatch])}>
+    <GameContext.Provider value={useMemo(() => ({
+      state,
+      dispatch,
+      gravesRequestStateRef,
+      crematedRequestStateRef,
+      fStatusRequestStateRef,
+    }), [state, dispatch])}>
       {children}
     </GameContext.Provider>
   );
@@ -290,6 +337,10 @@ export function useGame() {
   const ctx = useContext(GameContext);
   if (!ctx) throw new Error('useGame must be used within GameProvider');
   return ctx;
+}
+
+export function useCemeteryMapVersion(): CemeteryMapVersion {
+  return useContext(CemeteryMapVersionContext);
 }
 
 export function useModal() {
@@ -329,29 +380,35 @@ export function useModal() {
 }
 
 export function useGraves(options?: { auto?: boolean; mapVersion?: 'v1' | 'v2' }) {
-  const { state, dispatch } = useGame();
+  const { state, dispatch, gravesRequestStateRef } = useGame();
   const auto = options?.auto ?? true;
   const mapVersion = options?.mapVersion ?? 'v1';
 
   const fetchGraves = useCallback(async () => {
+    const request = beginLatestRequest(gravesRequestStateRef.current);
     dispatch({ type: 'SET_GRAVES_LOADING' });
 
     try {
-      const res = await fetch(`/api/graves?map_version=${mapVersion}`);
+      const res = await fetch(`/api/graves?map_version=${mapVersion}`, { signal: request.controller.signal });
+      if (!isLatestRequest(gravesRequestStateRef.current, request)) return;
       if (!res.ok) {
         console.error('[VibeCemetery] Failed to fetch graves:', res.status);
         dispatch({ type: 'SET_GRAVES_ERROR', error: 'The cemetery records could not be loaded.' });
         return;
       }
       const data: GraveData[] = await res.json();
+      if (!isLatestRequest(gravesRequestStateRef.current, request)) return;
       const map = new Map<number, GraveData>();
       for (const g of data) map.set(g.slot_id, g);
       dispatch({ type: 'SET_GRAVES', graves: map, error: null });
     } catch (err) {
+      if (!isLatestRequest(gravesRequestStateRef.current, request)) return;
       console.error('[VibeCemetery] Failed to fetch graves:', err);
       dispatch({ type: 'SET_GRAVES_ERROR', error: 'The cemetery records could not be loaded.' });
+    } finally {
+      finishLatestRequest(gravesRequestStateRef.current, request);
     }
-  }, [dispatch, mapVersion]);
+  }, [dispatch, gravesRequestStateRef, mapVersion]);
 
   useEffect(() => {
     if (!auto) return;
@@ -368,26 +425,32 @@ export function useGraves(options?: { auto?: boolean; mapVersion?: 'v1' | 'v2' }
 }
 
 export function useCremated(options?: { auto?: boolean }) {
-  const { state, dispatch } = useGame();
+  const { state, dispatch, crematedRequestStateRef } = useGame();
   const auto = options?.auto ?? true;
 
   const fetchCremated = useCallback(async () => {
+    const request = beginLatestRequest(crematedRequestStateRef.current);
     dispatch({ type: 'SET_CREMATED_LOADING' });
 
     try {
-      const res = await fetch('/api/cremated');
+      const res = await fetch('/api/cremated', { signal: request.controller.signal });
+      if (!isLatestRequest(crematedRequestStateRef.current, request)) return;
       if (!res.ok) {
         console.error('[VibeCemetery] Failed to fetch cremated:', res.status);
         dispatch({ type: 'SET_CREMATED_ERROR', error: 'The crematory ledger could not be loaded.' });
         return;
       }
       const data: CrematedData[] = await res.json();
+      if (!isLatestRequest(crematedRequestStateRef.current, request)) return;
       dispatch({ type: 'SET_CREMATED', cremated: data, error: null });
     } catch (err) {
+      if (!isLatestRequest(crematedRequestStateRef.current, request)) return;
       console.error('[VibeCemetery] Failed to fetch cremated:', err);
       dispatch({ type: 'SET_CREMATED_ERROR', error: 'The crematory ledger could not be loaded.' });
+    } finally {
+      finishLatestRequest(crematedRequestStateRef.current, request);
     }
-  }, [dispatch]);
+  }, [crematedRequestStateRef, dispatch]);
 
   // Refetch when user changes (login/logout)
   const currentUser = state.user?.github_username ?? null;
@@ -421,17 +484,41 @@ export function useChat() {
 }
 
 export function useFStatus() {
-  const { state, dispatch } = useGame();
+  const { state, dispatch, fStatusRequestStateRef } = useGame();
+  const { data: session, status } = useSession();
+  const sessionUsername = status === 'authenticated' ? session?.user?.github_username ?? null : null;
+  const currentUser = state.user?.github_username ?? null;
 
   useEffect(() => {
-    if (state.gravesLoading || state.fStatusLoaded) return;
-    fetch('/api/f-status')
-      .then((r) => r.json().catch(() => ({ myVotes: [] })))
-      .then((data: { myVotes: string[] }) => {
-        dispatch({ type: 'SET_F_STATUS', myVotes: data.myVotes ?? [] });
-      })
-      .catch(() => {
+    if (status === 'loading' || currentUser !== sessionUsername || state.gravesLoading || state.fStatusLoaded) return;
+
+    const fStatusRequestState = fStatusRequestStateRef.current;
+    const request = beginLatestRequest(fStatusRequestState);
+
+    async function loadFStatus() {
+      try {
+        const response = await fetch('/api/f-status', {
+          cache: 'no-store',
+          signal: request.controller.signal,
+        });
+        if (!isLatestRequest(fStatusRequestState, request)) return;
+        const data = await response.json().catch(() => ({ myVotes: [] })) as { myVotes?: unknown };
+        if (!isLatestRequest(fStatusRequestState, request)) return;
+        const myVotes = Array.isArray(data.myVotes)
+          ? data.myVotes.filter((vote): vote is string => typeof vote === 'string')
+          : [];
+        dispatch({ type: 'SET_F_STATUS', myVotes });
+      } catch {
+        if (!isLatestRequest(fStatusRequestState, request)) return;
         dispatch({ type: 'SET_F_STATUS', myVotes: [] });
-      });
-  }, [state.gravesLoading, state.fStatusLoaded, dispatch]);
+      } finally {
+        finishLatestRequest(fStatusRequestState, request);
+      }
+    }
+
+    void loadFStatus();
+    return () => {
+      abortLatestRequest(fStatusRequestState);
+    };
+  }, [currentUser, dispatch, fStatusRequestStateRef, sessionUsername, state.fStatusLoaded, state.gravesLoading, status]);
 }

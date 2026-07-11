@@ -29,8 +29,9 @@ export default function PhaserCanvasV2() {
   const gameRef = useRef<Phaser.Game | null>(null);
   const [ready, setReady] = useState(false);
   const [assetLoadError, setAssetLoadError] = useState<{ assetKey: string; assetUrl: string } | null>(null);
+  const [syncRevision, setSyncRevision] = useState(0);
   const { state, dispatch } = useGame();
-  const sentSlotIdsRef = useRef(new Set<number>());
+  const ceremonySlotIdsRef = useRef(new Set<number>());
   const ceremonyChatsRef = useRef(new Map<number, { chatText: string; gravediggerPhrase: string }>());
   const ceremonyDoneTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const activeModalRef = useRef(state.activeModal);
@@ -47,7 +48,7 @@ export default function PhaserCanvasV2() {
   useEffect(() => {
     const data = readPendingBurialCeremony();
     if (!data) return;
-    sentSlotIdsRef.current.add(data.slot_id);
+    ceremonySlotIdsRef.current.add(data.slot_id);
     if (data.chatText && data.gravediggerPhrase) {
       ceremonyChatsRef.current.set(data.slot_id, { chatText: data.chatText, gravediggerPhrase: data.gravediggerPhrase });
     }
@@ -80,6 +81,7 @@ export default function PhaserCanvasV2() {
 
   const handleSceneReady = useCallback(() => {
     setReady(true);
+    setSyncRevision((revision) => revision + 1);
     setAssetLoadError(null);
   }, []);
 
@@ -89,11 +91,14 @@ export default function PhaserCanvasV2() {
   }, []);
 
   const handleBurialCeremony = useCallback((data: { slot_id: number; chatText: string; gravediggerPhrase: string }) => {
-    sentSlotIdsRef.current.add(data.slot_id);
+    ceremonySlotIdsRef.current.add(data.slot_id);
     ceremonyChatsRef.current.set(data.slot_id, { chatText: data.chatText, gravediggerPhrase: data.gravediggerPhrase });
   }, []);
 
   const handleBurialCeremonyDone = useCallback((data: { slot_id: number; willContinue?: boolean }) => {
+    ceremonySlotIdsRef.current.delete(data.slot_id);
+    setSyncRevision((revision) => revision + 1);
+
     const chat = ceremonyChatsRef.current.get(data.slot_id);
     if (!chat) return;
     ceremonyChatsRef.current.delete(data.slot_id);
@@ -198,31 +203,19 @@ export default function PhaserCanvasV2() {
   }, []);
 
   useEffect(() => {
-    if (!ready || state.graves.size === 0) return;
+    if (!ready) return;
 
-    const newGraves: RenderGraveData[] = [];
-    for (const [slotId, g] of state.graves) {
-      if (!sentSlotIdsRef.current.has(slotId)) {
-        newGraves.push({ slot_id: g.slot_id, id: g.id, name: g.name, grave_gid: g.grave_gid });
-      }
-    }
-    if (newGraves.length === 0) return;
-
-    if (sentSlotIdsRef.current.size === 0) {
-      cemeteryEvents.emit('render_graves', { graves: newGraves });
-    } else {
-      for (const g of newGraves) {
-        cemeteryEvents.emit('render_grave', g);
-      }
+    const graves: RenderGraveData[] = [];
+    for (const g of state.graves.values()) {
+      graves.push({ slot_id: g.slot_id, id: g.id, name: g.name, grave_gid: g.grave_gid });
     }
 
-    for (const g of newGraves) sentSlotIdsRef.current.add(g.slot_id);
-
-    if (sentSlotIdsRef.current.size > state.graves.size + 50) {
-      const alive = new Set(state.graves.keys());
-      sentSlotIdsRef.current = alive;
-    }
-  }, [ready, state.graves]);
+    cemeteryEvents.emit('sync_graves', {
+      graves,
+      protectedSlotIds: [...ceremonySlotIdsRef.current],
+      authoritative: !state.gravesLoading && !state.gravesError,
+    });
+  }, [ready, state.graves, state.gravesLoading, state.gravesError, syncRevision]);
 
   useEffect(() => {
     cemeteryEvents.emit('modal_state', { open: !!state.activeModal });

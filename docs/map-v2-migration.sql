@@ -5,6 +5,23 @@
 ALTER TABLE public.graves
   ADD COLUMN IF NOT EXISTS map_version TEXT NOT NULL DEFAULT 'v1';
 
+-- Only the deployed map namespaces may participate in slot allocation.
+-- NOT VALID keeps this migration safe on installations that already contain
+-- legacy invalid rows, while still rejecting all new invalid writes.
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conname = 'graves_map_version_check'
+      AND conrelid = 'public.graves'::regclass
+  ) THEN
+    ALTER TABLE public.graves
+      ADD CONSTRAINT graves_map_version_check
+      CHECK (map_version IN ('v1', 'v2')) NOT VALID;
+  END IF;
+END $$;
+
 -- 2. Add index for map_version queries
 CREATE INDEX IF NOT EXISTS graves_map_version_idx ON public.graves (map_version);
 
@@ -46,6 +63,10 @@ DECLARE
   v_detail text;
 BEGIN
   PERFORM pg_advisory_xact_lock(hashtext(p_author_github || ':' || p_map_version));
+
+  IF p_map_version NOT IN ('v1', 'v2') THEN
+    RETURN jsonb_build_object('status', 'failed', 'message', 'unsupported map_version');
+  END IF;
 
   IF NOT (p_slot_id = ANY(p_auto_slot_ids)) THEN
     RETURN jsonb_build_object('status', 'failed', 'message', 'slot_id is not auto-assignable');

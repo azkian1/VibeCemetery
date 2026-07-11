@@ -2,7 +2,7 @@
 
 import React, { useMemo, useCallback, useEffect } from 'react';
 import { useSession, signOut } from 'next-auth/react';
-import { useModal, useGame, useCremated, useGraves } from '@/context/GameContext';
+import { useModal, useGame, useCemeteryMapVersion, useCremated, useGraves } from '@/context/GameContext';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import { cemeteryEvents } from '@/game/events';
 import ModalOverlay from './ModalOverlay';
@@ -74,6 +74,7 @@ export function getSlotsAvailableLabel(slotsAvailable: number): string {
 export default function ProfileModal() {
   const { close, open, push } = useModal();
   const { state } = useGame();
+  const mapVersion = useCemeteryMapVersion();
   const {
     error: crematedError,
     loading: crematedLoading,
@@ -83,7 +84,7 @@ export default function ProfileModal() {
     error: gravesError,
     loading: gravesLoading,
     refetch: refetchGraves,
-  } = useGraves({ auto: false });
+  } = useGraves({ auto: false, mapVersion });
   const { data: session } = useSession();
   const isMobile = useIsMobile();
   const user = session?.user;

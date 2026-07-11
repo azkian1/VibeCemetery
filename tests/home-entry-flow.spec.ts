@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs'
 import {
   calculateAvailableGraveSlotsForHome,
   decideHomeRepoAction,
+  extractHomeSlotPositions,
   filterFreshDeadRepos,
   formatLastPushAge,
   shouldShowHomeScannerChrome,
@@ -72,6 +73,37 @@ test.describe('home scanner entry flow', () => {
     expect(shouldShowHomeScannerChrome(null)).toBe(true)
     expect(shouldShowHomeScannerChrome([])).toBe(false)
     expect(shouldShowHomeScannerChrome([repo({ id: 4, name: 'dead' })])).toBe(false)
+  })
+
+  test('defers the cemetery ledger and slot map until a user starts a scan', () => {
+    const source = readFileSync('src/components/HomeScannerLanding.tsx', 'utf8')
+    const runScanStart = source.indexOf('const runScan = async () =>')
+    const mapFetch = source.indexOf("fetch('/map/az.tmj')")
+
+    expect(source).not.toContain('GameDataLoaders')
+    expect(runScanStart).toBeGreaterThan(-1)
+    expect(mapFetch).toBeGreaterThan(runScanStart)
+    expect(source.slice(0, runScanStart)).not.toContain("fetch('/map/az.tmj')")
+    expect(source).toContain('Promise.all([')
+    expect(source).toContain('fetch(`/api/graves?author=${username}&limit=50`)')
+    expect(source).toContain('fetch(`/api/cremated?author=${username}&limit=50`)')
+  })
+
+  test('keeps non-auto slots out of home slot economy after the scan loads map classifications', () => {
+    const slotPositions = extractHomeSlotPositions({
+      layers: [{
+        name: 'slots',
+        objects: [{ id: 99, type: 'grave_special', name: 'Special', x: 0, y: 0, width: 1, height: 1 }],
+      }],
+    })
+    const graves = new Map<number, GraveData>([[99, grave({ slot_id: 99, author_github: 'octocat' })]])
+
+    expect(calculateAvailableGraveSlotsForHome({
+      graves,
+      username: 'octocat',
+      hasSharedFirstGrave: false,
+      slotPositions,
+    })).toBe(4)
   })
 
   test('home keeps wallet hidden and does not surface the paused Agent Layer', () => {

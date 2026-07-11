@@ -29,8 +29,9 @@ export default function PhaserCanvas() {
   const gameRef = useRef<Phaser.Game | null>(null);
   const [ready, setReady] = useState(false);
   const [assetLoadError, setAssetLoadError] = useState<{ assetKey: string; assetUrl: string } | null>(null);
+  const [syncRevision, setSyncRevision] = useState(0);
   const { state, dispatch } = useGame();
-  const sentSlotIdsRef = useRef(new Set<number>());
+  const ceremonySlotIdsRef = useRef(new Set<number>());
   const ceremonyChatsRef = useRef(new Map<number, { chatText: string; gravediggerPhrase: string }>());
   const ceremonyDoneTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const activeModalRef = useRef(state.activeModal);
@@ -47,7 +48,7 @@ export default function PhaserCanvas() {
   useEffect(() => {
     const data = readPendingBurialCeremony();
     if (!data) return;
-    sentSlotIdsRef.current.add(data.slot_id);
+    ceremonySlotIdsRef.current.add(data.slot_id);
     if (data.chatText && data.gravediggerPhrase) {
       ceremonyChatsRef.current.set(data.slot_id, { chatText: data.chatText, gravediggerPhrase: data.gravediggerPhrase });
     }
@@ -80,6 +81,7 @@ export default function PhaserCanvas() {
 
   const handleSceneReady = useCallback(() => {
     setReady(true);
+    setSyncRevision((revision) => revision + 1);
     setAssetLoadError(null);
   }, []);
 
@@ -89,12 +91,16 @@ export default function PhaserCanvas() {
   }, []);
 
   const handleBurialCeremony = useCallback((data: { slot_id: number; chatText: string; gravediggerPhrase: string }) => {
-    // Pre-register slot_id so graves-sync effect skips it (ceremony renders it later)
-    sentSlotIdsRef.current.add(data.slot_id);
+    // The ceremony owns this slot until it has rendered the grave itself.
+    ceremonySlotIdsRef.current.add(data.slot_id);
     ceremonyChatsRef.current.set(data.slot_id, { chatText: data.chatText, gravediggerPhrase: data.gravediggerPhrase });
   }, []);
 
   const handleBurialCeremonyDone = useCallback((data: { slot_id: number; willContinue?: boolean }) => {
+    ceremonySlotIdsRef.current.delete(data.slot_id);
+    // State may be unchanged since the ceremony started; re-sync once the slot is safe to reconcile.
+    setSyncRevision((revision) => revision + 1);
+
     const chat = ceremonyChatsRef.current.get(data.slot_id);
     if (!chat) return;
     ceremonyChatsRef.current.delete(data.slot_id);
@@ -198,36 +204,21 @@ export default function PhaserCanvas() {
     };
   }, []);
 
-  // Sync React graves → Phaser tilemap
+  // Reconcile the complete React snapshot with Phaser, including removals and updates.
   useEffect(() => {
-    if (!ready || state.graves.size === 0) return;
+    if (!ready) return;
 
-    const newGraves: RenderGraveData[] = [];
-    for (const [slotId, g] of state.graves) {
-      if (!sentSlotIdsRef.current.has(slotId)) {
-        newGraves.push({ slot_id: g.slot_id, id: g.id, name: g.name });
-      }
-    }
-    if (newGraves.length === 0) return;
-
-    if (sentSlotIdsRef.current.size === 0) {
-      // Initial load — batch
-      cemeteryEvents.emit('render_graves', { graves: newGraves });
-    } else {
-      // Incremental — only new graves
-      for (const g of newGraves) {
-        cemeteryEvents.emit('render_grave', g);
-      }
+    const graves: RenderGraveData[] = [];
+    for (const g of state.graves.values()) {
+      graves.push({ slot_id: g.slot_id, id: g.id, name: g.name });
     }
 
-    for (const g of newGraves) sentSlotIdsRef.current.add(g.slot_id);
-
-    // Cap: keep only IDs that still exist in graves to prevent unbounded growth
-    if (sentSlotIdsRef.current.size > state.graves.size + 50) {
-      const alive = new Set(state.graves.keys());
-      sentSlotIdsRef.current = alive;
-    }
-  }, [ready, state.graves]);
+    cemeteryEvents.emit('sync_graves', {
+      graves,
+      protectedSlotIds: [...ceremonySlotIdsRef.current],
+      authoritative: !state.gravesLoading && !state.gravesError,
+    });
+  }, [ready, state.graves, state.gravesLoading, state.gravesError, syncRevision]);
 
   // Sync modal state to Phaser (disable input when modal is open)
   useEffect(() => {

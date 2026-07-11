@@ -5,13 +5,45 @@ import { useEffect, useState } from 'react';
 import { signIn, useSession } from 'next-auth/react';
 import { GameProvider, useModal } from '@/context/GameContext';
 import { useGame } from '@/context/GameContext';
-import { GameDataLoaders, ModalLayer } from '@/components/CemeteryApp';
+import { ModalLayer } from '@/components/CemeteryApp';
 import { calculateUserSlotEconomy, isAutoAssignableGraveSlotType } from '@/lib/slot-economy';
 import type { BuryFlowMode } from '@/components/modals/BuryFlowModal';
 import type { CrematedData, DeadRepo, GitHubScanResult, GraveData } from '@/types/game';
 import type { SlotPositionData } from '@/game/events';
 
 const AUTH_GATE_COPY = 'Connect GitHub to scan and bury your own repos.';
+
+interface HomeMapSlotObject {
+  id: number;
+  type: string;
+  name?: string;
+  x?: number;
+  y?: number;
+  width?: number;
+  height?: number;
+}
+
+interface HomeMapData {
+  layers?: Array<{
+    name?: string;
+    objects?: HomeMapSlotObject[];
+  }>;
+}
+
+export function extractHomeSlotPositions(map: HomeMapData | null): SlotPositionData[] {
+  const objects = map?.layers?.find((layer) => layer.name === 'slots')?.objects ?? [];
+  return objects
+    .filter((slot) => slot.type?.startsWith('grave'))
+    .map((slot) => ({
+      id: slot.id,
+      type: slot.type,
+      name: slot.name ?? '',
+      x: slot.x ?? 0,
+      y: slot.y ?? 0,
+      width: slot.width ?? 0,
+      height: slot.height ?? 0,
+    }));
+}
 
 export function formatLastPushAge(value: string, now = new Date()): string {
   const pushedAt = new Date(value);
@@ -90,8 +122,6 @@ function ScannerShell() {
   const { state, dispatch } = useGame();
   const authenticatedUsername = session?.user?.github_username ?? null;
   const hasSharedFirstGrave = Boolean(session?.user?.x_first_grave_shared_at);
-  const [mapSlotsLoading, setMapSlotsLoading] = useState(true);
-  const recordsLoading = state.gravesLoading || state.crematedLoading || mapSlotsLoading;
   const availableGraveSlots = calculateAvailableGraveSlotsForHome({
     graves: state.graves,
     username: authenticatedUsername,
@@ -105,43 +135,6 @@ function ScannerShell() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const showScannerChrome = shouldShowHomeScannerChrome(repos);
-
-  useEffect(() => {
-    if (state.slotPositions.length > 0) {
-      setMapSlotsLoading(false);
-      return;
-    }
-
-    let cancelled = false;
-    fetch('/map/az.tmj')
-      .then((res) => res.ok ? res.json() : null)
-      .then((map: { layers?: Array<{ name?: string; objects?: Array<{ id: number; type: string; name?: string; x?: number; y?: number; width?: number; height?: number }> }> } | null) => {
-        if (cancelled) return;
-        const objects = map?.layers?.find((layer) => layer.name === 'slots')?.objects ?? [];
-        dispatch({
-          type: 'SET_SLOT_POSITIONS',
-          slots: objects
-            .filter((slot) => slot.type?.startsWith('grave'))
-            .map((slot) => ({
-              id: slot.id,
-              type: slot.type,
-              name: slot.name ?? '',
-              x: slot.x ?? 0,
-              y: slot.y ?? 0,
-              width: slot.width ?? 0,
-              height: slot.height ?? 0,
-            })),
-        });
-      })
-      .catch(() => {
-        if (!cancelled) setMessage('The grave slot map could not be loaded. Slot routing may be delayed.');
-      })
-      .finally(() => {
-        if (!cancelled) setMapSlotsLoading(false);
-      });
-
-    return () => { cancelled = true; };
-  }, [dispatch, state.slotPositions.length]);
 
   useEffect(() => {
     const updateViewport = () => setIsCompactViewport(window.innerWidth < 640);
@@ -158,27 +151,49 @@ function ScannerShell() {
       return;
     }
 
-    if (recordsLoading) {
-      setMessage('Opening cemetery ledger before scanning...');
-      return;
-    }
-
     setLoading(true);
     setMessage(null);
     setRepos(null);
 
     try {
-      const res = await fetch(`/api/github/scan?username=${encodeURIComponent(authenticatedUsername)}`);
-      const data = await res.json().catch(() => null) as GitHubScanResult | { error?: string } | null;
-      if (!res.ok) {
-        setMessage(data && 'error' in data && data.error ? data.error : `Scan failed (${res.status})`);
+      const username = encodeURIComponent(authenticatedUsername);
+      const [scanRes, gravesRes, crematedRes, mapRes] = await Promise.all([
+        fetch(`/api/github/scan?username=${username}`),
+        fetch(`/api/graves?author=${username}&limit=50`),
+        fetch(`/api/cremated?author=${username}&limit=50`),
+        fetch('/map/az.tmj'),
+      ]);
+      const data = await scanRes.json().catch(() => null) as GitHubScanResult | { error?: string } | null;
+      if (!scanRes.ok) {
+        setMessage(data && 'error' in data && data.error ? data.error : `Scan failed (${scanRes.status})`);
         return;
       }
+      if (!gravesRes.ok || !crematedRes.ok || !mapRes.ok) {
+        setMessage('The cemetery ledger could not be loaded. Please try again.');
+        return;
+      }
+
+      const [graveRows, crematedRows, map] = await Promise.all([
+        gravesRes.json() as Promise<GraveData[]>,
+        crematedRes.json() as Promise<CrematedData[]>,
+        mapRes.json() as Promise<HomeMapData>,
+      ]);
+      const slotPositions = extractHomeSlotPositions(map);
+      if (slotPositions.length === 0) {
+        setMessage('The cemetery slot map could not be loaded. Please try again.');
+        return;
+      }
+      const graves = new Map<number, GraveData>();
+      for (const grave of graveRows) graves.set(grave.slot_id, grave);
+      dispatch({ type: 'SET_GRAVES', graves });
+      dispatch({ type: 'SET_CREMATED', cremated: crematedRows });
+      dispatch({ type: 'SET_SLOT_POSITIONS', slots: slotPositions });
+
       const scan = data as GitHubScanResult;
       setRepos(filterFreshDeadRepos({
         repos: scan.dead_repos,
-        graves: state.graves,
-        cremated: state.cremated,
+        graves,
+        cremated: crematedRows,
         username: authenticatedUsername,
       }));
       setTotalRepos(scan.total_repos);
@@ -228,10 +243,10 @@ function ScannerShell() {
                 <button
                   type="button"
                   onClick={() => { void runScan(); }}
-                  disabled={loading || status === 'loading' || recordsLoading}
+                  disabled={loading || status === 'loading'}
                   style={{ border: '1px solid #6a3020', borderRadius: 12, background: loading ? '#3a2520' : 'linear-gradient(180deg, #7a2a24 0%, #421512 100%)', color: '#f4dfaa', padding: '16px 18px', fontWeight: 700, letterSpacing: 1, cursor: loading ? 'wait' : 'pointer', fontFamily: 'inherit', fontSize: 15, boxShadow: '0 0 28px rgba(122,42,36,0.25)' }}
                 >
-                  {loading ? 'Scanning GitHub...' : recordsLoading ? 'Opening Ledger...' : authenticatedUsername ? `Scan @${authenticatedUsername}` : 'Scan GitHub'}
+                  {loading ? 'Scanning GitHub...' : authenticatedUsername ? `Scan @${authenticatedUsername}` : 'Scan GitHub'}
                 </button>
               </div>
             </>
@@ -321,7 +336,6 @@ const repoMetaStyle: React.CSSProperties = {
 export default function HomeScannerLanding() {
   return (
     <GameProvider>
-      <GameDataLoaders />
       <ScannerShell />
     </GameProvider>
   );

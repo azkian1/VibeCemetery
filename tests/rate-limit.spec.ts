@@ -11,7 +11,9 @@ const ORIGINAL_ENV = {
   token: process.env.UPSTASH_REDIS_REST_TOKEN,
   trustProxyHeaders: process.env.TRUST_PROXY_HEADERS,
   vercel: process.env.VERCEL,
+  playwrightE2E: process.env.PLAYWRIGHT_E2E,
 }
+const ORIGINAL_FETCH = globalThis.fetch
 
 function restoreEnv(name: string, value: string | undefined) {
   if (value === undefined) {
@@ -27,7 +29,19 @@ test.afterEach(() => {
   restoreEnv('UPSTASH_REDIS_REST_TOKEN', ORIGINAL_ENV.token)
   restoreEnv('TRUST_PROXY_HEADERS', ORIGINAL_ENV.trustProxyHeaders)
   restoreEnv('VERCEL', ORIGINAL_ENV.vercel)
-  delete (globalThis as { fetch?: typeof fetch }).fetch
+  restoreEnv('PLAYWRIGHT_E2E', ORIGINAL_ENV.playwrightE2E)
+  if (ORIGINAL_FETCH) {
+    globalThis.fetch = ORIGINAL_FETCH
+  } else {
+    delete (globalThis as { fetch?: typeof fetch }).fetch
+  }
+
+  expect(process.env.UPSTASH_REDIS_REST_URL).toBe(ORIGINAL_ENV.url)
+  expect(process.env.UPSTASH_REDIS_REST_TOKEN).toBe(ORIGINAL_ENV.token)
+  expect(process.env.TRUST_PROXY_HEADERS).toBe(ORIGINAL_ENV.trustProxyHeaders)
+  expect(process.env.VERCEL).toBe(ORIGINAL_ENV.vercel)
+  expect(process.env.PLAYWRIGHT_E2E).toBe(ORIGINAL_ENV.playwrightE2E)
+  expect(globalThis.fetch).toBe(ORIGINAL_FETCH)
   __resetRateLimitStateForTests()
 })
 
@@ -88,6 +102,22 @@ test.describe('rate limiter', () => {
     expect(calls[0]?.url).toContain('/incr/test-key')
     expect(calls.some((call) => call.url.endsWith('/pexpire/test-key/60000'))).toBe(true)
     expect(calls.some((call) => call.url.endsWith('/pttl/test-key'))).toBe(true)
+  })
+
+  test('uses the in-memory limiter for explicit non-production Playwright E2E runs', async () => {
+    process.env.PLAYWRIGHT_E2E = '1'
+    process.env.UPSTASH_REDIS_REST_URL = 'https://redis.example.com'
+    process.env.UPSTASH_REDIS_REST_TOKEN = 'test-token'
+
+    let fetchCalled = false
+    globalThis.fetch = (async () => {
+      fetchCalled = true
+      throw new Error('E2E must not contact Upstash')
+    }) as typeof fetch
+
+    expect(await checkRateLimit('e2e-memory-key', 1, 60_000)).toEqual({ allowed: true })
+    expect((await checkRateLimit('e2e-memory-key', 1, 60_000)).allowed).toBe(false)
+    expect(fetchCalled).toBe(false)
   })
 
   test('ignores spoofable forwarding headers unless proxy trust is explicitly enabled', () => {

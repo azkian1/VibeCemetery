@@ -7,6 +7,7 @@ import { createModalInstanceId, GameProvider, useGame, useGraves, useCremated, u
 import { cemeteryEvents } from '@/game/events';
 import { removeBuryModalIntentFromUrl, shouldOpenBuryModalFromSearchParams } from '@/lib/bury-intent';
 import { consumePendingBurialCeremony } from '@/lib/pending-burial-ceremony';
+import { ModalOverlayTopContext } from './modals/ModalOverlay';
 
 const PhaserCanvas = dynamic(() => import('./PhaserCanvas'), { ssr: false });
 const HoverTooltip = dynamic(() => import('./HoverTooltip'), { ssr: false });
@@ -197,7 +198,9 @@ export function ModalLayer() {
             aria-hidden={!isTop}
             inert={!isTop || undefined}
           >
-            <C />
+            <ModalOverlayTopContext.Provider value={isTop}>
+              <C />
+            </ModalOverlayTopContext.Provider>
           </div>
         );
       })}

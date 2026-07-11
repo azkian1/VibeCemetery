@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { useModal, useGame, useCremated, useGraves } from '@/context/GameContext';
+import { useModal, useGame, useCemeteryMapVersion, useCremated, useGraves } from '@/context/GameContext';
 import { useSession } from 'next-auth/react';
 import ModalOverlay from './ModalOverlay';
 import { useIsMobile } from '@/hooks/useIsMobile';
@@ -20,10 +20,11 @@ export const LEADERBOARD_TABS: { key: Tab; label: string }[] = [
 export default function LeaderboardModal() {
   const { close, push } = useModal();
   const { state } = useGame();
+  const mapVersion = useCemeteryMapVersion();
   const { data: session } = useSession();
   const isMobile = useIsMobile();
   const graves = state.graves;
-  const { error: gravesError, refetch: refetchGraves } = useGraves({ auto: false });
+  const { error: gravesError, refetch: refetchGraves } = useGraves({ auto: false, mapVersion });
   const { cremated, error: crematedError, refetch: refetchCremated } = useCremated({ auto: false });
   const [tab, setTab] = useState<Tab>('killers');
   const loading = state.gravesLoading || state.crematedLoading;

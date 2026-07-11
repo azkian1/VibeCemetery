@@ -1,13 +1,20 @@
 'use client';
 
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 
 interface ModalOverlayProps {
   children: ReactNode;
   onClose: () => void;
 }
 
+export const ModalOverlayTopContext = createContext(true);
+
+export function shouldHandleModalOverlayEscape(isTop: boolean, key: string): boolean {
+  return isTop && key === 'Escape';
+}
+
 export default function ModalOverlay({ children, onClose }: ModalOverlayProps) {
+  const isTop = useContext(ModalOverlayTopContext);
   const [visible, setVisible] = useState(false);
   const outerIdRef = useRef(0);
   const innerIdRef = useRef(0);
@@ -27,22 +34,23 @@ export default function ModalOverlay({ children, onClose }: ModalOverlayProps) {
   const dialogRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    if (!isTop) return;
     const el = dialogRef.current;
     if (!el) return;
     el.focus();
-  }, []);
+  }, [isTop]);
 
   // Global Escape listener — works regardless of focus position
   useEffect(() => {
+    if (!isTop) return;
     const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.stopPropagation();
-        onClose();
-      }
+      if (!shouldHandleModalOverlayEscape(isTop, e.key)) return;
+      e.stopPropagation();
+      onClose();
     };
     document.addEventListener('keydown', handleEscape);
     return () => document.removeEventListener('keydown', handleEscape);
-  }, [onClose]);
+  }, [isTop, onClose]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key !== 'Tab') return;

@@ -139,3 +139,34 @@ as $$
       updated_at = timezone('utc', now())
   where github_username = username;
 $$;
+
+-- The application accesses all public tables through server-side API routes
+-- using SUPABASE_SERVICE_KEY. Keep the Supabase Data API closed to browser
+-- anon/authenticated roles even if a future client exposes the public key.
+ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.users FORCE ROW LEVEL SECURITY;
+REVOKE ALL ON TABLE public.users FROM anon, authenticated;
+
+ALTER TABLE public.graves ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.graves FORCE ROW LEVEL SECURITY;
+REVOKE ALL ON TABLE public.graves FROM anon, authenticated;
+
+ALTER TABLE public.f_votes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.f_votes FORCE ROW LEVEL SECURITY;
+REVOKE ALL ON TABLE public.f_votes FROM anon, authenticated;
+
+ALTER TABLE public.cremated ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.cremated FORCE ROW LEVEL SECURITY;
+REVOKE ALL ON TABLE public.cremated FROM anon, authenticated;
+
+ALTER TABLE public.cli_tokens ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.cli_tokens FORCE ROW LEVEL SECURITY;
+REVOKE ALL ON TABLE public.cli_tokens FROM anon, authenticated;
+
+ALTER TABLE public.cli_link_sessions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.cli_link_sessions FORCE ROW LEVEL SECURITY;
+REVOKE ALL ON TABLE public.cli_link_sessions FROM anon, authenticated;
+
+ALTER TABLE public.agent_ashes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.agent_ashes FORCE ROW LEVEL SECURITY;
+REVOKE ALL ON TABLE public.agent_ashes FROM anon, authenticated;

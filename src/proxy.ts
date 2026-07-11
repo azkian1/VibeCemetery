@@ -44,6 +44,18 @@ function appendVaryOrigin(headers: Headers) {
 const READ_LIMIT = 60
 const READ_WINDOW = 60_000
 
+function isLocalPlaywrightE2ERequest(req: NextRequest): boolean {
+  if (process.env.PLAYWRIGHT_E2E !== '1' || process.env.NODE_ENV === 'production') {
+    return false
+  }
+
+  const hostname = req.nextUrl.hostname.toLowerCase()
+  return hostname === 'localhost'
+    || hostname === '127.0.0.1'
+    || hostname === '::1'
+    || hostname === '[::1]'
+}
+
 export async function proxy(req: NextRequest) {
   const pathname = req.nextUrl.pathname
   const origin = req.headers.get('origin') ?? ''
@@ -64,7 +76,11 @@ export async function proxy(req: NextRequest) {
   }
 
   // Rate-limit GET requests on public endpoints
-  if (req.method === 'GET' && !isAuthRoute) {
+  // The full browser suite shares one local server and can legitimately exceed
+  // the public per-IP budget. This bypass requires an explicit test flag, a
+  // non-production runtime, and a localhost request, so it cannot relax a
+  // deployed application's rate limit.
+  if (req.method === 'GET' && !isAuthRoute && !isLocalPlaywrightE2ERequest(req)) {
     const ip = getClientIp(req)
     const result = await checkRateLimit(`read:${ip}`, READ_LIMIT, READ_WINDOW)
     if (!result.allowed) {
