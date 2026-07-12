@@ -1,7 +1,7 @@
 import * as Phaser from 'phaser';
 import { parseSlotsV2, SlotData } from '../utils/slotManager-v2';
 import { pickGraveGidV2 } from '../utils/tileRegistry-v2';
-import { getTiledObjectCenter } from '../utils/tiledObject';
+import { getTiledObjectBounds, getTiledObjectCenter } from '../utils/tiledObject';
 import { paintMinimapLayer } from '../utils/minimapRaster';
 import { cemeteryEvents, SlotEventData, RenderGraveData, MinimapClickData, SyncGravesData } from '../events';
 import { isSameRenderedGrave, planGraveReconciliation } from '../graveReconciliation';
@@ -15,6 +15,28 @@ const BUILDING_LABEL_GAP_V2 = 4;
 const BUILDING_LABEL_STACK_GAP_V2 = 4;
 // Stay over world sprites while still receiving the day/night overlay and fog.
 const BUILDING_LABEL_DEPTH_V2 = 880;
+const TREE_SHADOW_DEPTH_V2 = 599;
+const TREE_SHADOW_Y_OFFSET_V2 = 2;
+// These source PNGs retain different amounts of transparent padding below the
+// visible roots. Anchor shadows at the opaque tree base, not the image edge.
+const TREE_SHADOW_ROOT_INSET_V2: Record<number, number> = {
+  35: 22,
+  36: 18,
+  37: 13,
+  38: 5,
+  39: 6,
+  40: 9,
+  41: 3,
+  42: 11,
+  43: 15,
+  44: 14,
+  45: 8,
+  46: 10,
+  47: 12,
+  48: 9,
+  49: 11,
+  50: 13,
+};
 
 const TILESET_BASE_URL = '/map';
 
@@ -515,12 +537,15 @@ export class CemeterySceneV2 extends Phaser.Scene {
   private renderTreeSprites() {
     const treeLayer = this.map.getObjectLayer('TreeObj');
     if (!treeLayer) return;
+    const treeShadows = this.add.graphics().setDepth(TREE_SHADOW_DEPTH_V2);
+    treeShadows.fillStyle(0x0b100c, 0.15);
 
     for (const obj of treeLayer.objects) {
       if (!obj.gid) continue;
       const ts = this.map.tilesets.find(t => t.firstgid === obj.gid);
       if (!ts) continue;
       const position = getTiledObjectCenter(obj);
+      this.drawTreeGroundShadow(treeShadows, getTiledObjectBounds(obj), obj.gid);
       this.add.sprite(
         position.x,
         position.y,
@@ -528,6 +553,28 @@ export class CemeterySceneV2 extends Phaser.Scene {
         obj.gid - ts.firstgid,
       ).setDepth(600);
     }
+  }
+
+  private drawTreeGroundShadow(
+    shadowLayer: Phaser.GameObjects.Graphics,
+    bounds: { x: number; y: number; width: number; height: number },
+    gid: number,
+  ) {
+    const shadowWidth = Phaser.Math.Clamp(bounds.width * 0.68, 16, 72);
+    const shadowHeight = Phaser.Math.Clamp(bounds.height * 0.19, 10, 26);
+    const rootX = bounds.x + bounds.width / 2;
+    const rootInset = TREE_SHADOW_ROOT_INSET_V2[gid] ?? Math.round(bounds.height * 0.12);
+    const visualRootY = bounds.y + bounds.height - rootInset;
+    // Keep the whole shadow slightly above the lowest visible root. This
+    // avoids turning a long root tip into an accidental ground anchor.
+    const shadowClearance = Phaser.Math.Clamp(bounds.height * 0.01, 1, 2);
+    const shadowY = visualRootY - shadowHeight / 2 - shadowClearance + TREE_SHADOW_Y_OFFSET_V2;
+    shadowLayer.fillEllipse(
+      rootX,
+      shadowY,
+      shadowWidth,
+      shadowHeight,
+    );
   }
 
   private emitMinimapTiles() {
