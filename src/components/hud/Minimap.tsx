@@ -312,8 +312,16 @@ export default function Minimap({ mapVersion = 'v1' }: { mapVersion?: string }) 
     const canvasY = (e.clientY - rect.top) * (SIZE / rect.height);
     if (!isInsideMinimapLens(canvasX, canvasY, SIZE)) return;
     const { worldX, worldY } = unprojectMinimapPoint(cfg, canvasX, canvasY);
+    const tileData = tileDataRef.current;
+    if (mapVersion === 'v2' && tileData) {
+      const tileX = Math.floor(worldX / cfg.worldW * tileData.mapWidth);
+      const tileY = Math.floor(worldY / cfg.worldH * tileData.mapHeight);
+      if (tileX < 0 || tileX >= tileData.mapWidth || tileY < 0 || tileY >= tileData.mapHeight) return;
+      const index = tileY * tileData.mapWidth + tileX;
+      if (tileData.tiles[index] === 0 || tileData.fog?.[index] === 3) return;
+    }
     cemeteryEvents.emit('minimap_click', { worldX, worldY });
-  }, [cfg]);
+  }, [cfg, mapVersion]);
 
   if (isMobile) return null;
 

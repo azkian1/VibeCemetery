@@ -71,5 +71,7 @@ test('minimap ignores its clipped corners and converts CSS-scaled clicks through
   expect(minimapSource).toContain('const canvasY = (e.clientY - rect.top) * (SIZE / rect.height);')
   expect(minimapSource).toContain('if (!isInsideMinimapLens(canvasX, canvasY, SIZE)) return;')
   expect(minimapSource).toContain('unprojectMinimapPoint(cfg, canvasX, canvasY)')
+  expect(minimapSource).toContain("if (mapVersion === 'v2' && tileData)")
+  expect(minimapSource).toContain('tileData.tiles[index] === 0 || tileData.fog?.[index] === 3')
   expect(minimapSource).not.toContain('clamp(')
 })

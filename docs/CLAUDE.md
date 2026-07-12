@@ -127,7 +127,10 @@ vibecemetery/
 |   |       |-- slotManager.ts
 |   |       |-- slotManager-v2.ts   # v2 slot parser (GraveObj layer)
 |   |       |-- tileRegistry.ts
-|   |       `-- tileRegistry-v2.ts  # v2 tile catalog (PixelLab GIDs)
+|   |       |-- tileRegistry-v2.ts  # v2 tile catalog (PixelLab GIDs)
+|   |       |-- fogCameraBounds.ts  # pure v2 fog-aware camera constraints
+|   |       |-- minimapProjection.ts # circular v2 minimap projection
+|   |       `-- minimapRaster.ts    # Tiled layer -> minimap fog/terrain raster
 |   |-- gravedigger/
 |   |   |-- character.md
 |   |   |-- phrases.ts
@@ -317,6 +320,7 @@ Paused legacy Agent Layer API routes remain in the codebase, but are not part of
 - v2 slot type is inferred from GraveObj object dimensions: 32×64→`grave_tall`, 64×32→`grave_wide`, 64×64→`grave_large`.
 - v2 buildings are hardcoded in `slotManager-v2.ts` (Chapel, Gravedigger Lodge, Service Garage, Service Building, Main Gate, Side Wicket) and rendered from preview object layers.
 - v2 coordinate source of truth is `public/map/Map4.tmj`; Phaser applies Tiled tile/object layer offsets. Do not manually add object-layer offsets in `slotManager-v2.ts` or `CemeterySceneV2.ts`, and keep tile-layer `x/y` plus negative offsets numeric in the TMJ.
+- v2 camera drag must use the clear cells of `fog_locked_blockout`, via `fogCameraBounds.ts`, rather than a rectangular terrain clamp alone. It permits a 32 px resting buffer and a resisted 64 px maximum fog excursion; the fog safety backdrop must remain above world objects so no empty canvas is visible.
 - v2 uses `pickRandomFreeSlot(usedIds, 'v2')` with bias `{grave_tall: 2, grave_wide: 1}` — grave_tall is twice as likely as grave_wide.
 - `/cemetery/v2` reuses all modals, HUD, and GameContext from v1. Only PhaserCanvas, CemeteryApp, and Minimap have v2 counterparts.
 - Phaser uses explicit sizing with `Scale.NONE`; `ResizeObserver` drives resize updates and zero-width or zero-height resize events are ignored to avoid WebGL framebuffer instability.
@@ -385,6 +389,6 @@ Paused Agent Layer legacy routes also reference `AGENT_ASH_TOKEN_SECRET` and `GI
 - `docs/grave-slot-rpc.sql` - Supabase RPC for atomic grave slot inserts
 - `docs/map-v2-migration.sql` - v2 DB migration (map_version column + RPC update)
 - `docs/map-v2-grave-gid.sql` - v2 grave sprite selection (grave_gid column + RPC update)
-- `docs/map2.md` - full v2 integration plan and architecture reference
+- `docs/map2.md` - current v2 runtime reference plus historical integration material
 - `public/map/docs/CLAUDEMAP.md` - v1 map slot and tile reference
 - `public/map/docs/LEVEL_DESIGN_RULES.md` - map design constraints

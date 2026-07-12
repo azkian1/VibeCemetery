@@ -82,7 +82,7 @@ Legacy Agent Layer code, API routes, SQL, and archived docs remain in the reposi
 ## Product Surface
 
 - **Scanner Landing Page** - `/` is a compact first-page flow with one primary action, `Scan GitHub`. It scans only the connected GitHub account and does not offer public username scanning.
-- **Pixel Cemetery Map** - a hand-crafted Phaser cemetery with grave slots, day/night mood, lamps, fog, particles, camera movement, and modal interactions.
+- **Pixel Cemetery Maps** - a view-only v1 map and the active Map 2.0 Phaser experience at `/cemetery/v2`, with custom PixelLab art, fog of war, minimap, camera movement, and modal interactions. See [`docs/map2.md`](docs/map2.md).
 - **GitHub Burial Flow** - sign in, scan inactive repos, pick a dead repo, write the cause of death, and place it on the map when grave slots are available.
 - **Crematory** - for projects that burn into ashes instead of taking a map slot, including local `/bury` cremations and GitHub repos when grave slots are exhausted.
 - **The Crypt** - a searchable ledger of graves.
@@ -95,6 +95,7 @@ Legacy Agent Layer code, API routes, SQL, and archived docs remain in the reposi
 
 - `/` - scanner landing page for connected-account GitHub scans.
 - `/cemetery` - Phaser cemetery map experience and Human Layer rituals.
+- `/cemetery/v2` - active Map 2.0 experience; v1 remains available at `/cemetery`.
 - `/grave/[id]` - redirects to `/cemetery?grave=<id>`.
 - `/urn/[id]` - redirects to `/cemetery?urn=<id>`.
 
@@ -109,10 +110,10 @@ VibeCemetery is moving toward more original IP, deeper cemetery rituals, and a s
 Implemented:
 
 - **Scanner-first UX cleanup** - the front page now starts with the GitHub Scanner and the Human Layer rituals are clearer.
+- **Cemetery Map 2.0** - the 140×104 custom PixelLab map is active at `/cemetery/v2`, with fog-aware camera bounds and a circular minimap.
 
 Next:
 
-- **Cemetery Map 2.0** - new 140×104 pixel map with custom PixelLab art at `/cemetery/v2`. Deployed alongside v1 at `/cemetery`.
 - **Map v1** - original 40×40 map remains view-only at `/cemetery`.
 - **Swamp of Shame** - expand the world with a new shame-themed cemetery zone.
 - **$GRAVE integration**

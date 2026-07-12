@@ -46,3 +46,20 @@ test('desktop chat clears its delayed greeting timer on unmount', () => {
   expect(greetingEffect).toContain('const greetingTimer = setTimeout')
   expect(greetingEffect).toContain('return () => clearTimeout(greetingTimer)')
 })
+
+test('chat can collapse to its status counters and expand again', () => {
+  const source = readFileSync('src/components/hud/ChatLog.tsx', 'utf8')
+
+  expect(source).toContain('const [isCollapsed, setIsCollapsed] = useState(false)')
+  expect(source).toContain('data-testid="chat-collapse-toggle"')
+  expect(source).toContain('aria-expanded={!isCollapsed}')
+  expect(source).toMatch(/aria-label=\{isCollapsed \? '[^']+' : '[^']+'\}/)
+  expect(source).toContain("{!isCollapsed && <div")
+  expect(source).toContain('id="cemetery-chat-messages"')
+  expect(source).toContain("height: isCollapsed ? 'auto' : 220")
+  expect(source).toContain("padding: '5px 40px 5px 10px'")
+  expect(source).toContain("position: 'absolute'")
+  expect(source).toContain('right: 6')
+  expect(source).toContain("display: 'inline-flex'")
+  expect(source).toContain("justifyContent: 'center'")
+})

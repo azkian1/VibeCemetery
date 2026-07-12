@@ -1,6 +1,123 @@
-# Cemetery Map v2 — Integration Plan
+# Cemetery Map v2 — Current Runtime Reference
 
-## Goal
+> Updated: 2026-07-12. This top section is the source of truth for the live
+> `/cemetery/v2` experience. The original integration plan remains below as
+> historical implementation material.
+
+## Current Status
+
+Map v2 is live at `/cemetery/v2` alongside the view-only v1 map at
+`/cemetery`. The runtime uses `public/map/Map4.tmj`; an alternative TMX source
+is not served until it is converted into that file.
+
+The v2 implementation currently includes:
+
+- Phaser rendering of Map4 terrain, buildings, trees, dynamic graves, labels,
+  day/night treatment, ambient particles, and fog of war.
+- Versioned grave data (`map_version = 'v2'`) with a server-persisted
+  `grave_gid`, so a grave keeps its chosen sprite across reloads.
+- A circular minimap with terrain, markers, fog, and viewport rendered as
+  separate layers.
+- Camera movement that respects the authored playable shape inside the fog,
+  rather than treating the entire terrain envelope as open.
+
+## Live Map Contract
+
+| Item | Runtime value |
+|---|---|
+| Served map | `public/map/Map4.tmj` |
+| Route | `/cemetery/v2` |
+| Grid | 140 × 104 tiles at 32 px |
+| Tilemap world | 4480 × 3328 px |
+| Authored terrain footprint | `x: 800..3328`, `y: 1312..3328` |
+| Open-space authority | Empty cells in `fog_locked_blockout` |
+| Main scene | `src/game/scenes/CemeterySceneV2.ts` |
+| Camera fog helper | `src/game/utils/fogCameraBounds.ts` |
+
+### Coordinates and Layers
+
+`Map4.tmj` offsets are already applied by Phaser. Runtime code must use parsed
+object coordinates and the `createLayer()` defaults directly:
+
+- Terrain `pixellab_dualgrid_reconstructed`: TMJ offset `768, 1312`.
+- `GraveObj`: its Phaser-parsed `x/y` values are already in world space.
+- `TreeObj`: its Phaser-parsed `x/y` values are already in world space.
+- Fog layers have no terrain offset and remain at authored world coordinates.
+- Never add the terrain or object offsets a second time; this causes visual
+  and interactive objects to diverge from their TMJ positions.
+
+Fog is a world-state overlay and must conceal every game object. Its depth
+order is `fog_soft_inner` 2000, `fog_soft_outer` 2001,
+`fog_locked_blockout` 2002, then the vignette/overscroll safety layer at 2003.
+
+## Camera, Fog, and Zoom
+
+The camera begins around the main gate (`1760, 3100`). At an ordinary viewport,
+its strict scroll bounds are `min = (800, 1312)` and
+`max = (3328 - viewWidth, 3328 - viewHeight)`. If a viewport is larger than
+the playable footprint, that axis is centred on the footprint and then clamped
+to the full 4480 × 3328 tilemap so no canvas is exposed. Direct dragging is
+constrained against the actual clear cells of `fog_locked_blockout`.
+
+- A drag can enter locked fog freely for 32 world pixels, measured from the
+  nearest unlocked fog cell to the camera centre.
+- Beyond that it is resisted; the maximum excursion is 64 world pixels on all
+  four sides.
+- On release, a 220 ms `Sine.easeOut` returns the camera to the 32 px resting
+  buffer. This preserves the feeling of a nearby closed location without
+  allowing a long trip through opaque fog.
+- A fog safety skirt extends 64 px around Map4. It prevents a short permitted
+  overscroll, or a centred wide viewport, from exposing an empty canvas.
+- Wheel, pinch, zoom controls, and minimap travel use the strict terrain
+  bounds. `fitZoom` is calculated from the full 4480 × 3328 tilemap;
+  zoom-out stops at `max(fitZoom, 0.9)` and zoom-in is capped at `2.0`.
+- A Phaser scale-resize event stops any active camera tween and reapplies the
+  strict bounds, so a desktop resize or mobile orientation change cannot leave
+  the camera outside the covered world.
+
+The fog mask is cached once when the scene is created. The camera helper finds
+the nearest unlocked fog tile for each drag candidate, so irregular map edges
+receive the same treatment instead of a rectangular one-sided clamp.
+
+## Minimap and HUD
+
+`src/components/hud/Minimap.tsx` uses a circular cover projection for v2. It
+draws terrain, fog, markers, and the camera viewport independently; camera
+movement repaints only the viewport. Clicks in clipped lens corners, empty
+terrain, or fully locked fog are ignored. Accepted minimap clicks move the
+camera only within its strict playable bounds.
+
+The v2 HUD retains the chat ledger in the lower-left corner. It can collapse to
+its counters, and its control remains within the chat frame.
+
+## Editing and Verification
+
+Edit `public/map/Map4.tmj` directly in Tiled. If a TMX source is used, convert
+it back into that file with `scripts/convert-tmx-to-tmj.mjs`; keep tile-layer
+`x/y` numeric and preserve numeric object offsets.
+
+Before handing off a Map v2 change, run:
+
+```bash
+npx tsc --noEmit --incremental false
+npm run test:unit -- tests/map-v2-camera-bounds.spec.ts
+npm run lint
+```
+
+For a broader regression pass, run `npm run test:unit`. The camera tests cover
+the terrain footprint, equal four-edge fog resistance, the real Map4 fog mask,
+the bottom fog safety skirt, strict minimap/zoom behavior, and snap-back.
+Finally inspect `/cemetery/v2` at both the normal zoom floor and a close zoom:
+drag each edge into fog, release, and confirm that the view returns smoothly
+without exposing an empty map.
+
+## Historical Integration Material
+
+The sections below record the original v2 integration work and asset mapping.
+They are useful for provenance, but the runtime contract above takes precedence
+when an older snippet conflicts with current code.
+
+## Historical Integration Goal
 
 Run Map4 (140×104 tiles, 32px, PixelLab custom art) as `/cemetery/v2` alongside
 the current `az.tmj` (40×40 tiles, 48px, asset-pack art) at `/cemetery`.
@@ -735,7 +852,7 @@ On `/cemetery`, show a subtle banner: "Viewing v1 — wallet connect disabled.
 
 ---
 
-## Implementation Status (2026-07-10)
+## Historical Implementation Status (2026-07-10)
 
 ### Completed
 - [x] Phase 0: TMX→TMJ conversion, 74 tileset assets copied to `public/map/pixellab/`

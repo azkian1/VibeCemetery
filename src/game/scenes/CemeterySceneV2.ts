@@ -3,6 +3,14 @@ import { parseSlotsV2, SlotData } from '../utils/slotManager-v2';
 import { pickGraveGidV2 } from '../utils/tileRegistry-v2';
 import { getTiledObjectBounds, getTiledObjectCenter } from '../utils/tiledObject';
 import { paintMinimapLayer } from '../utils/minimapRaster';
+import {
+  CAMERA_FOG_OVERSCROLL_V2,
+  CAMERA_FOG_REST_BUFFER_V2,
+  constrainCameraScrollToFog,
+  getPlayableCameraScrollBounds,
+  type CameraScrollBounds,
+  type FogClearAnchor,
+} from '../utils/fogCameraBounds';
 import { cemeteryEvents, SlotEventData, RenderGraveData, MinimapClickData, SyncGravesData } from '../events';
 import { isSameRenderedGrave, planGraveReconciliation } from '../graveReconciliation';
 
@@ -11,12 +19,21 @@ const MAP_TILES_Y = 104;
 const TILE_SIZE = 32;
 const WORLD_W = MAP_TILES_X * TILE_SIZE;
 const WORLD_H = MAP_TILES_Y * TILE_SIZE;
+const CAMERA_FOG_SAFETY_WORLD_BOUNDS_V2 = {
+  minX: -CAMERA_FOG_OVERSCROLL_V2,
+  minY: -CAMERA_FOG_OVERSCROLL_V2,
+  maxX: WORLD_W + CAMERA_FOG_OVERSCROLL_V2,
+  maxY: WORLD_H + CAMERA_FOG_OVERSCROLL_V2,
+};
 const BUILDING_LABEL_GAP_V2 = 4;
 const BUILDING_LABEL_STACK_GAP_V2 = 4;
 // Stay over world sprites while still receiving the day/night overlay and fog.
 const BUILDING_LABEL_DEPTH_V2 = 880;
 const TREE_SHADOW_DEPTH_V2 = 599;
 const TREE_SHADOW_Y_OFFSET_V2 = 2;
+// Non-empty terrain extent in Map4.tmj. Camera movement must never expose the
+// padded world grid around it.
+const PLAYABLE_WORLD_BOUNDS_V2 = { minX: 800, minY: 1312, maxX: 3328, maxY: 3328 };
 // These source PNGs retain different amounts of transparent padding below the
 // visible roots. Anchor shadows at the opaque tree base, not the image edge.
 const TREE_SHADOW_ROOT_INSET_V2: Record<number, number> = {
@@ -158,7 +175,8 @@ export class CemeterySceneV2 extends Phaser.Scene {
   private prevPinchDist = 0;
   private isMobile = false;
   private minZoom = 0;
-  private worldBounds = { minX: 0, minY: 0, maxX: 4480, maxY: 3328 };
+  private worldBounds = { ...PLAYABLE_WORLD_BOUNDS_V2 };
+  private fogClearAnchors: FogClearAnchor[] = [];
   private assetLoadError: { assetKey: string; assetUrl: string } | null = null;
   private cleanedUp = false;
   private renderedSlots = new Set<number>();
@@ -171,6 +189,12 @@ export class CemeterySceneV2 extends Phaser.Scene {
   private hoverHighlight: Phaser.GameObjects.Graphics | null = null;
   private slotHighlightGfx: Phaser.GameObjects.Graphics | null = null;
   private slotHighlightTimer: Phaser.Time.TimerEvent | null = null;
+  private handleCameraResize = () => {
+    const cam = this.cameras?.main;
+    if (!cam) return;
+    this.stopCameraMotion(cam);
+    this.clampCameraToPlayableBounds(cam);
+  };
 
   constructor() {
     super({ key: 'CemeterySceneV2' });
@@ -326,6 +350,7 @@ export class CemeterySceneV2 extends Phaser.Scene {
       const fogDepth = FOG_LAYER_DEPTHS_V2[layerName];
       if (fogDepth !== undefined) layer.setDepth(fogDepth);
     }
+    this.buildFogCameraAnchors();
 
     // Render building preview sprites from object layers
     this.renderBuildingPreviews();
@@ -344,53 +369,36 @@ export class CemeterySceneV2 extends Phaser.Scene {
     cemeteryEvents.emit('slots_ready', { slots: slotArr });
 
     const cam = this.cameras.main;
+    this.scale.on(Phaser.Scale.Events.RESIZE, this.handleCameraResize);
     const isMobile = this.scale.width < 640;
     this.isMobile = isMobile;
 
-    // Bounds: roughly the playable area (terrain extent + gates)
-    const BOUND_MIN_X = 200;
-    const BOUND_MIN_Y = 200;
-    const BOUND_MAX_X = 3800;
-    const BOUND_MAX_Y = 3328;
-    this.worldBounds = { minX: BOUND_MIN_X, minY: BOUND_MIN_Y, maxX: BOUND_MAX_X, maxY: BOUND_MAX_Y };
+    // Bounds match the authored terrain footprint, keeping the padded tilemap
+    // grid behind the fog outside the camera view.
+    this.worldBounds = { ...PLAYABLE_WORLD_BOUNDS_V2 };
 
     // Start camera on main gate with tighter zoom
     cam.centerOn(1760, 3100);
     const fitZoom = Math.max(this.scale.width / WORLD_W, this.scale.height / WORLD_H);
     this.minZoom = Math.max(fitZoom, 0.9);
     cam.setZoom(Math.max(fitZoom, 0.8));
+    this.clampCameraToPlayableBounds(cam);
     cam.zoomTo(this.minZoom, 2000, 'Sine.easeInOut');
 
-    const ELASTIC = 0.3;
-    const getBounds = () => {
-      const vw = cam.width / cam.zoom;
-      const vh = cam.height / cam.zoom;
-      const wb = this.worldBounds;
-      return {
-        minX: Math.max(0, wb.minX - vw * 0.1),
-        minY: Math.max(0, wb.minY - vh * 0.1),
-        maxX: Math.max(0, wb.maxX - vw),
-        maxY: Math.max(0, wb.maxY - vh),
-      };
-    };
-
-    const clampWithElastic = (val: number, min: number, max: number) => {
-      if (val < min) return min + (val - min) * ELASTIC;
-      if (val > max) return max + (val - max) * ELASTIC;
-      return val;
-    };
+    const getBounds = () => this.getCameraScrollBounds(cam);
 
     const snapBack = () => {
       const b = getBounds();
-      const targetX = Phaser.Math.Clamp(cam.scrollX, b.minX, b.maxX);
-      const targetY = Phaser.Math.Clamp(cam.scrollY, b.minY, b.maxY);
+      const target = this.getCameraFogSnapTarget(cam, b);
+      const targetX = target.x;
+      const targetY = target.y;
       if (Math.abs(cam.scrollX - targetX) > 1 || Math.abs(cam.scrollY - targetY) > 1) {
         this.tweens.add({
           targets: cam,
           scrollX: targetX,
           scrollY: targetY,
-          duration: 300,
-          ease: 'Back.easeOut',
+          duration: 220,
+          ease: 'Sine.easeOut',
         });
       }
     };
@@ -401,6 +409,11 @@ export class CemeterySceneV2 extends Phaser.Scene {
         this.prevPinchDist = 0;
         return;
       }
+      this.stopCameraMotion(cam);
+      const b = getBounds();
+      const settled = this.constrainCameraDrag(cam.scrollX, cam.scrollY, cam, b);
+      cam.scrollX = settled.x;
+      cam.scrollY = settled.y;
       this.isDragging = true;
       this.dragDistance = 0;
       this.dragStartX = pointer.x;
@@ -420,6 +433,7 @@ export class CemeterySceneV2 extends Phaser.Scene {
           this.stopCameraMotion(cam);
           const newZoom = Phaser.Math.Clamp(cam.zoom * scale, this.minZoom, 2.0);
           cam.setZoom(newZoom);
+          this.clampCameraToPlayableBounds(cam);
         }
         this.prevPinchDist = dist;
         return;
@@ -432,8 +446,9 @@ export class CemeterySceneV2 extends Phaser.Scene {
       const rawX = this.dragStartScrollX - dx / cam.zoom;
       const rawY = this.dragStartScrollY - dy / cam.zoom;
       const b = getBounds();
-      cam.scrollX = clampWithElastic(rawX, b.minX, b.maxX);
-      cam.scrollY = clampWithElastic(rawY, b.minY, b.maxY);
+      const constrained = this.constrainCameraDrag(rawX, rawY, cam, b);
+      cam.scrollX = constrained.x;
+      cam.scrollY = constrained.y;
     });
 
     this.input.on('pointerup', () => {
@@ -444,6 +459,10 @@ export class CemeterySceneV2 extends Phaser.Scene {
         this.dragDistance = 0;
         this.dragStartX = active.x;
         this.dragStartY = active.y;
+        const b = getBounds();
+        const settled = this.constrainCameraDrag(cam.scrollX, cam.scrollY, cam, b);
+        cam.scrollX = settled.x;
+        cam.scrollY = settled.y;
         this.dragStartScrollX = cam.scrollX;
         this.dragStartScrollY = cam.scrollY;
         return;
@@ -456,7 +475,7 @@ export class CemeterySceneV2 extends Phaser.Scene {
       this.stopCameraMotion(cam);
       const newZoom = Phaser.Math.Clamp(cam.zoom - deltaY * 0.001, this.minZoom, 2.0);
       cam.setZoom(newZoom);
-      snapBack();
+      this.clampCameraToPlayableBounds(cam);
     });
 
     this.setupInteractiveZones();
@@ -466,6 +485,7 @@ export class CemeterySceneV2 extends Phaser.Scene {
     cemeteryEvents.on('sync_graves', this.onSyncGraves);
 
     this.createBuildingLabels();
+    this.createFogOverscrollBackdrop();
     this.createFogVignette();
     this.createDayNightCycle();
     this.createAmbientParticles();
@@ -791,6 +811,18 @@ export class CemeterySceneV2 extends Phaser.Scene {
     });
   }
 
+  private createFogOverscrollBackdrop() {
+    // Map4's locked fog ends at the tilemap edges. Extend it by the same short
+    // camera buffer on every side so a centred wide viewport cannot show canvas.
+    const fog = this.add.graphics();
+    fog.setDepth(FOG_VIGNETTE_DEPTH_V2);
+    fog.fillStyle(0x050505, 0.85);
+    fog.fillRect(-CAMERA_FOG_OVERSCROLL_V2, -CAMERA_FOG_OVERSCROLL_V2, WORLD_W + CAMERA_FOG_OVERSCROLL_V2 * 2, CAMERA_FOG_OVERSCROLL_V2);
+    fog.fillRect(-CAMERA_FOG_OVERSCROLL_V2, WORLD_H, WORLD_W + CAMERA_FOG_OVERSCROLL_V2 * 2, CAMERA_FOG_OVERSCROLL_V2);
+    fog.fillRect(-CAMERA_FOG_OVERSCROLL_V2, 0, CAMERA_FOG_OVERSCROLL_V2, WORLD_H);
+    fog.fillRect(WORLD_W, 0, CAMERA_FOG_OVERSCROLL_V2, WORLD_H);
+  }
+
   private createFogVignette() {
     const DEPTH = 96;
     const STEPS = 16;
@@ -971,8 +1003,10 @@ export class CemeterySceneV2 extends Phaser.Scene {
     if (!cam) return;
     const vw = cam.width / cam.zoom;
     const vh = cam.height / cam.zoom;
-    const targetX = Phaser.Math.Clamp(data.worldX - vw / 2, 0, Math.max(0, WORLD_W - vw));
-    const targetY = Phaser.Math.Clamp(data.worldY - vh / 2, 0, Math.max(0, WORLD_H - vh));
+    const bounds = this.getCameraScrollBounds(cam);
+    const targetX = Phaser.Math.Clamp(data.worldX - vw / 2, bounds.minX, bounds.maxX);
+    const targetY = Phaser.Math.Clamp(data.worldY - vh / 2, bounds.minY, bounds.maxY);
+    this.stopCameraMotion(cam);
     this.tweens.add({
       targets: cam,
       scrollX: targetX,
@@ -1053,12 +1087,83 @@ export class CemeterySceneV2 extends Phaser.Scene {
     this.stopCameraMotion(cam);
     const newZoom = Phaser.Math.Clamp(cam.zoom + data.delta, this.minZoom, 2.0);
     cam.setZoom(newZoom);
-    const vw = cam.width / newZoom;
-    const vh = cam.height / newZoom;
-    const wb = this.worldBounds;
-    cam.scrollX = Phaser.Math.Clamp(cam.scrollX, Math.max(0, wb.minX - vw * 0.1), Math.max(0, wb.maxX - vw));
-    cam.scrollY = Phaser.Math.Clamp(cam.scrollY, Math.max(0, wb.minY - vh * 0.1), Math.max(0, wb.maxY - vh));
+    this.clampCameraToPlayableBounds(cam);
   };
+
+  private buildFogCameraAnchors() {
+    const lockedFog = this.map.getLayer('fog_locked_blockout');
+    this.fogClearAnchors = [];
+    if (!lockedFog) return;
+
+    const tileWidth = lockedFog.tileWidth || TILE_SIZE;
+    const tileHeight = lockedFog.tileHeight || TILE_SIZE;
+    for (let y = 0; y < lockedFog.height; y++) {
+      for (let x = 0; x < lockedFog.width; x++) {
+        const tile = lockedFog.data[y]?.[x];
+        if (tile?.index !== undefined && tile.index >= 0) continue;
+
+        const left = lockedFog.x + x * tileWidth;
+        const top = lockedFog.y + y * tileHeight;
+        this.fogClearAnchors.push({
+          left,
+          top,
+          right: left + tileWidth,
+          bottom: top + tileHeight,
+        });
+      }
+    }
+  }
+
+  private constrainCameraDrag(
+    scrollX: number,
+    scrollY: number,
+    cam: Phaser.Cameras.Scene2D.Camera,
+    strictBounds: CameraScrollBounds,
+  ) {
+    return constrainCameraScrollToFog({
+      scrollX,
+      scrollY,
+      viewWidth: cam.width / cam.zoom,
+      viewHeight: cam.height / cam.zoom,
+      strictBounds,
+      cameraSafeWorldBounds: CAMERA_FOG_SAFETY_WORLD_BOUNDS_V2,
+      fogClearAnchors: this.fogClearAnchors,
+    });
+  }
+
+  private getCameraFogSnapTarget(
+    cam: Phaser.Cameras.Scene2D.Camera,
+    strictBounds: CameraScrollBounds,
+  ) {
+    return constrainCameraScrollToFog({
+      scrollX: cam.scrollX,
+      scrollY: cam.scrollY,
+      viewWidth: cam.width / cam.zoom,
+      viewHeight: cam.height / cam.zoom,
+      strictBounds,
+      cameraSafeWorldBounds: CAMERA_FOG_SAFETY_WORLD_BOUNDS_V2,
+      fogClearAnchors: this.fogClearAnchors,
+      maxFogDistance: CAMERA_FOG_REST_BUFFER_V2,
+      freeFogDistance: CAMERA_FOG_REST_BUFFER_V2,
+      resistance: 0,
+    });
+  }
+
+  private getCameraScrollBounds(cam: Phaser.Cameras.Scene2D.Camera) {
+    return getPlayableCameraScrollBounds(
+      this.worldBounds,
+      cam.width / cam.zoom,
+      cam.height / cam.zoom,
+      WORLD_W,
+      WORLD_H,
+    );
+  }
+
+  private clampCameraToPlayableBounds(cam: Phaser.Cameras.Scene2D.Camera) {
+    const bounds = this.getCameraScrollBounds(cam);
+    cam.scrollX = Phaser.Math.Clamp(cam.scrollX, bounds.minX, bounds.maxX);
+    cam.scrollY = Phaser.Math.Clamp(cam.scrollY, bounds.minY, bounds.maxY);
+  }
 
   private onBurialCeremony = (data: { slot_id: number; id: string; name: string }) => {
     this.ceremonySlotIds.add(data.slot_id);
@@ -1328,6 +1433,8 @@ export class CemeterySceneV2 extends Phaser.Scene {
     if (this.cleanedUp) return;
     this.cleanedUp = true;
 
+    this.scale.off(Phaser.Scale.Events.RESIZE, this.handleCameraResize);
+
     cemeteryEvents.off('render_graves', this.onRenderGraves);
     cemeteryEvents.off('render_grave', this.onRenderGrave);
     cemeteryEvents.off('sync_graves', this.onSyncGraves);
@@ -1374,6 +1481,7 @@ export class CemeterySceneV2 extends Phaser.Scene {
     this.ceremonySlotIds.clear();
     this.snapshotProtectedSlotIds.clear();
     this.graveSnapshotAuthoritative = false;
+    this.fogClearAnchors = [];
     this.slots.clear();
   }
 }
