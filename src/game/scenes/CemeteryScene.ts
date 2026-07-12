@@ -411,6 +411,7 @@ export class CemeteryScene extends Phaser.Scene {
         viewWidth: cam.width / z,
         viewHeight: cam.height / z,
         zoom: z,
+        mapVersion: 'v1',
       });
     }
   }
@@ -441,7 +442,7 @@ export class CemeteryScene extends Phaser.Scene {
       }
     }
 
-    cemeteryEvents.emit('minimap_tiles', { tiles, mapWidth: w, mapHeight: h });
+    cemeteryEvents.emit('minimap_tiles', { tiles, mapWidth: w, mapHeight: h, mapVersion: 'v1' });
   }
 
   private createAmbientParticles() {

@@ -18,6 +18,8 @@ export interface CameraMoveData {
   /** World-space viewport height (screen height / zoom) */
   viewHeight: number;
   zoom: number;
+  /** Lets a retained viewport be ignored after switching cemetery maps. */
+  mapVersion?: string;
 }
 
 export interface MinimapClickData {
@@ -58,13 +60,20 @@ export interface SyncGravesData {
   authoritative: boolean;
 }
 
-// Minimap raster: Uint8Array where each byte is a color index for a tile
-// 0 = empty, 1 = ground, 2 = road, 3 = grass/decoration
+// Minimap raster: Uint8Array where each byte is a terrain color index for a tile.
+// V2 uses original terrain GIDs (11–26) so grass and flagstone stay distinct.
 export interface MinimapTilesData {
   /** Color index per tile, row-major, mapWidth * mapHeight entries */
   tiles: Uint8Array;
+  /**
+   * Optional fog state per tile: 0 = open, 1 = inner soft fog,
+   * 2 = outer soft fog, 3 = locked.
+   */
+  fog?: Uint8Array;
   mapWidth: number;
   mapHeight: number;
+  /** Lets a retained minimap raster be ignored after switching cemetery maps. */
+  mapVersion?: string;
 }
 
 // Event map: event name → payload type
@@ -107,6 +116,7 @@ type Callback = (data: any) => void;
 
 class CemeteryEventBus {
   private listeners = new Map<CemeteryEventType, Set<Callback>>();
+  private latest = new Map<CemeteryEventType, CemeteryEventMap[CemeteryEventType]>();
 
   on<E extends CemeteryEventType>(event: E, cb: (data: CemeteryEventMap[E]) => void) {
     if (!this.listeners.has(event)) {
@@ -120,11 +130,19 @@ class CemeteryEventBus {
   }
 
   emit<E extends CemeteryEventType>(event: E, data: CemeteryEventMap[E]) {
+    if (event === 'minimap_tiles' || event === 'camera_move') {
+      this.latest.set(event, data);
+    }
     this.listeners.get(event)?.forEach((cb) => cb(data));
+  }
+
+  getLatest<E extends CemeteryEventType>(event: E): CemeteryEventMap[E] | undefined {
+    return this.latest.get(event) as CemeteryEventMap[E] | undefined;
   }
 
   clear() {
     this.listeners.clear();
+    this.latest.clear();
   }
 }
 

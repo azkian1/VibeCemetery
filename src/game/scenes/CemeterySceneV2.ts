@@ -2,6 +2,7 @@ import * as Phaser from 'phaser';
 import { parseSlotsV2, SlotData } from '../utils/slotManager-v2';
 import { pickGraveGidV2 } from '../utils/tileRegistry-v2';
 import { getTiledObjectCenter } from '../utils/tiledObject';
+import { paintMinimapLayer } from '../utils/minimapRaster';
 import { cemeteryEvents, SlotEventData, RenderGraveData, MinimapClickData, SyncGravesData } from '../events';
 import { isSameRenderedGrave, planGraveReconciliation } from '../graveReconciliation';
 
@@ -10,6 +11,10 @@ const MAP_TILES_Y = 104;
 const TILE_SIZE = 32;
 const WORLD_W = MAP_TILES_X * TILE_SIZE;
 const WORLD_H = MAP_TILES_Y * TILE_SIZE;
+const BUILDING_LABEL_GAP_V2 = 4;
+const BUILDING_LABEL_STACK_GAP_V2 = 4;
+// Stay over world sprites while still receiving the day/night overlay and fog.
+const BUILDING_LABEL_DEPTH_V2 = 880;
 
 const TILESET_BASE_URL = '/map';
 
@@ -330,9 +335,9 @@ export class CemeterySceneV2 extends Phaser.Scene {
     // Start camera on main gate with tighter zoom
     cam.centerOn(1760, 3100);
     const fitZoom = Math.max(this.scale.width / WORLD_W, this.scale.height / WORLD_H);
-    this.minZoom = fitZoom;
-    cam.setZoom(0.8);
-    cam.zoomTo(0.9, 2000, 'Sine.easeInOut');
+    this.minZoom = Math.max(fitZoom, 0.9);
+    cam.setZoom(Math.max(fitZoom, 0.8));
+    cam.zoomTo(this.minZoom, 2000, 'Sine.easeInOut');
 
     const ELASTIC = 0.3;
     const getBounds = () => {
@@ -390,6 +395,7 @@ export class CemeterySceneV2 extends Phaser.Scene {
         const dist = Phaser.Math.Distance.Between(p1.x, p1.y, p2.x, p2.y);
         if (this.prevPinchDist > 0) {
           const scale = dist / this.prevPinchDist;
+          this.stopCameraMotion(cam);
           const newZoom = Phaser.Math.Clamp(cam.zoom * scale, this.minZoom, 2.0);
           cam.setZoom(newZoom);
         }
@@ -425,6 +431,7 @@ export class CemeterySceneV2 extends Phaser.Scene {
     });
 
     this.input.on('wheel', (_pointer: Phaser.Input.Pointer, _gameObjects: Phaser.GameObjects.GameObject[], _deltaX: number, deltaY: number) => {
+      this.stopCameraMotion(cam);
       const newZoom = Phaser.Math.Clamp(cam.zoom - deltaY * 0.001, this.minZoom, 2.0);
       cam.setZoom(newZoom);
       snapBack();
@@ -472,6 +479,7 @@ export class CemeterySceneV2 extends Phaser.Scene {
         viewWidth: cam.width / z,
         viewHeight: cam.height / z,
         zoom: z,
+        mapVersion: 'v2',
       });
     }
   }
@@ -526,26 +534,30 @@ export class CemeterySceneV2 extends Phaser.Scene {
     const w = this.map.width;
     const h = this.map.height;
     const tiles = new Uint8Array(w * h);
+    const fog = new Uint8Array(w * h);
 
-    const layerPriority: Array<{ name: string; value: number }> = [
-      { name: 'pixellab_dualgrid_reconstructed', value: 1 },
-      { name: 'Buildings', value: 3 },
+    // LayerData.x/y already contains Tiled offsetx/offsety in pixels. The
+    // raster helper translates it back to map cells, keeping this schematic
+    // aligned with the actual Phaser world.
+    const terrainLayer = this.map.getLayer('pixellab_dualgrid_reconstructed');
+    paintMinimapLayer(tiles, w, h, terrainLayer, (tile) => tile.index);
+
+    const fogLayers: Array<{ name: string; value: number }> = [
+      { name: 'fog_soft_inner', value: 1 },
+      { name: 'fog_soft_outer', value: 2 },
+      { name: 'fog_locked_blockout', value: 3 },
     ];
-
-    for (const { name, value } of layerPriority) {
-      const layer = this.map.getLayer(name);
-      if (!layer) continue;
-      for (let y = 0; y < h; y++) {
-        for (let x = 0; x < w; x++) {
-          const tile = layer.data[y]?.[x];
-          if (tile && tile.index >= 0) {
-            tiles[y * w + x] = value;
-          }
-        }
-      }
+    for (const { name, value } of fogLayers) {
+      paintMinimapLayer(fog, w, h, this.map.getLayer(name), value);
     }
 
-    cemeteryEvents.emit('minimap_tiles', { tiles, mapWidth: w, mapHeight: h });
+    cemeteryEvents.emit('minimap_tiles', {
+      tiles,
+      fog,
+      mapWidth: w,
+      mapHeight: h,
+      mapVersion: 'v2',
+    });
   }
 
   private createAmbientParticles() {
@@ -681,13 +693,53 @@ export class CemeterySceneV2 extends Phaser.Scene {
 
     document.fonts.load("14px Cinzel").then(() => {
       if (!this.scene.isActive()) return;
-      for (const slot of this.slots.values()) {
-        if (slot.type !== 'Building' || !slot.name) continue;
+      const buildingSlots = Array.from(this.slots.values())
+        .filter((slot) => slot.type === 'Building' && !!slot.name)
+        .sort((left, right) => left.y - right.y || left.x - right.x || left.id - right.id);
+      const placedLabels: Phaser.GameObjects.Text[] = [];
+
+      for (const slot of buildingSlots) {
         const cx = slot.x + slot.width / 2;
-        const ly = slot.y + slot.height / 2 + 12;
+        let ly = slot.y - BUILDING_LABEL_GAP_V2;
+
+        // A wide object layer can overlap another building (the two gate
+        // previews do). Keep its label above that neighbouring sprite too.
+        while (true) {
+          const blockingTop = buildingSlots
+            .filter((candidate) => candidate.id !== slot.id)
+            .filter((candidate) => {
+              const overlapsHorizontally = slot.x < candidate.x + candidate.width
+                && slot.x + slot.width > candidate.x;
+              return overlapsHorizontally
+                && ly > candidate.y
+                && ly <= candidate.y + candidate.height;
+            })
+            .reduce<number | null>(
+              (top, candidate) => top === null ? candidate.y : Math.min(top, candidate.y),
+              null,
+            );
+          if (blockingTop === null) break;
+          ly = blockingTop - BUILDING_LABEL_GAP_V2;
+        }
+
         const label = this.add.text(cx, ly, slot.name.toUpperCase(), style);
-        label.setOrigin(0.5, 0);
-        label.setDepth(800);
+        label.setOrigin(0.5, 1);
+        label.setDepth(BUILDING_LABEL_DEPTH_V2);
+
+        // Labels sharing the same clear space (such as Main Gate and Side
+        // Wicket) are stacked rather than drawn on top of each other.
+        for (const placedLabel of placedLabels) {
+          const bounds = label.getBounds();
+          const placedBounds = placedLabel.getBounds();
+          const overlapsHorizontally = bounds.left < placedBounds.right
+            && bounds.right > placedBounds.left;
+          const overlapsVertically = bounds.top < placedBounds.bottom + BUILDING_LABEL_STACK_GAP_V2
+            && bounds.bottom > placedBounds.top - BUILDING_LABEL_STACK_GAP_V2;
+          if (overlapsHorizontally && overlapsVertically) {
+            label.setY(placedBounds.top - BUILDING_LABEL_STACK_GAP_V2);
+          }
+        }
+        placedLabels.push(label);
       }
     });
   }
