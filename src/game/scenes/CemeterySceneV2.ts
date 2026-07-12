@@ -29,6 +29,23 @@ const BUILDING_LABEL_GAP_V2 = 4;
 const BUILDING_LABEL_STACK_GAP_V2 = 4;
 // Stay over world sprites while still receiving the day/night overlay and fog.
 const BUILDING_LABEL_DEPTH_V2 = 880;
+const BUILDING_SHADOW_DEPTH_V2 = 699;
+const BUILDING_PREVIEW_DEPTH_V2 = 700;
+const MAIN_GATE_PREVIEW_DEPTH_V2 = 701;
+const BUILDING_SHADOW_X_OFFSET_V2 = 5;
+const BUILDING_SHADOW_Y_OFFSET_V2 = 2;
+const BUILDING_SHADOW_TINT_V2 = 0x0b100c;
+const BUILDING_SHADOW_ALPHA_V2 = 0.18;
+// The source PNGs have different transparent padding below their visible base.
+// Keep each flattened silhouette grounded on the opaque pixels, not its frame edge.
+const BUILDING_SHADOW_BASE_INSET_V2: Record<string, number> = {
+  chapel_8d_160x256_lowdetail_palette: 1,
+  gravedigger_lodge_sysadmin_complete_map4: 9,
+  service_garage_2x3_map4: 10,
+  service_technical_building_4x5_map4: 17,
+  main_gate_1ds_q4_full_320x160_map4_compare: 9,
+  side_wicket_chek_q1_extensions_512x96_map4_compare: 11,
+};
 const TREE_SHADOW_DEPTH_V2 = 599;
 const TREE_SHADOW_Y_OFFSET_V2 = 2;
 // Non-empty terrain extent in Map4.tmj. Camera movement must never expose the
@@ -528,14 +545,14 @@ export class CemeterySceneV2 extends Phaser.Scene {
 
   private renderBuildingPreviews() {
     const previewLayers = [
-      'ChapelPreview_8d_lowdetail_palette_copy',
-      'GravediggerLodgePreview_map4',
-      'ServiceBuildingsPreview_map4',
-      'MainGate1dsQ4Preview_map4',
-      'Side_map4',
+      { name: 'ChapelPreview_8d_lowdetail_palette_copy', depth: BUILDING_PREVIEW_DEPTH_V2 },
+      { name: 'GravediggerLodgePreview_map4', depth: BUILDING_PREVIEW_DEPTH_V2 },
+      { name: 'ServiceBuildingsPreview_map4', depth: BUILDING_PREVIEW_DEPTH_V2 },
+      { name: 'MainGate1dsQ4Preview_map4', depth: MAIN_GATE_PREVIEW_DEPTH_V2 },
+      { name: 'Side_map4', depth: BUILDING_PREVIEW_DEPTH_V2 },
     ];
 
-    for (const layerName of previewLayers) {
+    for (const { name: layerName, depth } of previewLayers) {
       const layer = this.map.getObjectLayer(layerName);
       if (!layer) continue;
 
@@ -543,15 +560,40 @@ export class CemeterySceneV2 extends Phaser.Scene {
         if (!obj.gid) continue;
         const ts = this.map.tilesets.find(t => t.firstgid === obj.gid);
         if (!ts) continue;
+        const bounds = getTiledObjectBounds(obj);
         const position = getTiledObjectCenter(obj);
+        this.renderBuildingGroundShadow(bounds, ts.name, obj.gid - ts.firstgid);
         this.add.sprite(
           position.x,
           position.y,
           ts.name,
           obj.gid - ts.firstgid,
-        ).setDepth(700);
+        ).setDepth(depth);
       }
     }
+  }
+
+  private renderBuildingGroundShadow(
+    bounds: { x: number; y: number; width: number; height: number },
+    textureKey: string,
+    frame: number,
+  ) {
+    // A squashed copy of the exact building frame preserves the silhouette of
+    // the chapel, gates, and service buildings instead of using one generic oval.
+    const shadowWidth = Phaser.Math.Clamp(bounds.width * 0.94, 32, 512);
+    const shadowHeight = Phaser.Math.Clamp(bounds.height * 0.18, 12, 48);
+    const baseInset = BUILDING_SHADOW_BASE_INSET_V2[textureKey] ?? Math.round(bounds.height * 0.08);
+    const visualBaseY = bounds.y + bounds.height - baseInset;
+    const shadow = this.add.sprite(
+      bounds.x + bounds.width / 2 + BUILDING_SHADOW_X_OFFSET_V2,
+      visualBaseY - shadowHeight / 2 + BUILDING_SHADOW_Y_OFFSET_V2,
+      textureKey,
+      frame,
+    );
+    shadow.setDisplaySize(shadowWidth, shadowHeight);
+    shadow.setTintFill(BUILDING_SHADOW_TINT_V2);
+    shadow.setAlpha(BUILDING_SHADOW_ALPHA_V2);
+    shadow.setDepth(BUILDING_SHADOW_DEPTH_V2);
   }
 
   private renderTreeSprites() {
