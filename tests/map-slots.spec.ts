@@ -30,4 +30,13 @@ test.describe('map slot economy', () => {
 
     expect(slot).toEqual({ id: 289, type: 'grave_tall' })
   })
+
+  test('includes every Map4 grave footprint in automatic allocation', () => {
+    const autoSlots = getAutoAssignableGraveSlots('v2')
+
+    expect(autoSlots).toHaveLength(144)
+    expect(new Set(autoSlots.map((slot) => slot.type))).toEqual(
+      new Set(['grave_tall', 'grave_wide', 'grave_large']),
+    )
+  })
 })

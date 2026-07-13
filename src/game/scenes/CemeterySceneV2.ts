@@ -35,7 +35,14 @@ const MAIN_GATE_PREVIEW_DEPTH_V2 = 701;
 const BUILDING_SHADOW_X_OFFSET_V2 = 5;
 const BUILDING_SHADOW_Y_OFFSET_V2 = 2;
 const BUILDING_SHADOW_TINT_V2 = 0x0b100c;
-const BUILDING_SHADOW_ALPHA_V2 = 0.18;
+const BUILDING_SHADOW_ALPHA_V2 = 0.3;
+// Dynamic grave sprites use a softer, smaller version of the same grounded
+// silhouette treatment as buildings, so a freshly placed grave does not float.
+const GRAVE_SHADOW_DEPTH_V2 = 799;
+const GRAVE_SHADOW_X_OFFSET_V2 = 3;
+const GRAVE_SHADOW_Y_OFFSET_V2 = 1;
+const GRAVE_SHADOW_TINT_V2 = 0x0b100c;
+const GRAVE_SHADOW_ALPHA_V2 = 0.3;
 // The source PNGs have different transparent padding below their visible base.
 // Keep each flattened silhouette grounded on the opaque pixels, not its frame edge.
 const BUILDING_SHADOW_BASE_INSET_V2: Record<string, number> = {
@@ -200,6 +207,7 @@ export class CemeterySceneV2 extends Phaser.Scene {
   private renderedGraves = new Map<number, RenderGraveData>();
   private desiredGraves = new Map<number, RenderGraveData>();
   private graveSprites = new Map<number, Phaser.GameObjects.Sprite>();
+  private graveShadows = new Map<number, Phaser.GameObjects.Sprite>();
   private ceremonySlotIds = new Set<number>();
   private snapshotProtectedSlotIds = new Set<number>();
   private graveSnapshotAuthoritative = false;
@@ -346,6 +354,7 @@ export class CemeterySceneV2 extends Phaser.Scene {
     this.renderedGraves.clear();
     this.desiredGraves.clear();
     this.graveSprites.clear();
+    this.graveShadows.clear();
     this.ceremonySlotIds.clear();
     this.snapshotProtectedSlotIds.clear();
     this.graveSnapshotAuthoritative = false;
@@ -969,6 +978,9 @@ export class CemeterySceneV2 extends Phaser.Scene {
   }
 
   private removeGraveFromMap(slotId: number) {
+    const shadow = this.graveShadows.get(slotId);
+    if (shadow?.active) shadow.destroy();
+    this.graveShadows.delete(slotId);
     const sprite = this.graveSprites.get(slotId);
     if (sprite?.active) sprite.destroy();
     this.graveSprites.delete(slotId);
@@ -994,6 +1006,18 @@ export class CemeterySceneV2 extends Phaser.Scene {
     if (current || this.renderedSlots.has(grave.slot_id)) {
       this.removeGraveFromMap(grave.slot_id);
     }
+    const shadowHeight = Phaser.Math.Clamp(slot.height * 0.16, 7, 14);
+    const shadow = this.add.sprite(
+      slot.x + slot.width / 2 + GRAVE_SHADOW_X_OFFSET_V2,
+      slot.y + slot.height - shadowHeight / 2 + GRAVE_SHADOW_Y_OFFSET_V2,
+      tileset.name,
+      gid - tileset.firstgid,
+    );
+    shadow.setDisplaySize(Phaser.Math.Clamp(slot.width * 0.9, 18, 64), shadowHeight);
+    shadow.setTintFill(GRAVE_SHADOW_TINT_V2);
+    shadow.setAlpha(GRAVE_SHADOW_ALPHA_V2);
+    shadow.setDepth(GRAVE_SHADOW_DEPTH_V2);
+
     const sprite = this.add.sprite(
       slot.x + slot.width / 2,
       slot.y + slot.height / 2,
@@ -1001,6 +1025,7 @@ export class CemeterySceneV2 extends Phaser.Scene {
       gid - tileset.firstgid,
     );
     sprite.setDepth(800);
+    this.graveShadows.set(grave.slot_id, shadow);
     this.graveSprites.set(grave.slot_id, sprite);
     this.renderedSlots.add(grave.slot_id);
     this.renderedGraves.set(grave.slot_id, grave);

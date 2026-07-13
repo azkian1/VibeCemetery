@@ -103,12 +103,12 @@ export function countAutoAssignableGraveUsage(graves: { slot_id: number }[], map
 
 /** Bias multiplier per tier — higher = more likely to be picked. */
 const TIER_BIAS_V1: Record<string, number> = { grave: 4, grave_tall: 1 };
-const TIER_BIAS_V2: Record<string, number> = { grave_tall: 2, grave_wide: 1 };
+const TIER_BIAS_V2: Record<string, number> = {};
 
 /**
  * Pick a random free slot for automatic burial.
  * - v1: T0 (`grave`) and T1 (`grave_tall`) — bias ~80/20.
- * - v2: T0 (`grave_tall`) and T1 (`grave_wide`) — bias ~67/33.
+ * - v2: all authored grave footprints participate with equal per-slot odds.
  */
 export function pickRandomFreeSlot(usedIds: Set<number>, mapVersion: string = 'v1'): GraveSlot | null {
   const allSlots = getAutoAssignableGraveSlots(mapVersion);
