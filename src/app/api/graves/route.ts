@@ -76,8 +76,14 @@ export async function GET(req: NextRequest) {
 
   let { data, error } = await query
 
-  // If map_version column doesn't exist yet, retry without the filter
+  // Legacy databases predate map_version. Their records belong to map1;
+  // map2 must start empty rather than accidentally rendering those graves
+  // into unrelated Map4 slots.
   if (error && error.message?.includes('map_version')) {
+    if (mapVersion === 'v2') {
+      return NextResponse.json([])
+    }
+
     let fallbackQuery = supabaseAdmin
       .from('graves')
       .select('*')
