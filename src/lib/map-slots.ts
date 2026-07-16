@@ -101,6 +101,11 @@ export function countAutoAssignableGraveUsage(graves: { slot_id: number }[], map
   return graves.reduce((count, grave) => count + (autoSlotIds.has(grave.slot_id) ? 1 : 0), 0);
 }
 
+export function filterGravesToKnownMapSlots<T extends { slot_id: number }>(graves: T[], mapVersion: string = 'v1'): T[] {
+  const slotIds = new Set(getGraveSlots(mapVersion).map((slot) => slot.id));
+  return graves.filter((grave) => slotIds.has(grave.slot_id));
+}
+
 /** Bias multiplier per tier — higher = more likely to be picked. */
 const TIER_BIAS_V1: Record<string, number> = { grave: 4, grave_tall: 1 };
 const TIER_BIAS_V2: Record<string, number> = {};

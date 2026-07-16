@@ -53,6 +53,8 @@ async function createAuthHeaders(
 }
 
 let supabaseAdmin: SupabaseClient | undefined
+const smokeGraveIds = new Set<string>()
+const staleSmokeGraveMs = 24 * 60 * 60 * 1000
 
 function getSupabaseAdmin() {
   if (!supabaseAdmin) {
@@ -88,6 +90,8 @@ async function createSmokeGrave() {
     throw new Error(`Failed to create smoke grave: ${error?.message ?? 'unknown error'}`)
   }
 
+  smokeGraveIds.add(data.id)
+
   return { id: data.id }
 }
 
@@ -115,12 +119,55 @@ async function createSmokeGraveFor(username: string, githubUrl: string) {
     throw new Error(`Failed to create smoke grave: ${error?.message ?? 'unknown error'}`)
   }
 
+  smokeGraveIds.add(data.id)
+
   return { id: data.id }
 }
 
 async function deleteSmokeGrave(graveId: string) {
-  await getSupabaseAdmin().from('f_votes').delete().eq('grave_id', graveId)
-  await getSupabaseAdmin().from('graves').delete().eq('id', graveId)
+  await deleteSmokeGravesByIds([graveId])
+  smokeGraveIds.delete(graveId)
+}
+
+async function deleteSmokeGravesByIds(ids: string[]) {
+  if (ids.length === 0) return
+
+  const votes = await getSupabaseAdmin().from('f_votes').delete().in('grave_id', ids)
+  if (votes.error) {
+    throw new Error(`Failed to delete smoke grave votes: ${votes.error.message}`)
+  }
+
+  const { error } = await getSupabaseAdmin().from('graves').delete().in('id', ids)
+  if (error) {
+    throw new Error(`Failed to delete smoke graves: ${error.message}`)
+  }
+}
+
+async function deleteTrackedSmokeGraves() {
+  const ids = [...smokeGraveIds]
+  await deleteSmokeGravesByIds(ids)
+  for (const id of ids) smokeGraveIds.delete(id)
+}
+
+async function deleteLeakedSmokeGraves(staleBefore: string) {
+  const { data, error } = await getSupabaseAdmin()
+    .from('graves')
+    .select('id')
+    .eq('cause', 'integration smoke')
+    .like('github_url', 'https://github.com/api-smoke/%')
+    .or('author_github.eq.api-smoke,author_github.like.dup-%')
+    .gte('slot_id', 900000)
+    .lt('slot_id', 920000)
+    .gte('github_repo_id', 900000000)
+    .lt('github_repo_id', 911000000)
+    .lt('created_at', staleBefore)
+
+  if (error) {
+    throw new Error(`Failed to find leaked smoke graves: ${error.message}`)
+  }
+
+  const ids = (data ?? []).map((grave) => grave.id).filter(Boolean)
+  await deleteSmokeGravesByIds(ids)
 }
 
 async function createSmokeUser(username: string) {
@@ -146,6 +193,17 @@ async function deleteSmokeCliData(username: string) {
 
 test.describe.serial('API smoke', () => {
   test.skip(missingApiSmokeEnv.length > 0, apiSmokeSkipReason)
+
+  test.beforeAll(async () => {
+    if (missingApiSmokeEnv.length > 0) return
+    await deleteLeakedSmokeGraves(new Date(Date.now() - staleSmokeGraveMs).toISOString())
+  })
+
+  test.afterAll(async () => {
+    if (missingApiSmokeEnv.length > 0) return
+    await deleteTrackedSmokeGraves()
+    await deleteLeakedSmokeGraves(new Date(Date.now() - staleSmokeGraveMs).toISOString())
+  })
 
   test('GET /api/graves returns a bounded list', async ({ request }) => {
     const res = await request.get('/api/graves?limit=1')

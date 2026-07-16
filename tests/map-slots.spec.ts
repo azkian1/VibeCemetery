@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { countAutoAssignableGraveUsage, getAutoAssignableGraveSlots, getGraveSlots } from '../src/lib/map-slots'
+import { countAutoAssignableGraveUsage, filterGravesToKnownMapSlots, getAutoAssignableGraveSlots, getGraveSlots } from '../src/lib/map-slots'
 
 test.describe('map slot economy', () => {
   test('keeps grave_special reserved outside the user slot economy', () => {
@@ -23,6 +23,16 @@ test.describe('map slot economy', () => {
       { slot_id: reservedSlot!.id },
       { slot_id: autoSlot.id },
     ])).toBe(2)
+  })
+
+  test('filters leaked smoke graves that do not belong to the current map', () => {
+    const renderableSlot = getGraveSlots()[0]
+    const graves = filterGravesToKnownMapSlots([
+      { id: 'real-grave', slot_id: renderableSlot.id },
+      { id: 'leaked-smoke-grave', slot_id: 915309 },
+    ])
+
+    expect(graves).toEqual([{ id: 'real-grave', slot_id: renderableSlot.id }])
   })
 
   test('keeps existing Oroshimoro grave slot renderable', () => {

@@ -4,7 +4,7 @@ import { authOptions } from '@/app/api/auth/[...nextauth]/route'
 import { isAgentAshEnvelope, isAgentAshIngestToken } from '@/lib/agent-ash-boundary'
 import { supabaseAdmin } from '@/lib/supabase'
 import { checkRateLimit, getClientIp } from '@/lib/rate-limit'
-import { getAutoAssignableGraveSlots, pickRandomFreeSlot } from '@/lib/map-slots'
+import { getAutoAssignableGraveSlots, getGraveSlots, pickRandomFreeSlot } from '@/lib/map-slots'
 import { sanitizePublicText } from '@/lib/sanitize-public-text'
 import { parseMapVersion } from '@/lib/map-version'
 import { generateEpitaph } from '@/gravedigger/epitaphs'
@@ -60,10 +60,16 @@ export async function GET(req: NextRequest) {
   const limitParam = parseInt(searchParams.get('limit') ?? '500', 10)
   const limit = Math.min(Math.max(1, limitParam || 500), 500)
   const offset = Math.max(0, parseInt(searchParams.get('offset') ?? '0', 10) || 0)
+  const knownSlotIds = getGraveSlots(mapVersion).map((slot) => slot.id)
+
+  if (knownSlotIds.length === 0) {
+    return NextResponse.json([])
+  }
 
   let query = supabaseAdmin
     .from('graves')
     .select('*')
+    .in('slot_id', knownSlotIds)
     .order('slot_id', { ascending: true })
     .range(offset, offset + limit - 1)
 
@@ -87,6 +93,7 @@ export async function GET(req: NextRequest) {
     let fallbackQuery = supabaseAdmin
       .from('graves')
       .select('*')
+      .in('slot_id', knownSlotIds)
       .order('slot_id', { ascending: true })
       .range(offset, offset + limit - 1)
 
