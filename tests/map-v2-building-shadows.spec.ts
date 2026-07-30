@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { CEMETERY_MAP_V2_FILE } from '../src/lib/map-version'
 
 type ObjectLayer = {
   name: string
@@ -9,13 +10,13 @@ type ObjectLayer = {
   objects?: Array<{ gid?: number; x?: number; y?: number; width?: number; height?: number }>
 }
 
-type Map4 = {
+type CemeteryMapV2 = {
   layers: ObjectLayer[]
 }
 
 const scenePath = join(process.cwd(), 'src', 'game', 'scenes', 'CemeterySceneV2.ts')
 const sceneSource = readFileSync(scenePath, 'utf8')
-const map4 = JSON.parse(readFileSync(join(process.cwd(), 'public', 'map', 'Map4.tmj'), 'utf8')) as Map4
+const mapV2 = JSON.parse(readFileSync(join(process.cwd(), 'public', 'map', CEMETERY_MAP_V2_FILE), 'utf8')) as CemeteryMapV2
 
 function section(source: string, from: string, to: string) {
   const start = source.indexOf(from)
@@ -36,7 +37,7 @@ test('v2 buildings receive flattened shadows from their own sprite silhouettes',
     'Side_map4',
   ]
   const previewObjects = previewLayers.flatMap((name) => {
-    const layer = map4.layers.find((candidate) => candidate.name === name)
+    const layer = mapV2.layers.find((candidate) => candidate.name === name)
     return (layer?.objects ?? []).map((object) => ({ layer, object }))
   })
 

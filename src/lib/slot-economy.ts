@@ -1,6 +1,6 @@
 export const NORMAL_SLOT_MAX = 4;
 export const AUTO_ASSIGNABLE_GRAVE_SLOT_TYPES = ['grave', 'grave_tall'] as const;
-// Every authored grave footprint on Map4 participates in automatic burial.
+// Every authored Cemetery Map 2.0 grave footprint participates in automatic burial.
 export const AUTO_ASSIGNABLE_GRAVE_SLOT_TYPES_V2 = ['grave_tall', 'grave_wide', 'grave_large'] as const;
 
 const AUTO_ASSIGNABLE_GRAVE_SLOT_TYPE_SET = new Set<string>(AUTO_ASSIGNABLE_GRAVE_SLOT_TYPES);

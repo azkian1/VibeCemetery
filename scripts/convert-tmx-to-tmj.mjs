@@ -1,7 +1,13 @@
 import fs from 'fs';
+import path from 'path';
 
-const tmxPath = process.argv[2] || 'C:\\Users\\az\\Desktop\\March\\May\\Xmap\\Map4.tmx';
-const tmjPath = process.argv[3] || 'C:\\Users\\az\\Desktop\\March\\02\\vibecemetery\\public\\map\\Map4.tmj';
+const tmxPath = process.argv[2];
+const tmjPath = process.argv[3] || path.join(process.cwd(), 'public', 'map', 'cemetery-v2.tmj');
+
+if (!tmxPath) {
+  console.error('Usage: node scripts/convert-tmx-to-tmj.mjs <source.tmx> [public/map/cemetery-v2.tmj]');
+  process.exit(1);
+}
 
 console.log(`Reading: ${tmxPath}`);
 let xml = fs.readFileSync(tmxPath, 'utf-8');

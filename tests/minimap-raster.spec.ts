@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { CEMETERY_MAP_V2_FILE } from '../src/lib/map-version'
 import { paintMinimapLayer, type MinimapRasterLayer } from '../src/game/utils/minimapRaster'
 
 type TmjLayer = {
@@ -22,8 +23,8 @@ type TmjMap = {
   layers: TmjLayer[]
 }
 
-function loadMap4() {
-  const mapPath = join(process.cwd(), 'public', 'map', 'Map4.tmj')
+function loadCemeteryMapV2() {
+  const mapPath = join(process.cwd(), 'public', 'map', CEMETERY_MAP_V2_FILE)
   return JSON.parse(readFileSync(mapPath, 'utf8')) as TmjMap
 }
 
@@ -49,7 +50,7 @@ function toRasterLayer(map: TmjMap, name: string): MinimapRasterLayer {
 }
 
 test('v2 minimap terrain applies the Phaser-parsed Tiled layer offset', () => {
-  const map = loadMap4()
+  const map = loadCemeteryMapV2()
   const terrain = new Uint8Array(map.width * map.height)
 
   paintMinimapLayer(
@@ -65,7 +66,7 @@ test('v2 minimap terrain applies the Phaser-parsed Tiled layer offset', () => {
 })
 
 test('v2 minimap represents each authored fog-of-war state', () => {
-  const map = loadMap4()
+  const map = loadCemeteryMapV2()
   const fog = new Uint8Array(map.width * map.height)
 
   paintMinimapLayer(fog, map.width, map.height, toRasterLayer(map, 'fog_soft_inner'), 1)

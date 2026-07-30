@@ -1,18 +1,21 @@
-# Cemetery Map v2 — Current Runtime Reference
+# Cemetery Map 2.0 — Current Runtime Reference
 
 > Updated: 2026-07-12. This top section is the source of truth for the live
 > `/cemetery/v2` experience. The original integration plan remains below as
 > historical implementation material.
+>
+> Canonical terminology: product **Cemetery Map 2.0**; technical version `v2`;
+> served asset `public/map/cemetery-v2.tmj`.
 
 ## Current Status
 
 Map v2 is live at `/cemetery/v2` alongside the view-only v1 map at
-`/cemetery`. The runtime uses `public/map/Map4.tmj`; an alternative TMX source
+`/cemetery`. The runtime uses `public/map/cemetery-v2.tmj`; an alternative TMX source
 is not served until it is converted into that file.
 
 The v2 implementation currently includes:
 
-- Phaser rendering of Map4 terrain, buildings, trees, dynamic graves, labels,
+- Phaser rendering of Cemetery Map 2.0 terrain, buildings, trees, dynamic graves, labels,
   day/night treatment, ambient particles, and fog of war.
 - Versioned grave data (`map_version = 'v2'`) with a server-persisted
   `grave_gid`, so a grave keeps its chosen sprite across reloads.
@@ -25,7 +28,7 @@ The v2 implementation currently includes:
 
 | Item | Runtime value |
 |---|---|
-| Served map | `public/map/Map4.tmj` |
+| Served map | `public/map/cemetery-v2.tmj` |
 | Route | `/cemetery/v2` |
 | Grid | 140 × 104 tiles at 32 px |
 | Tilemap world | 4480 × 3328 px |
@@ -36,7 +39,7 @@ The v2 implementation currently includes:
 
 ### Coordinates and Layers
 
-`Map4.tmj` offsets are already applied by Phaser. Runtime code must use parsed
+`cemetery-v2.tmj` offsets are already applied by Phaser. Runtime code must use parsed
 object coordinates and the `createLayer()` defaults directly:
 
 - Terrain `pixellab_dualgrid_reconstructed`: TMJ offset `768, 1312`.
@@ -66,7 +69,7 @@ constrained against the actual clear cells of `fog_locked_blockout`.
 - On release, a 220 ms `Sine.easeOut` returns the camera to the 32 px resting
   buffer. This preserves the feeling of a nearby closed location without
   allowing a long trip through opaque fog.
-- A fog safety skirt extends 64 px around Map4. It prevents a short permitted
+- A fog safety skirt extends 64 px around Cemetery Map 2.0. It prevents a short permitted
   overscroll, or a centred wide viewport, from exposing an empty canvas.
 - Wheel, pinch, zoom controls, and minimap travel use the strict terrain
   bounds. `fitZoom` is calculated from the full 4480 × 3328 tilemap;
@@ -92,7 +95,7 @@ its counters, and its control remains within the chat frame.
 
 ## Editing and Verification
 
-Edit `public/map/Map4.tmj` directly in Tiled. If a TMX source is used, convert
+Edit `public/map/cemetery-v2.tmj` directly in Tiled. If a TMX source is used, convert
 it back into that file with `scripts/convert-tmx-to-tmj.mjs`; keep tile-layer
 `x/y` numeric and preserve numeric object offsets.
 
@@ -105,7 +108,7 @@ npm run lint
 ```
 
 For a broader regression pass, run `npm run test:unit`. The camera tests cover
-the terrain footprint, equal four-edge fog resistance, the real Map4 fog mask,
+the terrain footprint, equal four-edge fog resistance, the real Cemetery Map 2.0 fog mask,
 the bottom fog safety skirt, strict minimap/zoom behavior, and snap-back.
 Finally inspect `/cemetery/v2` at both the normal zoom floor and a close zoom:
 drag each edge into fog, release, and confirm that the view returns smoothly
@@ -119,7 +122,7 @@ when an older snippet conflicts with current code.
 
 ## Historical Integration Goal
 
-Run Map4 (140×104 tiles, 32px, PixelLab custom art) as `/cemetery/v2` alongside
+Run Cemetery Map 2.0 (140×104 tiles, 32px, PixelLab custom art) as `/cemetery/v2` alongside
 the current `az.tmj` (40×40 tiles, 48px, asset-pack art) at `/cemetery`.
 
 v1 remains view-only (no wallet connect). v2 gets full functionality.
@@ -128,7 +131,7 @@ v1 remains view-only (no wallet connect). v2 gets full functionality.
 
 ## Map Differences at a Glance
 
-| Property | v1 (az.tmj) | v2 (Map4.tmj) |
+| Property | v1 (az.tmj) | v2 (cemetery-v2.tmj) |
 |----------|------------|---------------|
 | Map size | 40×40 tiles | 140×104 tiles |
 | Tile size | 48×48 px | 32×32 px |
@@ -155,17 +158,17 @@ v1 remains view-only (no wallet connect). v2 gets full functionality.
 The live v2 map file is:
 
 ```text
-C:\Users\az\Desktop\March\02\vibecemetery\public\map\Map4.tmj
+C:\Users\az\Desktop\March\02\vibecemetery\public\map\cemetery-v2.tmj
 ```
 
 Open this file directly in Tiled when editing the project map. Saving it updates
-the file served by `/cemetery/v2` at `/map/Map4.tmj`; refresh the browser after
+the file served by `/cemetery/v2` at `/map/cemetery-v2.tmj`; refresh the browser after
 save.
 
 If editing from a `.tmx` source instead, convert back into the live TMJ file:
 
 ```bash
-node scripts/convert-tmx-to-tmj.mjs path/to/Map4.tmx public/map/Map4.tmj
+node scripts/convert-tmx-to-tmj.mjs path/to/source.tmx public/map/cemetery-v2.tmj
 ```
 
 The converter normalizes numeric attributes, including negative offsets, and
@@ -206,7 +209,7 @@ Output structure:
 ```
 public/map/
 ├── az.tmj                          # v1 (untouched)
-├── Map4.tmj                        # v2 (new)
+├── cemetery-v2.tmj                        # v2 (new)
 ├── planning_tiles.svg              # v2
 ├── blockout_tiles.svg              # v2
 ├── tilesets/
@@ -233,7 +236,7 @@ public/map/
 
 ### 0.3 Verify Asset Paths in TMJ
 
-After conversion, open `Map4.tmj` and verify all `image` paths are relative
+After conversion, open `cemetery-v2.tmj` and verify all `image` paths are relative
 to `public/map/`:
 
 ```json
@@ -248,7 +251,7 @@ Remove any absolute paths that may have been embedded by Tiled.
 
 ### 0.4 Coordinate Contract
 
-`Map4.tmj` contains layer offsets authored in Tiled. Phaser applies them during
+`cemetery-v2.tmj` contains layer offsets authored in Tiled. Phaser applies them during
 map parsing / layer creation, so runtime code must not add these offsets again.
 
 Current coordinate model:
@@ -265,7 +268,7 @@ Current coordinate model:
 Important rules:
 - Object layers from `map.getObjectLayer()` are already offset by Phaser. Use `obj.x` / `obj.y` directly.
 - Tile layers created with `map.createLayer(layerName, tilesets)` default to the `LayerData.x/y` parsed from `x/y + offsetx/offsety`. Use the default position unless the TMJ data itself is wrong.
-- `Map4.tmj` tile layers must keep numeric `x` and `y` fields. Missing `x/y` can produce `NaN` in Phaser 3.90's Tiled parser.
+- `cemetery-v2.tmj` tile layers must keep numeric `x` and `y` fields. Missing `x/y` can produce `NaN` in Phaser 3.90's Tiled parser.
 - Negative object-layer offsets must be JSON numbers, not strings. String offsets can break object placement by causing string concatenation.
 
 Regression coverage for this lives in `tests/map-v2-coordinates.spec.ts`.
@@ -330,7 +333,7 @@ export function parseSlotsV2(map: Phaser.Tilemaps.Tilemap): Map<number, SlotData
     }
   }
 
-  // 2. Add buildings from hardcoded map (no building object layer in Map4)
+  // 2. Add buildings from hardcoded map (no building object layer in Cemetery Map 2.0)
   for (const b of BUILDINGS) {
     slots.set(b.id, { ...b, type: 'Building' });
   }
@@ -363,12 +366,12 @@ Building IDs start at 5000 to avoid collision with GraveObj IDs (1–508).
 
 ### 1.3 `src/game/utils/tileRegistry-v2.ts`
 
-Catalog of PixelLab grave sprites with their GIDs from Map4 tilesets.
+Catalog of PixelLab grave sprites with their GIDs from Cemetery Map 2.0 tilesets.
 
 Graves are single sprites (not tile compositions like v1). Each sprite is rendered
 as an object (via `gid` reference on the object layer), not as individual tiles.
 
-However since Phaser's dynamic rendering uses `putTileAt()`, and Map4 graves are
+However since Phaser's dynamic rendering uses `putTileAt()`, and Cemetery Map 2.0 graves are
 single-image tilesets (1 tile each), we map each grave sprite to a GID.
 
 **1x2 graves (26 variants, gid 51–76):**
@@ -467,7 +470,7 @@ export function renderGraveV2(
 }
 ```
 
-Note: Map4 graves are single-png sprites (not composited tiles like v1).
+Note: Cemetery Map 2.0 graves are single-png sprites (not composited tiles like v1).
 A 2x2 grave is one 64×64 image placed via a single gid.
 Phaser's `putTileAt` on a tile layer with 32×32 cells will show only the
 top-left 32×32 of the sprite. For proper rendering we render graves as
@@ -507,7 +510,7 @@ This avoids the tile-layer limitation and renders full grave sprites correctly.
 
 ### 1.4 `src/game/scenes/CemeterySceneV2.ts`
 
-New scene class adapting all systems from CemeteryScene.ts to Map4 dimensions.
+New scene class adapting all systems from CemeteryScene.ts to Cemetery Map 2.0 dimensions.
 
 Key differences documented inline below. Full implementation in the actual file.
 
@@ -523,7 +526,7 @@ const TILESET_BASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL
   : '/map';
 ```
 
-**Tilesets to load** (all 74 from Map4.tmx, extracted after TMJ conversion):
+**Tilesets to load** (all 74 from the source TMX, extracted after TMJ conversion):
 List constructed from TMJ tilesets array. Key ones:
 - `grass_flagstone_spritesheet` (gid 11, 16 tiles)
 - Building sprites (gid 27–34)
@@ -600,7 +603,7 @@ const getBounds = () => {
 
 **Effects to disable initially:**
 - Fire animation (no Fire_Animation tileset)
-- Lamp glow (no lamp objects in Map4 yet)
+- Lamp glow (no lamp objects in Cemetery Map 2.0 yet)
 - Blue lamps (none defined)
 
 ---
@@ -683,13 +686,13 @@ Accept `map_version` in request body (default: `'v1'`).
 
 Slot selection uses the correct map:
 - `map_version = 'v1'` → `public/map/az.tmj` → slot types: `grave`, `grave_tall`
-- `map_version = 'v2'` → `public/map/Map4.tmj` → slot types: `grave_tall`, `grave_wide`
+- `map_version = 'v2'` → `public/map/cemetery-v2.tmj` → slot types: `grave_tall`, `grave_wide`
 
 ### 3.4 Update `src/lib/map-slots.ts`
 
 ```typescript
 export function getGraveSlotsV2(): GraveSlot[] {
-  const mapPath = join(process.cwd(), 'public', 'map', 'Map4.tmj');
+  const mapPath = join(process.cwd(), 'public', 'map', 'cemetery-v2.tmj');
   const map = JSON.parse(readFileSync(mapPath, 'utf8'));
   const graveLayer = map.layers.find((l: any) => l.name === 'GraveObj');
   if (!graveLayer?.objects) return [];
@@ -716,7 +719,7 @@ function inferGraveTypeFromDims(w: number, h: number): string {
 For v2, auto-assignable slot types:
 ```typescript
 export const AUTO_ASSIGNABLE_GRAVE_SLOT_TYPES_V2 = ['grave_tall'] as const;
-// 88 slots available for automatic burial (most common size in Map4)
+// 88 slots available for automatic burial (most common size in Cemetery Map 2.0)
 ```
 
 ### 3.6 Update `src/context/GameContext.tsx`
@@ -830,7 +833,7 @@ On `/cemetery`, show a subtle banner: "Viewing v1 — wallet connect disabled.
 
 ## Open Decisions
 
-1. **TMX→TMJ**: Use `public/map/Map4.tmj` as the live editable project map.
+1. **TMX→TMJ**: Use `public/map/cemetery-v2.tmj` as the live editable project map.
    If editing from TMX, run `scripts/convert-tmx-to-tmj.mjs` so numeric offsets
    and tile-layer `x/y` defaults are normalized.
 
@@ -839,7 +842,7 @@ On `/cemetery`, show a subtle banner: "Viewing v1 — wallet connect disabled.
    or add new ones.
 
 3. **Grave rendering**: Sprites vs tiles for graves. Recommendation: sprites
-   (as described in 1.3 revised approach) since Map4 graves are single-PNG assets.
+   (as described in 1.3 revised approach) since Cemetery Map 2.0 graves are single-PNG assets.
 
 4. **API separation**: The `map_version` column approach keeps one table. Alternative:
    separate `graves_v2` table. Column approach is simpler — adds one field.
@@ -873,8 +876,8 @@ On `/cemetery`, show a subtle banner: "Viewing v1 — wallet connect disabled.
 ### Key Architecture Decisions
 1. **Single `graves` table** — partitioned by `map_version` column, composite unique on `(slot_id, map_version)`
 2. **Server-side random sprite** — `pickRandomGraveGid()` runs on POST, `grave_gid` stored in DB, client renders deterministically
-3. **Graves as sprites not tiles** — Map4 graves are single-PNG assets, rendered via `add.sprite()` at exact pixel coordinates
-4. **Buildings hardcoded** — Map4 has no building object layer; 6 buildings defined in `slotManager-v2.ts`
+3. **Graves as sprites not tiles** — Cemetery Map 2.0 graves are single-PNG assets, rendered via `add.sprite()` at exact pixel coordinates
+4. **Buildings hardcoded** — Cemetery Map 2.0 has no building object layer; 6 buildings defined in `slotManager-v2.ts`
 5. **Tileset path map** — 74 tilesets use a `TILESET_IMAGE` dictionary because names don't match file paths (subdirectories)
 6. **Shared GameContext** — v1 and v2 reuse the same context, modals, and HUD; only game layer differs
 
@@ -894,7 +897,7 @@ The v2 scene manually re-applied Tiled offsets that Phaser had already parsed:
 
 - Trust Phaser's parsed object coordinates from `getObjectLayer()`.
 - Trust Phaser's parsed tile-layer positions from `createLayer()` defaults.
-- Keep `Map4.tmj` tile-layer `x/y` numeric to avoid Phaser parser `NaN` positions.
+- Keep `cemetery-v2.tmj` tile-layer `x/y` numeric to avoid Phaser parser `NaN` positions.
 - Keep negative preview offsets as JSON numbers, not strings.
 - Add `tests/map-v2-coordinates.spec.ts` to lock this behavior.
 

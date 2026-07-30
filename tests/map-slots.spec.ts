@@ -41,7 +41,7 @@ test.describe('map slot economy', () => {
     expect(slot).toEqual({ id: 289, type: 'grave_tall' })
   })
 
-  test('includes every Map4 grave footprint in automatic allocation', () => {
+  test('includes every Cemetery Map 2.0 grave footprint in automatic allocation', () => {
     const autoSlots = getAutoAssignableGraveSlots('v2')
 
     expect(autoSlots).toHaveLength(144)

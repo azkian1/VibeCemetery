@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { CEMETERY_MAP_V2_FILE } from '../src/lib/map-version'
 import { parseSlotsV2 } from '../src/game/utils/slotManager-v2'
 import { getTiledObjectBounds, getTiledObjectCenter } from '../src/game/utils/tiledObject'
 
@@ -25,8 +26,8 @@ type TmjLayer = {
   objects?: TmjObject[]
 }
 
-function loadMap4() {
-  const mapPath = join(process.cwd(), 'public', 'map', 'Map4.tmj')
+function loadCemeteryMapV2() {
+  const mapPath = join(process.cwd(), 'public', 'map', CEMETERY_MAP_V2_FILE)
   return JSON.parse(readFileSync(mapPath, 'utf8')) as { layers: TmjLayer[] }
 }
 
@@ -54,9 +55,9 @@ function createPhaserParsedMap(map: { layers: TmjLayer[] }) {
 }
 
 test.describe('map v2 coordinates', () => {
-  test('uses real Map4 GraveObj coordinates after the TMJ layer offset is parsed once', () => {
-    const map4 = loadMap4()
-    const graveLayer = getLayer(map4, 'GraveObj')
+  test('uses real Cemetery Map 2.0 GraveObj coordinates after the TMJ layer offset is parsed once', () => {
+    const mapV2 = loadCemeteryMapV2()
+    const graveLayer = getLayer(mapV2, 'GraveObj')
     const rawGrave = graveLayer.objects?.find((obj) => obj.id === 10)
     expect(rawGrave).toBeTruthy()
 
@@ -88,10 +89,10 @@ test.describe('map v2 coordinates', () => {
   })
 
   test('keeps every GraveObj slot aligned after Phaser applies its layer offset once', () => {
-    const map4 = loadMap4()
-    const graveLayer = getLayer(map4, 'GraveObj')
+    const mapV2 = loadCemeteryMapV2()
+    const graveLayer = getLayer(mapV2, 'GraveObj')
     const rawGraves = graveLayer.objects ?? []
-    const slots = parseSlotsV2(createPhaserParsedMap(map4))
+    const slots = parseSlotsV2(createPhaserParsedMap(mapV2))
 
     expect(rawGraves).toHaveLength(144)
     for (const grave of rawGraves) {
@@ -105,22 +106,22 @@ test.describe('map v2 coordinates', () => {
     }
   })
 
-  test('keeps Map4 preview offsets numeric for Phaser parsing', () => {
-    const map4 = loadMap4()
+  test('keeps Cemetery Map 2.0 preview offsets numeric for Phaser parsing', () => {
+    const mapV2 = loadCemeteryMapV2()
 
-    expect(getLayer(map4, 'ChapelPreview_8d_lowdetail_palette_copy')).toMatchObject({
+    expect(getLayer(mapV2, 'ChapelPreview_8d_lowdetail_palette_copy')).toMatchObject({
       offsetx: -480,
       offsety: 160,
     })
-    expect(getLayer(map4, 'GravediggerLodgePreview_map4')).toMatchObject({
+    expect(getLayer(mapV2, 'GravediggerLodgePreview_map4')).toMatchObject({
       offsetx: -64,
       offsety: -32,
     })
   })
 
-  test('keeps Map4 tile layer positions numeric for Phaser createLayer defaults', () => {
-    const map4 = loadMap4()
-    const tileLayers = map4.layers.filter((layer) => layer.type === 'tilelayer')
+  test('keeps Cemetery Map 2.0 tile layer positions numeric for Phaser createLayer defaults', () => {
+    const mapV2 = loadCemeteryMapV2()
+    const tileLayers = mapV2.layers.filter((layer) => layer.type === 'tilelayer')
 
     expect(tileLayers.length).toBeGreaterThan(0)
     for (const layer of tileLayers) {
@@ -135,39 +136,39 @@ test.describe('map v2 coordinates', () => {
     }
   })
 
-  test('keeps Map4 rendered layer offsets in their authored coordinate spaces', () => {
-    const map4 = loadMap4()
+  test('keeps Cemetery Map 2.0 rendered layer offsets in their authored coordinate spaces', () => {
+    const mapV2 = loadCemeteryMapV2()
 
-    expect(getLayer(map4, 'pixellab_dualgrid_reconstructed')).toMatchObject({
+    expect(getLayer(mapV2, 'pixellab_dualgrid_reconstructed')).toMatchObject({
       x: 0,
       y: 0,
       offsetx: 768,
       offsety: 1312,
     })
-    expect(getLayer(map4, 'fog_soft_inner')).toMatchObject({ x: 0, y: 0 })
-    expect(getLayer(map4, 'fog_soft_inner').offsetx).toBeUndefined()
-    expect(getLayer(map4, 'fog_soft_inner').offsety).toBeUndefined()
-    expect(getLayer(map4, 'fog_soft_outer')).toMatchObject({ x: 0, y: 0 })
-    expect(getLayer(map4, 'fog_soft_outer').offsetx).toBeUndefined()
-    expect(getLayer(map4, 'fog_soft_outer').offsety).toBeUndefined()
-    expect(getLayer(map4, 'fog_locked_blockout')).toMatchObject({ x: 0, y: 0 })
-    expect(getLayer(map4, 'fog_locked_blockout').offsetx).toBeUndefined()
-    expect(getLayer(map4, 'fog_locked_blockout').offsety).toBeUndefined()
-    expect(getLayer(map4, 'Buildings')).toMatchObject({ x: 0, y: 0 })
-    expect(getLayer(map4, 'Buildings').offsetx).toBeUndefined()
-    expect(getLayer(map4, 'Buildings').offsety).toBeUndefined()
+    expect(getLayer(mapV2, 'fog_soft_inner')).toMatchObject({ x: 0, y: 0 })
+    expect(getLayer(mapV2, 'fog_soft_inner').offsetx).toBeUndefined()
+    expect(getLayer(mapV2, 'fog_soft_inner').offsety).toBeUndefined()
+    expect(getLayer(mapV2, 'fog_soft_outer')).toMatchObject({ x: 0, y: 0 })
+    expect(getLayer(mapV2, 'fog_soft_outer').offsetx).toBeUndefined()
+    expect(getLayer(mapV2, 'fog_soft_outer').offsety).toBeUndefined()
+    expect(getLayer(mapV2, 'fog_locked_blockout')).toMatchObject({ x: 0, y: 0 })
+    expect(getLayer(mapV2, 'fog_locked_blockout').offsetx).toBeUndefined()
+    expect(getLayer(mapV2, 'fog_locked_blockout').offsety).toBeUndefined()
+    expect(getLayer(mapV2, 'Buildings')).toMatchObject({ x: 0, y: 0 })
+    expect(getLayer(mapV2, 'Buildings').offsetx).toBeUndefined()
+    expect(getLayer(mapV2, 'Buildings').offsety).toBeUndefined()
   })
 
   test('keeps editor-only reference layers out of the production map view', () => {
-    const map4 = loadMap4()
+    const mapV2 = loadCemeteryMapV2()
 
-    expect(getLayer(map4, 'TreeX')).toMatchObject({ visible: false })
-    expect(getLayer(map4, 'GraveVariantsReview_31')).toMatchObject({ visible: false })
+    expect(getLayer(mapV2, 'TreeX')).toMatchObject({ visible: false })
+    expect(getLayer(mapV2, 'GraveVariantsReview_31')).toMatchObject({ visible: false })
   })
 
   test('uses Tiled bottom-left anchors only for tile objects', () => {
-    const map4 = loadMap4()
-    const chapelLayer = getLayer(map4, 'ChapelPreview_8d_lowdetail_palette_copy')
+    const mapV2 = loadCemeteryMapV2()
+    const chapelLayer = getLayer(mapV2, 'ChapelPreview_8d_lowdetail_palette_copy')
     const chapel = chapelLayer.objects?.[0]
     expect(chapel?.gid).toBeTruthy()
 
@@ -184,7 +185,7 @@ test.describe('map v2 coordinates', () => {
     })
     expect(getTiledObjectCenter(parsedChapel)).toEqual({ x: 1760, y: 1696 })
 
-    const graveLayer = getLayer(map4, 'GraveObj')
+    const graveLayer = getLayer(mapV2, 'GraveObj')
     const grave = graveLayer.objects?.find((object) => object.id === 10)
     const parsedGrave = {
       ...grave!,
@@ -200,8 +201,8 @@ test.describe('map v2 coordinates', () => {
   })
 
   test('derives all v2 building hitboxes from parsed preview objects', () => {
-    const map4 = loadMap4()
-    const slots = parseSlotsV2(createPhaserParsedMap(map4))
+    const mapV2 = loadCemeteryMapV2()
+    const slots = parseSlotsV2(createPhaserParsedMap(mapV2))
     const sources = [
       [5000, 'Chapel', 'ChapelPreview_8d_lowdetail_palette_copy', 'chapel_8d_160x256_lowdetail_palette_copy'],
       [5001, 'Gravedigger Lodge', 'GravediggerLodgePreview_map4', 'gravedigger_lodge_sysadmin_complete_map4'],
@@ -212,7 +213,7 @@ test.describe('map v2 coordinates', () => {
     ] as const
 
     for (const [id, name, layerName, objectName] of sources) {
-      const layer = getLayer(map4, layerName)
+      const layer = getLayer(mapV2, layerName)
       const object = layer.objects?.find((item) => item.name === objectName)
       expect(object, `${name} preview object`).toBeTruthy()
 

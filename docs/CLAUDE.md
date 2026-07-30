@@ -46,7 +46,7 @@ vibecemetery/
 |   |   |-- cemetery/
 |   |   |   |-- page.tsx          # v1 cemetery map experience
 |   |   |   `-- v2/
-|   |   |       `-- page.tsx      # v2 cemetery map experience (Map4, 140×104, PixelLab)
+|   |   |       `-- page.tsx      # v2 cemetery map experience (Cemetery Map 2.0, 140×104, PixelLab)
 |   |   |-- grave/[id]/
 |   |   |   |-- page.tsx               # grave deep-link redirect page
 |   |   |   |-- GraveRedirectClient.tsx
@@ -76,7 +76,7 @@ vibecemetery/
 |   |-- components/
 |   |   |-- AppProviders.tsx           # top-level React providers
 |   |   |-- CemeteryApp.tsx            # v1 cemetery app shell and modal layer
-|   |   |-- CemeteryAppV2.tsx         # v2 cemetery app shell (Map4, 140×104)
+|   |   |-- CemeteryAppV2.tsx         # v2 cemetery app shell (Cemetery Map 2.0, 140×104)
 |   |   |-- HomeScannerLanding.tsx     # root scanner landing page
 |   |   |-- PhaserCanvas.tsx           # v1 Phaser bootstrap wrapper
 |   |   |-- PhaserCanvasV2.tsx        # v2 Phaser bootstrap wrapper
@@ -122,7 +122,7 @@ vibecemetery/
 |   |   |-- events.ts
 |   |   |-- scenes/
 |   |   |   |-- CemeteryScene.ts    # v1 scene (az.tmj, 40×40, 48px)
-|   |   |   `-- CemeterySceneV2.ts  # v2 scene (Map4.tmj, 140×104, 32px)
+|   |   |   `-- CemeterySceneV2.ts  # v2 scene (cemetery-v2.tmj, 140×104, 32px)
 |   |   `-- utils/
 |   |       |-- slotManager.ts
 |   |       |-- slotManager-v2.ts   # v2 slot parser (GraveObj layer)
@@ -160,7 +160,7 @@ vibecemetery/
 |-- public/
 |   |-- map/
 |   |   |-- az.tmj                  # v1 map (40×40, 48px, read-only)
-|   |   |-- Map4.tmj               # v2 map (140×104, 32px, PixelLab)
+|   |   |-- cemetery-v2.tmj               # v2 map (140×104, 32px, PixelLab)
 |   |   |-- pixellab/              # v2 PixelLab production assets
 |   |   |-- tilesets/              # v2 terrain spritesheet
 |   |   `-- docs/
@@ -206,7 +206,7 @@ vibecemetery/
 |   |-- setup.md
 |   `-- supabase-schema.sql
 |-- scripts/
-|   `-- convert-tmx-to-tmj.mjs       # TMX→TMJ converter for Map4
+|   `-- convert-tmx-to-tmj.mjs       # TMX→TMJ converter for Cemetery Map 2.0
 |-- next.config.ts
 |-- playwright.config.ts
 |-- playwright.unit.config.ts
@@ -293,7 +293,7 @@ Paused legacy Agent Layer API routes remain in the codebase, but are not part of
 ## Data Model
 - `users` - GitHub-linked user profile, progression counters, and first-grave X share unlock timestamp
 - `graves` - mapped GitHub burials with slot assignment, epitaph, tier, `f_count`, `map_version`, and `grave_gid`
-  - `map_version` - partitions v1 and v2 graves (`'v1'` default, `'v2'` for Map4)
+  - `map_version` - partitions v1 and v2 graves (`'v1'` default, `'v2'` for Cemetery Map 2.0)
   - `grave_gid` - the randomly selected PixelLab sprite GID (v2 only, nullable for v1)
   - Unique constraint: `(slot_id, map_version)` — same slot can exist in both versions
 - `cremated` - cremated projects from browser or CLI flow, with `source` identifying GitHub or local `/bury` origin
@@ -319,7 +319,7 @@ Paused legacy Agent Layer API routes remain in the codebase, but are not part of
 - v2 grave sprites are single-PNG PixelLab assets rendered as Phaser sprites (not multi-tile compositions). The sprite GID is randomly selected server-side at burial time via `pickRandomGraveGid()` using `Math.random()`, stored in `grave_gid`, and rendered deterministically on subsequent page loads.
 - v2 slot type is inferred from GraveObj object dimensions: 32×64→`grave_tall`, 64×32→`grave_wide`, 64×64→`grave_large`.
 - v2 buildings are hardcoded in `slotManager-v2.ts` (Chapel, Gravedigger Lodge, Service Garage, Service Building, Main Gate, Side Wicket) and rendered from preview object layers.
-- v2 coordinate source of truth is `public/map/Map4.tmj`; Phaser applies Tiled tile/object layer offsets. Do not manually add object-layer offsets in `slotManager-v2.ts` or `CemeterySceneV2.ts`, and keep tile-layer `x/y` plus negative offsets numeric in the TMJ.
+- v2 coordinate source of truth is `public/map/cemetery-v2.tmj`; Phaser applies Tiled tile/object layer offsets. Do not manually add object-layer offsets in `slotManager-v2.ts` or `CemeterySceneV2.ts`, and keep tile-layer `x/y` plus negative offsets numeric in the TMJ.
 - v2 camera drag must use the clear cells of `fog_locked_blockout`, via `fogCameraBounds.ts`, rather than a rectangular terrain clamp alone. It permits a 32 px resting buffer and a resisted 64 px maximum fog excursion; the fog safety backdrop must remain above world objects so no empty canvas is visible.
 - v2 uses `pickRandomFreeSlot(usedIds, 'v2')` with bias `{grave_tall: 2, grave_wide: 1}` — grave_tall is twice as likely as grave_wide.
 - `/cemetery/v2` reuses all modals, HUD, and GameContext from v1. Only PhaserCanvas, CemeteryApp, and Minimap have v2 counterparts.

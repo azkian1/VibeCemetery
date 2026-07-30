@@ -13,6 +13,7 @@ import {
 } from '../utils/fogCameraBounds';
 import { cemeteryEvents, SlotEventData, RenderGraveData, MinimapClickData, SyncGravesData } from '../events';
 import { isSameRenderedGrave, planGraveReconciliation } from '../graveReconciliation';
+import { CEMETERY_MAP_V2_URL } from '../../lib/map-version';
 
 const MAP_TILES_X = 140;
 const MAP_TILES_Y = 104;
@@ -55,7 +56,7 @@ const BUILDING_SHADOW_BASE_INSET_V2: Record<string, number> = {
 };
 const TREE_SHADOW_DEPTH_V2 = 599;
 const TREE_SHADOW_Y_OFFSET_V2 = 2;
-// Non-empty terrain extent in Map4.tmj. Camera movement must never expose the
+// Non-empty terrain extent in Cemetery Map 2.0. Camera movement must never expose the
 // padded world grid around it.
 const PLAYABLE_WORLD_BOUNDS_V2 = { minX: 800, minY: 1312, maxX: 3328, maxY: 3328 };
 // These source PNGs retain different amounts of transparent padding below the
@@ -259,7 +260,7 @@ export class CemeterySceneV2 extends Phaser.Scene {
       }
     });
 
-    this.load.tilemapTiledJSON('cemetery-map-v2', '/map/Map4.tmj');
+    this.load.tilemapTiledJSON('cemetery-map-v2', CEMETERY_MAP_V2_URL);
 
     // Load tilesets using actual image paths from TMJ (not just name + '.png')
     // Skip SVG files (red_road_line, blockout_tiles) — planning layers are hidden
@@ -863,7 +864,7 @@ export class CemeterySceneV2 extends Phaser.Scene {
   }
 
   private createFogOverscrollBackdrop() {
-    // Map4's locked fog ends at the tilemap edges. Extend it by the same short
+    // Cemetery Map 2.0's locked fog ends at the tilemap edges. Extend it by the same short
     // camera buffer on every side so a centred wide viewport cannot show canvas.
     const fog = this.add.graphics();
     fog.setDepth(FOG_VIGNETTE_DEPTH_V2);

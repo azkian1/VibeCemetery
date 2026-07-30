@@ -1,6 +1,7 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { isAutoAssignableGraveSlotType, isAutoAssignableGraveSlotTypeV2 } from './slot-economy';
+import { CEMETERY_MAP_V2_FILE } from './map-version';
 
 interface TmjObject {
   id: number;
@@ -70,7 +71,7 @@ function getGraveSlotsV1(): GraveSlot[] {
 function getGraveSlotsV2(): GraveSlot[] {
   if (cachedSlotsV2) return cachedSlotsV2;
 
-  const mapPath = join(process.cwd(), 'public', 'map', 'Map4.tmj');
+  const mapPath = join(process.cwd(), 'public', 'map', CEMETERY_MAP_V2_FILE);
   const map: TmjMap = JSON.parse(readFileSync(mapPath, 'utf8'));
   const graveLayer = map.layers.find((l) => l.name === 'GraveObj');
 

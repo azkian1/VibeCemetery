@@ -1,5 +1,9 @@
 export const SUPPORTED_MAP_VERSIONS = ['v1', 'v2'] as const
 
+/** Canonical public asset for the Cemetery Map 2.0 runtime. */
+export const CEMETERY_MAP_V2_FILE = 'cemetery-v2.tmj'
+export const CEMETERY_MAP_V2_URL = `/map/${CEMETERY_MAP_V2_FILE}`
+
 export type SupportedMapVersion = (typeof SUPPORTED_MAP_VERSIONS)[number]
 
 export function isSupportedMapVersion(value: unknown): value is SupportedMapVersion {

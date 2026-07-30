@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { CEMETERY_MAP_V2_FILE } from '../src/lib/map-version'
 import {
   CAMERA_FOG_OVERSCROLL_V2,
   CAMERA_FOG_REST_BUFFER_V2,
@@ -19,14 +20,14 @@ type TileLayer = {
   data?: number[]
 }
 
-type Map4 = {
+type CemeteryMapV2 = {
   tilewidth: number
   tileheight: number
   layers: TileLayer[]
 }
 
 const sceneSource = readFileSync(join(process.cwd(), 'src', 'game', 'scenes', 'CemeterySceneV2.ts'), 'utf8')
-const map4 = JSON.parse(readFileSync(join(process.cwd(), 'public', 'map', 'Map4.tmj'), 'utf8')) as Map4
+const mapV2 = JSON.parse(readFileSync(join(process.cwd(), 'public', 'map', CEMETERY_MAP_V2_FILE), 'utf8')) as CemeteryMapV2
 
 function section(source: string, from: string, to: string) {
   const start = source.indexOf(from)
@@ -37,7 +38,7 @@ function section(source: string, from: string, to: string) {
 }
 
 test('v2 camera bounds match the non-empty authored terrain footprint', () => {
-  const terrain = map4.layers.find((layer) => layer.name === 'pixellab_dualgrid_reconstructed')
+  const terrain = mapV2.layers.find((layer) => layer.name === 'pixellab_dualgrid_reconstructed')
   expect(terrain?.data).toBeTruthy()
 
   const occupied = terrain!.data!
@@ -50,10 +51,10 @@ test('v2 camera bounds match the non-empty authored terrain footprint', () => {
   const maxY = Math.max(...occupied.map((tile) => tile.y))
 
   expect({
-    minX: (terrain!.offsetx ?? 0) + minX * map4.tilewidth,
-    minY: (terrain!.offsety ?? 0) + minY * map4.tileheight,
-    maxX: (terrain!.offsetx ?? 0) + (maxX + 1) * map4.tilewidth,
-    maxY: (terrain!.offsety ?? 0) + (maxY + 1) * map4.tileheight,
+    minX: (terrain!.offsetx ?? 0) + minX * mapV2.tilewidth,
+    minY: (terrain!.offsety ?? 0) + minY * mapV2.tileheight,
+    maxX: (terrain!.offsetx ?? 0) + (maxX + 1) * mapV2.tilewidth,
+    maxY: (terrain!.offsety ?? 0) + (maxY + 1) * mapV2.tileheight,
   }).toEqual({ minX: 800, minY: 1312, maxX: 3328, maxY: 3328 })
 
   expect(sceneSource).toContain(
@@ -127,18 +128,18 @@ test('v2 centres an oversized viewport on the playable area without leaving the 
   })
 })
 
-test('v2 projects each real Map4 camera corner back toward an unlocked fog cell', () => {
-  const lockedFog = map4.layers.find((layer) => layer.name === 'fog_locked_blockout')
+test('v2 projects each real Cemetery Map 2.0 camera corner back toward an unlocked fog cell', () => {
+  const lockedFog = mapV2.layers.find((layer) => layer.name === 'fog_locked_blockout')
   expect(lockedFog?.data).toBeTruthy()
 
   const fogClearAnchors: FogClearAnchor[] = lockedFog!.data!
     .map((value, index) => ({ value, x: index % lockedFog!.width, y: Math.floor(index / lockedFog!.width) }))
     .filter((tile) => tile.value === 0)
     .map((tile) => ({
-      left: (lockedFog!.offsetx ?? 0) + tile.x * map4.tilewidth,
-      top: (lockedFog!.offsety ?? 0) + tile.y * map4.tileheight,
-      right: (lockedFog!.offsetx ?? 0) + (tile.x + 1) * map4.tilewidth,
-      bottom: (lockedFog!.offsety ?? 0) + (tile.y + 1) * map4.tileheight,
+      left: (lockedFog!.offsetx ?? 0) + tile.x * mapV2.tilewidth,
+      top: (lockedFog!.offsety ?? 0) + tile.y * mapV2.tileheight,
+      right: (lockedFog!.offsetx ?? 0) + (tile.x + 1) * mapV2.tilewidth,
+      bottom: (lockedFog!.offsety ?? 0) + (tile.y + 1) * mapV2.tileheight,
     }))
 
   const strictBounds = { minX: 800, minY: 1312, maxX: 2688, maxY: 2848 }
