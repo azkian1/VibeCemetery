@@ -9,15 +9,19 @@
     "lint": "eslint",
     "test:unit": "playwright test -c playwright.unit.config.ts",
     "test:e2e": "playwright test -c playwright.config.ts",
+    "test:web3-e2e": "playwright test -c playwright.web3.config.ts",
     "test:bury-skill": "playwright test -c tests/bury-skill-config.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "~2.109.0",
+    "@tanstack/react-query": "^5.101.4",
     "next": "^16.2.10",
     "next-auth": "^4.24.13",
     "phaser": "^3.90.0",
     "react": "19.2.3",
-    "react-dom": "19.2.3"
+    "react-dom": "19.2.3",
+    "viem": "^2.55.10",
+    "wagmi": "^3.7.5"
   },
   "overrides": {
     "uuid": "11.1.1",

@@ -8,6 +8,7 @@ import { cemeteryEvents } from '@/game/events';
 import { removeBuryModalIntentFromUrl, shouldOpenBuryModalFromSearchParams } from '@/lib/bury-intent';
 import { consumePendingBurialCeremony } from '@/lib/pending-burial-ceremony';
 import { ModalOverlayTopContext } from './modals/ModalOverlay';
+import Web3Provider from '@/web3/Web3Provider';
 
 const PhaserCanvasV2 = dynamic(() => import('./PhaserCanvasV2'), { ssr: false });
 const HoverTooltip = dynamic(() => import('./HoverTooltip'), { ssr: false });
@@ -189,7 +190,8 @@ function ModalLayer() {
 export default function CemeteryAppV2() {
   return (
     <CemeteryMapVersionContext.Provider value="v2">
-      <GameProvider>
+      <Web3Provider>
+        <GameProvider>
         <GameDataLoadersV2 />
         <Suspense fallback={null}>
           <DeepLinkOpenerV2 />
@@ -210,7 +212,8 @@ export default function CemeteryAppV2() {
             <ModalLayer />
           </main>
         </div>
-      </GameProvider>
+        </GameProvider>
+      </Web3Provider>
     </CemeteryMapVersionContext.Provider>
   );
 }

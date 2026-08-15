@@ -13,6 +13,10 @@ import InsetBlock from '@/components/ui/InsetBlock';
 import { cemeteryEvents } from '@/game/events';
 import { epitaphFallback } from '@/gravedigger/epitaphs';
 import { buildGraveTweetIntentUrl } from '@/lib/grave-share';
+import { useCemeteryMapVersion } from '@/context/GameContext';
+import dynamic from 'next/dynamic';
+
+const GraveBurnPanel = dynamic(() => import('./grave/GraveBurnPanel'), { ssr: false });
 
 export function shouldHighlightShareGrave({
   isOwnGrave,
@@ -31,6 +35,7 @@ export default function GraveModal() {
   const { state, dispatch } = useGame();
   const { data: session, update: updateSession } = useSession();
   const isMobile = useIsMobile();
+  const mapVersion = useCemeteryMapVersion();
   const isLoggedIn = !!session?.user;
   const slotId = modalData?.slotId;
   const slotType = modalData?.slotType;
@@ -402,6 +407,10 @@ export default function GraveModal() {
           </div>
 
           <OrnamentDivider />
+
+          {mapVersion === 'v2' && slotId != null && (
+            <GraveBurnPanel graveId={g.id} slotId={slotId} />
+          )}
 
           {/* F counter */}
           <div style={{ textAlign: 'center', margin: '0 0 14px' }}>

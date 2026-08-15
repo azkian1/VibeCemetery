@@ -46,3 +46,11 @@ REVOKE ALL ON TABLE public.agent_ash_tokens FROM anon, authenticated;
 ALTER TABLE IF EXISTS public.agent_ash_link_sessions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS public.agent_ash_link_sessions FORCE ROW LEVEL SECURITY;
 REVOKE ALL ON TABLE public.agent_ash_link_sessions FROM anon, authenticated;
+
+ALTER TABLE IF EXISTS public.grave_burn_intents ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.grave_burn_intents FORCE ROW LEVEL SECURITY;
+REVOKE ALL ON TABLE public.grave_burn_intents FROM anon, authenticated;
+
+ALTER TABLE IF EXISTS public.grave_burns ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.grave_burns FORCE ROW LEVEL SECURITY;
+REVOKE ALL ON TABLE public.grave_burns FROM anon, authenticated;

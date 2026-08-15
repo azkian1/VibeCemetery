@@ -1,10 +1,26 @@
 import type { NextConfig } from "next";
 
-export function createContentSecurityPolicy(nodeEnv = process.env.NODE_ENV): string {
+function browserRpcOrigin(value: string | undefined): string | null {
+  if (!value?.trim()) return null;
+  try {
+    const url = new URL(value);
+    return url.protocol === 'https:' ? url.origin : null;
+  } catch {
+    return null;
+  }
+}
+
+export function createContentSecurityPolicy(
+  nodeEnv = process.env.NODE_ENV,
+  baseReadRpcUrl = process.env.NEXT_PUBLIC_BASE_READ_RPC_URL,
+): string {
   const scriptSrc = ["script-src 'self' 'unsafe-inline'"];
+  const connectSrc = ["connect-src 'self' *.supabase.co"];
   if (nodeEnv === 'development') {
     scriptSrc.push("'unsafe-eval'");
   }
+  const readRpcOrigin = browserRpcOrigin(baseReadRpcUrl);
+  if (readRpcOrigin) connectSrc.push(readRpcOrigin);
 
   return [
     "default-src 'self'",
@@ -12,7 +28,7 @@ export function createContentSecurityPolicy(nodeEnv = process.env.NODE_ENV): str
     "style-src 'self' 'unsafe-inline' fonts.googleapis.com",
     "font-src 'self' fonts.gstatic.com",
     "img-src 'self' data: blob: avatars.githubusercontent.com *.supabase.co",
-    "connect-src 'self' *.supabase.co",
+    connectSrc.join(' '),
     "frame-src 'none'",
     "object-src 'none'",
   ].join('; ');

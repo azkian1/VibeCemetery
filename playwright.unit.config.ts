@@ -27,6 +27,7 @@ export default defineConfig({
     '**/ceremony.spec.ts',
     '**/cli-connect.spec.ts',
     '**/mobile.spec.ts',
+    '**/web3-burn.e2e.spec.ts',
   ],
   timeout: 30_000,
   expect: { timeout: 10_000 },
