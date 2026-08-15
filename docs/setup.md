@@ -1,6 +1,8 @@
 # Local Setup
 
-This document is the contributor-facing setup source of truth. Use it together with `.env.example`, `docs/supabase-schema.sql`, `docs/grave-slot-rpc.sql`, and `docs/cli-auth-v1.sql`.
+This document is the contributor-facing setup source of truth. Use it together
+with `.env.example`, `docs/supabase-schema.sql`, `docs/grave-slot-rpc.sql`,
+`docs/cli-auth-v1.sql`, and `docs/web3-grave-burn-mvp.md`.
 
 ## What You Need
 
@@ -53,6 +55,24 @@ Optional production-only rate limiting:
 - `UPSTASH_REDIS_REST_TOKEN`
 - `TRUST_PROXY_HEADERS` for non-Vercel deployments only when the trusted proxy strips spoofed forwarding headers
 
+Required only when enabling Map 2.0 Web3 grave offerings:
+
+- `WEB3_GRAVE_BURNS_ENABLED=true` — authoritative server write flag
+- `NEXT_PUBLIC_WEB3_GRAVE_BURNS_ENABLED=true` — Map 2.0 UI flag
+- `BASE_RPC_URL` — private or authenticated HTTPS Base Mainnet RPC
+- `GRAVE_BURN_REVERIFY_SECRET` — bearer secret for manual/external reverify
+- `CRON_SECRET` — bearer secret sent by Vercel Cron; it may use the same value
+  as `GRAVE_BURN_REVERIFY_SECRET`
+
+Optional Web3 browser read transport:
+
+- `NEXT_PUBLIC_BASE_READ_RPC_URL` — browser-safe HTTPS RPC whose origin is
+  added to CSP; when omitted, contract reads use the injected wallet provider
+
+Keep both Web3 flags `false` until the release checklist in
+`docs/web3-grave-burn-mvp.md` passes. Never put `BASE_RPC_URL`,
+`GRAVE_BURN_REVERIFY_SECRET`, or `CRON_SECRET` in a `NEXT_PUBLIC_*` variable.
+
 ## 3. Bootstrap Supabase
 
 Apply the schema file first:
@@ -75,6 +95,18 @@ Then apply the CLI auth hardening migration:
 -- run after the grave slot RPC
 docs/cli-auth-v1.sql
 ```
+
+For an existing database that predates Web3 grave offerings, apply the
+idempotent Web3 migration:
+
+```sql
+-- run after the Map 2.0 migration
+docs/web3-grave-burn-mvp.sql
+```
+
+A fresh database created from the current `docs/supabase-schema.sql` already
+contains the Web3 tables and functions. Re-running the standalone Web3
+migration is safe and is recommended when upgrading an existing environment.
 
 Finally, apply the mandatory RLS hardening migration to the external Supabase
 project. It is idempotent and also protects tables created by earlier schema
@@ -101,6 +133,16 @@ The app expects these tables and functions to exist:
 - `increment_graves_count(username text)`
 - `increment_cremated_count(username text)`
 - `insert_grave_if_user_slot_available(...)`
+
+When Web3 grave offerings are enabled, the app additionally expects:
+
+- `grave_burn_intents`
+- `grave_burns`
+- `expire_grave_burn_intent(...)`
+- `authorize_grave_burn_intent(...)`
+- `bind_grave_burn(...)`
+- `reverify_grave_burn(...)`
+- `get_grave_burn_stats(uuid)`
 
 The paused Agent Layer tables may still exist in production or local schemas for legacy compatibility, but they are not needed for the main cemetery flow.
 
@@ -131,27 +173,38 @@ If you only need to work on API routes, auth, CLI flows, or documentation, the m
 npm run dev
 ```
 
-Open `http://localhost:3000`. The root route is the scanner landing page; the Phaser map lives at `http://localhost:3000/cemetery`.
+Open `http://localhost:3000`. The root route is the scanner landing page. The
+classic Phaser map lives at `http://localhost:3000/cemetery`; Cemetery Map 2.0
+and its optional grave-offering UI live at
+`http://localhost:3000/cemetery/v2`.
 
 ## 7. Verification Commands
 
 Minimum checks before opening a PR:
 
 ```bash
+npx tsc --noEmit --incremental false
 npm run lint
+npm run test:unit
 npm run build
 ```
 
-Additional targeted suite:
+Additional targeted suites:
 
 ```bash
 npm run test:bury-skill
+npm run test:web3-e2e
 ```
 
 Notes:
 
-- `npm run test:bury-skill` is the only dedicated test script exposed in `package.json` right now.
-- Additional Playwright specs exist in `tests/`, but some require a running local app, valid Supabase credentials, seeded data, or authenticated flows.
+- `npm run test:unit` is hermetic and excludes browser/integration specs.
+- `npm run test:web3-e2e` uses a fake injected wallet and intercepted burn APIs;
+  it starts its own server on port `3010` and transfers no real token value.
+- `npm run test:e2e` runs the broader browser/integration suite and intentionally
+  excludes the special Web3 fixture.
+- Additional Playwright specs exist in `tests/`; some require valid Supabase
+  credentials, seeded data, or authenticated flows.
 - `tests/api-smoke.spec.ts` writes to Supabase and should be treated as integration coverage, not a safe offline smoke test.
 
 ## Troubleshooting
@@ -166,4 +219,24 @@ Check `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`, `NEXTAUTH_URL`, and `NEXTAUTH_
 
 ### CLI token flows fail
 
-Make sure both SQL files were applied and set `CLI_TOKEN_SECRET`.
+Make sure the base schema, grave-slot RPC, and CLI auth migration were applied,
+then set `CLI_TOKEN_SECRET`.
+
+### Web3 panel is absent
+
+Confirm that the page is `/cemetery/v2`, the selected grave belongs to map
+version `v2`, and `NEXT_PUBLIC_WEB3_GRAVE_BURNS_ENABLED=true` was present when
+the Next.js process started.
+
+### Web3 writes return 503
+
+The server fails closed unless `WEB3_GRAVE_BURNS_ENABLED=true` and
+`BASE_RPC_URL` is a valid HTTPS URL (localhost HTTP is accepted only for local
+testing). Confirm that the RPC reports Base Mainnet chain ID `8453`.
+
+### Pending burns do not advance
+
+Verify `CRON_SECRET`/`GRAVE_BURN_REVERIFY_SECRET`, the Vercel Cron deployment,
+and the protected `/api/internal/grave-burns/reverify` invocation. An RPC
+timeout is intentionally retained as retryable state; only a confirmed block
+hash mismatch marks a burn `orphaned`.

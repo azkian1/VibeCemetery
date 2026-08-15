@@ -1,8 +1,9 @@
-# Web3 Grave Burn MVP — Implementation Handoff
+# Web3 Grave Burn MVP — As-Built Specification
 
-**Status:** approved implementation scope for the first Web3 release.
+**Status:** implemented and locally verified on 2026-07-30; production release
+remains gated by the deployment checklist in section 14.
 
-This document is the implementation source of truth for a new agent. It
+This document is the implementation and operations source of truth. It
 supersedes conflicting Web3 suggestions elsewhere in the repository. It does
 not authorize the 50/25/25 flywheel, owner claims, treasury, exhumation,
 inheritance, or a cemetery smart contract.
@@ -10,6 +11,39 @@ inheritance, or a cemetery smart contract.
 The legacy untracked `web3/web3burnplan.md` remains useful product context,
 but its old direct payload `{ txHash, walletAddress, amount }` is obsolete.
 Implement the intent-bound flow in this document instead.
+
+## 0. Implementation record
+
+The MVP described below is implemented. The current code includes:
+
+- a Map 2.0-only Wagmi provider and injected-wallet UI;
+- server-created, expiring EIP-712 intents;
+- atomic authorization, expiry, transaction binding, and duplicate protection;
+- independent Base receipt, sender, smart-wallet signature, confirmation, and
+  exact ERC-20 `Transfer` verification;
+- protected pending/reorg reverification through Vercel Cron;
+- IP-before-lookup and normalized-wallet write rate limits;
+- abort-aware browser polling and stats refresh;
+- database-side verified totals and top-three aggregation;
+- forced RLS and server-only access to the new tables and SQL functions;
+- dependency-injected API handlers and fake-RPC/in-memory automated tests.
+
+Local verification completed after implementation:
+
+```text
+TypeScript                         passed
+Web3 regression tests             34 passed
+Full unit suite                   480 passed
+Injected-wallet Web3 E2E           1 passed
+Next.js production build          passed
+ESLint                            0 errors
+```
+
+The automated E2E uses a fake `window.ethereum`, intercepted API responses, and
+no real token value. Production is not enabled merely because these checks
+pass. The SQL migration, secrets, production RPC, scheduler invocation, and one
+explicitly approved tiny Base transaction must still be verified in the target
+environment.
 
 ## 1. Product outcome
 
@@ -188,7 +222,7 @@ npm install wagmi viem @tanstack/react-query
 
 Do not add WalletConnect or RainbowKit.
 
-Suggested client modules:
+Implemented client modules:
 
 ```text
 src/web3/config.ts          fixed public chain/token constants
@@ -221,7 +255,7 @@ not a production dependency.
 
 ## 8. Server modules
 
-Suggested server modules:
+Implemented server modules:
 
 ```text
 src/lib/web3/baseClient.ts          Base public client from BASE_RPC_URL
@@ -229,12 +263,17 @@ src/lib/web3/burnConfig.ts          server config validation / feature gate
 src/lib/web3/burnIntent.ts          typed-data builder, address/hash normalization
 src/lib/web3/verifyBurnTx.ts        receipt, confirmation, log verification
 src/lib/web3/graveBurnStats.ts      verified totals and top mourners
+src/lib/web3/burnStore.ts           Supabase storage and SQL RPC adapter
+src/lib/web3/burnService.ts         intent, submission, and reverify services
+src/lib/web3/http.ts                origin, body, no-store, and rate-limit controls
+src/lib/web3/routeDeps.ts           production dependency wiring
 ```
 
-Keep route handlers and the verifier dependency-injected. For example, expose
-factories that accept a store, Base client/verifier, clock, and rate limiter.
-Unit tests must use an in-memory store and fake RPC client rather than real
-Supabase or Base requests.
+The authorize and submit routes expose pure handler factories in
+`authorize-handler.ts` and `submit-handler.ts`. Production route modules only
+wire Supabase, NextAuth, rate limiting, and the Base client into those
+factories. Services accept a store, Base client, and clock. Unit tests use an
+in-memory store and fake RPC client rather than real Supabase or Base requests.
 
 Feature flags:
 
@@ -243,6 +282,7 @@ WEB3_GRAVE_BURNS_ENABLED=true|false          authoritative server flag
 NEXT_PUBLIC_WEB3_GRAVE_BURNS_ENABLED=true|false  UI visibility only
 BASE_RPC_URL=https://...                     server-only production RPC
 GRAVE_BURN_REVERIFY_SECRET=...               server-only cron secret
+CRON_SECRET=...                              Vercel Cron bearer secret
 NEXT_PUBLIC_BASE_READ_RPC_URL=https://...    optional browser-safe read RPC
 ```
 
@@ -480,25 +520,26 @@ the intent. Unique constraints remain the final protection against concurrent
 submissions; a conflict returns the existing safe status without exposing
 another mourner’s details.
 
-## 12. Implementation order
+## 12. Implementation record by layer
 
-Implement in this order; do not start UI before the server trust boundary is
-testable.
+The implementation was completed in this order so the server trust boundary
+was testable before the UI:
 
-1. Add dependencies and a client-safe fixed config/ABI module.
-2. Add server config validation, Base client, amount/address/hash helpers.
-3. Add the SQL migration, base schema updates, RLS hardening updates, and
+1. Added dependencies and a client-safe fixed config/ABI module.
+2. Added server config validation, Base client, amount/address/hash helpers.
+3. Added the SQL migration, base schema updates, RLS hardening updates, and
    schema tests.
-4. Implement and test typed-data intent creation/authorization.
-5. Implement and test receipt/log verification with mocked Base RPC data.
-6. Implement stats aggregation and all API routes with idempotency/rate limits.
-7. Add protected bounded re-verification.
-8. Add route-scoped Wagmi provider and native wallet controls to Map 2.0.
-9. Add `GraveBurnPanel` and its explicit state machine.
-10. Emit existing `cemeteryEvents.emit('highlight_slot', { slotId })` only
-    after the API returns `verified`.
-11. Run automated checks, then test with a controlled Base test setup before
-    any mainnet value transfer.
+4. Implemented and tested typed-data intent creation/authorization.
+5. Implemented and tested receipt/log verification with mocked Base RPC data.
+6. Implemented database-side stats and dependency-injected API routes with
+   idempotency and rate limits.
+7. Added protected bounded re-verification and the Vercel schedule.
+8. Added the route-scoped Wagmi provider and native wallet controls to Map 2.0.
+9. Added `GraveBurnPanel` and its explicit, abort-aware state machine.
+10. The client emits `cemeteryEvents.emit('highlight_slot', { slotId })` only
+     after the API returns `verified`.
+11. Automated checks and the fake injected-wallet flow pass. Controlled
+    staging and mainnet checks remain release operations.
 
 ## 13. Required tests
 
@@ -526,7 +567,7 @@ automated tests depend on a live wallet, a real RPC, or token value.
 - request body limit, origin check, IP+wallet rate limit, UUID validation, and
   internal reverify authorization/scheduler configuration.
 
-Suggested test files:
+Implemented test files:
 
 ```text
 tests/grave-burn-config.spec.ts
@@ -536,6 +577,7 @@ tests/grave-burn-stats.spec.ts
 tests/grave-burn-api.spec.ts
 tests/grave-burn-schema.spec.ts
 tests/grave-burn-map-boundary.spec.ts
+tests/grave-burn-reverify.spec.ts
 tests/web3-burn.e2e.spec.ts
 ```
 
@@ -561,12 +603,17 @@ wallet`, `Switch to Base`, `Offer 100 GRAVE`, `Custom GRAVE amount`, and
 npx tsc --noEmit --incremental false
 npm run lint
 npm run test:unit
+npm run test:web3-e2e
 npm run build
 ```
 
-Run a targeted browser flow with an injected-wallet mock. A real Base mainnet
-transfer requires explicit human approval and must be a deliberately tiny
-amount after staging verification.
+`npm run test:web3-e2e` starts an isolated local server on port `3010`, enables
+both Web3 feature flags for that process, installs a fake injected wallet
+before navigation, and intercepts the burn APIs. The normal `npm run test:e2e`
+suite intentionally excludes this special fixture.
+
+A real Base mainnet transfer requires explicit human approval and must be a
+deliberately tiny amount after staging verification.
 
 ## 14. Release checklist
 
@@ -589,11 +636,22 @@ Before turning on the public flag:
    explorer receipt, database record, stats, and map highlight.
 10. Keep the server feature flag off until every prior item is complete.
 
-## 15. Handoff summary
+## 15. Current handoff summary
 
-Implement **burn-only offerings for existing Map 2.0 graves**. The trust
-boundary is the signed server intent plus independently verified fixed-token
-Transfer log. Do not weaken it by accepting wallet, amount, grave, token, or
-burn address assertions from the client after the intent is created. Do not
-start the later flywheel economics without a separate contract and design
-approval.
+The burn-only offering flow for existing Map 2.0 graves is implemented. Its
+trust boundary is the signed server intent plus independently verified
+fixed-token Transfer log. Do not weaken it by accepting wallet, amount, grave,
+token, or burn-address assertions from the client after the intent is created.
+Do not start the later flywheel economics without a separate contract and
+design approval.
+
+Operationally, preserve these rules:
+
+- an RPC timeout or unavailable block is not evidence of a reorg;
+- `receipt_not_found` remains retryable and does not consume a new intent;
+- only a successfully fetched conflicting block hash may orphan a stored burn;
+- write IP limits execute before intent lookup, then wallet limits execute
+  against the normalized stored wallet;
+- public stats come only from `status = 'verified'`;
+- the public flag must be checked before any Wagmi hook renders;
+- closing or replacing a grave modal must abort its polling flow.

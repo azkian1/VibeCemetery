@@ -70,6 +70,8 @@ VibeCemetery is focused on the human cemetery experience.
 - `/bury` lets a human-controlled local coding agent cremate dead local folders.
 - Human records write to `/api/graves` and `/api/cremated`.
 - Human CLI credentials use `vc_cli_*` tokens.
+- Map 2.0 supports feature-gated GRAVE offerings that are counted only after
+  independent Base Mainnet verification.
 
 Human records can affect map placement, grave slots, leaderboards, and sharing.
 
@@ -90,6 +92,10 @@ Legacy Agent Layer code, API routes, SQL, and archived docs remain in the reposi
 - **Press F** - pay respects to graves, one vote per user per grave.
 - **Deep Links** - share graves and urns through stable URLs.
 - **Open Graph Cards** - grave links render dedicated tombstone social cards.
+- **GRAVE Offerings** - existing Map 2.0 graves can receive fixed-token
+  offerings sent to the configured burn address. The UI is disabled by default
+  until the deployment checklist passes. See
+  [`docs/web3-grave-burn-mvp.md`](docs/web3-grave-burn-mvp.md).
 
 ## Routes
 
@@ -111,12 +117,17 @@ Implemented:
 
 - **Scanner-first UX cleanup** - the front page now starts with the GitHub Scanner and the Human Layer rituals are clearer.
 - **Cemetery Map 2.0** - the 140×104 custom PixelLab map is active at `/cemetery/v2`, with fog-aware camera bounds and a circular minimap.
+- **$GRAVE burn-offering MVP** - signed intents, server-side Base verification,
+  atomic duplicate protection, per-grave verified totals/top mourners, and
+  protected reorg checks are implemented behind release flags.
 
 Next:
 
 - **Map v1** - original 40×40 map remains view-only at `/cemetery`.
 - **Swamp of Shame** - expand the world with a new shame-themed cemetery zone.
-- **$GRAVE integration**
+- **$GRAVE production activation** - apply the migration, provision the
+  production RPC/secrets, prove the scheduler, and execute one explicitly
+  approved tiny Base transaction.
 - **The Gravedigger Agent** - introduce the native cemetery agent for guidance, lore, grave care, and future ritual interactions.
 
 The current product remains focused on the core human cemetery: GitHub burials, cremations, and `/bury`. The Agent Layer is paused and will be revisited only after the cemetery itself is stronger and more populated.
@@ -183,6 +194,7 @@ Agent Ash / GitLawb docs are archived because the layer is not part of the activ
 | Game Layer | Phaser 3, Tiled map data |
 | Database | Supabase Postgres |
 | Auth | NextAuth.js, GitHub OAuth |
+| Web3 | Wagmi, Viem, TanStack Query, Base Mainnet |
 | Styling | Inline component styles, stone palette, Cinzel |
 | Hosting | Vercel |
 
@@ -201,14 +213,17 @@ npm run dev
 Minimum verification before opening a PR:
 
 ```bash
+npx tsc --noEmit --incremental false
 npm run lint
+npm run test:unit
 npm run build
 ```
 
-Targeted `/bury` suite:
+Targeted `/bury` and Web3 suites:
 
 ```bash
 npm run test:bury-skill
+npm run test:web3-e2e
 ```
 
 Database setup references:
@@ -216,6 +231,7 @@ Database setup references:
 - [`docs/supabase-schema.sql`](docs/supabase-schema.sql)
 - [`docs/grave-slot-rpc.sql`](docs/grave-slot-rpc.sql)
 - [`docs/cli-auth-v1.sql`](docs/cli-auth-v1.sql)
+- [`docs/web3-grave-burn-mvp.sql`](docs/web3-grave-burn-mvp.sql)
 
 ## Assets
 
