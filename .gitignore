@@ -62,6 +62,22 @@ test-results/
 .playwright-mcp/
 tome.md
 .opencode/
+/screenshots/
+/public/map/Map2.0.tmx
+/scripts/diagnose_v2.mjs
+/scripts/inspect_phaser.mjs
+/scripts/shift-fog-data.mjs
+/scripts/test_camera.mjs
+/scripts/test_switch.mjs
+/scripts/test_v1.mjs
+/scripts/test_v2.mjs
+/scripts/test_v2_detailed.mjs
+/scripts/test_v2_final.mjs
+/scripts/test_visual.mjs
+
+# Local product-strategy drafts superseded by committed specifications
+/FlyweelPlanforToken.md
+/web3/web3burnplan.md
 
 # Internal docs (strategy, agent prompts, archives, map design)
 /docs/SAVEBACKUPS.md
