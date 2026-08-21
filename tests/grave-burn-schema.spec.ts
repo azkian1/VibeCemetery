@@ -45,7 +45,7 @@ test('scheduler is configured for bounded protected reverification', () => {
   const vercel = JSON.parse(fs.readFileSync(path.join(root, 'vercel.json'), 'utf8'))
   expect(vercel.crons).toContainEqual({
     path: '/api/internal/grave-burns/reverify',
-    schedule: '*/5 * * * *',
+    schedule: '0 3 * * *',
   })
   const route = fs.readFileSync(
     path.join(root, 'src/app/api/internal/grave-burns/reverify/route.ts'),

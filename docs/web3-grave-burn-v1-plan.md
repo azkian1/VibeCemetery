@@ -175,7 +175,8 @@ Supply reduced by this offering
 - `/api/graves/[id]/burns` — stats и submit transaction;
 - `/api/internal/grave-burns/reverify` — защищённый reverify endpoint;
 - `docs/web3-grave-burn-mvp.sql` — таблицы, функции, RLS и агрегаты;
-- `vercel.json` — reverify cron каждые пять минут;
+- `vercel.json` — резервный reverify cron ежедневно в 03:00 UTC, совместимый
+  с Vercel Hobby; основной submit flow проверяет транзакцию немедленно;
 - unit/security и fake-wallet E2E тесты.
 
 Этот фундамент сохраняется. Нельзя заменять его прямым доверием к данным из
