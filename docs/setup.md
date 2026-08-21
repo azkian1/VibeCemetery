@@ -55,10 +55,10 @@ Optional production-only rate limiting:
 - `UPSTASH_REDIS_REST_TOKEN`
 - `TRUST_PROXY_HEADERS` for non-Vercel deployments only when the trusted proxy strips spoofed forwarding headers
 
-Required only when enabling Map 2.0 Web3 grave offerings:
+Required only when enabling Map v1 Web3 grave offerings:
 
 - `WEB3_GRAVE_BURNS_ENABLED=true` — authoritative server write flag
-- `NEXT_PUBLIC_WEB3_GRAVE_BURNS_ENABLED=true` — Map 2.0 UI flag
+- `NEXT_PUBLIC_WEB3_GRAVE_BURNS_ENABLED=true` — Map v1 UI flag
 - `BASE_RPC_URL` — private or authenticated HTTPS Base Mainnet RPC
 - `GRAVE_BURN_REVERIFY_SECRET` — bearer secret for manual/external reverify
 - `CRON_SECRET` — bearer secret sent by Vercel Cron; it may use the same value
@@ -72,6 +72,13 @@ Optional Web3 browser read transport:
 Keep both Web3 flags `false` until the release checklist in
 `docs/web3-grave-burn-mvp.md` passes. Never put `BASE_RPC_URL`,
 `GRAVE_BURN_REVERIFY_SECRET`, or `CRON_SECRET` in a `NEXT_PUBLIC_*` variable.
+
+The Map v1 burn release deploys the Next.js application, Supabase migration,
+environment variables, and the existing `vercel.json` reverify schedule. It
+does **not** deploy a new smart contract: the grave modal calls `transfer` on
+the existing GRAVE ERC-20 only after a signed server intent is authorized.
+Connect Wallet is shown inside that grave offering panel; no wallet connection
+is added to the profile/cabinet or global navigation in this release.
 
 ## 3. Bootstrap Supabase
 
@@ -100,7 +107,7 @@ For an existing database that predates Web3 grave offerings, apply the
 idempotent Web3 migration:
 
 ```sql
--- run after the Map 2.0 migration
+-- run after the map-version migration
 docs/web3-grave-burn-mvp.sql
 ```
 
@@ -174,8 +181,8 @@ npm run dev
 ```
 
 Open `http://localhost:3000`. The root route is the scanner landing page. The
-classic Phaser map lives at `http://localhost:3000/cemetery`; Cemetery Map 2.0
-and its optional grave-offering UI live at
+classic Phaser map and its optional grave-offering UI live at
+`http://localhost:3000/cemetery`; Cemetery Map 2.0 lives at
 `http://localhost:3000/cemetery/v2`.
 
 ## 7. Verification Commands
@@ -224,8 +231,8 @@ then set `CLI_TOKEN_SECRET`.
 
 ### Web3 panel is absent
 
-Confirm that the page is `/cemetery/v2`, the selected grave belongs to map
-version `v2`, and `NEXT_PUBLIC_WEB3_GRAVE_BURNS_ENABLED=true` was present when
+Confirm that the page is `/cemetery`, the selected grave belongs to map
+version `v1`, and `NEXT_PUBLIC_WEB3_GRAVE_BURNS_ENABLED=true` was present when
 the Next.js process started.
 
 ### Web3 writes return 503

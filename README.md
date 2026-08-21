@@ -70,7 +70,7 @@ VibeCemetery is focused on the human cemetery experience.
 - `/bury` lets a human-controlled local coding agent cremate dead local folders.
 - Human records write to `/api/graves` and `/api/cremated`.
 - Human CLI credentials use `vc_cli_*` tokens.
-- Map 2.0 supports feature-gated GRAVE offerings that are counted only after
+- Map v1 supports feature-gated GRAVE offerings that are counted only after
   independent Base Mainnet verification.
 
 Human records can affect map placement, grave slots, leaderboards, and sharing.
@@ -84,7 +84,7 @@ Legacy Agent Layer code, API routes, SQL, and archived docs remain in the reposi
 ## Product Surface
 
 - **Scanner Landing Page** - `/` is a compact first-page flow with one primary action, `Scan GitHub`. It scans only the connected GitHub account and does not offer public username scanning.
-- **Pixel Cemetery Maps** - a view-only v1 map and the active Map 2.0 Phaser experience at `/cemetery/v2`, with custom PixelLab art, fog of war, minimap, camera movement, and modal interactions. See [`docs/map2.md`](docs/map2.md).
+- **Pixel Cemetery Maps** - the classic v1 experience at `/cemetery` and the Map 2.0 Phaser experience at `/cemetery/v2`, with custom PixelLab art, fog of war, minimap, camera movement, and modal interactions. See [`docs/map2.md`](docs/map2.md).
 - **GitHub Burial Flow** - sign in, scan inactive repos, pick a dead repo, write the cause of death, and place it on the map when grave slots are available.
 - **Crematory** - for projects that burn into ashes instead of taking a map slot, including local `/bury` cremations and GitHub repos when grave slots are exhausted.
 - **The Crypt** - a searchable ledger of graves.
@@ -92,9 +92,11 @@ Legacy Agent Layer code, API routes, SQL, and archived docs remain in the reposi
 - **Press F** - pay respects to graves, one vote per user per grave.
 - **Deep Links** - share graves and urns through stable URLs.
 - **Open Graph Cards** - grave links render dedicated tombstone social cards.
-- **GRAVE Offerings** - existing Map 2.0 graves can receive fixed-token
+- **GRAVE Offerings** - existing Map v1 graves can receive fixed-token
   offerings sent to the configured burn address. The UI is disabled by default
-  until the deployment checklist passes. See
+  until the deployment checklist passes. Connect Wallet is scoped to the grave
+  modal; no new smart contract or cabinet-level wallet connection is part of
+  this release. See
   [`docs/web3-grave-burn-mvp.md`](docs/web3-grave-burn-mvp.md).
 
 ## Routes

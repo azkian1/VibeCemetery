@@ -48,7 +48,7 @@ export async function createBurnIntent({
   walletAddress: string
   amountRaw: bigint
 }) {
-  const grave = await deps.store.findV2Grave(graveId)
+  const grave = await deps.store.findBurnableV1Grave(graveId)
   if (grave === 'not_found') return { outcome: 'not_found' as const }
   if (grave === 'schema_unavailable') return { outcome: 'schema_unavailable' as const }
 

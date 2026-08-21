@@ -27,7 +27,7 @@ export default function GraveBurnPanel({
 }) {
   const mapVersion = useCemeteryMapVersion()
 
-  if (!WEB3_GRAVE_BURNS_VISIBLE || mapVersion !== 'v2') return null
+  if (!WEB3_GRAVE_BURNS_VISIBLE || mapVersion !== 'v1') return null
 
   return <EnabledGraveBurnPanel graveId={graveId} slotId={slotId} />
 }

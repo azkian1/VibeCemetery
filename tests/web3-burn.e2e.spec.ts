@@ -7,7 +7,7 @@ const txHash = `0x${'ab'.repeat(32)}`
 const signature = `0x${'34'.repeat(65)}`
 const amountRaw = (100n * 10n ** 18n).toString()
 
-test('injected wallet completes a stubbed verified Map 2.0 offering', async ({ page }) => {
+test('injected wallet completes a stubbed verified Map v1 burn offering', async ({ page }) => {
   await page.addInitScript(({ walletAddress, hash, signed }) => {
     let chainId = '0x1'
     let connected = false
@@ -68,9 +68,9 @@ test('injected wallet completes a stubbed verified Map 2.0 offering', async ({ p
     if (url.pathname === '/api/graves' && request.method() === 'GET') {
       return json([{
         id: graveId,
-        slot_id: 1,
-        grave_gid: 1,
-        map_version: 'v2',
+        slot_id: 15,
+        grave_gid: null,
+        map_version: 'v1',
         name: 'Stubbed Grave',
         cause: 'Test fixture',
         epitaph: 'No token value crossed this test.',
@@ -158,7 +158,7 @@ test('injected wallet completes a stubbed verified Map 2.0 offering', async ({ p
     return json({})
   })
 
-  await page.goto(`/cemetery/v2?grave=${graveId}`)
+  await page.goto(`/cemetery?grave=${graveId}`)
   await expect(page.getByRole('button', { name: 'Connect wallet' })).toBeVisible()
   await page.getByRole('button', { name: 'Connect wallet' }).click()
   await expect(page.getByRole('button', { name: 'Switch to Base' })).toBeVisible()

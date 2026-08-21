@@ -1,6 +1,6 @@
 # Web3 Grave Burn MVP — As-Built Specification
 
-**Status:** implemented and locally verified on 2026-07-30; production release
+**Status:** implemented and locally verified for Map v1 on 2026-08-21; production release
 remains gated by the deployment checklist in section 14.
 
 This document is the implementation and operations source of truth. It
@@ -16,7 +16,7 @@ Implement the intent-bound flow in this document instead.
 
 The MVP described below is implemented. The current code includes:
 
-- a Map 2.0-only Wagmi provider and injected-wallet UI;
+- a Map v1-only Wagmi provider and injected-wallet UI;
 - server-created, expiring EIP-712 intents;
 - atomic authorization, expiry, transaction binding, and duplicate protection;
 - independent Base receipt, sender, smart-wallet signature, confirmation, and
@@ -32,11 +32,11 @@ Local verification completed after implementation:
 
 ```text
 TypeScript                         passed
-Web3 regression tests             34 passed
+Web3 regression tests             38 passed
 Full unit suite                   480 passed
 Injected-wallet Web3 E2E           1 passed
 Next.js production build          passed
-ESLint                            0 errors
+ESLint                            0 errors, 1 unrelated warning
 ```
 
 The automated E2E uses a fake `window.ethereum`, intercepted API responses, and
@@ -47,7 +47,7 @@ environment.
 
 ## 1. Product outcome
 
-On **Cemetery Map 2.0 only** (`/cemetery/v2`), a visitor can make a public
+On **Cemetery Map v1 only** (`/cemetery`), a visitor can make a public
 GRAVE offering to an existing grave:
 
 1. Open a grave modal.
@@ -60,9 +60,11 @@ GRAVE offering to an existing grave:
    mourners.
 8. On verification, briefly highlight the grave slot on the map.
 
-The user-visible copy may call this a “burn offering”, but until the token
-project confirms that sending to the dead address reduces supply, the precise
-claim is **“sent to the burn address”**, not “total supply destroyed”.
+The user-visible copy may call this a “burn offering”. The verified GRAVE
+contract exposes `burn(uint256)` only to its owner, so the holder flow uses
+ERC-20 `transfer` to the dead address. That transfer does not reduce
+`totalSupply()`: the precise claim is **“sent permanently to the burn
+address”**, not “total supply destroyed”.
 
 ## 2. Explicit non-goals
 
@@ -75,7 +77,7 @@ Do **not** implement any of the following in this release:
   inheritance;
 - global burn leaderboards, Chapel metrics, persistent smoke/aura effects, or
   automatic burial-time offerings;
-- a Web3 panel on v1 (`/cemetery`) or on the scanner landing page.
+- a Web3 panel on v2 (`/cemetery/v2`) or on the scanner landing page.
 
 The next economic phase requires a dedicated smart contract which emits a
 grave identifier on-chain. It is intentionally out of scope here.
@@ -95,10 +97,11 @@ export const GRAVE_BURN_PRESETS = ['100', '500', '10000'] as const
 export const MIN_BURN_CONFIRMATIONS = 2
 ```
 
-On 2026-07-30, read-only calls to Base Mainnet confirmed that this address has
-contract code, returns `GRAVE` from `symbol()`, and returns `18` from
-`decimals()`. Before enabling production, additionally confirm the contract
-address and token behaviour from an authoritative project/explorer source:
+Read-only Base Mainnet calls and the verified explorer source were rechecked
+before the Map v1 implementation. The address has contract code, returns
+`GRAVE` from `symbol()`, returns `18` from `decimals()`, and restricts its
+native `burn(uint256)` to the contract owner. Before enabling production,
+reconfirm the address and live transfer behaviour:
 
 - it is the intended GRAVE contract;
 - `transfer` is a normal ERC-20 transfer for this flow;
@@ -164,11 +167,16 @@ burn address, raw amount, or verified status.
 
 ## 5. Scope and UI placement
 
-- Mount Web3 state around `CemeteryAppV2`, not global `AppProviders`.
-  This avoids loading wallet code on the scanner, v1, and unrelated routes.
+- Mount Web3 state around `CemeteryApp`, not global `AppProviders`.
+  This avoids loading wallet code on the scanner, v2, and unrelated routes.
 - `GraveModal.tsx` is shared by v1 and v2. Render `GraveBurnPanel` only when
-  `useCemeteryMapVersion()` returns `'v2'` and a real grave is open.
-- Keep the existing v1 experience unchanged.
+  `useCemeteryMapVersion()` returns `'v1'` and a real grave is open.
+- Render `WalletButton` inside `GraveBurnPanel`. Wallet connection is scoped
+  to the offering action, not to the whole application.
+- Do not add Connect Wallet to `ProfileModal`, TopBar, or the scanner in this
+  release. A connected wallet is not a VibeCemetery account and does not
+  replace the existing GitHub/NextAuth session.
+- Keep the existing v2 experience free of Web3 UI for this release.
 - Use a native stone/cemetery-styled `WalletButton`; do not introduce
   RainbowKit.
 - Support injected EIP-1193 wallets first. The expected desktop wallets are
@@ -337,7 +345,7 @@ Input:
 
 The server must:
 
-1. validate UUID and confirm that the grave exists on map version `v2`;
+1. validate UUID and confirm that the grave exists on map version `v1`;
    fail closed if the migration/schema needed to establish that boundary is
    absent;
 2. normalize/checksum the wallet address;
@@ -534,7 +542,7 @@ was testable before the UI:
 6. Implemented database-side stats and dependency-injected API routes with
    idempotency and rate limits.
 7. Added protected bounded re-verification and the Vercel schedule.
-8. Added the route-scoped Wagmi provider and native wallet controls to Map 2.0.
+8. Added the route-scoped Wagmi provider and native wallet controls to Map v1.
 9. Added `GraveBurnPanel` and its explicit, abort-aware state machine.
 10. The client emits `cemeteryEvents.emit('highlight_slot', { slotId })` only
      after the API returns `verified`.
@@ -589,7 +597,7 @@ wallet`, `Switch to Base`, `Offer 100 GRAVE`, `Custom GRAVE amount`, and
 
 ### UI tests
 
-- burn panel is present for Map 2.0 and absent on v1;
+- burn panel is present for Map v1 and absent on v2;
 - disconnected, wrong-chain, signing, wallet-rejection, pending, failed, and
   verified states;
 - only whole custom amounts are enabled;
@@ -619,31 +627,39 @@ deliberately tiny amount after staging verification.
 
 Before turning on the public flag:
 
-1. Confirm the deployed GRAVE contract’s identity and transfer semantics.
-2. Provision and test `BASE_RPC_URL`; do not use Base’s public RPC as the
+1. Deploy the current Next.js application and database migration. Do not
+   deploy a new Solidity contract: this release calls `transfer` on the
+   existing GRAVE token contract.
+2. Confirm the deployed GRAVE contract’s identity and transfer semantics.
+3. Provision and test `BASE_RPC_URL`; do not use Base’s public RPC as the
    production verifier.
-3. Verify no server RPC or reverify secret appears in browser JavaScript,
+4. Verify no server RPC or reverify secret appears in browser JavaScript,
    logs, documentation screenshots, or `NEXT_PUBLIC_*` variables.
-4. Confirm RLS/REVOKE applies to both new tables in a staging Supabase project.
-5. Verify all API abuse controls and duplicate paths under concurrency.
-6. Verify the selected browser RPC origin is the only CSP expansion, if one
+5. Confirm RLS/REVOKE applies to both new tables in a staging Supabase project.
+6. Verify all API abuse controls and duplicate paths under concurrency.
+7. Verify the selected browser RPC origin is the only CSP expansion, if one
    is used.
-7. Exercise MetaMask/Rabby and a compatible smart-account wallet where
+8. Exercise MetaMask/Rabby and a compatible smart-account wallet where
    available.
-8. Prove the production scheduler invokes bounded pending/reorg reverification
+9. Prove the production scheduler invokes bounded pending/reorg reverification
    with the protected secret.
-9. Make one explicitly approved tiny Base mainnet offering; inspect its
+10. Make one explicitly approved tiny Base mainnet offering; inspect its
    explorer receipt, database record, stats, and map highlight.
-10. Keep the server feature flag off until every prior item is complete.
+11. Keep the server feature flag off until every prior item is complete.
 
 ## 15. Current handoff summary
 
-The burn-only offering flow for existing Map 2.0 graves is implemented. Its
+The burn-only offering flow for existing Map v1 graves is implemented. Its
 trust boundary is the signed server intent plus independently verified
 fixed-token Transfer log. Do not weaken it by accepting wallet, amount, grave,
 token, or burn-address assertions from the client after the intent is created.
 Do not start the later flywheel economics without a separate contract and
 design approval.
+
+The deployable unit is the application, Supabase schema, environment, and
+reverify schedule. There is no new contract deployment in this phase. Connect
+Wallet remains inside the grave offering panel; cabinet-level wallet UX is a
+separate future product decision.
 
 Operationally, preserve these rules:
 

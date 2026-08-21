@@ -62,7 +62,7 @@ export function createPostBurnIntentHandler(
       })
 
       if (result.outcome === 'not_found') {
-        return burnJson({ error: 'Grave not found on Cemetery Map 2.0' }, { status: 404 })
+        return burnJson({ error: 'Grave not found on Cemetery Map v1' }, { status: 404 })
       }
       if (result.outcome === 'schema_unavailable') {
         return burnJson({ error: 'The grave offering ritual is not configured.' }, { status: 503 })
