@@ -255,6 +255,9 @@ const GameContext = createContext<{
   dispatch: React.Dispatch<GameAction>;
 } | null>(null);
 
+export type CemeteryMapVersion = 'v1' | 'v2';
+export const CemeteryMapVersionContext = createContext<CemeteryMapVersion>('v1');
+
 // ── Provider ───────────────────────────────────────────
 
 export function GameProvider({ children }: { children: ReactNode }) {
@@ -290,6 +293,10 @@ export function useGame() {
   const ctx = useContext(GameContext);
   if (!ctx) throw new Error('useGame must be used within GameProvider');
   return ctx;
+}
+
+export function useCemeteryMapVersion(): CemeteryMapVersion {
+  return useContext(CemeteryMapVersionContext);
 }
 
 export function useModal() {

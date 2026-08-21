@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import dynamic from 'next/dynamic';
-import { createModalInstanceId, GameProvider, useGame, useGraves, useCremated, useFStatus, useModal, type ModalType } from '@/context/GameContext';
+import { CemeteryMapVersionContext, createModalInstanceId, GameProvider, useGame, useGraves, useCremated, useFStatus, useModal, type ModalType } from '@/context/GameContext';
 import { cemeteryEvents } from '@/game/events';
 import { removeBuryModalIntentFromUrl, shouldOpenBuryModalFromSearchParams } from '@/lib/bury-intent';
 import { consumePendingBurialCeremony } from '@/lib/pending-burial-ceremony';
@@ -185,27 +185,29 @@ function ModalLayer() {
 
 export default function CemeteryAppV2() {
   return (
-    <GameProvider>
-      <GameDataLoadersV2 />
-      <Suspense fallback={null}>
-        <DeepLinkOpenerV2 />
-      </Suspense>
+    <CemeteryMapVersionContext.Provider value="v2">
+      <GameProvider>
+        <GameDataLoadersV2 />
+        <Suspense fallback={null}>
+          <DeepLinkOpenerV2 />
+        </Suspense>
 
-      <div style={{ display: 'flex', flexDirection: 'column', height: '100dvh', width: '100%', overflow: 'hidden', background: '#1a1918' }}>
-        <header style={{ flexShrink: 0, position: 'relative', zIndex: 10 }}>
-          <TopBar mapVersion="v2" />
-        </header>
-        <main style={{ flex: 1, position: 'relative', overflow: 'hidden', minHeight: 0 }}>
-          <PhaserCanvasV2 />
-          <GateEpitaph />
-          <HoverTooltip />
-          <Minimap mapVersion="v2" />
-          <CTAButtons />
-          <ChatLog />
-          <ZoomButtons />
-          <ModalLayer />
-        </main>
-      </div>
-    </GameProvider>
+        <div style={{ display: 'flex', flexDirection: 'column', height: '100dvh', width: '100%', overflow: 'hidden', background: '#1a1918' }}>
+          <header style={{ flexShrink: 0, position: 'relative', zIndex: 10 }}>
+            <TopBar mapVersion="v2" />
+          </header>
+          <main style={{ flex: 1, position: 'relative', overflow: 'hidden', minHeight: 0 }}>
+            <PhaserCanvasV2 />
+            <GateEpitaph />
+            <HoverTooltip />
+            <Minimap mapVersion="v2" />
+            <CTAButtons />
+            <ChatLog />
+            <ZoomButtons />
+            <ModalLayer />
+          </main>
+        </div>
+      </GameProvider>
+    </CemeteryMapVersionContext.Provider>
   );
 }

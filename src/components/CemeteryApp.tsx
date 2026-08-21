@@ -7,6 +7,7 @@ import { createModalInstanceId, GameProvider, useGame, useGraves, useCremated, u
 import { cemeteryEvents } from '@/game/events';
 import { removeBuryModalIntentFromUrl, shouldOpenBuryModalFromSearchParams } from '@/lib/bury-intent';
 import { consumePendingBurialCeremony } from '@/lib/pending-burial-ceremony';
+import Web3Provider from '@/web3/Web3Provider';
 
 const PhaserCanvas = dynamic(() => import('./PhaserCanvas'), { ssr: false });
 const HoverTooltip = dynamic(() => import('./HoverTooltip'), { ssr: false });
@@ -207,24 +208,26 @@ export function ModalLayer() {
 
 export default function CemeteryApp() {
   return (
-    <GameProvider>
-      <GameDataLoaders />
-      <Suspense><DeepLinkOpener /></Suspense>
-      <div data-testid="app-shell" style={{ display: 'flex', flexDirection: 'column', height: '100dvh', overflow: 'hidden' }}>
-        <header>
-          <TopBar />
-        </header>
-        <main style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
-          <PhaserCanvas />
-          <GateEpitaph />
-          <HoverTooltip />
-          <Minimap />
-          <CTAButtons />
-          <ChatLog />
-          <ZoomButtons />
-          <ModalLayer />
-        </main>
-      </div>
-    </GameProvider>
+    <Web3Provider>
+      <GameProvider>
+        <GameDataLoaders />
+        <Suspense><DeepLinkOpener /></Suspense>
+        <div data-testid="app-shell" style={{ display: 'flex', flexDirection: 'column', height: '100dvh', overflow: 'hidden' }}>
+          <header>
+            <TopBar />
+          </header>
+          <main style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
+            <PhaserCanvas />
+            <GateEpitaph />
+            <HoverTooltip />
+            <Minimap />
+            <CTAButtons />
+            <ChatLog />
+            <ZoomButtons />
+            <ModalLayer />
+          </main>
+        </div>
+      </GameProvider>
+    </Web3Provider>
   );
 }

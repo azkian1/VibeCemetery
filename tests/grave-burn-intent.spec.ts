@@ -30,7 +30,7 @@ class MemoryBurnStore implements GraveBurnStore {
   graveResult: GraveLookupResult = 'found'
   intents = new Map<string, GraveBurnIntentRecord>()
 
-  async findV2Grave(): Promise<GraveLookupResult> {
+  async findBurnableV1Grave(): Promise<GraveLookupResult> {
     return this.graveResult
   }
 
@@ -164,7 +164,7 @@ function dependencies(
   }
 }
 
-test('intent creation fails closed without the Map 2.0 schema boundary', async () => {
+test('intent creation fails closed without the Map v1 schema boundary', async () => {
   const store = new MemoryBurnStore()
   store.graveResult = 'schema_unavailable'
   const result = await createBurnIntent({

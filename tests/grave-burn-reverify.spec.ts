@@ -85,7 +85,7 @@ function storeWithCandidate(updates: Array<{
   checkedAt: string
 }>): GraveBurnStore {
   return {
-    findV2Grave: async () => 'found',
+    findBurnableV1Grave: async () => 'found',
     createIntent: async () => {
       throw new Error('not used')
     },

@@ -408,7 +408,7 @@ export default function GraveModal() {
 
           <OrnamentDivider />
 
-          {mapVersion === 'v2' && slotId != null && (
+          {mapVersion === 'v1' && slotId != null && (
             <GraveBurnPanel graveId={g.id} slotId={slotId} />
           )}
 
