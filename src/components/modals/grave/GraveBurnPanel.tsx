@@ -4,7 +4,13 @@ import { useConnection } from 'wagmi'
 import StoneButton from '@/components/ui/StoneButton'
 import WalletButton from '@/components/web3/WalletButton'
 import { useCemeteryMapVersion } from '@/context/GameContext'
-import { GRAVE_BURN_PRESETS, GRAVE_CHAIN_ID, WEB3_GRAVE_BURNS_VISIBLE } from '@/web3/config'
+import {
+  GRAVE_BURN_ADDRESS,
+  GRAVE_BURN_PRESETS,
+  GRAVE_CHAIN_ID,
+  GRAVE_TOKEN_ADDRESS,
+  WEB3_GRAVE_BURNS_VISIBLE,
+} from '@/web3/config'
 import { useGraveBurn } from '@/web3/useGraveBurn'
 
 const STATE_COPY = {
@@ -65,8 +71,15 @@ function EnabledGraveBurnPanel({
           Grave Offering
         </span>
         <p style={{ margin: '5px 0 0', color: '#77736a', fontSize: 11, lineHeight: 1.4 }}>
-          Sends fixed GRAVE tokens to the burn address. Your wallet and optional GitHub
-          display name will appear publicly after independent Base verification.
+          Irreversibly transfers GRAVE to the dead address on Base. This removes the
+          tokens from circulation but does not reduce the token&apos;s totalSupply.
+        </p>
+        <div style={{ marginTop: 7, color: '#625f58', fontSize: 10, lineHeight: 1.45 }}>
+          <div>Token: GRAVE · {GRAVE_TOKEN_ADDRESS}</div>
+          <div>Destination: {GRAVE_BURN_ADDRESS}</div>
+        </div>
+        <p style={{ margin: '6px 0 0', color: '#625f58', fontSize: 10, lineHeight: 1.4 }}>
+          Your wallet and optional GitHub display name become public after independent verification.
         </p>
       </div>
 

@@ -221,6 +221,69 @@ test('reverify orphans only a confirmed block-hash mismatch', async () => {
   })
 })
 
+test('a missing receipt is persisted before expiry for server-side recovery', async () => {
+  let boundArtifact: BurnVerificationArtifact | null | undefined
+  let expired = false
+  const store = storeWithCandidate([])
+  store.getBurnByIntent = async () => null
+  store.expireIntentAtomic = async () => {
+    expired = true
+  }
+  store.bindBurnAtomic = async (input) => {
+    boundArtifact = input.artifact
+    return { outcome: 'bound', status: 'pending' }
+  }
+
+  const result = await submitBurnTransaction({
+    deps: {
+      store,
+      client: client(),
+      now: () => new Date('2026-07-30T12:06:00.000Z'),
+    },
+    graveId,
+    intentId,
+    txHash,
+  })
+
+  expect(result).toMatchObject({
+    outcome: 'accepted',
+    status: 'pending',
+    txHash,
+    retryable: true,
+  })
+  expect(boundArtifact).toBeNull()
+  expect(expired).toBe(false)
+})
+
+test('a receipt discovered after expiry binds when its block was before expiry', async () => {
+  let boundArtifact: BurnVerificationArtifact | null | undefined
+  const store = storeWithCandidate([])
+  store.getBurnByIntent = async () => null
+  store.bindBurnAtomic = async (input) => {
+    boundArtifact = input.artifact
+    return { outcome: 'bound', status: input.status }
+  }
+
+  const result = await submitBurnTransaction({
+    deps: {
+      store,
+      client: validClient(),
+      now: () => new Date('2026-07-30T12:15:00.000Z'),
+    },
+    graveId,
+    intentId,
+    txHash,
+  })
+
+  expect(result).toMatchObject({ outcome: 'accepted', status: 'verified' })
+  expect(boundArtifact).toMatchObject({
+    blockNumber: '101',
+    blockHash,
+    logIndex: 3,
+    blockTimestamp: '2026-07-30T12:05:00.000Z',
+  })
+})
+
 test('concurrent duplicate submissions atomically create one counted burn', async () => {
   let boundBurn: GraveBurnRecord | null = null
   let waitingLookups = 0
@@ -241,6 +304,7 @@ test('concurrent duplicate submissions atomically create one counted burn', asyn
     if (boundBurn) {
       return { outcome: 'existing', status: boundBurn.status }
     }
+    if (!input.artifact) throw new Error('expected verified receipt artifact')
     boundBurn = {
       ...burn(),
       txHash: input.txHash,

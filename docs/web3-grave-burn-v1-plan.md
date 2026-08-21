@@ -1,10 +1,11 @@
 # GRAVE Burn Offering — план запуска на Cemetery Map v1
 
-**Статус:** код, production database migrations и выключенный Vercel preview
-завершены 2026-08-21; activation ожидает RPC/secrets и закрытый canary.  
+**Статус:** burn-only код выделен 2026-08-21 в чистую ветку
+`codex/burn-v1-only` от `origin/master`; production flags остаются выключены.
 **Целевая поверхность:** `/cemetery`, Cemetery Map v1.  
 **Экономическая модель:** только burn offering.  
-**Следующий этап:** не начат; требуется отдельная команда владельца продукта.  
+**Следующий этап:** публикация проверенной чистой ветки и отдельный preview с
+выключенными burn flags; затем обновление одной Supabase RPC-функции.
 **Техническая база:** существующая intent-bound реализация из
 [`docs/web3-grave-burn-mvp.md`](./web3-grave-burn-mvp.md).
 
@@ -19,9 +20,18 @@
 - API-текст, unit boundary, fake-wallet E2E, README и setup обновлены под v1;
 - сохранены EIP-712 intent, независимая Base-проверка, duplicate protection,
   pending/reorg flow, rate limits и server-only stats;
-- TypeScript, 480 unit-тестов, fake-wallet E2E и production build прошли;
-- ESLint завершён без ошибок; остался один не относящийся к Web3 warning в
-  `scripts/test_v2_final.mjs`.
+- исправлено восстановление после задержки receipt: tx hash сохраняется как
+  `pending` до появления receipt, а поздний receipt принимается только если
+  timestamp его блока попадает в подписанное окно intent;
+- браузер продолжает проверку ещё 30 минут после expiry, а серверный cron может
+  завершить проверку и после закрытия браузера;
+- 42 burn/security regression-теста, TypeScript, ESLint, production build и
+  fake-wallet E2E прошли на чистой ветке;
+- production dependency audit после совместимых обновлений Next.js,
+  NextAuth, PostCSS, Sharp и Nanoid: `0 vulnerabilities`;
+- полный unit suite: 416 тестов прошли, 3 несвязанных baseline-теста из
+  `origin/master` остаются красными без изменений в их файлах (line-ending
+  fixture и устаревшие install-script manifest hashes).
 
 Сделано в production Supabase 2026-08-21:
 
@@ -32,11 +42,15 @@
 - применён `docs/web3-grave-burn-mvp.sql`;
 - созданы пустые `grave_burn_intents` и `grave_burns`;
 - для обеих таблиц включены и принудительно применяются RLS;
-- созданы все 5 burn RPC; прямое чтение закрыто для `anon` и `authenticated`.
+- созданы все 5 burn RPC; прямое чтение закрыто для `anon` и `authenticated`;
+- исходная `bind_grave_burn` пока имеет прежнюю сигнатуру. Перед включением
+  preview flag нужно повторно применить обновлённый
+  `docs/web3-grave-burn-mvp.sql`, который безопасно заменит только эту RPC.
 
-Сделано в Vercel 2026-08-21:
+Исторический Vercel preview 2026-08-21:
 
-- ветка `codex/map2-unification` опубликована в GitHub;
+- ветка `codex/map2-unification` опубликована в GitHub, но больше не является
+  кандидатом burn-релиза: в ней есть большой несвязанный scope Map v2;
 - preview deployment для commit `c3fb14e` получил статус `Ready`;
 - `/cemetery` успешно открывается в preview;
 - `WEB3_GRAVE_BURNS_ENABLED=false` и
@@ -45,6 +59,9 @@
 - reverify cron изменён с пяти минут на ежедневный запуск в `03:00 UTC`, чтобы
   deploy проходил на Vercel Hobby; обычный submit flow по-прежнему проверяет
   транзакцию сразу.
+
+Для `codex/burn-v1-only` будет создан новый отдельный preview после полного
+regression gate. Старый preview нельзя продвигать в Production.
 
 Ещё не сделано и требует production-доступа/решения владельца:
 
@@ -70,9 +87,10 @@
 
 В production необходимо доставить только четыре части:
 
-1. Текущий код Next.js-приложения с Map v1 burn UI и API.
-2. Database schema: `docs/map-v2-migration.sql`, только если ещё нет
-   `graves.map_version`, и затем `docs/web3-grave-burn-mvp.sql`.
+1. Код Next.js-приложения строго из ветки `codex/burn-v1-only` с Map v1 burn
+   UI и API.
+2. Database schema: повторно применить обновлённый
+   `docs/web3-grave-burn-mvp.sql`; `graves.map_version` уже существует.
 3. Server/browser environment variables из раздела 8.
 4. Reverify cron из уже существующего `vercel.json`.
 
@@ -329,7 +347,10 @@ Backend обязан независимо подтвердить:
 - `Transfer.value` в точности равен intent amount;
 - receipt block не предшествует авторизации intent;
 - `txHash` ранее не был использован;
-- intent не истёк и не был использован другой транзакцией.
+- timestamp блока transfer не раньше авторизации и не позже expiry intent;
+- момент появления receipt у RPC может быть позже expiry — это не отменяет
+  транзакцию, которая была добыта в допустимом окне;
+- intent не был использован другой транзакцией.
 
 Только `status = 'verified'` влияет на публичную статистику.
 
@@ -406,6 +427,13 @@ reverify_grave_burn(...)
 get_grave_burn_stats(uuid)
 ```
 
+Текущая версия `bind_grave_burn` принимает также
+`p_transfer_block_timestamp`. Если receipt временно отсутствует, функция
+атомарно сохраняет `pending`-запись без block artifact до expiry. Такая запись
+не влияет на статистику, но остаётся доступной защищённому reverify cron. Когда
+receipt появляется, block timestamp проверяется против времени авторизации и
+expiry intent.
+
 Дополнительная v1-миграция не требуется, если текущая Web3 migration успешно
 применяется к production schema и `graves.map_version` существует.
 
@@ -417,6 +445,8 @@ get_grave_burn_stats(uuid)
 - RLS включён и принудительно применяется;
 - таблицы и функции недоступны browser `anon`/`authenticated` ролям;
 - запись выполняется только сервером через service role.
+- в Postgres отсутствует старый overload `bind_grave_burn` с восемью
+  аргументами и доступна новая версия с девятью аргументами.
 
 ## 8. Переменные окружения
 

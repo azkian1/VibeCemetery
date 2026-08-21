@@ -32,12 +32,19 @@ Local verification completed after implementation:
 
 ```text
 TypeScript                         passed
-Web3 regression tests             38 passed
-Full unit suite                   480 passed
+Web3 regression tests             42 passed
+Full unit suite                   416 passed, 3 inherited baseline failures
 Injected-wallet Web3 E2E           1 passed
 Next.js production build          passed
-ESLint                            0 errors, 1 unrelated warning
+ESLint                            0 errors
+Production dependency audit       0 vulnerabilities
 ```
+
+The three full-suite failures are unchanged from `origin/master`: one
+line-ending-sensitive bury modal fixture and two stale install-script manifest
+hash assertions. None of their source or fixture files is changed by the burn
+branch. The focused burn suite, build, typecheck, lint, and browser flow are
+green.
 
 The automated E2E uses a fake `window.ethereum`, intercepted API responses, and
 no real token value. Production is not enabled merely because these checks
@@ -382,13 +389,13 @@ The server must use only the stored, authorized intent plus Base chain data.
 It must be idempotent: repeated submission of the same intent/hash returns
 the existing safe status and never changes totals twice.
 
-Do **not** consume or bind an intent just because a supplied hash is malformed,
-unknown, reverted, or mismatched. In those cases return a safe failure and
-leave the authorized intent usable until expiry. Bind the transaction hash and
-consume the intent atomically only after a successful receipt has exactly one
-matching fixed-token Transfer log. A matching receipt with too few
-confirmations is bound as `pending`; a receipt that is not yet visible creates
-no burn record and consumes nothing.
+Do **not** count an intent just because a supplied hash is malformed, unknown,
+reverted, or mismatched. A receipt that is not visible yet may atomically bind
+the hash as an artifact-free `pending` record while the intent is active. This
+makes the submission recoverable by the protected server job after the browser
+closes; it never affects public totals. Once the receipt exists, bind its exact
+block/log artifact. A matching receipt with too few confirmations remains
+`pending`; only a fully verified record is counted.
 
 ### Protected re-verification
 
@@ -444,22 +451,27 @@ Base block using Viem’s contract-wallet-capable verification path; the fixed
 Transfer log’s `from` remains the attribution source. Do not fall back from a
 failed smart-wallet verification to `recoverAddress`.
 
-If a receipt cannot yet be found, return a retryable status without creating a
-burn record or consuming the intent. Once a successful receipt with one
-matching log exists, atomically bind it to the intent; keep it `pending` until
-it has enough confirmations. A final receipt that does not match leaves the
-intent authorized until expiry and never affects stats. Reverification must
-compare stored block hash/log data and mark a reorged verified record
-`orphaned`, removing it from stats.
+If a receipt cannot yet be found before expiry, persist the normalized tx hash
+as an artifact-free `pending` burn and return a retryable status. The protected
+reverification job can then recover it without the browser. Once a successful
+receipt with one matching log exists, store the exact artifact and keep it
+`pending` until it has enough confirmations. Receipt discovery may occur after
+intent expiry, but its canonical block timestamp must be between authorization
+and expiry. A final receipt that does not match never affects stats.
+Reverification must compare stored block hash/log data and mark a reorged
+verified record `orphaned`, removing it from stats.
 
 ## 11. Database migration
 
-Add an idempotent migration at `docs/web3-grave-burn-mvp.sql` and update both:
+The self-contained idempotent migration is:
 
 ```text
-docs/supabase-schema.sql
-docs/supabase-rls-hardening.sql
+docs/web3-grave-burn-mvp.sql
 ```
+
+It creates and hardens the burn tables and RPC functions itself. It requires
+the existing `graves.map_version` boundary. Re-running it upgrades the
+`bind_grave_burn` overload to accept the verified transfer block timestamp.
 
 Do not store `slot_id` as the independent association. Slot IDs overlap across
 map versions; associate burns through `grave_id` only.
@@ -664,7 +676,10 @@ separate future product decision.
 Operationally, preserve these rules:
 
 - an RPC timeout or unavailable block is not evidence of a reorg;
-- `receipt_not_found` remains retryable and does not consume a new intent;
+- `receipt_not_found` is persisted as uncounted `pending` before expiry so
+  server-side recovery survives a closed browser;
+- a receipt found after expiry is accepted only when its canonical block
+  timestamp was inside the signed intent window;
 - only a successfully fetched conflicting block hash may orphan a stored burn;
 - write IP limits execute before intent lookup, then wallet limits execute
   against the normalized stored wallet;

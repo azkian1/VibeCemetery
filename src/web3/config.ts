@@ -9,6 +9,7 @@ export const MIN_BURN_CONFIRMATIONS = 2
 export const GRAVE_BURN_INTENT_DOMAIN_NAME = 'VibeCemetery Grave Offering'
 export const GRAVE_BURN_INTENT_DOMAIN_VERSION = '1'
 export const GRAVE_BURN_INTENT_TTL_MS = 10 * 60 * 1000
+export const GRAVE_BURN_VERIFICATION_GRACE_MS = 30 * 60 * 1000
 export const BASE_EXPLORER_TX_URL = 'https://basescan.org/tx/'
 
 export const WEB3_GRAVE_BURNS_VISIBLE =

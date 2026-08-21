@@ -35,6 +35,17 @@ test('feature flag exits before any Wagmi hook executes', () => {
   expect(wagmiHook).toBeGreaterThan(enabledComponent)
 })
 
+test('offering copy discloses irreversible transfer semantics and fixed addresses', () => {
+  const panel = fs.readFileSync(
+    path.join(root, 'src/components/modals/grave/GraveBurnPanel.tsx'),
+    'utf8',
+  )
+  expect(panel).toContain('Irreversibly transfers GRAVE to the dead address on Base')
+  expect(panel).toContain('does not reduce the token&apos;s totalSupply')
+  expect(panel).toContain('GRAVE_TOKEN_ADDRESS')
+  expect(panel).toContain('GRAVE_BURN_ADDRESS')
+})
+
 test('pending polling owns an abort controller and cleans it up', () => {
   const hook = fs.readFileSync(path.join(root, 'src/web3/useGraveBurn.ts'), 'utf8')
   expect(hook).toContain('const activeBurnAbortRef = useRef<AbortController | null>(null)')

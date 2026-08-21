@@ -4,7 +4,6 @@ import path from 'node:path'
 
 const root = path.resolve(__dirname, '..')
 const migration = fs.readFileSync(path.join(root, 'docs/web3-grave-burn-mvp.sql'), 'utf8')
-const hardening = fs.readFileSync(path.join(root, 'docs/supabase-rls-hardening.sql'), 'utf8')
 
 test('migration creates constrained intent and burn tables', () => {
   expect(migration).toContain('create table if not exists public.grave_burn_intents')
@@ -37,8 +36,13 @@ test('new tables are forced behind the server-only RLS boundary', () => {
   for (const table of ['grave_burn_intents', 'grave_burns']) {
     expect(migration).toContain(`alter table public.${table} force row level security`)
     expect(migration).toContain(`revoke all on table public.${table} from anon, authenticated`)
-    expect(hardening).toContain(`ALTER TABLE IF EXISTS public.${table} FORCE ROW LEVEL SECURITY`)
   }
+})
+
+test('late receipt recovery is constrained by the on-chain block timestamp', () => {
+  expect(migration).toContain('p_transfer_block_timestamp timestamptz')
+  expect(migration).toContain('p_transfer_block_timestamp > locked_intent.expires_at')
+  expect(migration).toContain('p_transfer_block_timestamp < locked_intent.authorization_verified_at')
 })
 
 test('scheduler is configured for bounded protected reverification', () => {

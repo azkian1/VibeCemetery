@@ -73,7 +73,7 @@ export interface GraveBurnStore {
     intentId: string
     txHash: Hex
     status: 'pending' | 'verified'
-    artifact: BurnVerificationArtifact
+    artifact: BurnVerificationArtifact | null
     checkedAt: string
   }): Promise<BindBurnOutcome>
   getBurnByIntent(intentId: string): Promise<GraveBurnRecord | null>
@@ -233,7 +233,7 @@ export class SupabaseGraveBurnStore implements GraveBurnStore {
     intentId: string
     txHash: Hex
     status: 'pending' | 'verified'
-    artifact: BurnVerificationArtifact
+    artifact: BurnVerificationArtifact | null
     checkedAt: string
   }): Promise<BindBurnOutcome> {
     const { data, error } = await supabaseAdmin.rpc('bind_grave_burn', {
@@ -241,9 +241,10 @@ export class SupabaseGraveBurnStore implements GraveBurnStore {
       p_intent_id: input.intentId,
       p_tx_hash: input.txHash.toLowerCase(),
       p_status: input.status,
-      p_block_number: input.artifact.blockNumber,
-      p_block_hash: input.artifact.blockHash.toLowerCase(),
-      p_log_index: input.artifact.logIndex,
+      p_block_number: input.artifact?.blockNumber ?? null,
+      p_block_hash: input.artifact?.blockHash.toLowerCase() ?? null,
+      p_log_index: input.artifact?.logIndex ?? null,
+      p_transfer_block_timestamp: input.artifact?.blockTimestamp ?? null,
       p_checked_at: input.checkedAt,
     })
     if (error) throw error

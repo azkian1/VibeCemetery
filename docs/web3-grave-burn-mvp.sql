@@ -164,6 +164,7 @@ create or replace function public.bind_grave_burn(
   p_block_number numeric,
   p_block_hash text,
   p_log_index integer,
+  p_transfer_block_timestamp timestamptz,
   p_checked_at timestamptz
 )
 returns jsonb
@@ -176,6 +177,19 @@ declare
   existing_burn public.grave_burns%rowtype;
 begin
   if p_status not in ('pending', 'verified') then
+    return jsonb_build_object('outcome', 'invalid_state');
+  end if;
+
+  if num_nonnulls(
+    p_block_number,
+    p_block_hash,
+    p_log_index,
+    p_transfer_block_timestamp
+  ) not in (0, 4) then
+    return jsonb_build_object('outcome', 'invalid_state');
+  end if;
+
+  if p_status = 'verified' and p_block_number is null then
     return jsonb_build_object('outcome', 'invalid_state');
   end if;
 
@@ -216,11 +230,27 @@ begin
     return jsonb_build_object('outcome', 'invalid_state');
   end if;
 
-  if locked_intent.expires_at <= p_checked_at then
-    update public.grave_burn_intents
-       set status = 'expired'
-     where id = p_intent_id;
-    return jsonb_build_object('outcome', 'expired');
+  if p_transfer_block_timestamp is null then
+    -- Persist a just-broadcast tx while its receipt is temporarily unavailable.
+    -- This lets the protected reverification job finish the check even if the
+    -- browser closes. Unverified rows are never included in public burn stats.
+    if locked_intent.expires_at <= p_checked_at then
+      update public.grave_burn_intents
+         set status = 'expired'
+       where id = p_intent_id;
+      return jsonb_build_object('outcome', 'expired');
+    end if;
+  else
+    if p_transfer_block_timestamp < locked_intent.authorization_verified_at then
+      return jsonb_build_object('outcome', 'invalid_state');
+    end if;
+
+    if p_transfer_block_timestamp > locked_intent.expires_at then
+      update public.grave_burn_intents
+         set status = 'expired'
+       where id = p_intent_id;
+      return jsonb_build_object('outcome', 'expired');
+    end if;
   end if;
 
   insert into public.grave_burns (
@@ -272,6 +302,14 @@ exception
     return jsonb_build_object('outcome', 'conflict');
 end;
 $$;
+
+-- Remove the pre-recovery overload only after its replacement exists. The new
+-- overload receives the canonical block timestamp, so a receipt discovered
+-- after intent expiry is accepted only when the transfer itself was mined
+-- before the deadline.
+drop function if exists public.bind_grave_burn(
+  uuid, uuid, text, text, numeric, text, integer, timestamptz
+);
 
 create or replace function public.reverify_grave_burn(
   p_burn_id uuid,
@@ -397,7 +435,7 @@ revoke all on function public.authorize_grave_burn_intent(uuid, uuid, text, nume
   from public, anon, authenticated;
 revoke all on function public.expire_grave_burn_intent(uuid, uuid, timestamptz)
   from public, anon, authenticated;
-revoke all on function public.bind_grave_burn(uuid, uuid, text, text, numeric, text, integer, timestamptz)
+revoke all on function public.bind_grave_burn(uuid, uuid, text, text, numeric, text, integer, timestamptz, timestamptz)
   from public, anon, authenticated;
 revoke all on function public.reverify_grave_burn(uuid, text, numeric, text, integer, text, timestamptz)
   from public, anon, authenticated;
@@ -408,7 +446,7 @@ grant execute on function public.authorize_grave_burn_intent(uuid, uuid, text, n
   to service_role;
 grant execute on function public.expire_grave_burn_intent(uuid, uuid, timestamptz)
   to service_role;
-grant execute on function public.bind_grave_burn(uuid, uuid, text, text, numeric, text, integer, timestamptz)
+grant execute on function public.bind_grave_burn(uuid, uuid, text, text, numeric, text, integer, timestamptz, timestamptz)
   to service_role;
 grant execute on function public.reverify_grave_burn(uuid, text, numeric, text, integer, text, timestamptz)
   to service_role;

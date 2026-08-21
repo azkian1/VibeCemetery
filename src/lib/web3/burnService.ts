@@ -209,20 +209,32 @@ export async function submitBurnTransaction({
   }
   if (intent.status !== 'authorized') return { outcome: 'invalid_state' as const }
   const now = nowFrom(deps)
-  if (new Date(intent.expiresAt).getTime() <= now.getTime()) {
-    await deps.store.expireIntentAtomic({
-      graveId,
-      intentId,
-      checkedAt: now.toISOString(),
-    })
-    return { outcome: 'expired' as const }
-  }
 
   const verification = await verifyBurnTx({ client: deps.client, intent, txHash })
   if (verification.status === 'pending' && !verification.bind) {
+    if (new Date(intent.expiresAt).getTime() <= now.getTime()) {
+      await deps.store.expireIntentAtomic({
+        graveId,
+        intentId,
+        checkedAt: now.toISOString(),
+      })
+      return { outcome: 'expired' as const }
+    }
+
+    const bound = await deps.store.bindBurnAtomic({
+      graveId,
+      intentId,
+      txHash,
+      status: 'pending',
+      artifact: null,
+      checkedAt: now.toISOString(),
+    })
+    if (bound.outcome !== 'bound' && bound.outcome !== 'existing') return bound
+
     return {
-      outcome: 'receipt_not_found' as const,
-      status: 'pending' as const,
+      outcome: 'accepted' as const,
+      status: bound.status,
+      txHash,
       retryable: true,
     }
   }

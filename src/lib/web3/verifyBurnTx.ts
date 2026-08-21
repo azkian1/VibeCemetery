@@ -43,6 +43,7 @@ export type BurnVerificationArtifact = {
   blockNumber: string
   blockHash: Hex
   logIndex: number
+  blockTimestamp: string
 }
 
 export type BurnVerificationResult =
@@ -209,6 +210,7 @@ export async function verifyBurnTx({
     blockNumber: receipt.blockNumber.toString(),
     blockHash: receipt.blockHash,
     logIndex: matchingLogs[0].logIndex,
+    blockTimestamp: new Date(Number(receiptBlock.timestamp) * 1000).toISOString(),
   }
 
   if (confirmations < BigInt(MIN_BURN_CONFIRMATIONS)) {

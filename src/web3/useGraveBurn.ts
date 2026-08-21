@@ -13,6 +13,7 @@ import type { GraveBurnStats } from '@/lib/web3/graveBurnStats'
 import { graveTokenAbi } from './abi'
 import {
   GRAVE_BURN_ADDRESS,
+  GRAVE_BURN_VERIFICATION_GRACE_MS,
   GRAVE_CHAIN_ID,
   GRAVE_TOKEN_ADDRESS,
   GRAVE_TOKEN_DECIMALS,
@@ -203,7 +204,8 @@ export function useGraveBurn({
     signal: AbortSignal,
   ) => {
     setState(initiallyBound ? 'pending' : 'verifying')
-    while (Date.now() < new Date(expiresAt).getTime()) {
+    const recoveryDeadline = new Date(expiresAt).getTime() + GRAVE_BURN_VERIFICATION_GRACE_MS
+    while (Date.now() < recoveryDeadline) {
       await waitForPoll(signal, 3_000)
       const result = await submitToServer(intentId, hash, signal)
       if (signal.aborted) throw abortError()
@@ -216,7 +218,7 @@ export function useGraveBurn({
       }
       setState(result.bound === true ? 'pending' : 'verifying')
     }
-    throw new Error('Verification is still pending. Check the grave again shortly.')
+    throw new Error('Verification is still pending. The server will continue checking it.')
   }, [completeVerified, submitToServer])
 
   const burn = useCallback(async () => {

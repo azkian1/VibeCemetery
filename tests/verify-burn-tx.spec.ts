@@ -118,7 +118,12 @@ test('one exact fixed-token Transfer becomes verified after two confirmations', 
   expect(result).toMatchObject({
     status: 'verified',
     bind: true,
-    artifact: { blockNumber: '101', blockHash, logIndex: 3 },
+    artifact: {
+      blockNumber: '101',
+      blockHash,
+      logIndex: 3,
+      blockTimestamp: '2026-07-30T12:05:00.000Z',
+    },
   })
 })
 

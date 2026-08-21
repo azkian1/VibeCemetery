@@ -74,7 +74,7 @@ function DeepLinkOpener() {
   }, [state.slotPositions.length]);
 
   useEffect(() => {
-    if (state.gravesLoading || state.slotPositions.length === 0) return;
+    if (state.gravesLoading) return;
     const graveId = searchParams.get('grave');
     if (!graveId || graveId === navigatedFor.current) return;
 
@@ -102,8 +102,6 @@ function DeepLinkOpener() {
           if (cancelled || activeModalRef.current) return;
           dispatch({ type: 'OPEN_MODAL', id: createModalInstanceId(), modal: 'grave', data: { slotId: META_SLOT, slotType: 'meta_grave' } });
         }, d(4700)));
-      } else {
-        navigatedFor.current = graveId;
       }
       return () => { cancelled = true; timers.forEach(clearTimeout); };
     }
@@ -113,9 +111,18 @@ function DeepLinkOpener() {
       if (g.id === graveId) {
         found = true;
         const slot = state.slotPositions.find((s) => s.id === g.slot_id);
-        if (!slot) break;
-        navigatedFor.current = graveId;
         const slotId = g.slot_id;
+        if (!slot) {
+          // The grave record is enough to render its modal. Do not make a
+          // direct link (or its burn action) depend on Phaser asset loading.
+          timers.push(setTimeout(() => {
+            if (cancelled || activeModalRef.current) return;
+            navigatedFor.current = graveId;
+            dispatch({ type: 'OPEN_MODAL', id: createModalInstanceId(), modal: 'grave', data: { slotId } });
+          }, 500));
+          break;
+        }
+        navigatedFor.current = graveId;
         const wx = slot.x + slot.width / 2;
         const wy = slot.y + slot.height / 2;
         timers.push(setTimeout(() => {
