@@ -1,6 +1,7 @@
 # GRAVE Burn Offering — план запуска на Cemetery Map v1
 
-**Статус:** локальная реализация и production database migrations завершены 2026-08-21; activation ожидает RPC/env/deploy rollout.  
+**Статус:** код, production database migrations и выключенный Vercel preview
+завершены 2026-08-21; activation ожидает RPC/secrets и закрытый canary.  
 **Целевая поверхность:** `/cemetery`, Cemetery Map v1.  
 **Экономическая модель:** только burn offering.  
 **Следующий этап:** не начат; требуется отдельная команда владельца продукта.  
@@ -33,13 +34,30 @@
 - для обеих таблиц включены и принудительно применяются RLS;
 - созданы все 5 burn RPC; прямое чтение закрыто для `anon` и `authenticated`.
 
+Сделано в Vercel 2026-08-21:
+
+- ветка `codex/map2-unification` опубликована в GitHub;
+- preview deployment для commit `c3fb14e` получил статус `Ready`;
+- `/cemetery` успешно открывается в preview;
+- `WEB3_GRAVE_BURNS_ENABLED=false` и
+  `NEXT_PUBLIC_WEB3_GRAVE_BURNS_ENABLED=false` установлены для Production и
+  Preview, поэтому write API закрыт, а burn UI скрыт;
+- reverify cron изменён с пяти минут на ежедневный запуск в `03:00 UTC`, чтобы
+  deploy проходил на Vercel Hobby; обычный submit flow по-прежнему проверяет
+  транзакцию сразу.
+
 Ещё не сделано и требует production-доступа/решения владельца:
 
-- установить production RPC, cron/reverify secrets и оба feature flag;
-- задеплоить текущую ветку и выполнить закрытый smoke;
+- установить `BASE_RPC_URL`, `GRAVE_BURN_REVERIFY_SECRET` и `CRON_SECRET`;
+- создать branch-scoped Preview overrides с обоими feature flag в `true` и
+  выполнить закрытый smoke, не включая Production;
 - только после явного подтверждения владельца провести реальный canary burn на
   `1 GRAVE` с отдельного тестового кошелька;
 - после проверки BaseScan, Supabase и UI включить public flag.
+
+Операционный риск: Supabase dashboard показывает, что grace period по квоте
+закончился и проект может перестать обслуживать запросы после исчерпания
+лимита. Перед публичной активацией нужно проверить usage/billing.
 
 Ни seed phrase, ни private key передавать разработчикам или сохранять в env
 проекта не нужно: canary подписывается пользователем в подключённом кошельке.
