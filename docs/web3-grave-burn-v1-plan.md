@@ -1,11 +1,12 @@
 # GRAVE Burn Offering — план запуска на Cemetery Map v1
 
-**Статус:** burn-only код выделен 2026-08-21 в чистую ветку
-`codex/burn-v1-only` от `origin/master`; production flags остаются выключены.
+**Статус:** burn-only код выделен и опубликован 2026-08-21 в чистой ветке
+`codex/burn-v1-only` от `origin/master`; отдельный Vercel Preview имеет статус
+`Ready`, production flags остаются выключены.
 **Целевая поверхность:** `/cemetery`, Cemetery Map v1.  
 **Экономическая модель:** только burn offering.  
-**Следующий этап:** публикация проверенной чистой ветки и отдельный preview с
-выключенными burn flags; затем обновление одной Supabase RPC-функции.
+**Следующий этап:** повторно применить обновлённую Supabase migration для одной
+RPC-функции, затем настроить branch-scoped secrets/flags для закрытого smoke.
 **Техническая база:** существующая intent-bound реализация из
 [`docs/web3-grave-burn-mvp.md`](./web3-grave-burn-mvp.md).
 
@@ -60,8 +61,19 @@
   deploy проходил на Vercel Hobby; обычный submit flow по-прежнему проверяет
   транзакцию сразу.
 
-Для `codex/burn-v1-only` будет создан новый отдельный preview после полного
-regression gate. Старый preview нельзя продвигать в Production.
+Чистый Vercel Preview 2026-08-21:
+
+- GitHub branch: `codex/burn-v1-only`;
+- первый полностью проверенный code deployment: commit `50a21ad`;
+- deployment `7zCBuiiydgAqQAGHfHdosX39uT9C` получил статус `Ready` за 48 секунд;
+- стабильный branch URL:
+  `https://vibecemetery-git-codex-burn-v1-only-azats-projects-db37144a.vercel.app`;
+- Environment: `Preview`; production deployment и домен `vibecemetery.app`
+  не изменялись;
+- project-level burn flags для Production и Preview остаются `false`, поэтому
+  deployed write API закрыт, а burn UI скрыт до отдельного controlled smoke.
+
+Старый Map v2 preview нельзя продвигать в Production.
 
 Ещё не сделано и требует production-доступа/решения владельца:
 
