@@ -1,7 +1,9 @@
 # Supabase quota / billing risk
 
-**Статус:** отложено; решаем перед публичным включением burn.  
-**Зафиксировано:** 2026-08-22.  
+**Статус:** отложено; решаем перед публичным включением burn.
+
+**Зафиксировано:** 2026-08-22.
+
 **Проект:** `vibecemetery`, production branch `main`, project ref
 `lnyfogihvackjwhdvgzo`.
 
