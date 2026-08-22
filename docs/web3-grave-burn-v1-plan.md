@@ -5,8 +5,8 @@
 `Ready`, production flags остаются выключены.
 **Целевая поверхность:** `/cemetery`, Cemetery Map v1.  
 **Экономическая модель:** только burn offering.  
-**Следующий этап:** повторно применить обновлённую Supabase migration для одной
-RPC-функции, затем настроить branch-scoped secrets/flags для закрытого smoke.
+**Следующий этап:** настроить branch-scoped Vercel secrets/flags для закрытого
+smoke; production flags не включать.
 **Техническая база:** существующая intent-bound реализация из
 [`docs/web3-grave-burn-mvp.md`](./web3-grave-burn-mvp.md).
 
@@ -44,9 +44,14 @@ RPC-функции, затем настроить branch-scoped secrets/flags д
 - созданы пустые `grave_burn_intents` и `grave_burns`;
 - для обеих таблиц включены и принудительно применяются RLS;
 - созданы все 5 burn RPC; прямое чтение закрыто для `anon` и `authenticated`;
-- исходная `bind_grave_burn` пока имеет прежнюю сигнатуру. Перед включением
-  preview flag нужно повторно применить обновлённый
-  `docs/web3-grave-burn-mvp.sql`, который безопасно заменит только эту RPC.
+- 2026-08-22 повторно применён обновлённый
+  `docs/web3-grave-burn-mvp.sql`: новая 9-параметровая `bind_grave_burn`
+  активна, прежняя 8-параметровая перегрузка удалена;
+- post-migration audit: `bind_v2_count = 1`, `legacy_bind_count = 0`, timestamp
+  guard и `SECURITY DEFINER` включены, `anon`/`authenticated` execute запрещён,
+  `service_role` execute разрешён;
+- forced RLS подтверждён; `intent_count = 0`, `burn_count = 0`; все 9 graves
+  сохранены и имеют `map_version = 'v1'`.
 
 Исторический Vercel preview 2026-08-21:
 
@@ -101,8 +106,8 @@ RPC-функции, затем настроить branch-scoped secrets/flags д
 
 1. Код Next.js-приложения строго из ветки `codex/burn-v1-only` с Map v1 burn
    UI и API.
-2. Database schema: повторно применить обновлённый
-   `docs/web3-grave-burn-mvp.sql`; `graves.map_version` уже существует.
+2. Database schema: обновлённый `docs/web3-grave-burn-mvp.sql` уже применён;
+   `graves.map_version` и новая recovery-aware RPC существуют.
 3. Server/browser environment variables из раздела 8.
 4. Reverify cron из уже существующего `vercel.json`.
 
