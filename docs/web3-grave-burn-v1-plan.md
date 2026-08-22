@@ -4,8 +4,10 @@
 `codex/burn-v1-only` от `origin/master`; отдельный Vercel Preview имеет статус
 `Ready`. В Production оба burn-флага выключены. В Preview включён только
 серверный флаг, публичный UI остаётся скрыт.
-**Целевая поверхность:** `/cemetery`, Cemetery Map v1.  
-**Экономическая модель:** только burn offering.  
+**Целевая поверхность:** `/cemetery`, Cemetery Map v1.
+
+**Экономическая модель:** только burn offering.
+
 **Следующий этап:** агентная проверка Preview-only UI, закрытый негативный API
 smoke и независимая QA-проверка без реального перевода; Production не включать.
 **Техническая база:** существующая intent-bound реализация из
@@ -219,6 +221,49 @@ Canary burn на `1 GRAVE` остаётся заблокирован до реш
 [`docs/supabase-quota-risk.md`](./supabase-quota-risk.md), замены публичного RPC
 на выделенный endpoint и отдельного подтверждения владельца непосредственно
 перед транзакцией.
+
+### 0.4. Результат агентного этапа 2026-08-22
+
+Пункт 1 — Preview UI/Vercel выполнен до границы Phaser canvas:
+
+- `NEXT_PUBLIC_WEB3_GRAVE_BURNS_ENABLED=true` установлен только для Preview;
+- отдельное Production-значение сохранено как `false`;
+- остальные RPC/server flags/secrets не изменялись;
+- Preview deployment `CyWjnxZpiWKuaaRrTCEobt5M4F2F` для commit `e453f6f`
+  получил `Ready` за 47 секунд;
+- `/cemetery` загрузился, Vercel logs не содержат Warning/Error/Fatal и
+  `4xx`/`5xx`;
+- интерактивное открытие конкретной v1-могилы и отрицательные проверки
+  v2/meta/empty не подтверждены: могилы отрисованы внутри Phaser canvas без
+  устойчивого DOM-селектора;
+- кошелёк не подключался, подписи и транзакции не создавались.
+
+Пункт 2 — закрытый server/API smoke выполнен частично:
+
+- Base RPC вернул `eth_chainId = 0x2105` (`8453`);
+- fail-closed порядок проверок подтверждён по source;
+- 10 API/config тестов прошли;
+- Supabase после проверки: `grave_burn_intents = 0`, `grave_burns = 0`;
+- фактический live `POST` не отправлен: Browser security policy блокирует
+  программный same-origin fetch/переход до получения HTTP-ответа;
+- Vercel Authentication не отключалась и защита не ослаблялась, поэтому live
+  различие `400` против `503` остаётся незакрытым критерием.
+
+Пункт 3 — независимая QA выполнена:
+
+- burn/security unit tests: `42/42`;
+- TypeScript: passed;
+- ESLint: passed;
+- fake-wallet Web3 E2E: `1/1`, без реального RPC transfer;
+- рабочее дерево чистое;
+- найденные Markdown trailing spaces устранены после отчёта агента.
+
+Перед подключением кошелька остаются две ручные проверки в защищённом Preview:
+
+1. открыть реальную могилу v1 и подтвердить наличие burn-панели, затем проверить
+   отсутствие панели на v2/meta/empty;
+2. выполнить безопасный live negative API smoke штатным авторизованным способом
+   и получить ожидаемый `400`, не создавая intent.
 
 ## 1. Зафиксированное продуктовое решение
 
