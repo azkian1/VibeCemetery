@@ -1,12 +1,14 @@
 # GRAVE Burn Offering — план запуска на Cemetery Map v1
 
-**Статус:** burn-only код выделен и опубликован 2026-08-21 в чистой ветке
+**Статус:** burn-only код выделен и опубликован в чистой ветке
 `codex/burn-v1-only` от `origin/master`; отдельный Vercel Preview имеет статус
-`Ready`, production flags остаются выключены.
+`Ready`. В Production оба burn-флага выключены. В Preview включён только
+серверный флаг, публичный UI остаётся скрыт.
 **Целевая поверхность:** `/cemetery`, Cemetery Map v1.  
 **Экономическая модель:** только burn offering.  
-**Следующий этап:** настроить branch-scoped Vercel secrets/flags для закрытого
-smoke; production flags не включать.
+**Следующий этап:** закрытый API smoke в авторизованном Preview, затем отдельное
+подтверждение владельца перед включением UI и canary burn; Production не
+включать.
 **Техническая база:** существующая intent-bound реализация из
 [`docs/web3-grave-burn-mvp.md`](./web3-grave-burn-mvp.md).
 
@@ -30,7 +32,7 @@ smoke; production flags не включать.
   fake-wallet E2E прошли на чистой ветке;
 - production dependency audit после совместимых обновлений Next.js,
   NextAuth, PostCSS, Sharp и Nanoid: `0 vulnerabilities`;
-- полный unit suite: 416 тестов прошли, 3 несвязанных baseline-теста из
+- полный unit suite: 417 тестов прошли, 3 несвязанных baseline-теста из
   `origin/master` остаются красными без изменений в их файлах (line-ending
   fixture и устаревшие install-script manifest hashes).
 
@@ -78,13 +80,32 @@ smoke; production flags не включать.
 - project-level burn flags для Production и Preview остаются `false`, поэтому
   deployed write API закрыт, а burn UI скрыт до отдельного controlled smoke.
 
+Обновление Preview 2026-08-22:
+
+- для Environment `Preview` добавлен временный публичный
+  `BASE_RPC_URL=https://mainnet.base.org`; значение server-only и не попадает в
+  browser bundle;
+- прямой JSON-RPC smoke вернул `eth_chainId = 0x2105` (`8453`, Base Mainnet);
+- для Preview сгенерированы и сохранены sensitive
+  `GRAVE_BURN_REVERIFY_SECRET` и `CRON_SECRET` с одинаковым значением;
+- `WEB3_GRAVE_BURNS_ENABLED=false` сохранён отдельно для Production, а для
+  Preview создано значение `true`;
+- `NEXT_PUBLIC_WEB3_GRAVE_BURNS_ENABLED=false` не менялся, поэтому burn UI
+  остаётся скрыт и случайный перевод токенов невозможен;
+- deployment `8pLAyGYp9ZxqSyeRoiraM2pZqpj8` для commit `9572bd4` получил статус
+  `Ready` за 48 секунд; Production deployment и домен не изменялись;
+- реальных intent, burn-записей и переводов токена не создавалось.
+
 Старый Map v2 preview нельзя продвигать в Production.
 
-Ещё не сделано и требует production-доступа/решения владельца:
+Ещё не сделано и требует решения владельца:
 
-- установить `BASE_RPC_URL`, `GRAVE_BURN_REVERIFY_SECRET` и `CRON_SECRET`;
-- создать branch-scoped Preview overrides с обоими feature flag в `true` и
-  выполнить закрытый smoke, не включая Production;
+- заменить временный публичный Base RPC на выделенный Ankr endpoint перед
+  production rollout;
+- завершить закрытый API smoke в защищённом Vercel Preview, не включая
+  публичный UI;
+- включить `NEXT_PUBLIC_WEB3_GRAVE_BURNS_ENABLED=true` только в Preview после
+  закрытого smoke;
 - только после явного подтверждения владельца провести реальный canary burn на
   `1 GRAVE` с отдельного тестового кошелька;
 - после проверки BaseScan, Supabase и UI включить public flag.
