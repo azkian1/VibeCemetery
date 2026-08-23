@@ -2,14 +2,15 @@
 
 **Статус:** burn-only код выделен и опубликован в чистой ветке
 `codex/burn-v1-only` от `origin/master`; отдельный Vercel Preview имеет статус
-`Ready`. В Production оба burn-флага выключены. В Preview включён только
-серверный флаг, публичный UI остаётся скрыт.
+`Ready`. В Production оба burn-флага выключены. В защищённом Preview включены
+серверный флаг и UI-флаг; реальных intent, burn-записей и переводов не было.
 **Целевая поверхность:** `/cemetery`, Cemetery Map v1.
 
 **Экономическая модель:** только burn offering.
 
-**Следующий этап:** агентная проверка Preview-only UI, закрытый негативный API
-smoke и независимая QA-проверка без реального перевода; Production не включать.
+**Следующий этап:** вручную закрыть Preview UI/API acceptance criteria, решить
+риск Supabase и заменить временный публичный RPC; реальный перевод и Production
+не включать без отдельного решения владельца.
 **Техническая база:** существующая intent-bound реализация из
 [`docs/web3-grave-burn-mvp.md`](./web3-grave-burn-mvp.md).
 
@@ -78,8 +79,9 @@ smoke и независимая QA-проверка без реального п
   `https://vibecemetery-git-codex-burn-v1-only-azats-projects-db37144a.vercel.app`;
 - Environment: `Preview`; production deployment и домен `vibecemetery.app`
   не изменялись;
-- project-level burn flags для Production и Preview остаются `false`, поэтому
-  deployed write API закрыт, а burn UI скрыт до отдельного controlled smoke.
+- на момент этого первого чистого deployment project-level burn flags для
+  Production и Preview оставались `false`, поэтому write API был закрыт, а burn
+  UI скрыт. Последующее включение только для Preview описано в разделе 0.4.
 
 Обновление Preview 2026-08-22:
 
@@ -91,8 +93,9 @@ smoke и независимая QA-проверка без реального п
   `GRAVE_BURN_REVERIFY_SECRET` и `CRON_SECRET` с одинаковым значением;
 - `WEB3_GRAVE_BURNS_ENABLED=false` сохранён отдельно для Production, а для
   Preview создано значение `true`;
-- `NEXT_PUBLIC_WEB3_GRAVE_BURNS_ENABLED=false` не менялся, поэтому burn UI
-  остаётся скрыт и случайный перевод токенов невозможен;
+- на этом промежуточном deployment
+  `NEXT_PUBLIC_WEB3_GRAVE_BURNS_ENABLED=false` ещё не менялся, поэтому burn UI
+  оставался скрыт. Последующее Preview-only включение описано в разделе 0.4;
 - deployment `8pLAyGYp9ZxqSyeRoiraM2pZqpj8` для commit `9572bd4` получил статус
   `Ready` за 48 секунд; Production deployment и домен не изменялись;
 - реальных intent, burn-записей и переводов токена не создавалось.
@@ -101,15 +104,16 @@ smoke и независимая QA-проверка без реального п
 
 Ещё не сделано и требует решения владельца:
 
+- закрыть Supabase quota/billing risk до любой реальной транзакции;
 - заменить временный публичный Base RPC на выделенный Ankr endpoint перед
-  production rollout;
-- завершить закрытый API smoke в защищённом Vercel Preview, не включая
-  публичный UI;
-- включить `NEXT_PUBLIC_WEB3_GRAVE_BURNS_ENABLED=true` только в Preview после
-  закрытого smoke;
+  canary и production rollout;
+- вручную подтвердить burn-панель на реальной могиле v1 и её отсутствие на
+  v2/meta/empty;
+- завершить безопасный негативный API smoke в защищённом Vercel Preview и
+  получить ожидаемый `400` без создания intent;
 - только после явного подтверждения владельца провести реальный canary burn на
   `1 GRAVE` с отдельного тестового кошелька;
-- после проверки BaseScan, Supabase и UI включить public flag.
+- после проверки BaseScan, Supabase и UI отдельно решить вопрос Production.
 
 Операционный риск Supabase по окончанию grace period и возможному исчерпанию
 квоты вынесен в отдельный документ:
@@ -147,6 +151,19 @@ smoke и независимая QA-проверка без реального п
 В текущем MVP `Connect Wallet` находится внутри `GraveBurnPanel` в модалке
 конкретной реальной могилы. Это action-scoped подключение: пользователь
 подключает кошелёк только при намерении сделать offering.
+
+В панель уже реализованы:
+
+- `Connect Wallet` и отображение подключённого адреса;
+- `Wrong network — Switch to Base`;
+- preset-кнопки `100`, `500`, `10 000 GRAVE` и custom amount;
+- `Burn Offering`, статусы подписи/перевода/проверки и ссылка на BaseScan;
+- verified total и Top Mourners для выбранной могилы.
+
+Панель монтируется только на Map v1 для реальной могилы со `slotId` и только
+при `NEXT_PUBLIC_WEB3_GRAVE_BURNS_ENABLED=true`. В текущем защищённом Preview
+условие флага выполнено; ручное открытие конкретной могилы остаётся acceptance
+check из-за Phaser canvas.
 
 В `ProfileModal`, TopBar и других глобальных поверхностях Connect Wallet на
 этом этапе не добавляется. Подключённый wallet не заменяет GitHub/NextAuth
@@ -238,6 +255,12 @@ Canary burn на `1 GRAVE` остаётся заблокирован до реш
   устойчивого DOM-селектора;
 - кошелёк не подключался, подписи и транзакции не создавались.
 
+После фиксации результатов commit `786d565` автоматически получил отдельный
+Preview deployment `H5dWWrndejdmvJUmUqHAyB17akXg` со статусом `Ready` за 24
+секунды. URL `/cemetery` открывается в авторизованной Preview-сессии. В Vercel
+подтверждены раздельные scopes: Preview и Production для обоих burn-флагов;
+значения Preview — `true`, Production — `false`.
+
 Пункт 2 — закрытый server/API smoke выполнен частично:
 
 - Base RPC вернул `eth_chainId = 0x2105` (`8453`);
@@ -258,12 +281,23 @@ Canary burn на `1 GRAVE` остаётся заблокирован до реш
 - рабочее дерево чистое;
 - найденные Markdown trailing spaces устранены после отчёта агента.
 
-Перед подключением кошелька остаются две ручные проверки в защищённом Preview:
+Перед реальной транзакцией остаются следующие обязательные шаги:
 
 1. открыть реальную могилу v1 и подтвердить наличие burn-панели, затем проверить
    отсутствие панели на v2/meta/empty;
 2. выполнить безопасный live negative API smoke штатным авторизованным способом
-   и получить ожидаемый `400`, не создавая intent.
+   и получить ожидаемый `400`, не создавая intent;
+3. закрыть Supabase quota/billing risk;
+4. заменить временный публичный Base RPC на выделенный Ankr endpoint;
+5. получить отдельное явное подтверждение владельца непосредственно перед
+   canary burn на `1 GRAVE`.
+
+Повторный аудит 2026-08-23 после агентного этапа подтвердил: профильные тесты
+`42/42`, TypeScript, ESLint и fake-wallet E2E `1/1` проходят; branch diff и
+рабочее дерево до обновления документации были чистыми; Supabase по-прежнему
+содержит `intent_count = 0`, `burn_count = 0`. Критических дефектов в burn-коде
+не найдено. Незакрытые пункты выше являются acceptance/operations blockers, а
+не подтверждёнными ошибками реализации.
 
 ## 1. Зафиксированное продуктовое решение
 

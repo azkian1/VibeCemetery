@@ -1,6 +1,7 @@
 # Supabase quota / billing risk
 
-**Статус:** отложено; решаем перед публичным включением burn.
+**Статус:** активный операционный блокер; решаем до canary burn и любого
+Production-включения.
 
 **Зафиксировано:** 2026-08-22.
 
@@ -41,9 +42,17 @@ On-chain перевод при этом не откатывается, поэт�
 ## Текущая защита
 
 - Production: `WEB3_GRAVE_BURNS_ENABLED=false`;
-- Production и Preview: `NEXT_PUBLIC_WEB3_GRAVE_BURNS_ENABLED=false`;
+- Production: `NEXT_PUBLIC_WEB3_GRAVE_BURNS_ENABLED=false`;
+- защищённый Vercel Preview: `WEB3_GRAVE_BURNS_ENABLED=true` и
+  `NEXT_PUBLIC_WEB3_GRAVE_BURNS_ENABLED=true`;
+- Preview закрыт Vercel Authentication и не является публичной активацией;
 - реальные burn-транзакции не проводятся;
 - публичный Base RPC используется только временно в Preview.
+
+Preview UI уже может показать `Connect Wallet` и `Burn Offering` в модалке
+реальной могилы v1. Это не снимает блокировку canary: подтверждать перевод
+нельзя до закрытия quota/billing risk, замены RPC и отдельного разрешения
+владельца непосредственно перед транзакцией.
 
 ## Что проверить позже
 
