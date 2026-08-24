@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import { useConnection } from 'wagmi'
 import StoneButton from '@/components/ui/StoneButton'
 import WalletButton from '@/components/web3/WalletButton'
@@ -47,6 +48,9 @@ function EnabledGraveBurnPanel({
 }) {
   const connection = useConnection()
   const burn = useGraveBurn({ graveId, slotId })
+  const [expanded, setExpanded] = useState(false)
+  const [usingMax, setUsingMax] = useState(false)
+  const controlsId = `grave-burn-controls-${graveId}`
 
   const ready =
     connection.status === 'connected'
@@ -67,24 +71,46 @@ function EnabledGraveBurnPanel({
         background: 'linear-gradient(180deg, rgba(95,55,35,0.12), rgba(0,0,0,0.18))',
       }}
     >
-      <div style={{ textAlign: 'center', marginBottom: 10 }}>
+      <div style={{ textAlign: 'center' }}>
         <span style={{ color: '#c8a050', fontSize: 11, letterSpacing: 1.5, textTransform: 'uppercase' }}>
-          Grave Offering
+          BURN $GRAVE
         </span>
-        <p style={{ margin: '5px 0 0', color: '#77736a', fontSize: 11, lineHeight: 1.4 }}>
-          Irreversibly transfers GRAVE to the dead address on Base. This removes the
-          tokens from circulation but does not reduce the token&apos;s totalSupply.
-        </p>
-        <div style={{ marginTop: 7, color: '#625f58', fontSize: 10, lineHeight: 1.45 }}>
-          <div>Token: GRAVE · {GRAVE_TOKEN_ADDRESS}</div>
-          <div>Destination: {GRAVE_BURN_ADDRESS}</div>
-        </div>
-        <p style={{ margin: '6px 0 0', color: '#625f58', fontSize: 10, lineHeight: 1.4 }}>
-          Your wallet and optional GitHub display name become public after independent verification.
+        <p aria-live="polite" style={{ margin: '6px 0 10px', color: '#aaa296', fontSize: 13, lineHeight: 1.3 }}>
+          <strong style={{ color: '#d7b96e' }}>
+            {burn.statsLoading ? '…' : burn.stats.totalBurnedDisplay}
+          </strong>
+          {' GRAVE BURNED'}
         </p>
       </div>
 
-      <WalletButton disabled={burn.busy} />
+      <StoneButton
+        type="button"
+        aria-expanded={expanded}
+        aria-controls={controlsId}
+        aria-label={expanded ? 'Collapse burn controls' : 'Expand burn controls'}
+        disabled={burn.busy}
+        onClick={() => setExpanded((current) => !current)}
+        style={{ width: '100%' }}
+      >
+        BURN
+      </StoneButton>
+
+      {expanded && (
+        <div id={controlsId} style={{ marginTop: 12 }}>
+          <p style={{ margin: '0', color: '#77736a', fontSize: 11, lineHeight: 1.4, textAlign: 'center' }}>
+            Irreversibly transfers GRAVE to the dead address on Base. This removes the
+            tokens from circulation but does not reduce the token&apos;s totalSupply.
+          </p>
+          <div style={{ marginTop: 7, color: '#625f58', fontSize: 10, lineHeight: 1.45, textAlign: 'center' }}>
+            <div style={{ overflowWrap: 'anywhere' }}>Token: GRAVE · {GRAVE_TOKEN_ADDRESS}</div>
+            <div style={{ color: '#aaa296', fontSize: 11, overflowWrap: 'anywhere' }}>
+              Destination: {GRAVE_BURN_ADDRESS}
+            </div>
+          </div>
+          <p style={{ margin: '6px 0 10px', color: '#625f58', fontSize: 10, lineHeight: 1.4, textAlign: 'center' }}>
+            Your wallet and optional GitHub display name become public after independent verification.
+          </p>
+          <WalletButton disabled={burn.busy} />
 
       {connection.status === 'connected' && connection.chainId === GRAVE_CHAIN_ID && (
         <>
@@ -92,7 +118,7 @@ function EnabledGraveBurnPanel({
             disabled={burn.busy}
             style={{ border: 0, padding: 0, margin: '12px 0 0' }}
           >
-            <legend style={{ fontSize: 11, color: '#77736a', marginBottom: 6 }}>
+            <legend style={{ width: '100%', fontSize: 11, color: '#77736a', marginBottom: 6, textAlign: 'center' }}>
               Choose an offering amount
             </legend>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
@@ -100,9 +126,10 @@ function EnabledGraveBurnPanel({
                 <StoneButton
                   key={amount}
                   type="button"
-                  active={!burn.usingCustom && burn.amountWhole === amount}
+                  active={!usingMax && !burn.usingCustom && burn.amountWhole === amount}
                   aria-label={`Offer ${Number(amount).toLocaleString('en-US')} GRAVE`}
                   onClick={() => {
+                    setUsingMax(false)
                     burn.setUsingCustom(false)
                     burn.setAmountWhole(amount)
                   }}
@@ -110,10 +137,26 @@ function EnabledGraveBurnPanel({
                   {Number(amount).toLocaleString('en-US')}
                 </StoneButton>
               ))}
+              <StoneButton
+                type="button"
+                active={usingMax}
+                aria-label={burn.maxAmountWhole
+                  ? `Offer maximum ${burn.maxAmountWhole} GRAVE`
+                  : 'Maximum GRAVE unavailable'}
+                disabled={burn.busy || burn.maxAmountWhole === null}
+                onClick={() => {
+                  if (burn.maxAmountWhole === null) return
+                  setUsingMax(true)
+                  burn.setUsingCustom(false)
+                  burn.setAmountWhole(burn.maxAmountWhole)
+                }}
+              >
+                MAX
+              </StoneButton>
             </div>
             <label
               htmlFor={`grave-burn-custom-${graveId}`}
-              style={{ display: 'block', marginTop: 8, fontSize: 11, color: '#77736a' }}
+              style={{ display: 'block', marginTop: 8, fontSize: 11, color: '#77736a', textAlign: 'center' }}
             >
               Custom GRAVE amount
             </label>
@@ -123,8 +166,12 @@ function EnabledGraveBurnPanel({
               inputMode="numeric"
               pattern="[1-9][0-9]*"
               value={burn.customAmount}
-              onFocus={() => burn.setUsingCustom(true)}
+              onFocus={() => {
+                setUsingMax(false)
+                burn.setUsingCustom(true)
+              }}
               onChange={(event) => {
+                setUsingMax(false)
                 burn.setUsingCustom(true)
                 burn.setCustomAmount(event.target.value)
               }}
@@ -138,6 +185,7 @@ function EnabledGraveBurnPanel({
                 border: `1px solid ${burn.usingCustom && burn.amountRaw === null ? '#7f493e' : '#3b342b'}`,
                 borderRadius: 4,
                 fontFamily: 'monospace',
+                textAlign: 'center',
               }}
             />
           </fieldset>
@@ -160,12 +208,12 @@ function EnabledGraveBurnPanel({
 
           <StoneButton
             type="button"
-            aria-label="Burn offering"
+            aria-label="BURN $GRAVE"
             disabled={!ready}
             onClick={() => void burn.burn()}
             style={{ width: '100%' }}
           >
-            {burn.busy ? STATE_COPY[burn.state] : 'Burn Offering'}
+            {burn.busy ? STATE_COPY[burn.state] : 'BURN $GRAVE'}
           </StoneButton>
 
           {burn.hasPendingTransfer && burn.state === 'failed' && (
@@ -216,25 +264,22 @@ function EnabledGraveBurnPanel({
         </a>
       )}
 
-      <div style={{ marginTop: 13, borderTop: '1px solid #2d2822', paddingTop: 10 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', color: '#77736a', fontSize: 11 }}>
-          <span>Verified offerings</span>
-          <strong style={{ color: '#c8a050' }}>
-            {burn.statsLoading ? '…' : `${burn.stats.totalBurnedDisplay} GRAVE`}
-          </strong>
+      {burn.stats.topMourners.length > 0 && (
+        <div style={{ marginTop: 13, borderTop: '1px solid #2d2822', paddingTop: 10 }}>
+            <div style={{ color: '#77736a', fontSize: 11, textAlign: 'center' }}>Top mourners</div>
+            <ol style={{ margin: '8px 0 0', paddingLeft: 20, color: '#77736a', fontSize: 11 }}>
+              {burn.stats.topMourners.map((mourner) => (
+                <li key={mourner.walletAddress} style={{ marginTop: 3 }}>
+                  <span style={{ color: '#aaa296' }}>{mourner.displayName}</span>
+                  {' — '}
+                  {mourner.amountDisplay} GRAVE
+                </li>
+              ))}
+            </ol>
         </div>
-        {burn.stats.topMourners.length > 0 && (
-          <ol style={{ margin: '8px 0 0', paddingLeft: 20, color: '#77736a', fontSize: 11 }}>
-            {burn.stats.topMourners.map((mourner) => (
-              <li key={mourner.walletAddress} style={{ marginTop: 3 }}>
-                <span style={{ color: '#aaa296' }}>{mourner.displayName}</span>
-                {' — '}
-                {mourner.amountDisplay} GRAVE
-              </li>
-            ))}
-          </ol>
-        )}
-      </div>
+      )}
+        </div>
+      )}
     </section>
   )
 }

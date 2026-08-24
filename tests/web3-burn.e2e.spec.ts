@@ -5,7 +5,7 @@ const intentId = '11111111-1111-4111-8111-111111111111'
 const wallet = '0x1111111111111111111111111111111111111111'
 const txHash = `0x${'ab'.repeat(32)}`
 const signature = `0x${'34'.repeat(65)}`
-const amountRaw = (100n * 10n ** 18n).toString()
+const amountRaw = (1000n * 10n ** 18n).toString()
 
 test('injected wallet completes a stubbed verified Map v1 burn offering', async ({ page }) => {
   await page.addInitScript(({ walletAddress, hash, signed }) => {
@@ -143,14 +143,14 @@ test('injected wallet completes a stubbed verified Map v1 burn offering', async 
     if (url.pathname === `/api/graves/${graveId}/burns` && request.method() === 'GET') {
       return json({
         totalBurnedRaw: verified ? amountRaw : '0',
-        totalBurnedDisplay: verified ? '100' : '0',
+        totalBurnedDisplay: verified ? '1000' : '0',
         burnCount: verified ? 1 : 0,
         topMourners: verified ? [{
           walletAddress: wallet,
           displayName: '0x1111…1111',
           githubUsername: null,
           amountRaw,
-          amountDisplay: '100',
+          amountDisplay: '1000',
           source: 'wallet',
         }] : [],
       })
@@ -159,12 +159,15 @@ test('injected wallet completes a stubbed verified Map v1 burn offering', async 
   })
 
   await page.goto(`/cemetery?grave=${graveId}`)
+  await expect(page.getByText('0 GRAVE BURNED', { exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Connect wallet' })).toBeHidden()
+  await page.getByRole('button', { name: 'Expand burn controls' }).click()
   await expect(page.getByRole('button', { name: 'Connect wallet' })).toBeVisible()
   await page.getByRole('button', { name: 'Connect wallet' }).click()
   await expect(page.getByRole('button', { name: 'Switch to Base' })).toBeVisible()
   await page.getByRole('button', { name: 'Switch to Base' }).click()
-  await expect(page.getByRole('button', { name: 'Burn offering' })).toBeEnabled()
-  await page.getByRole('button', { name: 'Burn offering' }).click()
+  await expect(page.getByRole('button', { name: 'BURN $GRAVE' })).toBeEnabled()
+  await page.getByRole('button', { name: 'BURN $GRAVE' }).click()
   await expect(page.getByText('Ritual accepted')).toBeVisible()
-  await expect(page.getByText('100 GRAVE', { exact: true })).toBeVisible()
+  await expect(page.getByText('1000 GRAVE BURNED', { exact: true })).toBeVisible()
 })

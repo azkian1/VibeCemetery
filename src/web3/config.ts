@@ -3,8 +3,14 @@ export const GRAVE_TOKEN_ADDRESS = '0xb48bc4896D18724F7bF5A3d2817fC35252cD7bA3' 
 export const GRAVE_TOKEN_SYMBOL = 'GRAVE'
 export const GRAVE_TOKEN_DECIMALS = 18
 export const GRAVE_BURN_ADDRESS = '0x000000000000000000000000000000000000dEaD' as const
-export const GRAVE_BURN_PRESETS = ['100', '500', '10000'] as const
+export const GRAVE_BURN_PRESETS = ['1000', '5000'] as const
 export const MIN_BURN_CONFIRMATIONS = 2
+
+export function maxWholeGraveAmount(balanceRaw: bigint | null | undefined): string | null {
+  if (typeof balanceRaw !== 'bigint' || balanceRaw <= 0n) return null
+  const wholeBalance = balanceRaw / (10n ** BigInt(GRAVE_TOKEN_DECIMALS))
+  return wholeBalance > 0n ? wholeBalance.toString() : null
+}
 
 export const GRAVE_BURN_INTENT_DOMAIN_NAME = 'VibeCemetery Grave Offering'
 export const GRAVE_BURN_INTENT_DOMAIN_VERSION = '1'

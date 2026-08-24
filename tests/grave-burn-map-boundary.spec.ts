@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test'
 import fs from 'node:fs'
 import path from 'node:path'
+import { GRAVE_BURN_PRESETS, maxWholeGraveAmount } from '../src/web3/config'
 
 const root = path.resolve(__dirname, '..')
 
@@ -44,6 +45,28 @@ test('offering copy discloses irreversible transfer semantics and fixed addresse
   expect(panel).toContain('does not reduce the token&apos;s totalSupply')
   expect(panel).toContain('GRAVE_TOKEN_ADDRESS')
   expect(panel).toContain('GRAVE_BURN_ADDRESS')
+})
+
+test('burn controls are compact by default and expose the requested labels', () => {
+  const panel = fs.readFileSync(
+    path.join(root, 'src/components/modals/grave/GraveBurnPanel.tsx'),
+    'utf8',
+  )
+  expect(panel).toContain('const [expanded, setExpanded] = useState(false)')
+  expect(panel).toContain('BURN $GRAVE')
+  expect(panel).toContain('GRAVE BURNED')
+  expect(panel).toContain('aria-expanded={expanded}')
+  expect(panel).toContain('Destination: {GRAVE_BURN_ADDRESS}')
+})
+
+test('burn presets and MAX use only safe whole-token amounts', () => {
+  expect(GRAVE_BURN_PRESETS).toEqual(['1000', '5000'])
+  expect(maxWholeGraveAmount(undefined)).toBeNull()
+  expect(maxWholeGraveAmount(null)).toBeNull()
+  expect(maxWholeGraveAmount(0n)).toBeNull()
+  expect(maxWholeGraveAmount(999_999_999_999_999_999n)).toBeNull()
+  expect(maxWholeGraveAmount(1_999_999_999_999_999_999n)).toBe('1')
+  expect(maxWholeGraveAmount(5_000n * 10n ** 18n)).toBe('5000')
 })
 
 test('pending polling owns an abort controller and cleans it up', () => {

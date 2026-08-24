@@ -14,10 +14,12 @@ import { graveTokenAbi } from './abi'
 import {
   BASE_EXPLORER_TX_URL,
   GRAVE_BURN_ADDRESS,
+  GRAVE_BURN_PRESETS,
   GRAVE_BURN_VERIFICATION_GRACE_MS,
   GRAVE_CHAIN_ID,
   GRAVE_TOKEN_ADDRESS,
   GRAVE_TOKEN_DECIMALS,
+  maxWholeGraveAmount,
 } from './config'
 
 class BurnApiError extends Error {
@@ -165,7 +167,7 @@ export function useGraveBurn({
   const connection = useConnection()
   const { signTypedDataAsync } = useSignTypedData()
   const { writeContractAsync } = useWriteContract()
-  const [amountWhole, setAmountWhole] = useState('100')
+  const [amountWhole, setAmountWhole] = useState<string>(GRAVE_BURN_PRESETS[0])
   const [customAmount, setCustomAmount] = useState('')
   const [usingCustom, setUsingCustom] = useState(false)
   const [state, setState] = useState<GraveBurnUiState>('idle')
@@ -489,6 +491,7 @@ export function useGraveBurn({
     usingCustom,
     setUsingCustom,
     amountRaw,
+    maxAmountWhole: maxWholeGraveAmount(balance.data),
     balanceDisplay:
       typeof balance.data === 'bigint'
         ? formatUnits(balance.data, GRAVE_TOKEN_DECIMALS)
