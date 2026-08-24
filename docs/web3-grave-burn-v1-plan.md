@@ -107,7 +107,6 @@
 
 Ещё не сделано и требует решения владельца:
 
-- опубликовать исправление recovery flow от повторного перевода в новый Preview;
 - вручную подтвердить burn-панель на реальной могиле v1 и её отсутствие на
   v2/meta/empty;
 - только после явного подтверждения владельца провести реальный canary burn на
@@ -311,6 +310,10 @@ Preview deployment `H5dWWrndejdmvJUmUqHAyB17akXg` со статусом `Ready` 
 - это подтверждает доступность server flag и синтаксически валидного RPC URL.
   Проверка конкретного Ankr API key через реальный `eth_chainId` остаётся частью
   canary preflight, потому что sensitive value не извлекалась из Vercel.
+- исправление recovery flow опубликовано commit `4083bee`; deployment
+  `dpl_DL62ctGugZJTWcxxfxyEBTS7hLfL` имеет target `preview` и статус `Ready`:
+  `https://vibecemetery-6ui982q4k-azats-projects-db37144a.vercel.app`;
+- branch alias переключён на этот deployment; Production не изменялась.
 
 По Supabase Dashboard зафиксирован большой запас Free Plan: database около
 `6%`, cached egress `3%`, обычный egress и storage менее `1%`. Поэтому quota
@@ -328,8 +331,8 @@ wallet-транзакции временный сбой API мог скрыть 
 
 После исправления прошли 43 профильных burn/security теста, TypeScript, ESLint и
 fake-wallet E2E `1/1`. Локальная сборка компилируется и проходит TypeScript;
-полная page generation требует реальные общие Supabase/GitHub build env и
-окончательно проверяется Vercel Preview build без извлечения sensitive values.
+полная сборка с реальными общими build env подтверждена успешным Vercel Preview
+без извлечения sensitive values в локальную среду.
 
 ## 1. Зафиксированное продуктовое решение
 
