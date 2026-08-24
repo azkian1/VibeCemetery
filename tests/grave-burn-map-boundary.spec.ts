@@ -70,6 +70,15 @@ test('burn presets and MAX use only safe whole-token amounts', () => {
   expect(maxWholeGraveAmount(999_999_999_999_999_999n)).toBeNull()
   expect(maxWholeGraveAmount(1_999_999_999_999_999_999n)).toBe('1')
   expect(maxWholeGraveAmount(5_000n * 10n ** 18n)).toBe('5000')
+  expect(maxWholeGraveAmount(7_218_756n * 10n ** 18n)).toBe('7218756')
+})
+
+test('Supabase reads uint256-sized numeric columns as text', () => {
+  const store = fs.readFileSync(path.join(root, 'src/lib/web3/burnStore.ts'), 'utf8')
+
+  expect(store).toContain("'amount_raw::text'")
+  expect(store).toContain('.select<string, DbRow>(INTENT_SELECT)')
+  expect(store).toContain('.select<string, DbRow>(BURN_SELECT)')
 })
 
 test('pending polling owns an abort controller and cleans it up', () => {

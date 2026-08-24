@@ -93,6 +93,49 @@ export interface GraveBurnStore {
 
 type DbRow = Record<string, unknown>
 
+// PostgREST otherwise serializes numeric(78, 0) as a JSON number. Once the
+// value reaches 1e21, JSON.parse turns it into an imprecise JS Number and
+// String(value) may produce scientific notation, which viem cannot encode as
+// uint256. Select uint256-sized values as text at the database edge.
+const INTENT_SELECT = [
+  'id',
+  'grave_id',
+  'wallet_address',
+  'github_username',
+  'amount_raw::text',
+  'chain_id',
+  'token_address',
+  'burn_address',
+  'nonce',
+  'status',
+  'signature',
+  'authorized_block_number::text',
+  'authorized_block_hash',
+  'authorization_verified_at',
+  'expires_at',
+  'authorized_at',
+  'consumed_at',
+  'created_at',
+].join(',')
+
+const BURN_SELECT = [
+  'id',
+  'intent_id',
+  'grave_id',
+  'wallet_address',
+  'github_username',
+  'tx_hash',
+  'amount_raw::text',
+  'status',
+  'block_number::text',
+  'block_hash',
+  'log_index',
+  'submitted_at',
+  'verified_at',
+  'last_checked_at',
+  'created_at',
+].join(',')
+
 function asNullableString(value: unknown): string | null {
   return value == null ? null : String(value)
 }
@@ -174,7 +217,7 @@ export class SupabaseGraveBurnStore implements GraveBurnStore {
         expires_at: input.expiresAt,
         created_at: input.createdAt,
       })
-      .select('*')
+      .select<string, DbRow>(INTENT_SELECT)
       .single()
 
     if (error) throw error
@@ -184,7 +227,7 @@ export class SupabaseGraveBurnStore implements GraveBurnStore {
   async getIntent(graveId: string, intentId: string): Promise<GraveBurnIntentRecord | null> {
     const { data, error } = await supabaseAdmin
       .from('grave_burn_intents')
-      .select('*')
+      .select<string, DbRow>(INTENT_SELECT)
       .eq('id', intentId)
       .eq('grave_id', graveId)
       .maybeSingle()
@@ -263,7 +306,7 @@ export class SupabaseGraveBurnStore implements GraveBurnStore {
   async getBurnByIntent(intentId: string): Promise<GraveBurnRecord | null> {
     const { data, error } = await supabaseAdmin
       .from('grave_burns')
-      .select('*')
+      .select<string, DbRow>(BURN_SELECT)
       .eq('intent_id', intentId)
       .maybeSingle()
     if (error) throw error
@@ -300,7 +343,7 @@ export class SupabaseGraveBurnStore implements GraveBurnStore {
   }>> {
     const { data: burns, error } = await supabaseAdmin
       .from('grave_burns')
-      .select('*')
+      .select<string, DbRow>(BURN_SELECT)
       .in('status', ['pending', 'verified'])
       .order('last_checked_at', { ascending: true })
       .limit(limit)
@@ -310,7 +353,7 @@ export class SupabaseGraveBurnStore implements GraveBurnStore {
     const intentIds = burns.map((burn) => String(burn.intent_id))
     const { data: intents, error: intentsError } = await supabaseAdmin
       .from('grave_burn_intents')
-      .select('*')
+      .select<string, DbRow>(INTENT_SELECT)
       .in('id', intentIds)
     if (intentsError) throw intentsError
 
