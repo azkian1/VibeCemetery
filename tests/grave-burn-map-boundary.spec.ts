@@ -54,6 +54,24 @@ test('pending polling owns an abort controller and cleans it up', () => {
   expect(hook).toContain('signal,')
 })
 
+test('a submitted wallet transfer cannot silently trigger a second burn', () => {
+  const hook = fs.readFileSync(path.join(root, 'src/web3/useGraveBurn.ts'), 'utf8')
+  const panel = fs.readFileSync(
+    path.join(root, 'src/components/modals/grave/GraveBurnPanel.tsx'),
+    'utf8',
+  )
+  expect(hook).toContain('setExplorerUrl(`${BASE_EXPLORER_TX_URL}${hash}`)')
+  expect(hook).toContain('setPendingTransfer(submittedTransfer)')
+  expect(hook).toContain('saveStoredPendingTransfer')
+  expect(hook).toContain('Verification must continue without it')
+  expect(hook).toContain('parseStoredPendingTransfer')
+  expect(hook).toContain('isRetryableSubmissionError')
+  expect(panel).toContain('!burn.hasPendingTransfer')
+  expect(panel).toContain('Do not send another offering')
+  expect(panel).toContain('Retry Verification')
+  expect(panel).toContain('Clear only after checking BaseScan')
+})
+
 test('client submits only intentId and txHash after the transfer', () => {
   const hook = fs.readFileSync(path.join(root, 'src/web3/useGraveBurn.ts'), 'utf8')
   expect(hook).toContain('JSON.stringify({ intentId, txHash: hash })')

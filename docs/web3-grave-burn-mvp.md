@@ -226,6 +226,12 @@ Rules:
 - A local successful wallet response does not increment any public total.
   Only a `verified` server response does.
 - Link to the configured Base explorer for a submitted transaction.
+- Create that explorer link immediately after the wallet returns a transaction
+  hash; it must not depend on the application server accepting the hash.
+- Persist a grave-and-wallet-scoped recovery record after transaction
+  submission. While it exists, block a second Burn and offer retry of the same
+  `intentId + txHash`. Clearing it must be an explicit action after checking the
+  explorer.
 
 ## 7. Browser dependencies and provider
 
@@ -616,6 +622,9 @@ wallet`, `Switch to Base`, `Offer 100 GRAVE`, `Custom GRAVE amount`, and
 - the exact fixed token/burn address is used in the write request;
 - verified response refreshes stats and emits one `highlight_slot` event;
 - pending response does not increase visible public totals.
+- a temporary network/`429`/`5xx` after wallet submission retries the same hash,
+  keeps the explorer link visible, and cannot enable a second transfer;
+- remounting the modal restores the locally saved recovery record.
 
 ### Regression gates
 
@@ -686,3 +695,6 @@ Operationally, preserve these rules:
 - public stats come only from `status = 'verified'`;
 - the public flag must be checked before any Wagmi hook renders;
 - closing or replacing a grave modal must abort its polling flow.
+- after a wallet returns `txHash`, save local recovery state, show BaseScan
+  immediately, and never offer another Burn until that state is verified or
+  explicitly cleared.

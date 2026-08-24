@@ -53,6 +53,7 @@ function EnabledGraveBurnPanel({
     && connection.chainId === GRAVE_CHAIN_ID
     && burn.amountRaw !== null
     && !burn.insufficientBalance
+    && !burn.hasPendingTransfer
     && !burn.busy
 
   return (
@@ -166,6 +167,41 @@ function EnabledGraveBurnPanel({
           >
             {burn.busy ? STATE_COPY[burn.state] : 'Burn Offering'}
           </StoneButton>
+
+          {burn.hasPendingTransfer && burn.state === 'failed' && (
+            <>
+              <p role="alert" style={{ margin: '9px 0', color: '#d79b78', fontSize: 11, lineHeight: 1.45 }}>
+                A wallet transfer was already submitted. Do not send another offering.
+                Check BaseScan, then retry verification of the same transaction.
+              </p>
+              <StoneButton
+                type="button"
+                aria-label="Retry burn verification"
+                disabled={burn.busy}
+                onClick={() => void burn.retryVerification()}
+                style={{ width: '100%' }}
+              >
+                Retry Verification
+              </StoneButton>
+              <button
+                type="button"
+                onClick={burn.clearPendingRecovery}
+                style={{
+                  display: 'block',
+                  margin: '8px auto 0',
+                  padding: 0,
+                  border: 0,
+                  background: 'transparent',
+                  color: '#625f58',
+                  fontSize: 10,
+                  textDecoration: 'underline',
+                  cursor: 'pointer',
+                }}
+              >
+                Clear only after checking BaseScan
+              </button>
+            </>
+          )}
         </>
       )}
 

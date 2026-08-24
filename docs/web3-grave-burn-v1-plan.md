@@ -8,9 +8,9 @@
 
 **Экономическая модель:** только burn offering.
 
-**Следующий этап:** вручную закрыть Preview UI/API acceptance criteria, решить
-риск Supabase и заменить временный публичный RPC; реальный перевод и Production
-не включать без отдельного решения владельца.
+**Следующий этап:** опубликовать исправление recovery flow в Preview и вручную
+закрыть UI acceptance criteria. Реальный перевод и Production не включать без
+отдельного решения владельца.
 **Техническая база:** существующая intent-bound реализация из
 [`docs/web3-grave-burn-mvp.md`](./web3-grave-burn-mvp.md).
 
@@ -30,7 +30,10 @@
   timestamp его блока попадает в подписанное окно intent;
 - браузер продолжает проверку ещё 30 минут после expiry, а серверный cron может
   завершить проверку и после закрытия браузера;
-- 42 burn/security regression-теста, TypeScript, ESLint, production build и
+- после получения tx hash BaseScan показывается сразу, recovery-запись хранится
+  локально, временные `5xx`/network/`429` повторяются без новой транзакции, а
+  повторный Burn блокируется до завершения или явного сброса recovery;
+- 43 burn/security regression-теста, TypeScript, ESLint, production build и
   fake-wallet E2E прошли на чистой ветке;
 - production dependency audit после совместимых обновлений Next.js,
   NextAuth, PostCSS, Sharp и Nanoid: `0 vulnerabilities`;
@@ -104,21 +107,17 @@
 
 Ещё не сделано и требует решения владельца:
 
-- закрыть Supabase quota/billing risk до любой реальной транзакции;
-- заменить временный публичный Base RPC на выделенный Ankr endpoint перед
-  canary и production rollout;
+- опубликовать исправление recovery flow от повторного перевода в новый Preview;
 - вручную подтвердить burn-панель на реальной могиле v1 и её отсутствие на
   v2/meta/empty;
-- завершить безопасный негативный API smoke в защищённом Vercel Preview и
-  получить ожидаемый `400` без создания intent;
 - только после явного подтверждения владельца провести реальный canary burn на
   `1 GRAVE` с отдельного тестового кошелька;
 - после проверки BaseScan, Supabase и UI отдельно решить вопрос Production.
 
-Операционный риск Supabase по окончанию grace period и возможному исчерпанию
-квоты вынесен в отдельный документ:
-[`docs/supabase-quota-risk.md`](./supabase-quota-risk.md). Риск решаем перед
-публичной активацией; сейчас production burn остаётся выключен.
+Операционный риск Supabase вынесен в отдельный документ:
+[`docs/supabase-quota-risk.md`](./supabase-quota-risk.md). Текущий usage низкий и
+не блокирует один canary, но alerts/тариф нужно решить до публичного масштаба.
+Production burn остаётся выключен.
 
 Ни seed phrase, ни private key передавать разработчикам или сохранять в env
 проекта не нужно: canary подписывается пользователем в подключённом кошельке.
@@ -234,10 +233,9 @@ Authentication:
 connect/switch-to-Base и отображение token/address/amount. Подтверждать
 транзакцию нельзя.
 
-Canary burn на `1 GRAVE` остаётся заблокирован до решения риска из
-[`docs/supabase-quota-risk.md`](./supabase-quota-risk.md), замены публичного RPC
-на выделенный endpoint и отдельного подтверждения владельца непосредственно
-перед транзакцией.
+Canary burn на `1 GRAVE` остаётся заблокирован до ручной UI-проверки нового
+Preview, preflight Supabase/API и отдельного подтверждения владельца
+непосредственно перед транзакцией.
 
 ### 0.4. Результат агентного этапа 2026-08-22
 
@@ -285,11 +283,8 @@ Preview deployment `H5dWWrndejdmvJUmUqHAyB17akXg` со статусом `Ready` 
 
 1. открыть реальную могилу v1 и подтвердить наличие burn-панели, затем проверить
    отсутствие панели на v2/meta/empty;
-2. выполнить безопасный live negative API smoke штатным авторизованным способом
-   и получить ожидаемый `400`, не создавая intent;
-3. закрыть Supabase quota/billing risk;
-4. заменить временный публичный Base RPC на выделенный Ankr endpoint;
-5. получить отдельное явное подтверждение владельца непосредственно перед
+2. перепроверить доступность Supabase и нулевые burn-таблицы;
+3. получить отдельное явное подтверждение владельца непосредственно перед
    canary burn на `1 GRAVE`.
 
 Повторный аудит 2026-08-23 после агентного этапа подтвердил: профильные тесты
@@ -298,6 +293,43 @@ Preview deployment `H5dWWrndejdmvJUmUqHAyB17akXg` со статусом `Ready` 
 содержит `intent_count = 0`, `burn_count = 0`. Критических дефектов в burn-коде
 не найдено. Незакрытые пункты выше являются acceptance/operations blockers, а
 не подтверждёнными ошибками реализации.
+
+### 0.5. Повторный аудит и Ankr Preview 2026-08-24
+
+Фактическая конфигурация и deployment:
+
+- Preview `BASE_RPC_URL` заменён на sensitive Ankr Base Mainnet endpoint;
+- ошибочное значение с префиксом `BASE_RPC_URL=` было исправлено: в Vercel
+  хранится только полный `https://rpc.ankr.com/base/...` URL;
+- deployment `dpl_iMpaPgeEPXg45L2Dcf1RM8THjRRH` имеет target `preview` и статус
+  `Ready`; URL:
+  `https://vibecemetery-b0i3zq89v-azats-projects-db37144a.vercel.app`;
+- безопасный same-origin `POST /api/graves/not-a-uuid/burn-intents` вернул
+  контролируемый `400 {"error":"Invalid grave id"}` вместо прежнего `503`;
+- запрос не мог создать intent, burn или on-chain транзакцию; Production не
+  изменялась;
+- это подтверждает доступность server flag и синтаксически валидного RPC URL.
+  Проверка конкретного Ankr API key через реальный `eth_chainId` остаётся частью
+  canary preflight, потому что sensitive value не извлекалась из Vercel.
+
+По Supabase Dashboard зафиксирован большой запас Free Plan: database около
+`6%`, cached egress `3%`, обычный egress и storage менее `1%`. Поэтому quota
+переведена из canary-блокера в контролируемый риск публичного масштаба.
+
+В ходе code audit найден и исправлен один существенный сценарий: после успешной
+wallet-транзакции временный сбой API мог скрыть BaseScan-ссылку и разрешить
+пользователю начать новый Burn. Теперь клиент:
+
+- показывает BaseScan сразу после получения tx hash;
+- хранит recovery record по grave и wallet в `localStorage`;
+- повторяет временные network/`429`/`5xx` ошибки без новой транзакции;
+- блокирует повторный Burn и предлагает `Retry Verification`;
+- позволяет явно очистить recovery только после ручной проверки BaseScan.
+
+После исправления прошли 43 профильных burn/security теста, TypeScript, ESLint и
+fake-wallet E2E `1/1`. Локальная сборка компилируется и проходит TypeScript;
+полная page generation требует реальные общие Supabase/GitHub build env и
+окончательно проверяется Vercel Preview build без извлечения sensitive values.
 
 ## 1. Зафиксированное продуктовое решение
 

@@ -12,12 +12,79 @@ import { cemeteryEvents } from '@/game/events'
 import type { GraveBurnStats } from '@/lib/web3/graveBurnStats'
 import { graveTokenAbi } from './abi'
 import {
+  BASE_EXPLORER_TX_URL,
   GRAVE_BURN_ADDRESS,
   GRAVE_BURN_VERIFICATION_GRACE_MS,
   GRAVE_CHAIN_ID,
   GRAVE_TOKEN_ADDRESS,
   GRAVE_TOKEN_DECIMALS,
 } from './config'
+
+class BurnApiError extends Error {
+  constructor(
+    message: string,
+    public readonly status: number,
+  ) {
+    super(message)
+  }
+}
+
+interface PendingTransfer {
+  intentId: string
+  hash: Hex
+  expiresAt: string
+}
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+const TX_HASH_RE = /^0x[0-9a-f]{64}$/i
+
+function pendingTransferStorageKey(graveId: string, walletAddress: string): string {
+  return `vibecemetery:grave-burn-pending:${graveId}:${walletAddress.toLowerCase()}`
+}
+
+function parseStoredPendingTransfer(value: string | null): PendingTransfer | null {
+  if (!value) return null
+  try {
+    const parsed = JSON.parse(value) as Partial<PendingTransfer>
+    if (
+      typeof parsed.intentId !== 'string'
+      || !UUID_RE.test(parsed.intentId)
+      || typeof parsed.hash !== 'string'
+      || !TX_HASH_RE.test(parsed.hash)
+      || typeof parsed.expiresAt !== 'string'
+      || !Number.isFinite(new Date(parsed.expiresAt).getTime())
+    ) {
+      return null
+    }
+    return parsed as PendingTransfer
+  } catch {
+    return null
+  }
+}
+
+function readStoredPendingTransfer(key: string): PendingTransfer | null {
+  try {
+    return parseStoredPendingTransfer(window.localStorage.getItem(key))
+  } catch {
+    return null
+  }
+}
+
+function saveStoredPendingTransfer(key: string, transfer: PendingTransfer): void {
+  try {
+    window.localStorage.setItem(key, JSON.stringify(transfer))
+  } catch {
+    // Storage is a client recovery aid. Verification must continue without it.
+  }
+}
+
+function removeStoredPendingTransfer(key: string): void {
+  try {
+    window.localStorage.removeItem(key)
+  } catch {
+    // A storage failure must not change the verified server result.
+  }
+}
 
 export type GraveBurnUiState =
   | 'idle'
@@ -36,7 +103,10 @@ const EMPTY_STATS: GraveBurnStats = {
   topMourners: [],
 }
 
-function publicError(error: unknown): string {
+function publicError(error: unknown, transferSubmitted = false): string {
+  if (transferSubmitted) {
+    return 'Transfer submitted. Verification is unfinished — do not send another offering.'
+  }
   if (error instanceof Error && /reject|denied|cancel/i.test(error.message)) {
     return 'Transaction rejected / failed'
   }
@@ -73,9 +143,16 @@ function waitForPoll(signal: AbortSignal, delayMs: number): Promise<void> {
 async function readApiJson(response: Response) {
   const data = await response.json().catch(() => ({})) as Record<string, unknown>
   if (!response.ok && response.status !== 202) {
-    throw new Error(typeof data.error === 'string' ? data.error : 'Ritual request failed')
+    throw new BurnApiError(
+      typeof data.error === 'string' ? data.error : 'Ritual request failed',
+      response.status,
+    )
   }
   return data
+}
+
+function isRetryableSubmissionError(error: unknown): boolean {
+  return !(error instanceof BurnApiError) || error.status === 429 || error.status >= 500
 }
 
 export function useGraveBurn({
@@ -97,12 +174,19 @@ export function useGraveBurn({
   const [statsLoading, setStatsLoading] = useState(true)
   const [txHash, setTxHash] = useState<Hex | null>(null)
   const [explorerUrl, setExplorerUrl] = useState<string | null>(null)
+  const [pendingTransfer, setPendingTransfer] = useState<PendingTransfer | null>(null)
   const highlightedTxRef = useRef<string | null>(null)
   const activeBurnAbortRef = useRef<AbortController | null>(null)
   const connectionRef = useRef({
     address: connection.address,
     chainId: connection.chainId,
   })
+  const pendingStorageKey = useMemo(
+    () => connection.address
+      ? pendingTransferStorageKey(graveId, connection.address)
+      : null,
+    [connection.address, graveId],
+  )
 
   const selectedAmount = usingCustom ? customAmount : amountWhole
   const amountRaw = useMemo(() => {
@@ -161,6 +245,7 @@ export function useGraveBurn({
     setError(null)
     setTxHash(null)
     setExplorerUrl(null)
+    setPendingTransfer(null)
     highlightedTxRef.current = null
     void refreshStats(statsController.signal)
 
@@ -170,6 +255,18 @@ export function useGraveBurn({
       activeBurnAbortRef.current = null
     }
   }, [graveId, refreshStats])
+
+  useEffect(() => {
+    if (!pendingStorageKey) return
+    const stored = readStoredPendingTransfer(pendingStorageKey)
+    if (!stored) return
+
+    setPendingTransfer(stored)
+    setTxHash(stored.hash)
+    setExplorerUrl(`${BASE_EXPLORER_TX_URL}${stored.hash}`)
+    setState('failed')
+    setError('A previous transfer still needs verification — do not send another offering.')
+  }, [pendingStorageKey])
 
   const submitToServer = useCallback(async (
     intentId: string,
@@ -194,7 +291,9 @@ export function useGraveBurn({
       highlightedTxRef.current = hash
       cemeteryEvents.emit('highlight_slot', { slotId })
     }
-  }, [refreshStats, slotId])
+    setPendingTransfer(null)
+    if (pendingStorageKey) removeStoredPendingTransfer(pendingStorageKey)
+  }, [pendingStorageKey, refreshStats, slotId])
 
   const pollPending = useCallback(async (
     intentId: string,
@@ -203,11 +302,22 @@ export function useGraveBurn({
     initiallyBound: boolean,
     signal: AbortSignal,
   ) => {
-    setState(initiallyBound ? 'pending' : 'verifying')
+    let bound = initiallyBound
+    let firstAttempt = true
+    setState(bound ? 'pending' : 'verifying')
     const recoveryDeadline = new Date(expiresAt).getTime() + GRAVE_BURN_VERIFICATION_GRACE_MS
     while (Date.now() < recoveryDeadline) {
-      await waitForPoll(signal, 3_000)
-      const result = await submitToServer(intentId, hash, signal)
+      if (!firstAttempt) await waitForPoll(signal, 3_000)
+      firstAttempt = false
+
+      let result: Record<string, unknown>
+      try {
+        result = await submitToServer(intentId, hash, signal)
+      } catch (cause) {
+        if (isAbortError(cause) || !isRetryableSubmissionError(cause)) throw cause
+        setState(bound ? 'pending' : 'verifying')
+        continue
+      }
       if (signal.aborted) throw abortError()
       if (result.status === 'verified') {
         await completeVerified(hash, signal)
@@ -216,7 +326,8 @@ export function useGraveBurn({
       if (result.status === 'failed' || result.status === 'orphaned') {
         throw new Error('Transaction rejected / failed')
       }
-      setState(result.bound === true ? 'pending' : 'verifying')
+      bound = bound || result.bound === true
+      setState(bound ? 'pending' : 'verifying')
     }
     throw new Error('Verification is still pending. The server will continue checking it.')
   }, [completeVerified, submitToServer])
@@ -227,6 +338,7 @@ export function useGraveBurn({
       || !connection.address
       || connection.chainId !== GRAVE_CHAIN_ID
       || amountRaw === null
+      || pendingTransfer !== null
     ) {
       return
     }
@@ -241,6 +353,7 @@ export function useGraveBurn({
     const controller = new AbortController()
     activeBurnAbortRef.current = controller
     const { signal } = controller
+    let transferSubmitted = false
     try {
       setState('creating_intent')
       const created = await readApiJson(await fetch(`/api/graves/${graveId}/burn-intents`, {
@@ -285,24 +398,20 @@ export function useGraveBurn({
         args: [GRAVE_BURN_ADDRESS, amountRaw],
         chainId: GRAVE_CHAIN_ID,
       })
+      transferSubmitted = true
       setTxHash(hash)
+      setExplorerUrl(`${BASE_EXPLORER_TX_URL}${hash}`)
+      const submittedTransfer = { intentId, hash, expiresAt }
+      setPendingTransfer(submittedTransfer)
+      if (pendingStorageKey) {
+        saveStoredPendingTransfer(pendingStorageKey, submittedTransfer)
+      }
       setState('verifying')
-
-      const submitted = await submitToServer(intentId, hash, signal)
-      if (typeof submitted.explorerUrl === 'string') setExplorerUrl(submitted.explorerUrl)
-      if (submitted.status === 'verified') {
-        await completeVerified(hash, signal)
-        return
-      }
-      if (submitted.status === 'pending') {
-        await pollPending(intentId, hash, expiresAt, submitted.bound === true, signal)
-        return
-      }
-      throw new Error('Transaction rejected / failed')
+      await pollPending(intentId, hash, expiresAt, false, signal)
     } catch (cause) {
       if (isAbortError(cause)) return
       setState('failed')
-      setError(publicError(cause))
+      setError(publicError(cause, transferSubmitted))
     } finally {
       if (activeBurnAbortRef.current === controller) {
         activeBurnAbortRef.current = null
@@ -311,17 +420,52 @@ export function useGraveBurn({
   }, [
     amountRaw,
     balance.data,
-    completeVerified,
     connection.address,
     connection.chainId,
     connection.status,
     graveId,
+    pendingTransfer,
+    pendingStorageKey,
     pollPending,
     selectedAmount,
     signTypedDataAsync,
-    submitToServer,
     writeContractAsync,
   ])
+
+  const retryVerification = useCallback(async () => {
+    if (!pendingTransfer) return
+
+    setError(null)
+    activeBurnAbortRef.current?.abort()
+    const controller = new AbortController()
+    activeBurnAbortRef.current = controller
+    try {
+      await pollPending(
+        pendingTransfer.intentId,
+        pendingTransfer.hash,
+        pendingTransfer.expiresAt,
+        false,
+        controller.signal,
+      )
+    } catch (cause) {
+      if (isAbortError(cause)) return
+      setState('failed')
+      setError(publicError(cause, true))
+    } finally {
+      if (activeBurnAbortRef.current === controller) {
+        activeBurnAbortRef.current = null
+      }
+    }
+  }, [pendingTransfer, pollPending])
+
+  const clearPendingRecovery = useCallback(() => {
+    if (pendingStorageKey) removeStoredPendingTransfer(pendingStorageKey)
+    setPendingTransfer(null)
+    setTxHash(null)
+    setExplorerUrl(null)
+    setError(null)
+    setState('idle')
+  }, [pendingStorageKey])
 
   const busy = ['creating_intent', 'signing', 'transferring', 'verifying', 'pending']
     .includes(state)
@@ -350,6 +494,9 @@ export function useGraveBurn({
         ? formatUnits(balance.data, GRAVE_TOKEN_DECIMALS)
         : null,
     insufficientBalance,
+    hasPendingTransfer: pendingTransfer !== null,
     burn,
+    retryVerification,
+    clearPendingRecovery,
   }
 }
