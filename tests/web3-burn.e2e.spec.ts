@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { encodeFunctionResult, multicall3Abi } from 'viem'
 
 const graveId = '22222222-2222-4222-8222-222222222222'
 const intentId = '11111111-1111-4111-8111-111111111111'
@@ -6,9 +7,16 @@ const wallet = '0x1111111111111111111111111111111111111111'
 const txHash = `0x${'ab'.repeat(32)}`
 const signature = `0x${'34'.repeat(65)}`
 const amountRaw = (1000n * 10n ** 18n).toString()
+const walletBalanceRaw = (1_000_000n * 10n ** 18n).toString()
+const encodedWalletBalance = `0x${BigInt(walletBalanceRaw).toString(16).padStart(64, '0')}` as const
+const encodedMulticallBalance = encodeFunctionResult({
+  abi: multicall3Abi,
+  functionName: 'aggregate3',
+  result: [{ success: true, returnData: encodedWalletBalance }],
+})
 
 test('injected wallet completes a stubbed verified Map v1 burn offering', async ({ page }) => {
-  await page.addInitScript(({ walletAddress, hash, signed }) => {
+  await page.addInitScript(({ walletAddress, hash, signed, balanceResult }) => {
     let chainId = '0x1'
     let connected = false
     const listeners = new Map<string, Set<(value: unknown) => void>>()
@@ -40,7 +48,7 @@ test('injected wallet completes a stubbed verified Map v1 burn offering', async 
           return null
         }
         if (method === 'eth_signTypedData_v4') return signed
-        if (method === 'eth_call') return `0x${(1_000_000n * 10n ** 18n).toString(16).padStart(64, '0')}`
+        if (method === 'eth_call') return balanceResult
         if (method === 'eth_sendTransaction') return hash
         if (method === 'eth_estimateGas') return '0x186a0'
         if (method === 'wallet_getCapabilities') return {}
@@ -53,7 +61,12 @@ test('injected wallet completes a stubbed verified Map v1 burn offering', async 
       value: ethereum,
       configurable: true,
     })
-  }, { walletAddress: wallet, hash: txHash, signed: signature })
+  }, {
+    walletAddress: wallet,
+    hash: txHash,
+    signed: signature,
+    balanceResult: encodedMulticallBalance,
+  })
 
   let verified = false
   await page.route('**/api/**', async (route) => {
@@ -166,6 +179,14 @@ test('injected wallet completes a stubbed verified Map v1 burn offering', async 
   await page.getByRole('button', { name: 'Connect wallet' }).click()
   await expect(page.getByRole('button', { name: 'Switch to Base' })).toBeVisible()
   await page.getByRole('button', { name: 'Switch to Base' }).click()
+  const preset = page.getByRole('button', { name: 'Offer 1,000 GRAVE' })
+  const maximum = page.getByRole('button', { name: /Offer maximum/ })
+  await expect(preset).toHaveAttribute('aria-pressed', 'true')
+  await expect(maximum).toBeEnabled({ timeout: 3_000 })
+  await maximum.click()
+  await expect(maximum).toHaveAttribute('aria-pressed', 'true')
+  await expect(preset).toHaveAttribute('aria-pressed', 'false')
+  await preset.click()
   await expect(page.getByRole('button', { name: 'BURN $GRAVE' })).toBeEnabled()
   await page.getByRole('button', { name: 'BURN $GRAVE' }).click()
   await expect(page.getByText('Ritual accepted')).toBeVisible()

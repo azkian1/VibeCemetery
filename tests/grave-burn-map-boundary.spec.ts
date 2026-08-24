@@ -55,8 +55,11 @@ test('burn controls are compact by default and expose the requested labels', () 
   expect(panel).toContain('const [expanded, setExpanded] = useState(false)')
   expect(panel).toContain('BURN $GRAVE')
   expect(panel).toContain('GRAVE BURNED')
-  expect(panel).toContain('aria-expanded={expanded}')
+  expect(panel).toContain('const controlsExpanded = expanded || burn.hasPendingTransfer')
+  expect(panel).toContain('aria-expanded={controlsExpanded}')
   expect(panel).toContain('Destination: {GRAVE_BURN_ADDRESS}')
+  expect(panel).toContain('key={graveId}')
+  expect(panel).toContain('const maxSelected =')
 })
 
 test('burn presets and MAX use only safe whole-token amounts', () => {

@@ -36,7 +36,7 @@ export default function GraveBurnPanel({
 
   if (!WEB3_GRAVE_BURNS_VISIBLE || mapVersion !== 'v1') return null
 
-  return <EnabledGraveBurnPanel graveId={graveId} slotId={slotId} />
+  return <EnabledGraveBurnPanel key={graveId} graveId={graveId} slotId={slotId} />
 }
 
 function EnabledGraveBurnPanel({
@@ -51,6 +51,13 @@ function EnabledGraveBurnPanel({
   const [expanded, setExpanded] = useState(false)
   const [usingMax, setUsingMax] = useState(false)
   const controlsId = `grave-burn-controls-${graveId}`
+  const controlsExpanded = expanded || burn.hasPendingTransfer
+
+  const maxSelected =
+    usingMax
+    && !burn.usingCustom
+    && burn.maxAmountWhole !== null
+    && burn.amountWhole === burn.maxAmountWhole
 
   const ready =
     connection.status === 'connected'
@@ -85,17 +92,21 @@ function EnabledGraveBurnPanel({
 
       <StoneButton
         type="button"
-        aria-expanded={expanded}
+        aria-expanded={controlsExpanded}
         aria-controls={controlsId}
-        aria-label={expanded ? 'Collapse burn controls' : 'Expand burn controls'}
-        disabled={burn.busy}
+        aria-label={burn.hasPendingTransfer
+          ? 'Burn recovery controls expanded'
+          : controlsExpanded
+            ? 'Collapse burn controls'
+            : 'Expand burn controls'}
+        disabled={burn.busy || burn.hasPendingTransfer}
         onClick={() => setExpanded((current) => !current)}
         style={{ width: '100%' }}
       >
         BURN
       </StoneButton>
 
-      {expanded && (
+      {controlsExpanded && (
         <div id={controlsId} style={{ marginTop: 12 }}>
           <p style={{ margin: '0', color: '#77736a', fontSize: 11, lineHeight: 1.4, textAlign: 'center' }}>
             Irreversibly transfers GRAVE to the dead address on Base. This removes the
@@ -103,7 +114,7 @@ function EnabledGraveBurnPanel({
           </p>
           <div style={{ marginTop: 7, color: '#625f58', fontSize: 10, lineHeight: 1.45, textAlign: 'center' }}>
             <div style={{ overflowWrap: 'anywhere' }}>Token: GRAVE · {GRAVE_TOKEN_ADDRESS}</div>
-            <div style={{ color: '#aaa296', fontSize: 11, overflowWrap: 'anywhere' }}>
+            <div style={{ color: '#c1bab0', fontSize: 12, overflowWrap: 'anywhere' }}>
               Destination: {GRAVE_BURN_ADDRESS}
             </div>
           </div>
@@ -126,7 +137,8 @@ function EnabledGraveBurnPanel({
                 <StoneButton
                   key={amount}
                   type="button"
-                  active={!usingMax && !burn.usingCustom && burn.amountWhole === amount}
+                  active={!maxSelected && !burn.usingCustom && burn.amountWhole === amount}
+                  aria-pressed={!maxSelected && !burn.usingCustom && burn.amountWhole === amount}
                   aria-label={`Offer ${Number(amount).toLocaleString('en-US')} GRAVE`}
                   onClick={() => {
                     setUsingMax(false)
@@ -139,7 +151,8 @@ function EnabledGraveBurnPanel({
               ))}
               <StoneButton
                 type="button"
-                active={usingMax}
+                active={maxSelected}
+                aria-pressed={maxSelected}
                 aria-label={burn.maxAmountWhole
                   ? `Offer maximum ${burn.maxAmountWhole} GRAVE`
                   : 'Maximum GRAVE unavailable'}

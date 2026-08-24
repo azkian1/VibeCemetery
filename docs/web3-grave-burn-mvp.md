@@ -184,6 +184,17 @@ burn address, raw amount, or verified status.
   release. A connected wallet is not a VibeCemetery account and does not
   replace the existing GitHub/NextAuth session.
 - Keep the existing v2 experience free of Web3 UI for this release.
+- Keep the Map v1 grave panel compact by default: show `BURN $GRAVE`, the
+  selected grave's verified total, and a `BURN` disclosure control. Render the
+  wallet, amount, destination, status, recovery, explorer, and Top Mourners
+  controls only in the expanded region.
+- If a saved submitted transfer needs verification, force the region open and
+  prevent it from being collapsed until that recovery state is resolved or
+  explicitly cleared after checking BaseScan.
+- Amount presets are `1,000`, `5,000`, and `MAX`. Because the v1 signed intent
+  accepts positive whole-token amounts, `MAX` means
+  `floor(balanceRaw / 10^18)` and is disabled when that value is zero or the
+  balance is unavailable.
 - Use a native stone/cemetery-styled `WalletButton`; do not introduce
   RainbowKit.
 - Support injected EIP-1193 wallets first. The expected desktop wallets are
@@ -610,8 +621,8 @@ tests/web3-burn.e2e.spec.ts
 The browser-only E2E spec must use a fake `window.ethereum` installed before
 navigation and stub every burn API response. It must be excluded from the
 unit-only configuration. Use accessible stable controls such as `Connect
-wallet`, `Switch to Base`, `Offer 100 GRAVE`, `Custom GRAVE amount`, and
-`Burn offering` instead of brittle styling selectors.
+wallet`, `Switch to Base`, `Expand burn controls`, `Offer 1,000 GRAVE`,
+`Custom GRAVE amount`, and `BURN $GRAVE` instead of brittle styling selectors.
 
 ### UI tests
 
@@ -622,6 +633,10 @@ wallet`, `Switch to Base`, `Offer 100 GRAVE`, `Custom GRAVE amount`, and
 - the exact fixed token/burn address is used in the write request;
 - verified response refreshes stats and emits one `highlight_slot` event;
 - pending response does not increase visible public totals.
+- the panel is collapsed by default but the verified total remains visible;
+- a locally restored pending transfer forces the recovery controls open;
+- `MAX` cannot exceed the wallet balance, is unavailable below one whole token,
+  and does not remain visually selected after the balance changes;
 - a temporary network/`429`/`5xx` after wallet submission retries the same hash,
   keeps the explorer link visible, and cannot enable a second transfer;
 - remounting the modal restores the locally saved recovery record.

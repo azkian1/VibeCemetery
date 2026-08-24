@@ -1,18 +1,23 @@
 # GRAVE Burn Offering — план запуска на Cemetery Map v1
 
-**Статус:** burn-only код выделен и опубликован в чистой ветке
-`codex/burn-v1-only` от `origin/master`; отдельный Vercel Preview имеет статус
-`Ready`. В Production оба burn-флага выключены. В защищённом Preview включены
-серверный флаг и UI-флаг; реальных intent, burn-записей и переводов не было.
+**Статус:** burn-only код выделен и опубликован в ветке
+`codex/burn-v1-only`; отдельный Vercel Preview имеет статус `Ready`. В
+Production оба burn-флага выключены. В защищённом Preview включены серверный и
+UI-флаги. Две одобренные пользователем Base Mainnet транзакции уже выполнены и
+проверены приложением; их суммарный verified burn — `766 GRAVE`.
 **Целевая поверхность:** `/cemetery`, Cemetery Map v1.
 
 **Экономическая модель:** только burn offering.
 
-**Следующий этап:** опубликовать исправление recovery flow в Preview и вручную
-закрыть UI acceptance criteria. Реальный перевод и Production не включать без
+**Следующий этап:** принять компактный UI burn-панели на защищённом Preview,
+перепроверить актуальные Supabase rows/stats и отдельно решить вопрос
+Production. Новые реальные переводы и Production-включение не выполнять без
 отдельного решения владельца.
 **Техническая база:** существующая intent-bound реализация из
 [`docs/web3-grave-burn-mvp.md`](./web3-grave-burn-mvp.md).
+
+**Последний UI/operational audit:**
+[`docs/web3-grave-burn-ui-audit-2026-08-24.md`](./web3-grave-burn-ui-audit-2026-08-24.md).
 
 ## 0. Текущий статус реализации
 
@@ -33,6 +38,10 @@
 - после получения tx hash BaseScan показывается сразу, recovery-запись хранится
   локально, временные `5xx`/network/`429` повторяются без новой транзакции, а
   повторный Burn блокируется до завершения или явного сброса recovery;
+- burn-панель свёрнута по умолчанию, всегда показывает verified total, а полный
+  wallet/amount/recovery интерфейс раскрывается кнопкой `BURN`;
+- presets обновлены до `1 000`, `5 000`, `MAX`; `MAX` использует только целую
+  часть доступного wallet balance и никогда не превышает его;
 - 43 burn/security regression-теста, TypeScript, ESLint, production build и
   fake-wallet E2E прошли на чистой ветке;
 - production dependency audit после совместимых обновлений Next.js,
@@ -107,11 +116,13 @@
 
 Ещё не сделано и требует решения владельца:
 
-- вручную подтвердить burn-панель на реальной могиле v1 и её отсутствие на
-  v2/meta/empty;
-- только после явного подтверждения владельца провести реальный canary burn на
-  `1 GRAVE` с отдельного тестового кошелька;
-- после проверки BaseScan, Supabase и UI отдельно решить вопрос Production.
+- вручную принять компактный/раскрытый вид обновлённой burn-панели на реальной
+  могиле v1;
+- прямым SQL или Dashboard-запросом сверить две verified burn rows и отсутствие
+  неожиданного pending backlog;
+- сверить новый UI total `766 GRAVE` после последнего редизайна;
+- отдельно решить вопрос Production; до этого оба Production-флага остаются
+  `false`.
 
 Операционный риск Supabase вынесен в отдельный документ:
 [`docs/supabase-quota-risk.md`](./supabase-quota-risk.md). Текущий usage низкий и
@@ -152,10 +163,13 @@ Production burn остаётся выключен.
 
 В панель уже реализованы:
 
+- компактный заголовок `BURN $GRAVE` и verified total выбранной могилы;
+- кнопка `BURN`, раскрывающая полный action-блок; recovery раскрывается
+  автоматически и не может быть случайно спрятан;
 - `Connect Wallet` и отображение подключённого адреса;
 - `Wrong network — Switch to Base`;
-- preset-кнопки `100`, `500`, `10 000 GRAVE` и custom amount;
-- `Burn Offering`, статусы подписи/перевода/проверки и ссылка на BaseScan;
+- preset-кнопки `1 000`, `5 000`, `MAX` и custom amount;
+- `BURN $GRAVE`, статусы подписи/перевода/проверки и ссылка на BaseScan;
 - verified total и Top Mourners для выбранной могилы.
 
 Панель монтируется только на Map v1 для реальной могилы со `slotId` и только
@@ -333,6 +347,49 @@ wallet-транзакции временный сбой API мог скрыть 
 fake-wallet E2E `1/1`. Локальная сборка компилируется и проходит TypeScript;
 полная сборка с реальными общими build env подтверждена успешным Vercel Preview
 без извлечения sensitive values в локальную среду.
+
+### 0.6. Mainnet canary и аудит компактной модалки 2026-08-24
+
+Пользователь вручную подтвердил две wallet-транзакции для одной v1-могилы
+`2cee0bb3-33f4-429c-a049-d9ad920c5cb7`:
+
+| Сумма | Transaction hash | Результат |
+| ---: | --- | --- |
+| `666 GRAVE` | `0xdb061334361105c8700f939515c17e39f4ca40b29f8c31b83e891b1505811b2c` | Base receipt success, один matching Transfer |
+| `100 GRAVE` | `0xf03554156875160a6513b5fe1b5b0fd8acd8abf7dd94d0fbef666bac7827c084` | Base receipt success, один matching Transfer |
+
+Read-only Base Mainnet RPC-аудит повторно подтвердил для обеих транзакций:
+
+- `status = 0x1`;
+- log address — фиксированный GRAVE token
+  `0xb48bc4896d18724f7bf5a3d2817fc35252cd7ba3`;
+- единственный event — ERC-20 `Transfer`;
+- `from` — `0x270c4e59c64ab2d87ae2b1598c4faf90081d67cf`;
+- `to` — `0x000000000000000000000000000000000000dead`;
+- декодированные значения — `666` и `100 GRAVE`, итого `766 GRAVE`.
+
+Во время исходного прогона серверные ответы прошли `202 pending -> 200 verified`
+для обеих транзакций. Прямой повторный GET stats при последующем аудите не
+считается выполненным: Vercel Deployment Protection перенаправил CLI-запрос на
+login. Поэтому on-chain факт и исходная application verification подтверждены,
+а актуальные SQL row counts и отображение `766 GRAVE` после UI-редизайна остаются
+ручным acceptance check.
+
+Компактный UI опубликован commit `80dbf18` в Preview deployment
+`dpl_EiZbNa4ciJz7FotcM8TpGjk1bUF5`:
+
+- URL: `https://vibecemetery-7g1crlp7y-azats-projects-db37144a.vercel.app`;
+- target `preview`, status `Ready`;
+- заголовок и total видны всегда, action controls свёрнуты по умолчанию;
+- presets: `1 000`, `5 000`, `MAX`; финальная action-кнопка — `BURN $GRAVE`;
+- dead address показан полностью и усилен по контрасту;
+- при найденном pending recovery action-блок принудительно раскрывается;
+- после изменения wallet balance устаревший `MAX` больше не выглядит активным;
+- при открытии другой могилы локальное expanded/MAX состояние сбрасывается.
+
+После UI-аудита обязательны: focused boundary/UI tests, fake-wallet E2E,
+TypeScript, ESLint, diff-check и новый Preview. Production остаётся без
+изменений.
 
 ## 1. Зафиксированное продуктовое решение
 
@@ -730,7 +787,7 @@ Fake-wallet E2E должен открывать `/cemetery`, а не `/cemetery/
 1. открыть реальную fixture v1-могилу;
 2. подключить fake injected wallet;
 3. переключиться на Base;
-4. выбрать `100 GRAVE`;
+4. раскрыть панель кнопкой `BURN` и выбрать `1 000 GRAVE`;
 5. подписать intent;
 6. подтвердить stubbed transfer;
 7. отправить только `intentId + txHash`;
@@ -833,8 +890,10 @@ Burn на v1 считается готовым только когда выпо�
 - reorg удаляет orphaned burn из статистики;
 - cron защищён secret и работает в production;
 - unit, E2E, TypeScript, lint и build проходят;
-- одна явно одобренная транзакция на `1 GRAVE` полностью проверена в BaseScan,
-  Supabase и UI;
+- хотя бы одна явно одобренная транзакция полностью проверена on-chain,
+  Supabase и UI; текущий canary содержит две on-chain/application-verified
+  транзакции на `766 GRAVE` суммарно, но актуальный SQL/UI acceptance после
+  редизайна ещё нужно закрыть;
 - пользовательская документация не обещает уменьшение `totalSupply`.
 
 ## 13. Следующие фазы, не входящие в этот план
