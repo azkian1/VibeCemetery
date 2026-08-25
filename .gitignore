@@ -77,6 +77,15 @@ tome.md
 /public/map/docs/PATCH.md
 /public/map/docs/LEVEL_DESIGN_RULES.md
 
+# Local burn release evidence (never commit)
+/docs/internal-release/
+/docs/*-live-preflight-*.md
+/docs/*-rollback-*.sql
+/docs/*-finish-agent-brief.md
+/docs/*-finish-audit.md
+/docs/*-ui-audit-*.md
+/docs/supabase-quota-risk.md
+
 # Next.js create-app placeholders (unused)
 /public/file.svg
 /public/globe.svg
