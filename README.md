@@ -112,9 +112,10 @@ Implemented:
 
 Next:
 
+- **Finish the Map v1 GRAVE burn canary** - the original cemetery at `/cemetery` is the burn-only validation surface; Production activation remains a separate decision.
 - **Cemetery Map 2.0** - rebuild the playable cemetery around original VibeCemetery-owned assets.
 - **Swamp of Shame** - expand the world with a new shame-themed cemetery zone.
-- **$GRAVE integration**
+- **Broader $GRAVE integration** - only after the burn-only v1 flow is stable.
 - **The Gravedigger Agent** - introduce the native cemetery agent for guidance, lore, grave care, and future ritual interactions.
 
 The current product remains focused on the core human cemetery: GitHub burials, cremations, and `/bury`. The Agent Layer is paused and will be revisited only after the cemetery itself is stronger and more populated.
