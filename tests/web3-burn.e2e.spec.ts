@@ -195,7 +195,7 @@ test('injected wallet completes a stubbed verified Map v1 burn offering', async 
   })
 
   await page.goto(`/cemetery?grave=${graveId}`)
-  await expect(page.getByText('0 GRAVE BURNED', { exact: true })).toBeVisible()
+  await expect(page.getByText('0 $GRAVE BURNED', { exact: true })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Connect wallet' })).toBeHidden()
   await page.getByRole('button', { name: 'Expand burn controls' }).click()
   await expect(page.getByRole('button', { name: 'Connect wallet' })).toBeVisible()
@@ -231,7 +231,7 @@ test('injected wallet completes a stubbed verified Map v1 burn offering', async 
   await expect(page.getByRole('button', { name: 'BURN $GRAVE' })).toBeDisabled()
   await page.getByRole('button', { name: 'Retry burn verification' }).click()
   await expect(page.getByText('Ritual accepted')).toBeVisible()
-  await expect(page.getByText(`${walletBalanceDisplay} GRAVE BURNED`, { exact: true })).toBeVisible()
+  await expect(page.getByText('1000000 $GRAVE BURNED', { exact: true })).toBeVisible()
   expect(submissionAttempts).toBe(2)
   expect(await page.evaluate(() => Number.parseInt(
     localStorage.getItem('__vibecemetery_test_wallet_send_count') ?? '0',

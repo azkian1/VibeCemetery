@@ -25,6 +25,10 @@ const STATE_COPY = {
   failed: 'Transaction rejected / failed',
 } as const
 
+function wholeGraveDisplay(value: string): string {
+  return value.split('.', 1)[0] || '0'
+}
+
 export default function GraveBurnPanel({
   graveId,
   slotId,
@@ -84,9 +88,9 @@ function EnabledGraveBurnPanel({
         </span>
         <p aria-live="polite" style={{ margin: '6px 0 10px', color: '#aaa296', fontSize: 13, lineHeight: 1.3 }}>
           <strong style={{ color: '#d7b96e' }}>
-            {burn.statsLoading ? '…' : burn.stats.totalBurnedDisplay}
+            {burn.statsLoading ? '…' : wholeGraveDisplay(burn.stats.totalBurnedDisplay)}
           </strong>
-          {' GRAVE BURNED'}
+          {' $GRAVE BURNED'}
         </p>
       </div>
 
