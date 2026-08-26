@@ -140,6 +140,10 @@ class MemoryBurnStore implements GraveBurnStore {
       topMourners: [],
     }
   }
+  async claimBurnRecoveryCandidates() {
+    return []
+  }
+  async finishBurnRecoveryClaim() {}
   async listReverifyCandidates() {
     return []
   }

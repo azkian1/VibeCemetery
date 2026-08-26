@@ -50,6 +50,8 @@ export type BindBurnOutcome =
   | { outcome: 'bound' | 'existing'; status: BurnStatus }
   | { outcome: 'conflict' | 'invalid_state' | 'expired' | 'not_found' }
 
+export type BurnRecoveryClaimOutcome = 'retry' | 'safe_no_match' | 'operator_required'
+
 export interface GraveBurnStore {
   findBurnableV1Grave(graveId: string): Promise<GraveLookupResult>
   createIntent(input: CreateIntentInput): Promise<GraveBurnIntentRecord>
@@ -79,6 +81,18 @@ export interface GraveBurnStore {
   }): Promise<BindBurnOutcome>
   getBurnByIntent(intentId: string): Promise<GraveBurnRecord | null>
   getVerifiedBurnStats(graveId: string): Promise<GraveBurnStats>
+  claimBurnRecoveryCandidates(
+    limit: number,
+    claimedAt: string,
+    leaseToken: string,
+  ): Promise<GraveBurnIntentRecord[]>
+  finishBurnRecoveryClaim(input: {
+    intentId: string
+    leaseToken: string
+    outcome: BurnRecoveryClaimOutcome
+    failureCode: string | null
+    checkedAt: string
+  }): Promise<void>
   listReverifyCandidates(limit: number): Promise<Array<{
     burn: GraveBurnRecord
     intent: GraveBurnIntentRecord
@@ -348,6 +362,38 @@ export class SupabaseGraveBurnStore implements GraveBurnStore {
         }
       }),
     })
+  }
+
+  async claimBurnRecoveryCandidates(
+    limit: number,
+    claimedAt: string,
+    leaseToken: string,
+  ): Promise<GraveBurnIntentRecord[]> {
+    const { data, error } = await supabaseAdmin.rpc('claim_grave_burn_recoveries', {
+      p_limit: limit,
+      p_claimed_at: claimedAt,
+      p_lease_seconds: 300,
+      p_lease_token: leaseToken,
+    })
+    if (error) throw error
+    return (data ?? []).map((row: DbRow) => mapIntent(row))
+  }
+
+  async finishBurnRecoveryClaim(input: {
+    intentId: string
+    leaseToken: string
+    outcome: BurnRecoveryClaimOutcome
+    failureCode: string | null
+    checkedAt: string
+  }): Promise<void> {
+    const { error } = await supabaseAdmin.rpc('finish_grave_burn_recovery', {
+      p_intent_id: input.intentId,
+      p_lease_token: input.leaseToken,
+      p_outcome: input.outcome,
+      p_failure_code: input.failureCode,
+      p_checked_at: input.checkedAt,
+    })
+    if (error) throw error
   }
 
   async listReverifyCandidates(limit: number): Promise<Array<{

@@ -236,3 +236,175 @@ test('injected wallet completes a stubbed verified Map v1 burn offering', async 
     10,
   ))).toBe(1)
 })
+
+test('4001 clears safely while a lost broadcast response survives reload and auto-recovers', async ({ page }) => {
+  const recoveryIntentId = '33333333-3333-4333-8333-333333333333'
+  await page.addInitScript(({ walletAddress, hash, signed, balanceResult }) => {
+    let chainId = '0x2105'
+    let connected = false
+    const listeners = new Map<string, Set<(value: unknown) => void>>()
+    const emit = (event: string, value: unknown) => {
+      for (const listener of listeners.get(event) ?? []) listener(value)
+    }
+    const ethereum = {
+      isMetaMask: true,
+      on(event: string, listener: (value: unknown) => void) {
+        const eventListeners = listeners.get(event) ?? new Set()
+        eventListeners.add(listener)
+        listeners.set(event, eventListeners)
+      },
+      removeListener(event: string, listener: (value: unknown) => void) {
+        listeners.get(event)?.delete(listener)
+      },
+      async request({ method }: { method: string }) {
+        if (method === 'eth_accounts') {
+          connected = connected || localStorage.getItem('__vibecemetery_test_connected') === '1'
+          return connected ? [walletAddress] : []
+        }
+        if (method === 'eth_requestAccounts') {
+          connected = true
+          localStorage.setItem('__vibecemetery_test_connected', '1')
+          emit('accountsChanged', [walletAddress])
+          return [walletAddress]
+        }
+        if (method === 'eth_chainId') return chainId
+        if (method === 'net_version') return String(Number.parseInt(chainId, 16))
+        if (method === 'wallet_switchEthereumChain') {
+          chainId = '0x2105'
+          emit('chainChanged', chainId)
+          return null
+        }
+        if (method === 'eth_signTypedData_v4') return signed
+        if (method === 'eth_call') return balanceResult
+        if (method === 'eth_sendTransaction') {
+          const count = Number.parseInt(localStorage.getItem('__recovery_send_count') ?? '0', 10) + 1
+          localStorage.setItem('__recovery_send_count', String(count))
+          if (count === 1) {
+            throw Object.assign(new Error('User rejected the request'), { code: 4001 })
+          }
+          localStorage.setItem('__recovery_broadcast_hash', hash)
+          throw new Error('Provider disconnected after broadcasting')
+        }
+        if (method === 'eth_estimateGas') return '0x186a0'
+        if (method === 'wallet_getCapabilities') return {}
+        if (method === 'eth_getCode') return '0x'
+        if (method === 'eth_blockNumber') return '0x1'
+        throw new Error(`Unexpected wallet method: ${method}`)
+      },
+    }
+    Object.defineProperty(window, 'ethereum', { value: ethereum, configurable: true })
+  }, {
+    walletAddress: wallet,
+    hash: txHash,
+    signed: signature,
+    balanceResult: encodedMulticallBalance,
+  })
+
+  let createCount = 0
+  let recoveryCalls = 0
+  let verified = false
+  await page.route('**/api/**', async (route) => {
+    const request = route.request()
+    const url = new URL(request.url())
+    const json = (body: unknown, status = 200) => route.fulfill({
+      status,
+      contentType: 'application/json',
+      body: JSON.stringify(body),
+    })
+    if (url.pathname === '/api/graves' && request.method() === 'GET') {
+      return json([{
+        id: graveId,
+        slot_id: 15,
+        grave_gid: null,
+        map_version: 'v1',
+        name: 'Recovery Grave',
+        cause: 'Test fixture',
+        epitaph: 'Recovery test',
+        github_url: 'https://github.com/example/recovery-grave',
+        author_github: 'example',
+        f_count: 0,
+        born_at: null,
+        died_at: null,
+        last_commit_message: 'test: recover hash',
+      }])
+    }
+    if (url.pathname === '/api/cremated') return json([])
+    if (url.pathname === '/api/f-status') return json({ grave_ids: [] })
+    if (url.pathname === `/api/graves/${graveId}/burn-intents` && request.method() === 'POST') {
+      createCount += 1
+      const currentIntentId = createCount === 1 ? intentId : recoveryIntentId
+      return json({
+        intentId: currentIntentId,
+        expiresAt: new Date(Date.now() + 10 * 60_000).toISOString(),
+        typedData: {
+          domain: {
+            name: 'VibeCemetery Grave Offering',
+            version: '1',
+            chainId: 8453,
+            verifyingContract: '0xb48bc4896D18724F7bF5A3d2817fC35252cD7bA3',
+          },
+          types: { GraveBurnIntent: [
+            { name: 'intentId', type: 'string' },
+            { name: 'nonce', type: 'string' },
+            { name: 'graveId', type: 'string' },
+            { name: 'wallet', type: 'address' },
+            { name: 'expectedRawAmount', type: 'uint256' },
+            { name: 'chainId', type: 'uint256' },
+            { name: 'tokenAddress', type: 'address' },
+            { name: 'burnAddress', type: 'address' },
+            { name: 'expiresAt', type: 'uint256' },
+          ] },
+          primaryType: 'GraveBurnIntent',
+          message: {
+            intentId: currentIntentId,
+            nonce: `0x${'12'.repeat(32)}`,
+            graveId,
+            wallet,
+            expectedRawAmount: (1_000n * 10n ** 18n).toString(),
+            chainId: '8453',
+            tokenAddress: '0xb48bc4896D18724F7bF5A3d2817fC35252cD7bA3',
+            burnAddress: '0x000000000000000000000000000000000000dEaD',
+            expiresAt: String(Math.floor(Date.now() / 1_000) + 600),
+          },
+        },
+      }, 201)
+    }
+    if (url.pathname.endsWith('/authorize') && request.method() === 'POST') {
+      return json({ status: 'authorized' })
+    }
+    if (url.pathname.endsWith(`/${recoveryIntentId}/recover`) && request.method() === 'POST') {
+      recoveryCalls += 1
+      if (recoveryCalls === 1) return json({ status: 'searching', retryable: true }, 202)
+      verified = true
+      return json({ status: 'verified', recovered: true, retryable: false, txHash })
+    }
+    if (url.pathname === `/api/graves/${graveId}/burns` && request.method() === 'GET') {
+      return json({
+        totalBurnedRaw: verified ? (1_000n * 10n ** 18n).toString() : '0',
+        totalBurnedDisplay: verified ? '1000' : '0',
+        burnCount: verified ? 1 : 0,
+        topMourners: [],
+      })
+    }
+    return json({})
+  })
+
+  await page.goto(`/cemetery?grave=${graveId}`)
+  await page.getByRole('button', { name: 'Expand burn controls' }).click()
+  await page.getByRole('button', { name: 'Connect wallet' }).click()
+  const burnButton = page.getByRole('button', { name: 'BURN $GRAVE' })
+  await expect(burnButton).toBeEnabled()
+
+  await burnButton.click()
+  await expect(page.getByText('Transaction rejected / failed')).toBeVisible()
+  await expect(burnButton).toBeEnabled()
+  expect(recoveryCalls).toBe(0)
+
+  await burnButton.click()
+  await expect(page.getByRole('status').filter({ hasText: /Checking Base/ })).toBeVisible()
+  await expect(burnButton).toBeDisabled()
+  await page.reload()
+  await expect(page.getByText('1000 $GRAVE BURNED', { exact: true })).toBeVisible()
+  expect(recoveryCalls).toBe(2)
+  expect(await page.evaluate(() => localStorage.getItem('__recovery_send_count'))).toBe('2')
+})

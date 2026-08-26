@@ -10,6 +10,7 @@ import {
 import { createAuthorizeBurnIntentHandler } from '../src/app/api/graves/[id]/burn-intents/[intentId]/authorize/authorize-handler'
 import { createPostBurnIntentHandler } from '../src/app/api/graves/[id]/burn-intents/create-handler'
 import { createSubmitBurnHandler } from '../src/app/api/graves/[id]/burns/submit-handler'
+import { createRecoverBurnHandler } from '../src/app/api/graves/[id]/burn-intents/[intentId]/recover/recover-handler'
 import type { GraveBurnIntentRecord } from '../src/lib/web3/burnIntent'
 
 function request(body: string, headers: Record<string, string> = {}) {
@@ -185,6 +186,37 @@ test('submit applies the IP limit before an intent lookup', async () => {
   const response = await handler(
     request(JSON.stringify({ intentId, txHash })),
     { params: Promise.resolve({ id: graveId }) },
+  )
+  expect(response.status).toBe(429)
+  expect(calls).toEqual(['ip'])
+})
+
+test('unknown-hash recovery applies the IP limit before an intent lookup', async () => {
+  const calls: string[] = []
+  const handler = createRecoverBurnHandler({
+    isAvailable: () => true,
+    rateLimitIp: async () => {
+      calls.push('ip')
+      throw new BurnHttpError(429, 'limited')
+    },
+    getStoredIntent: async () => {
+      calls.push('lookup')
+      return null
+    },
+    rateLimitWallet: async () => {
+      calls.push('wallet')
+    },
+    getServiceDependencies: async () => {
+      throw new Error('service must not run')
+    },
+    getRecoveryClient: async () => {
+      throw new Error('RPC must not run')
+    },
+  })
+
+  const response = await handler(
+    request('{}'),
+    { params: Promise.resolve({ id: graveId, intentId }) },
   )
   expect(response.status).toBe(429)
   expect(calls).toEqual(['ip'])
