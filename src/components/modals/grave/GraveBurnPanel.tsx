@@ -208,8 +208,8 @@ function EnabledGraveBurnPanel({
           </p>
 
           {burn.balanceDisplay && (
-            <p style={{ margin: '-5px 0 9px', textAlign: 'center', color: '#56534d', fontSize: 10 }}>
-              Wallet balance: {burn.balanceDisplay} GRAVE
+            <p style={{ margin: '-5px 0 9px', textAlign: 'center', color: '#c8a050', fontSize: 11 }}>
+              Wallet balance: {burn.balanceDisplay.split('.')[0]} GRAVE
             </p>
           )}
 
