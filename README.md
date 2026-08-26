@@ -88,6 +88,7 @@ Legacy Agent Layer code, API routes, SQL, and archived docs remain in the reposi
 - **The Crypt** - a searchable ledger of graves.
 - **Necropolis Leaderboard** - top gravediggers, causes of death, and cemetery activity.
 - **Press F** - pay respects to graves, one vote per user per grave.
+- **$GRAVE Rituals** - $GRAVE can be ritually buried in any grave.
 - **Deep Links** - share graves and urns through stable URLs.
 - **Open Graph Cards** - grave links render dedicated tombstone social cards.
 
