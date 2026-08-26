@@ -20,6 +20,7 @@ const STATE_COPY = {
   creating_intent: 'Preparing the grave intent',
   signing: 'Sign the grave intent',
   transferring: 'Confirm the transfer in your wallet',
+  recovering: 'Checking Base for a previous transfer',
   verifying: 'Transaction submitted — verifying on Base',
   pending: 'Confirmed — indexing pending',
   verified: 'Ritual accepted',
@@ -53,6 +54,7 @@ function EnabledGraveBurnPanel({
 }) {
   const connection = useConnection()
   const burn = useGraveBurn({ graveId, slotId })
+  const { amount: burnAmount, maxAmount, setAmount: setBurnAmount } = burn
   const [expanded, setExpanded] = useState(false)
   const [usingMax, setUsingMax] = useState(false)
   const controlsId = `grave-burn-controls-${graveId}`
@@ -60,14 +62,14 @@ function EnabledGraveBurnPanel({
 
   const maxSelected =
     usingMax
-    && burn.maxAmount !== null
-    && burn.amount === burn.maxAmount
+    && maxAmount !== null
+    && burnAmount === maxAmount
 
   useEffect(() => {
-    if (usingMax && burn.maxAmount !== null && burn.amount !== burn.maxAmount) {
-      burn.setAmount(burn.maxAmount)
+    if (usingMax && maxAmount !== null && burnAmount !== maxAmount) {
+      setBurnAmount(maxAmount)
     }
-  }, [burn.amount, burn.maxAmount, burn.setAmount, usingMax])
+  }, [burnAmount, maxAmount, setBurnAmount, usingMax])
 
   const ready =
     connection.status === 'connected'
@@ -135,6 +137,17 @@ function EnabledGraveBurnPanel({
           </p>
           <WalletButton disabled={burn.busy} />
 
+      {connection.status !== 'connected' && burn.hasPendingTransfer && (
+        <p role="status" aria-live="polite" style={{
+          margin: '9px 0',
+          textAlign: 'center',
+          color: '#d79b78',
+          fontSize: 12,
+        }}>
+          {burn.error ?? STATE_COPY[burn.state]}
+        </p>
+      )}
+
       {connection.status === 'connected' && connection.chainId === GRAVE_CHAIN_ID && (
         <>
           <fieldset
@@ -195,8 +208,8 @@ function EnabledGraveBurnPanel({
           </p>
 
           {burn.balanceDisplay && (
-            <p style={{ margin: '-5px 0 9px', textAlign: 'center', color: '#56534d', fontSize: 10 }}>
-              Wallet balance: {burn.balanceDisplay} GRAVE
+            <p style={{ margin: '-5px 0 9px', textAlign: 'center', color: '#c8a050', fontSize: 11 }}>
+              Wallet balance: {burn.balanceDisplay.split('.')[0]} GRAVE
             </p>
           )}
 
@@ -210,7 +223,7 @@ function EnabledGraveBurnPanel({
             {burn.busy ? STATE_COPY[burn.state] : 'BURN $GRAVE'}
           </StoneButton>
 
-          {burn.hasPendingTransfer && burn.state === 'failed' && (
+          {burn.hasKnownPendingTransfer && burn.state === 'failed' && (
             <>
               <p role="alert" style={{ margin: '9px 0', color: '#d79b78', fontSize: 11, lineHeight: 1.45 }}>
                 A wallet transfer was already submitted. Do not send another offering.
@@ -225,23 +238,6 @@ function EnabledGraveBurnPanel({
               >
                 Retry Verification
               </StoneButton>
-              <button
-                type="button"
-                onClick={burn.clearPendingRecovery}
-                style={{
-                  display: 'block',
-                  margin: '8px auto 0',
-                  padding: 0,
-                  border: 0,
-                  background: 'transparent',
-                  color: '#625f58',
-                  fontSize: 10,
-                  textDecoration: 'underline',
-                  cursor: 'pointer',
-                }}
-              >
-                Clear only after checking BaseScan
-              </button>
             </>
           )}
         </>

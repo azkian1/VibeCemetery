@@ -8,6 +8,10 @@ const finishMigration = fs.readFileSync(
   path.join(root, 'docs/web3-grave-burn-v1-finish.sql'),
   'utf8',
 )
+const recoveryMigration = fs.readFileSync(
+  path.join(root, 'docs/web3-grave-burn-hash-recovery.sql'),
+  'utf8',
+)
 
 function normalizedFunctionBody(sql: string, functionName: string): string {
   const marker = `create or replace function public.${functionName}(`
@@ -118,9 +122,38 @@ test('scheduler is configured for bounded protected reverification', () => {
     path.join(root, 'src/app/api/internal/grave-burns/reverify/route.ts'),
     'utf8',
   )
-  expect(route).toContain('limit: 25')
-  expect(route).toContain('authorization')
-  expect(route).toContain('reverifySecret')
+  const handler = fs.readFileSync(
+    path.join(root, 'src/app/api/internal/grave-burns/reverify/reverify-handler.ts'),
+    'utf8',
+  )
+  expect(handler).toContain('limit: 25')
+  expect(handler).toContain('limit: 2')
+  expect(route).toContain('recoverUnknownBurnBatch')
+  expect(handler).toContain('authorization')
+  expect(handler).toContain('reverifySecret')
   expect(route).toContain('export const GET = handleReverify')
   expect(route).toContain('export const POST = handleReverify')
+})
+
+test('background hash recovery is atomically leased and service-role only', () => {
+  expect(recoveryMigration).toContain('recovery_lease_until')
+  expect(recoveryMigration).toContain('recovery_lease_token')
+  expect(recoveryMigration).toContain('recovery_completed_at')
+  expect(recoveryMigration).toContain('function public.claim_grave_burn_recoveries')
+  expect(recoveryMigration).toContain('for update of candidate skip locked')
+  expect(recoveryMigration).toContain('p_limit > 25')
+  expect(recoveryMigration).toContain('p_claimed_at is null')
+  expect(recoveryMigration).toContain('function public.finish_grave_burn_recovery')
+  expect(recoveryMigration).toContain("candidate.status = 'authorized'")
+  expect(recoveryMigration).toContain('candidate.recovery_lease_token = p_lease_token')
+  expect(recoveryMigration).toContain('p_checked_at is null')
+  expect(recoveryMigration).toContain('not exists (')
+  expect(recoveryMigration).toContain("set search_path = ''")
+  expect(recoveryMigration).toContain(
+    'revoke all on function public.claim_grave_burn_recoveries',
+  )
+  expect(recoveryMigration).toContain(
+    'grant execute on function public.finish_grave_burn_recovery',
+  )
+  expect(recoveryMigration.match(/to service_role;/g)?.length).toBe(2)
 })
