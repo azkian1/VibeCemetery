@@ -26,10 +26,8 @@ test('fixed GRAVE configuration matches the approved Base MVP', () => {
   expect(MIN_BURN_CONFIRMATIONS).toBe(2)
 })
 
-test('amount parsing preserves up to 18 decimals as bigint raw units', () => {
-  expect(parseGraveAmount('100')?.amountRaw).toBe(100n * 10n ** 18n)
-  expect(parseGraveAmount('0.791683357334207263')?.amountRaw)
-    .toBe(791_683_357_334_207_263n)
+test('amount parsing enforces the server minimum and preserves bigint raw units', () => {
+  expect(parseGraveAmount('1000')?.amountRaw).toBe(1_000n * 10n ** 18n)
   expect(parseGraveAmount('7218756.791683357334207263')?.amountRaw)
     .toBe(7_218_756_791_683_357_334_207_263n)
   expect(parseGraveAmount(formatUnits(MAX_GRAVE_UINT256_RAW, GRAVE_TOKEN_DECIMALS))?.amountRaw)
@@ -39,6 +37,7 @@ test('amount parsing preserves up to 18 decimals as bigint raw units', () => {
   for (const invalid of [
     '0',
     '0.000000000000000000',
+    '999.999999999999999999',
     '-1',
     '1.1234567890123456789',
     '01',

@@ -1,12 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useConnection } from 'wagmi'
 import StoneButton from '@/components/ui/StoneButton'
 import WalletButton from '@/components/web3/WalletButton'
 import { useCemeteryMapVersion } from '@/context/GameContext'
 import {
   GRAVE_BURN_ADDRESS,
+  GRAVE_BURN_PRESET_RAW,
   GRAVE_BURN_PRESETS,
   GRAVE_CHAIN_ID,
   GRAVE_TOKEN_ADDRESS,
@@ -59,15 +60,22 @@ function EnabledGraveBurnPanel({
 
   const maxSelected =
     usingMax
-    && !burn.usingCustom
     && burn.maxAmount !== null
     && burn.amount === burn.maxAmount
+
+  useEffect(() => {
+    if (usingMax && burn.maxAmount !== null && burn.amount !== burn.maxAmount) {
+      burn.setAmount(burn.maxAmount)
+    }
+  }, [burn.amount, burn.maxAmount, burn.setAmount, usingMax])
 
   const ready =
     connection.status === 'connected'
     && connection.chainId === GRAVE_CHAIN_ID
     && burn.amountRaw !== null
+    && burn.balanceRaw !== null
     && !burn.insufficientBalance
+    && (!usingMax || maxSelected)
     && !burn.hasPendingTransfer
     && !burn.busy
 
@@ -141,16 +149,20 @@ function EnabledGraveBurnPanel({
                 <StoneButton
                   key={amount}
                   type="button"
-                  active={!maxSelected && !burn.usingCustom && burn.amount === amount}
-                  aria-pressed={!maxSelected && !burn.usingCustom && burn.amount === amount}
+                  active={!maxSelected && burn.amount === amount}
+                  aria-pressed={!maxSelected && burn.amount === amount}
                   aria-label={`Offer ${Number(amount).toLocaleString('en-US')} GRAVE`}
+                  disabled={
+                    burn.busy
+                    || burn.balanceRaw === null
+                    || burn.balanceRaw < GRAVE_BURN_PRESET_RAW[amount]
+                  }
                   onClick={() => {
                     setUsingMax(false)
-                    burn.setUsingCustom(false)
                     burn.setAmount(amount)
                   }}
                 >
-                  {Number(amount).toLocaleString('en-US')}
+                  {amount === '1000' ? '1K' : '10K'}
                 </StoneButton>
               ))}
               <StoneButton
@@ -164,47 +176,12 @@ function EnabledGraveBurnPanel({
                 onClick={() => {
                   if (burn.maxAmount === null) return
                   setUsingMax(true)
-                  burn.setUsingCustom(false)
                   burn.setAmount(burn.maxAmount)
                 }}
               >
                 MAX
               </StoneButton>
             </div>
-            <label
-              htmlFor={`grave-burn-custom-${graveId}`}
-              style={{ display: 'block', marginTop: 8, fontSize: 11, color: '#77736a', textAlign: 'center' }}
-            >
-              Custom GRAVE amount
-            </label>
-            <input
-              id={`grave-burn-custom-${graveId}`}
-              aria-label="Custom GRAVE amount"
-              inputMode="decimal"
-              pattern="(?:0|[1-9][0-9]*)(?:\.[0-9]{1,18})?"
-              value={burn.customAmount}
-              onFocus={() => {
-                setUsingMax(false)
-                burn.setUsingCustom(true)
-              }}
-              onChange={(event) => {
-                setUsingMax(false)
-                burn.setUsingCustom(true)
-                burn.setCustomAmount(event.target.value)
-              }}
-              style={{
-                width: '100%',
-                boxSizing: 'border-box',
-                marginTop: 4,
-                padding: '8px 10px',
-                color: '#d8c891',
-                background: '#171513',
-                border: `1px solid ${burn.usingCustom && burn.amountRaw === null ? '#7f493e' : '#3b342b'}`,
-                borderRadius: 4,
-                fontFamily: 'monospace',
-                textAlign: 'center',
-              }}
-            />
           </fieldset>
 
           <p role="status" aria-live="polite" style={{

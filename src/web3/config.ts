@@ -5,12 +5,17 @@ export const GRAVE_TOKEN_ADDRESS = '0xb48bc4896D18724F7bF5A3d2817fC35252cD7bA3' 
 export const GRAVE_TOKEN_SYMBOL = 'GRAVE'
 export const GRAVE_TOKEN_DECIMALS = 18
 export const GRAVE_BURN_ADDRESS = '0x000000000000000000000000000000000000dEaD' as const
-export const GRAVE_BURN_PRESETS = ['1000', '5000'] as const
+export const GRAVE_BURN_PRESETS = ['1000', '10000'] as const
+export const MIN_GRAVE_BURN_RAW = 1_000n * 10n ** BigInt(GRAVE_TOKEN_DECIMALS)
+export const GRAVE_BURN_PRESET_RAW = {
+  '1000': MIN_GRAVE_BURN_RAW,
+  '10000': 10_000n * 10n ** BigInt(GRAVE_TOKEN_DECIMALS),
+} as const
 export const MIN_BURN_CONFIRMATIONS = 2
 export const MAX_GRAVE_UINT256_RAW = (1n << 256n) - 1n
 
 export function maxGraveAmount(balanceRaw: bigint | null | undefined): string | null {
-  if (typeof balanceRaw !== 'bigint' || balanceRaw <= 0n) return null
+  if (typeof balanceRaw !== 'bigint' || balanceRaw < MIN_GRAVE_BURN_RAW) return null
   return formatUnits(balanceRaw, GRAVE_TOKEN_DECIMALS)
 }
 

@@ -20,6 +20,7 @@ import {
   GRAVE_TOKEN_ADDRESS,
   GRAVE_TOKEN_DECIMALS,
   MAX_GRAVE_UINT256_RAW,
+  MIN_GRAVE_BURN_RAW,
   maxGraveAmount,
 } from './config'
 
@@ -169,8 +170,6 @@ export function useGraveBurn({
   const { signTypedDataAsync } = useSignTypedData()
   const { writeContractAsync } = useWriteContract()
   const [amount, setAmount] = useState<string>(GRAVE_BURN_PRESETS[0])
-  const [customAmount, setCustomAmount] = useState('')
-  const [usingCustom, setUsingCustom] = useState(false)
   const [state, setState] = useState<GraveBurnUiState>('idle')
   const [error, setError] = useState<string | null>(null)
   const [stats, setStats] = useState<GraveBurnStats>(EMPTY_STATS)
@@ -191,20 +190,19 @@ export function useGraveBurn({
     [connection.address, graveId],
   )
 
-  const selectedAmount = usingCustom ? customAmount : amount
   const amountRaw = useMemo(() => {
     if (
-      selectedAmount.length > 79
-      || !/^(?:0|[1-9][0-9]*)(?:\.[0-9]{1,18})?$/.test(selectedAmount)
-      || selectedAmount.split('.')[0].length > 60
+      amount.length > 79
+      || !/^(?:0|[1-9][0-9]*)(?:\.[0-9]{1,18})?$/.test(amount)
+      || amount.split('.')[0].length > 60
     ) return null
     try {
-      const parsed = parseUnits(selectedAmount, GRAVE_TOKEN_DECIMALS)
-      return parsed > 0n && parsed <= MAX_GRAVE_UINT256_RAW ? parsed : null
+      const parsed = parseUnits(amount, GRAVE_TOKEN_DECIMALS)
+      return parsed >= MIN_GRAVE_BURN_RAW && parsed <= MAX_GRAVE_UINT256_RAW ? parsed : null
     } catch {
       return null
     }
-  }, [selectedAmount])
+  }, [amount])
 
   const balance = useReadContract({
     address: GRAVE_TOKEN_ADDRESS,
@@ -346,11 +344,12 @@ export function useGraveBurn({
       || !connection.address
       || connection.chainId !== GRAVE_CHAIN_ID
       || amountRaw === null
+      || typeof balance.data !== 'bigint'
       || pendingTransfer !== null
     ) {
       return
     }
-    if (typeof balance.data === 'bigint' && balance.data < amountRaw) {
+    if (balance.data < amountRaw) {
       setError('Not enough GRAVE')
       return
     }
@@ -369,7 +368,7 @@ export function useGraveBurn({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           walletAddress: connection.address,
-          amount: selectedAmount,
+          amount,
         }),
         signal,
       }))
@@ -435,7 +434,7 @@ export function useGraveBurn({
     pendingTransfer,
     pendingStorageKey,
     pollPending,
-    selectedAmount,
+    amount,
     signTypedDataAsync,
     writeContractAsync,
   ])
@@ -492,12 +491,9 @@ export function useGraveBurn({
     explorerUrl,
     amount,
     setAmount,
-    customAmount,
-    setCustomAmount,
-    usingCustom,
-    setUsingCustom,
     amountRaw,
     maxAmount: maxGraveAmount(balance.data),
+    balanceRaw: typeof balance.data === 'bigint' ? balance.data : null,
     balanceDisplay:
       typeof balance.data === 'bigint'
         ? formatUnits(balance.data, GRAVE_TOKEN_DECIMALS)

@@ -15,6 +15,7 @@ import {
   GRAVE_TOKEN_ADDRESS,
   GRAVE_TOKEN_DECIMALS,
   MAX_GRAVE_UINT256_RAW,
+  MIN_GRAVE_BURN_RAW,
 } from '@/web3/config'
 
 export const UUID_RE =
@@ -93,7 +94,7 @@ export function parseGraveAmount(value: unknown): {
 
   try {
     const amountRaw = parseUnits(value, GRAVE_TOKEN_DECIMALS)
-    if (amountRaw <= 0n || amountRaw > MAX_GRAVE_UINT256_RAW) return null
+    if (amountRaw < MIN_GRAVE_BURN_RAW || amountRaw > MAX_GRAVE_UINT256_RAW) return null
     return { amount: value, amountRaw }
   } catch {
     return null
