@@ -8,6 +8,7 @@ import {
   readStrictJsonObject,
 } from '../src/lib/web3/http'
 import { createAuthorizeBurnIntentHandler } from '../src/app/api/graves/[id]/burn-intents/[intentId]/authorize/authorize-handler'
+import { createPostBurnIntentHandler } from '../src/app/api/graves/[id]/burn-intents/create-handler'
 import { createSubmitBurnHandler } from '../src/app/api/graves/[id]/burns/submit-handler'
 import type { GraveBurnIntentRecord } from '../src/lib/web3/burnIntent'
 
@@ -50,6 +51,32 @@ test('non-JSON content type is rejected', async () => {
   await expect(readStrictJsonObject(request('{}', {
     'content-type': 'text/plain',
   }))).rejects.toMatchObject({ status: 415 })
+})
+
+test('create intent rejects amounts below 1,000 GRAVE before service access', async () => {
+  const calls: string[] = []
+  const handler = createPostBurnIntentHandler({
+    isAvailable: () => true,
+    rateLimit: async () => {
+      calls.push('rate-limit')
+    },
+    getServiceDependencies: async () => {
+      calls.push('service')
+      throw new Error('service must not run')
+    },
+  })
+
+  const response = await handler(
+    request(JSON.stringify({
+      walletAddress: wallet,
+      amount: '999.999999999999999999',
+    })),
+    { params: Promise.resolve({ id: graveId }) },
+  )
+
+  expect(response.status).toBe(400)
+  await expect(response.json()).resolves.toEqual({ error: 'Minimum burn amount is 1,000 GRAVE' })
+  expect(calls).toEqual([])
 })
 
 test('unexpected errors do not leak private RPC metadata to logs', async () => {

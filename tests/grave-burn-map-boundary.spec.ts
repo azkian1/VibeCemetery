@@ -62,18 +62,29 @@ test('burn controls are compact by default and expose the requested labels', () 
 })
 
 test('burn presets stay whole while MAX preserves the complete raw balance', () => {
-  expect(GRAVE_BURN_PRESETS).toEqual(['1000', '5000'])
+  expect(GRAVE_BURN_PRESETS).toEqual(['1000', '10000'])
   expect(maxGraveAmount(undefined)).toBeNull()
   expect(maxGraveAmount(null)).toBeNull()
   expect(maxGraveAmount(0n)).toBeNull()
-  expect(maxGraveAmount(999_999_999_999_999_999n)).toBe('0.999999999999999999')
-  expect(maxGraveAmount(1_999_999_999_999_999_999n)).toBe('1.999999999999999999')
+  expect(maxGraveAmount(999n * 10n ** 18n)).toBeNull()
+  expect(maxGraveAmount(1_000n * 10n ** 18n)).toBe('1000')
   expect(maxGraveAmount(5_000n * 10n ** 18n)).toBe('5000')
   expect(maxGraveAmount(7_218_756_791_683_357_334_207_263n))
     .toBe('7218756.791683357334207263')
 
   const burnHook = fs.readFileSync(path.join(root, 'src/web3/useGraveBurn.ts'), 'utf8')
-  expect(burnHook).toContain('parsed <= MAX_GRAVE_UINT256_RAW')
+  expect(burnHook).toContain('parsed >= MIN_GRAVE_BURN_RAW')
+  expect(burnHook).not.toContain('customAmount')
+
+  const panel = fs.readFileSync(
+    path.join(root, 'src/components/modals/grave/GraveBurnPanel.tsx'),
+    'utf8',
+  )
+  expect(panel).not.toContain('Custom GRAVE amount')
+  expect(panel).toContain("amount === '1000' ? '1K' : '10K'")
+  expect(panel).toContain('burn.balanceRaw < GRAVE_BURN_PRESET_RAW[amount]')
+  expect(panel).toContain('if (usingMax && burn.maxAmount !== null && burn.amount !== burn.maxAmount)')
+  expect(panel).toContain('&& (!usingMax || maxSelected)')
 })
 
 test('Supabase reads uint256-sized numeric columns as text', () => {
