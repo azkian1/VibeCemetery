@@ -53,6 +53,16 @@ Fog is a world-state overlay and must conceal every game object. Its depth
 order is `fog_soft_inner` 2000, `fog_soft_outer` 2001,
 `fog_locked_blockout` 2002, then the vignette/overscroll safety layer at 2003.
 
+### Visual polish (2026-09-05)
+
+Permanent building labels are hidden. Building interaction and hover information remain.
+The three authored fog masks are composited once into a quarter-resolution canvas,
+blurred by 48 world pixels, and displayed with linear filtering above world objects.
+A second distance-based mask fades to fully opaque darkness at the actual terrain
+boundary, hiding texture cutoffs and empty space beyond the map.
+Original fog tile layers stay available for camera constraints and minimap data but
+are hidden in the main scene. This changes presentation only; playable bounds remain unchanged.
+
 ## Camera, Fog, and Zoom
 
 The camera begins around the main gate (`1760, 3100`). At an ordinary viewport,

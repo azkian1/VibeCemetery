@@ -26,10 +26,6 @@ const CAMERA_FOG_SAFETY_WORLD_BOUNDS_V2 = {
   maxX: WORLD_W + CAMERA_FOG_OVERSCROLL_V2,
   maxY: WORLD_H + CAMERA_FOG_OVERSCROLL_V2,
 };
-const BUILDING_LABEL_GAP_V2 = 4;
-const BUILDING_LABEL_STACK_GAP_V2 = 4;
-// Stay over world sprites while still receiving the day/night overlay and fog.
-const BUILDING_LABEL_DEPTH_V2 = 880;
 const BUILDING_SHADOW_DEPTH_V2 = 699;
 const BUILDING_PREVIEW_DEPTH_V2 = 700;
 const MAIN_GATE_PREVIEW_DEPTH_V2 = 701;
@@ -377,6 +373,7 @@ export class CemeterySceneV2 extends Phaser.Scene {
       const fogDepth = FOG_LAYER_DEPTHS_V2[layerName];
       if (fogDepth !== undefined) layer.setDepth(fogDepth);
     }
+    this.createSoftFog();
     this.buildFogCameraAnchors();
 
     // Render building preview sprites from object layers
@@ -511,7 +508,7 @@ export class CemeterySceneV2 extends Phaser.Scene {
     cemeteryEvents.on('render_grave', this.onRenderGrave);
     cemeteryEvents.on('sync_graves', this.onSyncGraves);
 
-    this.createBuildingLabels();
+    // Building names remain available through hover tooltips.
     this.createFogOverscrollBackdrop();
     this.createFogVignette();
     this.createDayNightCycle();
@@ -800,66 +797,117 @@ export class CemeterySceneV2 extends Phaser.Scene {
     });
   }
 
-  private createBuildingLabels() {
-    const style: Phaser.Types.GameObjects.Text.TextStyle = {
-      fontSize: '14px',
-      fontFamily: "'Cinzel', Georgia, serif",
-      color: '#ffffff',
-      stroke: '#000000',
-      strokeThickness: 3,
-      align: 'center',
-    };
+  private createSoftFog() {
+    // Bake once at quarter resolution. The authored tile layers remain the
+    // authority for camera bounds and minimap; only their presentation changes.
+    const scale = 0.25;
+    const padding = 128;
+    const mask = document.createElement('canvas');
+    mask.width = (WORLD_W + padding * 2) * scale;
+    mask.height = (WORLD_H + padding * 2) * scale;
+    const context = mask.getContext('2d');
+    if (!context) return;
+    context.scale(scale, scale);
+    context.translate(padding, padding);
+    context.fillStyle = 'rgba(26, 26, 46, 0.85)';
+    context.fillRect(-padding, -padding, WORLD_W + padding * 2, padding);
+    context.fillRect(-padding, WORLD_H, WORLD_W + padding * 2, padding);
+    context.fillRect(-padding, 0, padding, WORLD_H);
+    context.fillRect(WORLD_W, 0, padding, WORLD_H);
 
-    document.fonts.load("14px Cinzel").then(() => {
-      if (!this.scene.isActive()) return;
-      const buildingSlots = Array.from(this.slots.values())
-        .filter((slot) => slot.type === 'Building' && !!slot.name)
-        .sort((left, right) => left.y - right.y || left.x - right.x || left.id - right.id);
-      const placedLabels: Phaser.GameObjects.Text[] = [];
-
-      for (const slot of buildingSlots) {
-        const cx = slot.x + slot.width / 2;
-        let ly = slot.y - BUILDING_LABEL_GAP_V2;
-
-        // A wide object layer can overlap another building (the two gate
-        // previews do). Keep its label above that neighbouring sprite too.
-        while (true) {
-          const blockingTop = buildingSlots
-            .filter((candidate) => candidate.id !== slot.id)
-            .filter((candidate) => {
-              const overlapsHorizontally = slot.x < candidate.x + candidate.width
-                && slot.x + slot.width > candidate.x;
-              return overlapsHorizontally
-                && ly > candidate.y
-                && ly <= candidate.y + candidate.height;
-            })
-            .reduce<number | null>(
-              (top, candidate) => top === null ? candidate.y : Math.min(top, candidate.y),
-              null,
-            );
-          if (blockingTop === null) break;
-          ly = blockingTop - BUILDING_LABEL_GAP_V2;
+    for (const name of Object.keys(FOG_LAYER_DEPTHS_V2)) {
+      const layer = this.map.getLayer(name);
+      if (!layer) continue;
+      context.fillStyle = `rgba(26, 26, 46, ${Number(layer.alpha)})`;
+      for (const row of layer.data) {
+        for (const tile of row) {
+          if (tile.index < 0) continue;
+          context.fillRect(layer.x + tile.pixelX, layer.y + tile.pixelY, tile.width, tile.height);
         }
+      }
+    }
 
-        const label = this.add.text(cx, ly, slot.name.toUpperCase(), style);
-        label.setOrigin(0.5, 1);
-        label.setDepth(BUILDING_LABEL_DEPTH_V2);
+    const softened = document.createElement('canvas');
+    softened.width = mask.width;
+    softened.height = mask.height;
+    const softContext = softened.getContext('2d');
+    if (!softContext) return;
+    softContext.filter = 'blur(12px)'; // 48 world pixels: soften individual tile steps.
+    softContext.drawImage(mask, 0, 0);
 
-        // Labels sharing the same clear space (such as Main Gate and Side
-        // Wicket) are stacked rather than drawn on top of each other.
-        for (const placedLabel of placedLabels) {
-          const bounds = label.getBounds();
-          const placedBounds = placedLabel.getBounds();
-          const overlapsHorizontally = bounds.left < placedBounds.right
-            && bounds.right > placedBounds.left;
-          const overlapsVertically = bounds.top < placedBounds.bottom + BUILDING_LABEL_STACK_GAP_V2
-            && bounds.bottom > placedBounds.top - BUILDING_LABEL_STACK_GAP_V2;
-          if (overlapsHorizontally && overlapsVertically) {
-            label.setY(placedBounds.top - BUILDING_LABEL_STACK_GAP_V2);
+    // Hide the actual end of terrain, not just the authored locked-fog cells.
+    // Distance to empty terrain makes the fade follow irregular map outlines
+    // and reach full opacity before texture edges can show through.
+    const terrain = this.map.getLayer('pixellab_dualgrid_reconstructed');
+    if (terrain) {
+      const coverage = document.createElement('canvas');
+      coverage.width = mask.width;
+      coverage.height = mask.height;
+      const edgeContext = coverage.getContext('2d');
+      if (edgeContext) {
+        edgeContext.fillStyle = '#ffffff';
+        for (const row of terrain.data) {
+          for (const tile of row) {
+            if (tile.index < 0) continue;
+            edgeContext.fillRect(
+              (padding + terrain.x + tile.pixelX) * scale,
+              (padding + terrain.y + tile.pixelY) * scale,
+              tile.width * scale, tile.height * scale,
+            );
           }
         }
-        placedLabels.push(label);
+        const pixels = edgeContext.getImageData(0, 0, coverage.width, coverage.height);
+        const width = coverage.width;
+        const height = coverage.height;
+        const distance = new Float32Array(width * height);
+        for (let i = 0; i < distance.length; i++) {
+          distance[i] = pixels.data[i * 4 + 3] > 0 ? 10000 : 0;
+        }
+        // Two-pass chamfer distance field, calculated only during scene creation.
+        const diagonal = Math.SQRT2;
+        for (let y = 1; y < height - 1; y++) {
+          for (let x = 1; x < width - 1; x++) {
+            const i = y * width + x;
+            distance[i] = Math.min(distance[i], distance[i - 1] + 1,
+              distance[i - width] + 1, distance[i - width - 1] + diagonal,
+              distance[i - width + 1] + diagonal);
+          }
+        }
+        for (let y = height - 2; y > 0; y--) {
+          for (let x = width - 2; x > 0; x--) {
+            const i = y * width + x;
+            distance[i] = Math.min(distance[i], distance[i + 1] + 1,
+              distance[i + width] + 1, distance[i + width - 1] + diagonal,
+              distance[i + width + 1] + diagonal);
+          }
+        }
+        for (let i = 0; i < distance.length; i++) {
+          const t = Phaser.Math.Clamp((distance[i] - 4) / 36, 0, 1);
+          pixels.data[i * 4] = 10;
+          pixels.data[i * 4 + 1] = 11;
+          pixels.data[i * 4 + 2] = 16;
+          pixels.data[i * 4 + 3] = Math.round(255 * (1 - t * t * (3 - 2 * t)));
+        }
+        edgeContext.putImageData(pixels, 0, 0);
+        softContext.filter = 'none';
+        softContext.drawImage(coverage, 0, 0);
       }
+    }
+
+    const key = 'cemetery-v2-soft-fog';
+    if (this.textures.exists(key)) this.textures.remove(key);
+    const texture = this.textures.addCanvas(key, softened);
+    if (!texture) return;
+    texture.setFilter(Phaser.Textures.FilterMode.LINEAR);
+    this.add.image(-padding, -padding, key)
+      .setOrigin(0)
+      .setScale(1 / scale)
+      .setDepth(FOG_LAYER_DEPTHS_V2.fog_locked_blockout);
+    for (const name of Object.keys(FOG_LAYER_DEPTHS_V2)) {
+      this.map.getLayer(name)?.tilemapLayer?.setVisible(false);
+    }
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      if (this.textures.exists(key)) this.textures.remove(key);
     });
   }
 
