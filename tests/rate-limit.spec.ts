@@ -60,49 +60,75 @@ test.describe('rate limiter', () => {
     }
   })
 
-  test('uses Redis-backed fixed window when Upstash env is configured', async () => {
-    process.env.UPSTASH_REDIS_REST_URL = 'https://redis.example.com'
+  test('uses one atomic Redis command per request and preserves fixed-window TTL', async () => {
+    process.env.UPSTASH_REDIS_REST_URL = 'https://redis.example.com/'
     process.env.UPSTASH_REDIS_REST_TOKEN = 'test-token'
+    delete process.env.PLAYWRIGHT_E2E
 
-    const calls: Array<{ url: string; body?: string }> = []
-    let incrCount = 0
-
-    globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
-      const url = typeof input === 'string'
-        ? input
-        : input instanceof URL
-          ? input.toString()
-          : input.url
-      calls.push({ url, body: typeof init?.body === 'string' ? init.body : undefined })
-
-      if (url.endsWith('/incr/test-key')) {
-        incrCount += 1
-        return new Response(JSON.stringify({ result: incrCount }), { status: 200 })
-      }
-
-      if (url.endsWith('/pexpire/test-key/60000')) {
-        return new Response(JSON.stringify({ result: 1 }), { status: 200 })
-      }
-
-      if (url.endsWith('/pttl/test-key')) {
-        return new Response(JSON.stringify({ result: 42000 }), { status: 200 })
-      }
-
-      throw new Error(`Unexpected fetch URL: ${url}`)
+    const commands: unknown[][] = []
+    const responses = [[1, 60000], [2, 50000], [3, 42000], [4, 0], [1, 60000]]
+    globalThis.fetch = (async (input, init) => {
+      expect(input).toBe('https://redis.example.com')
+      expect(init?.method).toBe('POST')
+      expect(new Headers(init?.headers).get('authorization')).toBe('Bearer test-token')
+      expect(new Headers(init?.headers).get('content-type')).toBe('application/json')
+      expect(init?.cache).toBe('no-store')
+      commands.push(JSON.parse(String(init?.body)))
+      return Response.json({ result: responses.shift() })
     }) as typeof fetch
 
-    expect(await checkRateLimit('test-key', 2, 60_000)).toEqual({ allowed: true })
-    expect(await checkRateLimit('test-key', 2, 60_000)).toEqual({ allowed: true })
-    const blocked = await checkRateLimit('test-key', 2, 60_000)
-    expect(blocked.allowed).toBe(false)
-    if (!blocked.allowed) {
-      expect(blocked.retryAfterMs).toBe(42000)
+    // Colons, slashes and Unicode must remain one key, not REST path segments.
+    const key = 'read:2001:db8::1/тест'
+    expect(await checkRateLimit(key, 2, 60_000)).toEqual({ allowed: true })
+    expect(await checkRateLimit(key, 2, 60_000)).toEqual({ allowed: true })
+    expect(await checkRateLimit(key, 2, 60_000)).toEqual({ allowed: false, retryAfterMs: 42000 })
+    expect(await checkRateLimit(key, 2, 60_000)).toEqual({ allowed: false, retryAfterMs: 1 })
+    expect(await checkRateLimit(key, 2, 60_000)).toEqual({ allowed: true })
+    expect(commands).toHaveLength(5)
+    for (const command of commands) {
+      expect(command).toEqual(['EVAL', expect.any(String), 1, key, 60000])
     }
-
-    expect(calls[0]?.url).toContain('/incr/test-key')
-    expect(calls.some((call) => call.url.endsWith('/pexpire/test-key/60000'))).toBe(true)
-    expect(calls.some((call) => call.url.endsWith('/pttl/test-key'))).toBe(true)
   })
+
+  for (const failure of [
+    'network', 'http', 'redis-error', 'missing-result', 'null',
+    'invalid-count', 'negative-ttl', 'invalid-ttl',
+  ]) {
+    test(`falls back to a bounded memory window on ${failure}`, async () => {
+      process.env.UPSTASH_REDIS_REST_URL = 'https://redis.example.com'
+      process.env.UPSTASH_REDIS_REST_TOKEN = 'test-token'
+      delete process.env.PLAYWRIGHT_E2E
+      const originalError = console.error
+      console.error = () => {}
+      let calls = 0
+      globalThis.fetch = (async () => {
+        calls++
+        switch (failure) {
+          case 'network': throw new Error('Connection lost')
+          case 'http': return new Response('Unavailable', { status: 503 })
+          case 'redis-error': return Response.json({ error: 'ERR script failed' })
+          case 'missing-result': return Response.json({})
+          case 'null': return Response.json(null)
+          case 'invalid-count': return Response.json({ result: ['1', 60000] })
+          case 'negative-ttl': return Response.json({ result: [100, -1] })
+          default: return Response.json({ result: [1, null] })
+        }
+      }) as typeof fetch
+      try {
+        expect(await checkRateLimit('fallback-key', 1, 60_000)).toEqual({ allowed: true })
+        const blocked = await checkRateLimit('fallback-key', 1, 60_000)
+        expect(blocked.allowed).toBe(false)
+        if (!blocked.allowed) {
+          expect(blocked.retryAfterMs).toBeGreaterThan(0)
+          expect(blocked.retryAfterMs).toBeLessThanOrEqual(60_000)
+        }
+        // Do not retry a failed EVAL: it may have executed before the reply was lost.
+        expect(calls).toBe(2)
+      } finally {
+        console.error = originalError
+      }
+    })
+  }
 
   test('uses the in-memory limiter for explicit non-production Playwright E2E runs', async () => {
     process.env.PLAYWRIGHT_E2E = '1'
