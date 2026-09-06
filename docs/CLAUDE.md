@@ -367,14 +367,14 @@ Paused Agent Layer legacy routes also reference `AGENT_ASH_TOKEN_SECRET` and `GI
 - If the paused Agent Layer is revived, `AGENT_ASH_TOKEN_SECRET` must remain server-only and Agent Ash ingest must keep rejecting static ingest tokens and `vc_cli_*` human cremation tokens.
 - Shared rate limiting uses Upstash when configured and in-memory fallback otherwise.
 - `/bury` installer and helper safety boundaries must be enforced in code, not only in prompt text or documentation.
-- Quick-install sources are served from `https://vibecemetery.app/skills/bury/v1`; GitHub can mirror later, but production install must not require GitHub raw URLs.
+- Current instructions are served at `/agent-instructions` and `/agent-instructions.md`; the temporary helper is at `/agent-instructions/helper.mjs`. Legacy installer downloads return 410.
 - Installer source overrides are test-only and must stay limited to localhost-style origins.
 
 ## CLI Workflow
-- User-facing command: `SKILL/commands/bury.md`
+- User-facing entry point: `/agent-instructions`; no command installation.
 - Workflow implementation: `SKILL/skills/bury-workflow/`
-- Installer flow: `SKILL/install/install-bury.sh` and `SKILL/install/install-bury.ps1`
-- Install source: canonical site page `https://vibecemetery.app/skills/bury/v1` with `install.sh`, `install.ps1`, `manifest.json`, and direct file links.
+- Archived installer sources: `SKILL/install/install-bury.sh` and `SKILL/install/install-bury.ps1` (no public distribution).
+- Legacy `/skills/bury/v1` page redirects to `/agent-instructions`; all old download paths return 410.
 - `/bury` is for local project cremation only; it does not scan GitHub repos and does not create map graves.
 - First run opens browser approval at `/cli/connect`; later runs use a stored bearer token.
 - Local deduplication uses an external per-user `cremated-registry.json`, not a repo file.

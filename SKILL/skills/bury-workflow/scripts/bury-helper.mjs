@@ -103,6 +103,9 @@ export function classifyProjectRootEntries(entries) {
   if (normalizedEntries.some((entry) => entry.isDirectory && entry.normalizedName === '.git')) {
     strongMatches.push('.git/')
   }
+  if (rootFiles.some((entry) => entry.normalizedName === '.git')) {
+    strongMatches.push('.git')
+  }
 
   for (const marker of STRONG_MARKER_FILES) {
     if (rootFiles.some((entry) => entry.normalizedName === marker.toLowerCase())) {
@@ -258,7 +261,7 @@ export function detectProjectCandidates(scanPath, options = {}) {
   const resolvedScanPath = assertSafeScanPath(scanPath, options)
   const registryEntries = normalizeRegistryEntries(Array.isArray(options.registryEntries) ? options.registryEntries : [])
   const scanPathEntries = readProjectRootEntries(resolvedScanPath)
-  const childDirectories = fs.readdirSync(resolvedScanPath, { withFileTypes: true }).flatMap((entry) => {
+  const childDirectories = classifyProjectRootEntries(scanPathEntries).isCandidate ? [] : fs.readdirSync(resolvedScanPath, { withFileTypes: true }).flatMap((entry) => {
     if (!entry.isDirectory() || SKIPPED_CHILD_DIRECTORY_NAMES.includes(entry.name)) {
       return []
     }
@@ -372,7 +375,7 @@ export function sanitizeGitHubRemote(remote) {
   }
 
   try {
-    const url = new URL(raw)
+    const url = new URL(/^github\.com\//i.test(raw) ? `https://${raw}` : raw)
     const host = url.hostname.toLowerCase()
     if (host !== 'github.com' && host !== 'www.github.com') {
       return { registryValue: '', githubUrl: '' }
@@ -415,7 +418,7 @@ function resolveTrustedGitBinary() {
   return trustedGitBinary
 }
 
-function runGit(projectPath, args) {
+function runGit(projectPath, args, fallback = '') {
   try {
     const env = { ...process.env }
     for (const key of Object.keys(env)) {
@@ -424,7 +427,7 @@ function runGit(projectPath, args) {
       }
     }
 
-    return execFileSync(resolveTrustedGitBinary(), args, {
+    return execFileSync(resolveTrustedGitBinary(), ['-c', 'core.fsmonitor=false', ...args], {
       cwd: projectPath,
       env,
       encoding: 'utf8',
@@ -433,7 +436,7 @@ function runGit(projectPath, args) {
       windowsHide: true,
     }).trim()
   } catch {
-    return ''
+    return fallback
   }
 }
 
@@ -478,16 +481,27 @@ export function inspectProject(projectPath) {
     ? ''
     : sanitizeDisplayText(runGit(resolvedProjectPath, ['rev-list', '--max-parents=0', 'HEAD']).split(/\r?\n/)[0] || '', 80)
   const ageSeconds = lastCommitTimestamp === null ? null : Math.floor(Date.now() / 1000) - lastCommitTimestamp
-  const status = lastCommitTimestamp === null ? 'Untracked' : ageSeconds >= 7 * 24 * 60 * 60 ? 'Dead' : 'Alive'
+  // An old commit alone does not mean the working tree has been abandoned.
+  // Failed status inspection must not silently classify a project as Dead.
+  const workingTreeStatus = hasOwnGitRepository
+    ? runGit(resolvedProjectPath, ['status', '--porcelain', '--untracked-files=normal'], null)
+    : null
+  const hasLocalChanges = workingTreeStatus === null ? null : workingTreeStatus.length > 0
+  const status = lastCommitTimestamp === null || hasLocalChanges === null
+    ? 'Untracked'
+    : hasLocalChanges || ageSeconds < 7 * 24 * 60 * 60 ? 'Alive' : 'Dead'
+  const pathFingerprint = computePathFingerprint(resolvedProjectPath)
 
   return {
-    name: sanitizeDisplayText(path.basename(resolvedProjectPath), 120),
+    name: sanitizeDisplayText(path.basename(resolvedProjectPath), 100),
     last_commit_display: lastCommitDisplay,
     last_commit_timestamp: lastCommitTimestamp,
     last_commit_subject: lastCommitSubject,
     main_language: inferMainLanguage(classification),
     status,
-    path_fingerprint: computePathFingerprint(resolvedProjectPath),
+    has_local_changes: hasLocalChanges,
+    path_fingerprint: pathFingerprint,
+    project_key: computeProjectKey({ git_remote: remote.registryValue, path_fingerprint: pathFingerprint }),
     git_remote: remote.registryValue,
     github_url: remote.githubUrl,
     first_commit: /^[a-f0-9]{40}$/i.test(firstCommit) ? firstCommit.toLowerCase() : '',
@@ -656,16 +670,33 @@ export function saveRegistry(entries) {
   return targetPath
 }
 
+export function computeProjectKey(project) {
+  const remote = sanitizeGitHubRemote(project?.git_remote || '').registryValue.toLowerCase()
+  const fingerprint = project?.path_fingerprint
+  // The shared first commit of a template is not a project identity.
+  const identity = remote || (/^sha256:[a-f0-9]{64}$/.test(fingerprint || '') ? fingerprint : '')
+  if (!identity) throw new Error('Missing project identity; inspect the project again')
+  return `sha256:${crypto.createHash('sha256').update(`bury-project-v1:${identity}`).digest('hex')}`
+}
+
 export function buildCremationBody(payload) {
+  if (!/^sha256:[a-f0-9]{64}$/.test(payload?.project_key || '')) {
+    throw new Error('Missing or invalid project_key; inspect the project again')
+  }
   const body = {
-    name: sanitizeDisplayText(payload?.name, 120),
+    name: sanitizeDisplayText(payload?.name, 100),
     cause: sanitizeDisplayText(payload?.cause, 200),
+    project_key: payload.project_key,
   }
 
   const normalizedRemote = sanitizeGitHubRemote(typeof payload?.github_url === 'string' ? payload.github_url : '')
-  if (normalizedRemote.githubUrl) {
+  if (payload?.include_github_url === true && normalizedRemote.githubUrl) {
     body.github_url = normalizedRemote.githubUrl
   }
+  if (payload?.include_github_url === true && !normalizedRemote.githubUrl) {
+    throw new Error('Invalid GitHub URL')
+  }
+  if (!body.name || !body.cause) throw new Error('name and cause are required')
 
   if (payload?.last_commit_message) {
     body.last_commit_message = sanitizeDisplayText(payload.last_commit_message, 200)
@@ -686,6 +717,41 @@ async function readStdin() {
   })
 }
 
+export async function sendCremation(payload, cliToken, fetchImpl = fetch) {
+  const body = buildCremationBody(payload)
+  let response
+  let result
+  try {
+    response = await fetchImpl(`${API_BASE_URL}/api/cremated`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${cliToken}` },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(45_000),
+      redirect: 'error',
+    })
+    result = await response.json().catch(() => null)
+  } catch {
+    // The server may already have committed. Keep the same project_key on retry.
+    return { status: 0, ok: false, error: 'Request failed or timed out; retry with the same project_key', code: 'NETWORK_ERROR' }
+  }
+
+  const code = typeof result?.code === 'string' && /^[A-Z_]{1,60}$/.test(result.code) ? result.code : null
+  const retryAfter = response.headers.get('retry-after')
+  const retryAfterSeconds = retryAfter && /^\d+$/.test(retryAfter) ? Number(retryAfter) : null
+  const recordId = (typeof result?.id === 'number' && Number.isSafeInteger(result.id) && result.id > 0)
+    || (typeof result?.id === 'string' && /^\d+$/.test(result.id)) ? result.id : null
+  const ok = (response.status === 200 || response.status === 201) && recordId !== null
+  return {
+    status: response.status,
+    ok,
+    error: ok ? null : sanitizeDisplayText(typeof result?.error === 'string' ? result.error : 'Invalid API response', 300),
+    code,
+    retry_after_seconds: retryAfterSeconds,
+    record_id: recordId,
+    replayed: ok && response.status === 200,
+  }
+}
+
 export async function postCremationFromStdin() {
   const stdin = await readStdin()
   const payload = JSON.parse(typeof stdin === 'string' ? stdin : '')
@@ -697,23 +763,7 @@ export async function postCremationFromStdin() {
     return
   }
 
-  const body = buildCremationBody(payload)
-
-  const response = await fetch(`${API_BASE_URL}/api/cremated`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${cliToken}`,
-    },
-    body: JSON.stringify(body),
-  })
-
-  let error = null
-  if (!response.ok) {
-    error = response.status === 429 ? 'Rate limited' : response.status >= 500 ? 'API unreachable' : 'Request failed'
-  }
-
-  process.stdout.write(JSON.stringify({ status: response.status, ok: response.ok, error }))
+  process.stdout.write(`${JSON.stringify(await sendCremation(payload, cliToken))}\n`)
 }
 
 async function main() {

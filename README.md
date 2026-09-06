@@ -11,7 +11,7 @@ VibeCemetery is a public afterlife for abandoned software: people bury dead GitH
 [![React](https://img.shields.io/badge/React-19-blue.svg)](https://react.dev)
 [![Phaser](https://img.shields.io/badge/Phaser-3-orange.svg)](https://phaser.io)
 
-[Visit Cemetery](https://vibecemetery.app) · [Install /bury](#human-cli-bury) · [Docs](docs/setup.md)
+[Visit Cemetery](https://vibecemetery.app) · [Instructions for AI agents](https://vibecemetery.app/agent-instructions) · [Docs](docs/setup.md)
 
 Start at <https://vibecemetery.app> to scan your connected GitHub, or enter the cemetery map from there.
 
@@ -67,7 +67,7 @@ VibeCemetery is focused on the human cemetery experience.
 - GitHub repos with no activity for 7+ days, and not forks, can be buried.
 - Graves appear on the hand-crafted pixel cemetery map.
 - Cremations go to the Crematory.
-- `/bury` lets a human-controlled local coding agent cremate dead local folders.
+- The agent instructions let a human-controlled local coding agent cremate dead local folders.
 - Human records write to `/api/graves` and `/api/cremated`.
 - Human CLI credentials use `vc_cli_*` tokens.
 - Map v1 supports feature-gated GRAVE offerings that are counted only after
@@ -86,7 +86,7 @@ Legacy Agent Layer code, API routes, SQL, and archived docs remain in the reposi
 - **Scanner Landing Page** - `/` is a compact first-page flow with one primary action, `Scan GitHub`. It scans only the connected GitHub account and does not offer public username scanning.
 - **Pixel Cemetery Maps** - the classic v1 experience at `/cemetery` and the Map 2.0 Phaser experience at `/cemetery/v2`, with custom PixelLab art, fog of war, minimap, camera movement, and modal interactions. See [`docs/map2.md`](docs/map2.md).
 - **GitHub Burial Flow** - sign in, scan inactive repos, pick a dead repo, write the cause of death, and place it on the map when grave slots are available.
-- **Crematory** - for projects that burn into ashes instead of taking a map slot, including local `/bury` cremations and GitHub repos when grave slots are exhausted.
+- **Crematory** - for projects that burn into ashes instead of taking a map slot, including local project cremations and GitHub repos when grave slots are exhausted.
 - **The Crypt** - a searchable ledger of graves.
 - **Necropolis Leaderboard** - top gravediggers, causes of death, and cemetery activity.
 - **Press F** - pay respects to graves, one vote per user per grave.
@@ -132,7 +132,7 @@ Next:
   approved tiny Base transaction.
 - **The Gravedigger Agent** - introduce the native cemetery agent for guidance, lore, grave care, and future ritual interactions.
 
-The current product remains focused on the core human cemetery: GitHub burials, cremations, and `/bury`. The Agent Layer is paused and will be revisited only after the cemetery itself is stronger and more populated.
+The current product remains focused on the core human cemetery: GitHub burials, local project cremations. The Agent Layer is paused and will be revisited only after the cemetery itself is stronger and more populated.
 
 ## Human Web Burial
 
@@ -155,34 +155,11 @@ On `/cemetery`, the old single BURY CTA is split into two actions: **Bury** puts
 
 GitHub repos are verified on the server before grave creation or cremation. The repo owner must match the signed-in user, forks are rejected, and map placement comes from parsed cemetery slots.
 
-## Human CLI: /bury
+## Local projects with AI agents
 
-`/bury` is the human-controlled local cleanup command. It lets Claude Code, OpenCode, Cursor, and similar local coding agents scan safe local project folders, find dead projects, write epitaphs, and cremate them through the VibeCemetery API.
+Give your coding agent [vibecemetery.app](https://vibecemetery.app) and tell it which project you want to cremate. The home page links to [Instructions for AI agents](https://vibecemetery.app/agent-instructions), also available as [plain Markdown](https://vibecemetery.app/agent-instructions.md).
 
-It does not scan GitHub. It does not create graves. It writes human cremations to `/api/cremated` and uses `vc_cli_*` credentials after browser approval.
-
-Quick install for Claude Code, OpenCode, or Cursor:
-
-Canonical installer page: <https://vibecemetery.app/skills/bury/v1>.
-
-<details>
-<summary>Show install commands</summary>
-
-macOS:
-
-```bash
-curl -fsSL https://vibecemetery.app/skills/bury/v1/install.sh | bash
-```
-
-Windows PowerShell:
-
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -Command "iwr https://vibecemetery.app/skills/bury/v1/install.ps1 -UseBasicParsing | iex"
-```
-
-</details>
-
-Quick install downloads and executes the site-hosted installer. The site page shows what files will be installed, direct source links, target paths, and manual install notes.
+The agent reads the instructions, downloads a temporary Node helper, inspects the selected project, and asks you to confirm the public cremation details. Browser approval links the request to your GitHub account. The project stays on your computer or VPS; cremation creates an urn without uploading source code, deleting local files, or occupying a map slot.
 
 ## Paused Agent Layer Docs
 

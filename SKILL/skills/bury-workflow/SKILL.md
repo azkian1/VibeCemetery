@@ -98,7 +98,7 @@ Deduplicate candidate projects by canonical directory path. Do not search deeper
 Check these strong markers only in either the scan path root or the immediate child root being evaluated. The matching scope is either `<scanPath>/<marker>` or `<scanPath>/*/<marker>`; never recurse deeper than one child directory.
 
 Use Glob/Bash to find directories with any of:
-- `.git/`
+- `.git/` or a regular `.git` worktree file
 - `package.json`
 - `Cargo.toml`
 - `go.mod`
@@ -158,19 +158,21 @@ The helper returns:
 - **Last commit timestamp**: numeric Unix seconds or `null`
 - **Last commit subject**: sanitized `%s` subject only
 - **Main language**: inferred from project markers
-- **Status**: `Dead` when git inactivity is >= 7 * 24 hours, `Alive` when newer, `Untracked` when git metadata is unavailable
-- **Fingerprints**: sanitized `git_remote`, `first_commit`, and `path_fingerprint`
+- **Status**: `Dead` only when the last commit is >= 7 * 24 hours old and the working tree is clean; `Alive` when newer or local changes exist; `Untracked` when metadata or working-tree inspection is unavailable
+- **Fingerprints**: sanitized `git_remote`, `first_commit`, `path_fingerprint`, and stable `project_key`
+- **Local changes**: `has_local_changes` (boolean or null). Explain that `Dead` is a commit-age heuristic, not proof of abandonment. Changed / untracked projects require explicit numeric selection.
 
 Never display raw canonical paths. Use `path_fingerprint` for non-git deduplication.
 
-When handling `git_remote`, parse it and strip any username, password, or token before storing or displaying it. Only keep it if it resolves to a GitHub remote on `github.com` or `www.github.com`. Store the sanitized registry value as `github.com/owner/repo`. Derive `github_url` for the API payload as `https://github.com/owner/repo`. Otherwise store an empty `git_remote` and omit `github_url` later.
+When handling `git_remote`, parse it and strip any username, password, or token before storing or displaying it. Only keep it if it resolves to a GitHub remote on `github.com` or `www.github.com`. Store the sanitized registry value as `github.com/owner/repo`. Derive an optional `github_url` as `https://github.com/owner/repo`. Otherwise store an empty `git_remote` and omit `github_url` later.
 
 Required implementation: use the helper script's `inspect-project` output so registry entries and payloads never keep raw credentials or full unsafe URLs.
 
 Then check each project against the cremation registry loaded in step 3. A project is **already cremated** if any of these match a registry entry:
-- `git_remote` matches (non-empty)
-- `first_commit` matches (non-empty)
-- `path_fingerprint` matches (fallback for non-git projects)
+- `git_remote` matches case-insensitively (non-empty)
+- `path_fingerprint` matches
+
+Never deduplicate by `first_commit` alone: unrelated projects can share template history.
 
 Mark matched projects with status `Cremated`.
 
@@ -217,7 +219,7 @@ Rules for suggestions:
 
 Show what will be sent, then ask for confirmation in plain text. Wait for the user's confirmation before proceeding.
 
-In the confirmation view, show only sanitized, length-limited fields: `name`, shortened `cause`, and whether `github_url` will be included. Never show tokens, raw remotes, absolute paths, or config contents.
+In the confirmation view, show only sanitized, length-limited fields: `name` (max 100 characters), shortened `cause`, and whether `github_url` will be included. Default to local cremation with no public GitHub link. Include a link only if the user explicitly chooses it after being told that the API must verify repository ownership, non-fork status, contents, and at least 7 days since the last push. Private repositories may be inaccessible to the server. Never publish a repository automatically, and never silently remove a rejected link and retry. Never show tokens, raw remotes, absolute paths, or config contents.
 
 ### 9. Ensure CLI token
 
@@ -257,7 +259,7 @@ If missing:
 }
 ```
 
-9. On any later API `401` or `403`, clear the local token and retry the link flow once.
+9. On a later API `401`, clear the local token and retry the link flow once. A `403` is a permission or repository eligibility denial: preserve the token and explain the sanitized server error.
 
 If `POST /api/cli/link/start` returns `429`, stop and tell the user there were too many CLI link attempts. Ask them to wait briefly and retry.
 
@@ -269,11 +271,11 @@ Safe execution rules:
 
 - build the HTTP request in Node, not in the shell
 - read `cli_token` from `CLI_CONFIG_PATH` inside the Node process instead of putting it on the visible command line
-- pass request data (`name`, `cause`, optional `github_url`, optional `last_commit_message`) to Node via stdin JSON whenever possible
+- pass request data (`name`, `cause`, `project_key` from inspect-project, optional `github_url`, explicit `include_github_url`, optional `last_commit_message`) to Node via stdin JSON whenever possible
 - use a temporary JSON file only if stdin is impossible. If a temp file is used, create it with a random name in the system temp directory, use best-effort user-only permissions, never log its path or contents, and delete it in a finally block after the Node process exits
 - never put raw project names, causes, commit messages, remotes, or tokens directly into shell-constructed source code
 - do not print raw response bodies. Parse them as JSON when possible, sanitize them, and only surface a minimal summary
-- the Node process must emit exactly one machine-readable JSON line to stdout, for example `{"status":201,"ok":true,"error":null}`. Parse that JSON only
+- the Node process must emit exactly one machine-readable JSON line to stdout, for example `{"status":201,"ok":true,"error":null,"record_id":123,"replayed":false}`. Parse that JSON only
 
 Preferred implementation: send request payload to `HELPER_SCRIPT` via stdin JSON and let it read the stored CLI token itself. Do not pass tokens on the shell command line.
 
@@ -283,23 +285,29 @@ Use this payload shape:
 {
   "name": "PROJECT_NAME",
   "cause": "CAUSE",
+  "project_key": "sha256:HASH_FROM_INSPECT_PROJECT",
+  "include_github_url": false,
   "github_url": "OPTIONAL_GITHUB_URL",
   "last_commit_message": "OPTIONAL_LAST_COMMIT_SUBJECT"
 }
 ```
 
-Only include `github_url` if you derived a sanitized GitHub remote on `github.com` or `www.github.com`. Otherwise omit `github_url` from the payload entirely.
+Use `post-cremation` with the stable `project_key` returned by `inspect-project`. Never generate a new key for a retry. This key is an opaque identity, not proof that code exists; do not claim local cremations are server-verified.
+
+Set helper input `include_github_url: true` only for a link the user explicitly chose. The helper otherwise omits `github_url` from the HTTP body even if the project has a remote. The include flag is helper-only and is not sent to the API.
 Only include `last_commit_message` if you derived it from the raw local git subject line (`%s`). Never send the formatted display string (`%ar · %s`).
 
 Handle responses by parsing the single JSON line emitted by Node:
-- `201`: success
-- `401` or `403`: local token missing, stale, or revoked; clear saved token, restart link flow once, then retry the cremation
-- `429`: rate limit hit (first 50 cremations are unlimited, then 3/day). Report partial success
-- other errors: API unreachable, tell the user to retry later
+- Require `ok: true` and `record_id` for success: `201` is a new cremation; `200` is an existing cremation returned safely on retry. Do not count a replay as newly created.
+- `401`: clear saved token, restart link flow once, retry with the same project_key.
+- `403`: preserve the token; explain the permission / eligibility denial.
+- `429`: report partial success and the actual sanitized error. Only code `DAILY_LIMIT` means the UTC daily quota; otherwise this is a temporary request / GitHub limit. Honor `retry_after_seconds` when present.
+- `400`, `404`, `409`: explain the sanitized validation / repository error; do not relink or retry unchanged input.
+- `0`, `5xx`, or malformed success: the outcome may be uncertain. Retry later with the same project_key; never invent a replacement key or mark it cremated without confirmed success.
 
 ### 11. Update cremation registry
 
-For each project that got a `201` response from the API, append an entry to `CREMATION_REGISTRY_PATH`:
+For each project with `ok: true` and `record_id` (`201` or replayed `200`), upsert an entry by path_fingerprint / git_remote to `CREMATION_REGISTRY_PATH`:
 
 ```json
 {
@@ -320,12 +328,13 @@ For each project that got a `201` response from the API, append an entry to `CRE
 
 ### 12. Final report
 
-Report how many projects were cremated out of the total selected. If rate limited (`429`), mention the daily limit and that remaining projects can be retried tomorrow.
+Report newly created, already existing, and failed projects separately. For `429`, use the actual code and retry interval; mention tomorrow only for `DAILY_LIMIT`. If registry saving fails after API success, report the successful server result and local save failure separately. A retry with the same project_key recovers the existing record.
 
 ## Error Handling
 
 - no projects found: tell the user the directory is clean or they may be in the wrong folder
 - CLI link expired: restart link flow once
-- API `401` or `403`: clear saved token, re-link once, retry once
-- API `429`: report partial success and daily limit
-- network error: API unreachable, retry later
+- API `401`: clear saved token, re-link once, retry once with the same project_key
+- API `403`: preserve token, explain permission / eligibility denial
+- API `429`: report partial success and actual retry interval; only `DAILY_LIMIT` means daily quota
+- network error: outcome uncertain, retry later with the same project_key

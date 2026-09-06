@@ -184,7 +184,9 @@ function gameReducer(state: GameState, action: GameAction): GameState {
         crematedError: action.error,
       };
     case 'ADD_CREMATED': {
-      const cremated = [...state.cremated, action.cremated];
+      const cremated = state.cremated.some((record) => record.id === action.cremated.id)
+        ? state.cremated
+        : [...state.cremated, action.cremated];
       return {
         ...state,
         cremated,

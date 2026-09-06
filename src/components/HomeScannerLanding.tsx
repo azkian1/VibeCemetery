@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { AGENT_INSTRUCTIONS_PATH, AGENT_INSTRUCTIONS_TITLE, AGENT_INSTRUCTIONS_SUBTITLE } from '@/lib/agent-instructions';
 import { useEffect, useState } from 'react';
 import { signIn, useSession } from 'next-auth/react';
 import { GameProvider, useModal } from '@/context/GameContext';
@@ -254,13 +255,19 @@ function ScannerShell() {
 
           {showScannerChrome && (
             <div style={{ display: 'grid', gap: 10, marginTop: 14 }}>
-              <Link href="/cemetery" style={enterCemeteryLinkStyle}>Enter Cemetery</Link>
+              <Link href="/cemetery" style={enterCemeteryLinkStyle}>Explore the cemetery</Link>
             </div>
           )}
 
           {showScannerChrome && (
             <p style={{ margin: '16px 0 0', color: '#777168', fontSize: 12, fontFamily: "var(--font-geist-sans), Arial, sans-serif" }}>Dead repos = non-forks inactive for 7+ days. Only your connected GitHub can be scanned.</p>
           )}
+          <div style={{ marginTop: 22, paddingTop: 18, borderTop: '1px solid rgba(232,213,163,0.12)' }}>
+            <a href={AGENT_INSTRUCTIONS_PATH} style={{ color: '#b7c4cf', fontSize: 14, textUnderlineOffset: 4 }}>
+              {AGENT_INSTRUCTIONS_TITLE} ↗
+            </a>
+            <p style={{ margin: '7px 0 0', color: '#9a9386', fontSize: 12, fontFamily: "var(--font-geist-sans), Arial, sans-serif" }}>{AGENT_INSTRUCTIONS_SUBTITLE}</p>
+          </div>
           {message && <p style={{ margin: '14px 0 0', color: '#c78373', fontSize: 13, fontFamily: "var(--font-geist-sans), Arial, sans-serif" }}>{message}</p>}
 
           {repos && (
@@ -288,7 +295,7 @@ function ScannerShell() {
                 <div style={{ border: '1px solid #34302a', padding: 16, background: 'rgba(13,12,11,0.64)' }}>
                   <h2 style={{ margin: '0 0 8px', fontSize: 18 }}>No suitable projects found.</h2>
                   <p style={{ ...repoMetaStyle, marginBottom: 14 }}>You do not have eligible projects to bury right now. A repo must be inactive for 7+ days and not be a fork. Scanned {totalRepos} non-fork repo{totalRepos === 1 ? '' : 's'}.</p>
-                  <Link href="/cemetery" style={secondaryLinkStyle}>Enter Cemetery</Link>
+                  <Link href="/cemetery" style={secondaryLinkStyle}>Explore the cemetery</Link>
                 </div>
               )}
             </section>

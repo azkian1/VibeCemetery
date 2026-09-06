@@ -14,7 +14,7 @@ import {
 } from '@/lib/latest-request';
 
 export const BURY_GITHUB_CONNECT_LABEL = 'Connect GitHub';
-export const LOCAL_TERMINAL_CREMATION_COPY = 'For local folders, set up /bury terminal cremation';
+export const LOCAL_TERMINAL_CREMATION_COPY = 'For local AI projects, read the agent instructions';
 export const LOCAL_TERMINAL_CREMATION_PROMPT_MARGIN_TOP = 28;
 
 export function shouldShowRescanAfterSuccessfulScan(): boolean {

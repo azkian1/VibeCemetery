@@ -185,7 +185,7 @@ test.describe('BuryFlowModal default grave selection', () => {
     expect(shouldShowRescanAfterSuccessfulScan()).toBe(false)
     expect(shouldShowCremationSkillPrompt(true)).toBe(true)
     expect(shouldShowCremationSkillPrompt(false)).toBe(false)
-    expect(LOCAL_TERMINAL_CREMATION_COPY).toBe('For local folders, set up /bury terminal cremation')
+    expect(LOCAL_TERMINAL_CREMATION_COPY).toBe('For local AI projects, read the agent instructions')
     expect(LOCAL_TERMINAL_CREMATION_PROMPT_MARGIN_TOP).toBe(28)
   })
 

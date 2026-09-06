@@ -59,9 +59,9 @@ const FAQ_ITEMS: FaqItem[] = [
       'Ashes to ashes.',
   },
   {
-    question: 'How does /bury work in the terminal?',
+    question: 'Can I cremate a local AI project?',
     answer:
-      '/bury is a terminal command for human-controlled AI coding tools. Approve it once in the browser, then run /bury in your editor to scan safe local folders and cremate dead projects. ' +
+      'Give your coding agent vibecemetery.app and tell it which local project you want to cremate. It can follow the instructions linked on the home page, inspect your project and guide you through browser approval. ' +
       'These cremations appear in the human Crematory.',
   },
   {
@@ -170,6 +170,7 @@ export default function BurgerMenu() {
             Links
           </h3>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+            <a href="/agent-instructions" style={{ color: '#b7c4cf', padding: '8px 0' }}>Instructions for AI agents ↗</a>
             <StoneButton
               onClick={() => window.open('https://x.com/vibecmtry', '_blank', 'noopener,noreferrer')}
               style={{ width: '100%', maxWidth: 280 }}

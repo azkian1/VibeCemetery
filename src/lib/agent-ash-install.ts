@@ -28,7 +28,7 @@ function getAgentAshPowerShellInstallCommand() {
 
 function getAgentAshInstallContract() {
   return `## Task
-Read the paused VibeCemetery Agent Skill contract for GitLawb. This is not the human /bury CLI installer.
+Read the paused VibeCemetery Agent Skill contract for GitLawb. For local projects, read https://vibecemetery.app/agent-instructions.
 
 ## Status
 The VibeCemetery GitLawb / Agent Ash layer is paused until the human cemetery is more populated. Do not install or activate this skill for normal VibeCemetery use unless the experiment is explicitly revived.
@@ -64,7 +64,7 @@ Config path: ~/.config/gitlawb/config.json
 
 If revived, writes must use delegated ash_ tokens from browser-approved Agent Ash connect unless native AgentDID verification has been deliberately shipped. Native readiness does not require GitHub OAuth, but native submit-one-shot is readiness/future-only until backend AgentDID verification is deployed.
 
-Delegated mode treats GitLawb as read-only proof, like GitHub proof in the human /bury flow. Do not try to delete, archive, label, or mark the GitLawb repo dead. GitLawb node v0.3.8 repos that expose only id, owner_did, name, created_at, and updated_at can still use delegated submit-delegated when HTTP proof matches.
+Delegated mode treats GitLawb as read-only proof, like GitHub proof in the human-controlled local cremation flow. Do not try to delete, archive, label, or mark the GitLawb repo dead. GitLawb node v0.3.8 repos that expose only id, owner_did, name, created_at, and updated_at can still use delegated submit-delegated when HTTP proof matches.
 
 Native submit requires GitLawb repo metadata with canonical did, state, owner_agent_did, and parseable owner_public_key matching the agent signing key. Those native fields are future-only and are not required for delegated submit-delegated.
 

@@ -129,7 +129,7 @@ export default function AgentAshConnectClient({ linkId }: { linkId: string }) {
                   Agent Ash approvals are paused.
                 </div>
                 <div>
-                  No new Agent Ash token will be issued from this page. Use the human cemetery, GitHub scan, cremations, and /bury instead.
+                  No new Agent Ash token will be issued from this page. Use the human cemetery, GitHub scan, local project cremations instead.
                 </div>
               </div>
             ) : status === 'loading' ? (

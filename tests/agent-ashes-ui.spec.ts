@@ -44,7 +44,7 @@ test('Agent Layer page is a paused landing page without Agent Ash entry points',
   expect(source).toContain('Back')
   expect(source).toContain('Agent Layer Is On Pause')
   expect(source).toContain('Legacy Agent Ash routes, API handlers, tables, and archived docs remain')
-  expect(source).toContain('href="/skills/bury/v1"')
+  expect(source).toContain('href="/agent-instructions"')
   expect(source).toContain('href="/cemetery"')
   expect(source).not.toContain("open('agentAshes')")
   expect(source).not.toContain('href="/agents/gitlawb"')

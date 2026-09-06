@@ -98,31 +98,78 @@ test.describe('bury skill helpers', () => {
         cause: 'Lost interest',
       },
     ])
+    expect(normalizeRegistryEntries(entries)).toEqual(entries)
   })
 
-  test('sanitizes github_url before building cremation payloads', async () => {
+  test('only publishes a sanitized GitHub link when explicitly selected', async () => {
     const { buildCremationBody } = await loadHelper()
-
-    expect(buildCremationBody({
-      name: 'LegacyApp',
-      cause: 'Lost interest',
-      github_url: 'https://user:token@github.com/example-owner/legacy-app.git',
-      last_commit_message: 'final commit',
-    })).toEqual({
-      name: 'LegacyApp',
-      cause: 'Lost interest',
-      github_url: 'https://github.com/example-owner/legacy-app',
-      last_commit_message: 'final commit',
+    const payload = { name: 'LegacyApp', cause: 'Lost interest', project_key: `sha256:${'a'.repeat(64)}`,
+      github_url: 'https://user:token@github.com/example-owner/legacy-app.git', last_commit_message: 'final commit' }
+    expect(buildCremationBody(payload)).toEqual({ name: payload.name, cause: payload.cause,
+      project_key: payload.project_key, last_commit_message: 'final commit' })
+    expect(buildCremationBody({ ...payload, include_github_url: true })).toEqual({
+      name: payload.name, cause: payload.cause, project_key: payload.project_key,
+      github_url: 'https://github.com/example-owner/legacy-app', last_commit_message: 'final commit',
     })
+    expect(() => buildCremationBody({ ...payload, include_github_url: true,
+      github_url: 'https://github.com/example-owner/legacy-app/issues/1' })).toThrow('Invalid GitHub URL')
+  })
 
-    expect(buildCremationBody({
-      name: 'LegacyApp',
-      cause: 'Lost interest',
-      github_url: 'https://github.com/example-owner/legacy-app/issues/1',
-    })).toEqual({
-      name: 'LegacyApp',
-      cause: 'Lost interest',
-    })
+  test('limits API fields and rejects missing identity before any network request', async () => {
+    const { buildCremationBody, sendCremation } = await loadHelper()
+    const body = buildCremationBody({ name: 'x'.repeat(110), cause: 'c'.repeat(220),
+      project_key: `sha256:${'b'.repeat(64)}`, last_commit_message: 'm'.repeat(220) })
+    expect(body.name).toHaveLength(100)
+    expect(body.cause).toHaveLength(200)
+    expect(body.last_commit_message).toHaveLength(200)
+    let fetched = false
+    await expect(sendCremation({ name: 'Project', cause: 'Retired' }, 'test-token', () => { fetched = true }))
+      .rejects.toThrow('project_key')
+    expect(fetched).toBe(false)
+  })
+
+  test('identity survives clone moves with the same remote and separates shared templates', async () => {
+    const { computeProjectKey } = await loadHelper()
+    const original = { git_remote: 'https://github.com/Owner/Repo.git', path_fingerprint: `sha256:${'a'.repeat(64)}` }
+    expect(computeProjectKey(original)).toBe(computeProjectKey({ ...original,
+      git_remote: 'git@github.com:owner/repo.git', path_fingerprint: `sha256:${'b'.repeat(64)}` }))
+    expect(computeProjectKey(original)).toBe(computeProjectKey({
+      git_remote: 'github.com/owner/repo', path_fingerprint: `sha256:${'c'.repeat(64)}` }))
+    expect(computeProjectKey({ ...original, git_remote: '', first_commit: 'same-template' }))
+      .not.toBe(computeProjectKey({ git_remote: '', first_commit: 'same-template', path_fingerprint: `sha256:${'b'.repeat(64)}` }))
+  })
+
+  test('preserves 403 and temporary 429 details, retry time and successful record identity', async () => {
+    const { sendCremation } = await loadHelper()
+    const payload = { name: 'Project', cause: 'Retired', project_key: `sha256:${'a'.repeat(64)}` }
+    const responses = [
+      Response.json({ error: 'You can only bury your own GitHub repositories', code: 'REPO_NOT_ELIGIBLE' }, { status: 403 }),
+      Response.json({ error: 'Too many verification attempts' }, { status: 429, headers: { 'Retry-After': '30' } }),
+      Response.json({ id: 123, name: 'Project' }, { status: 201 }),
+      Response.json({ id: 123, name: 'Project' }, { status: 200 }),
+    ]
+    const bodies: string[] = []
+    const fetchMock = async (url: string, options: RequestInit) => {
+      expect(url).toBe('https://vibecemetery.app/api/cremated')
+      expect(options.signal).toBeInstanceOf(AbortSignal)
+      expect(options.redirect).toBe('error')
+      bodies.push(String(options.body))
+      return responses.shift()!
+    }
+    expect(await sendCremation(payload, 'test-token', fetchMock)).toMatchObject({ status: 403, ok: false, code: 'REPO_NOT_ELIGIBLE', error: 'You can only bury your own GitHub repositories' })
+    expect(await sendCremation(payload, 'test-token', fetchMock)).toMatchObject({ status: 429, ok: false, code: null, retry_after_seconds: 30 })
+    expect(await sendCremation(payload, 'test-token', fetchMock)).toMatchObject({ status: 201, ok: true, record_id: 123, replayed: false })
+    expect(await sendCremation(payload, 'test-token', fetchMock)).toMatchObject({ status: 200, ok: true, record_id: 123, replayed: true })
+    expect(new Set(bodies).size).toBe(1)
+  })
+
+  test('does not report malformed success or an uncertain network outcome as cremated', async () => {
+    const { sendCremation } = await loadHelper()
+    const payload = { name: 'Project', cause: 'Retired', project_key: `sha256:${'a'.repeat(64)}` }
+    expect(await sendCremation(payload, 'test-token', async () => new Response('<html>gateway</html>', { status: 201 })))
+      .toMatchObject({ status: 201, ok: false, record_id: null })
+    expect(await sendCremation(payload, 'test-token', async () => { throw new Error('network failed') }))
+      .toMatchObject({ status: 0, ok: false, code: 'NETWORK_ERROR' })
   })
 
   test('strips UTF-8 BOM before parsing JSON config text', async () => {
@@ -161,6 +208,7 @@ test.describe('bury skill helpers', () => {
     const { classifyProjectRootEntries } = await loadHelper()
 
     expect(classifyProjectRootEntries(detectionFixtures[3].entries)).toMatchObject(detectionFixtures[3].expected)
+    expect(classifyProjectRootEntries([{ name: '.git', type: 'file' }])).toMatchObject({ isCandidate: true, strongMatches: ['.git'] })
   })
 
   test('prefers the scan path itself when it already looks like a project', async () => {
@@ -473,6 +521,12 @@ test.describe('bury skill helpers', () => {
         name: path.basename(fixtureRoot),
         status: 'Dead',
       })
+      writeFileSync(path.join(fixtureRoot, 'package.json'), '{"name":"still-working"}')
+      expect(inspectProject(fixtureRoot)).toMatchObject({ status: 'Alive', has_local_changes: true })
+      execFileSync('git', ['checkout', '--', 'package.json'], { cwd: fixtureRoot, stdio: 'ignore' })
+      writeFileSync(path.join(fixtureRoot, 'new-file.ts'), 'export const active = true')
+      expect(inspectProject(fixtureRoot)).toMatchObject({ status: 'Alive', has_local_changes: true })
+
     } finally {
       rmSync(fixtureRoot, { recursive: true, force: true })
     }

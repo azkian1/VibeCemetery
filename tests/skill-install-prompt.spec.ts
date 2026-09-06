@@ -10,11 +10,6 @@ import {
   getAgentAshSkillInstallLink,
   getAgentAshSkillInstallSource,
 } from '../src/lib/agent-ash-install'
-import {
-  getSkillContentsUrl,
-  getSkillInstallCommand,
-  getSkillPlatformLabels,
-} from '../src/components/modals/skillInstall'
 import { INSTALLER_CONTRACT } from '../SKILL/install/install-contract.mjs'
 
 test('paused Agent Ash install contract points to archived GitLawb setup and VibeCemetery skill only', () => {
@@ -77,35 +72,14 @@ test('paused Agent Ash install contract points to archived GitLawb setup and Vib
   expect(contract).not.toContain('vibecemetery-bury')
 })
 
-test('Skill install modal is only for the human CLI skill', () => {
-  const source = readFileSync(join(process.cwd(), 'src', 'components', 'modals', 'SkillModal.tsx'), 'utf8')
-
-  expect(source).toContain('Install skill')
-  expect(source).toContain('maxWidth={560}')
-  expect(source).toContain('CLI SKILL')
-  expect(source).toContain('/bury')
-  expect(source).toContain('macOS/Linux')
-  expect(source).toContain('Windows')
-  expect(source).toContain('View what will be installed')
-  expect(source).toContain('/skills/bury/v1')
-  expect(source).not.toContain('Copy /bury Install Prompt')
-  expect(source).not.toContain('Manual install on GitHub')
-  expect(source).not.toContain('pinned installer')
-  expect(source).not.toContain('Hermes')
-  expect(source).not.toContain('OpenClaw')
-  expect(source).not.toContain('GitLawb')
-  expect(source).not.toContain('Agent Ash')
-  expect(source).not.toContain('getAgentAshInstallPath')
-  expect(source).not.toContain('COPY AGENT')
-  expect(source).not.toContain("handleCopy('hermes', getAgentAshInstallContract())")
-  expect(source).not.toContain("handleCopy('hermes', getHermesInstallPrompt())")
-})
-
-test('human /bury install helpers point to the site-hosted skill page', () => {
-  expect(getSkillInstallCommand('macOS')).toBe('curl -fsSL https://vibecemetery.app/skills/bury/v1/install.sh | bash')
-  expect(getSkillInstallCommand('Windows')).toBe('powershell -NoProfile -ExecutionPolicy Bypass -Command "iwr https://vibecemetery.app/skills/bury/v1/install.ps1 -UseBasicParsing | iex"')
-  expect(getSkillContentsUrl()).toBe('/skills/bury/v1')
-  expect(getSkillPlatformLabels()).toEqual(['macOS', 'Windows'])
+test('legacy skill modal points to agent instructions without installation or copy actions', () => {
+  const source = readFileSync(join(process.cwd(), 'src/components/modals/SkillModal.tsx'), 'utf8')
+  expect(source).toContain('AGENT_INSTRUCTIONS_PATH')
+  expect(source).toContain('vibecemetery.app')
+  expect(source).not.toContain('clipboard')
+  expect(source).not.toContain('getSkillInstallCommand')
+  expect(source).not.toContain('Install skill')
+  expect(source).not.toContain('if (isMobile) return null')
 })
 
 test('CTA buttons keep Human bury and cremate rituals separate from Agent Skill', () => {
@@ -130,7 +104,7 @@ test('Agent skill modal is paused legacy copy', () => {
   expect(source).toContain('Archived Hermes / OpenClaw Agent Ashes')
   expect(source).toContain('COPY ARCHIVE URL')
   expect(source).toContain('getAgentAshInstallPath')
-  expect(source).toContain('not the human /bury CLI')
+  expect(source).toContain('For local projects, follow the instructions for AI agents.')
 })
 
 test('Hermes agent install URL points to an agent-readable route', () => {

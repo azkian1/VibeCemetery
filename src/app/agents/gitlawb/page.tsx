@@ -32,7 +32,7 @@ export default function GitlawbAgentInstallPage() {
         <section style={{ border: '1px solid rgba(200,80,60,0.42)', padding: 16, margin: '18px 0', background: 'rgba(80,20,12,0.18)' }}>
           <h2 style={{ color: '#e8a08a', fontSize: 15, margin: '0 0 10px' }}>Paused Status</h2>
           <p style={{ whiteSpace: 'pre-wrap', color: '#c6b6a6', margin: 0, lineHeight: 1.6 }}>
-            Do not install this archived Agent Skill for normal VibeCemetery use. Use the human cemetery, GitHub scan, cremations, and /bury instead.
+            Do not install this archived Agent Skill for normal VibeCemetery use. Use the human cemetery, GitHub scan, local project cremations instead.
           </p>
         </section>
 

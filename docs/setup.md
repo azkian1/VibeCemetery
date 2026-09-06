@@ -96,6 +96,17 @@ Then apply the atomic grave slot RPC:
 docs/grave-slot-rpc.sql
 ```
 
+Apply the atomic cremation migration before deploying the updated cremation API:
+
+```sql
+docs/cremation-write-v2.sql
+```
+
+It preserves existing cremations and adds retry deduplication, atomic quotas and
+counter updates. Re-running it is safe. The new API deliberately refuses writes
+if the RPC is missing. The current agent instructions and helper include `project_key` in local
+requests; legacy clients without it must switch to `/agent-instructions`.
+
 Then apply the CLI auth hardening migration:
 
 ```sql

@@ -99,7 +99,7 @@ export default function StepDone({
       {cremated.length > 0 && onOpenSkill && (
         <button
           onClick={onOpenSkill}
-          aria-label="Open cremation command setup"
+          aria-label="Open instructions for AI agents"
           style={{
             color: '#7898b8',
             fontSize: 13,

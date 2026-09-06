@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-EXPECTED_MANIFEST_PAYLOAD_SHA256="5254d2459c1275b48c9082a669cb7970f8a60e20a012447c219593d5524385c5"
+EXPECTED_MANIFEST_PAYLOAD_SHA256="fbb80d8cb124861468d5efde09c076ed0cc89c3352725510a5c798213352a6d0"
 raw_base="${VIBECEMETERY_INSTALL_RAW_BASE_URL:-https://vibecemetery.app/skills/bury/v1}"
 raw_base="${raw_base%/}"
 tmp_dir="$(mktemp -d)"

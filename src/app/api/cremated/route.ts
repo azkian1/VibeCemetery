@@ -8,6 +8,7 @@ import {
 } from '@/app/api/graves/githubRepoEligibility'
 import { isAgentAshEnvelope, isAgentAshIngestToken } from '@/lib/agent-ash-boundary'
 import { resolveCliActor } from '@/lib/cli-auth'
+import { writeCremation } from '@/lib/cremation-write'
 import { checkRateLimit, getClientIp } from '@/lib/rate-limit'
 import { sanitizePublicText } from '@/lib/sanitize-public-text'
 import { supabaseAdmin } from '@/lib/supabase'
@@ -191,13 +192,13 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  const authorGithub = actor.username
+  const authorGithub = actor.username.toLowerCase()
 
   if (!/^[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,37}[a-zA-Z0-9])?$/.test(authorGithub)) {
     return NextResponse.json({ error: 'Invalid username format' }, { status: 400 })
   }
 
-  const { name, cause, github_url, last_commit_message } = body as Record<string, unknown>
+  const { name, cause, github_url, last_commit_message, project_key } = body as Record<string, unknown>
 
   if (typeof name !== 'string' || typeof cause !== 'string') {
     return NextResponse.json({ error: 'name and cause must be strings' }, { status: 400 })
@@ -219,44 +220,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'cause must be ≤ 200 characters' }, { status: 400 })
   }
 
-  // Rate limit: first 50 cremations unlimited, then 3/day
-  const { count: totalCount, error: totalError } = await supabaseAdmin
-    .from('cremated')
-    .select('id', { count: 'exact', head: true })
-    .eq('author_github', authorGithub)
-
-  if (totalError) {
-    return NextResponse.json(
-      { error: 'Failed to check rate limit' },
-      { status: 500 }
-    )
+  if (project_key !== undefined && (typeof project_key !== 'string' || !/^sha256:[a-f0-9]{64}$/.test(project_key))) {
+    return NextResponse.json({ error: 'Invalid project_key', code: 'INVALID_PROJECT_KEY' }, { status: 400 })
   }
-
-  const pastFirstBurn = (totalCount ?? 0) >= 50
-  const todayStart = new Date()
-  todayStart.setHours(0, 0, 0, 0)
-
-  if (pastFirstBurn) {
-
-    const { count: dailyCount, error: dailyError } = await supabaseAdmin
-      .from('cremated')
-      .select('id', { count: 'exact', head: true })
-      .eq('author_github', authorGithub)
-      .gte('created_at', todayStart.toISOString())
-
-    if (dailyError) {
-      return NextResponse.json(
-        { error: 'Failed to check rate limit' },
-        { status: 500 }
-      )
-    }
-
-    if ((dailyCount ?? 0) >= 3) {
-      return NextResponse.json(
-        { error: 'Rate limit exceeded. Maximum 3 cremations per day.' },
-        { status: 429 }
-      )
-    }
+  if (github_url !== undefined && github_url !== null && typeof github_url !== 'string') {
+    return NextResponse.json({ error: 'github_url must be a string' }, { status: 400 })
   }
 
   // Validate optional fields
@@ -273,6 +241,14 @@ export async function POST(request: NextRequest) {
       { status: 400 },
     )
   }
+
+  if (actor.source === 'cli' && !trimmedGithubUrl && !project_key) {
+    return NextResponse.json(
+      { error: 'Local cremations require project_key. Read /agent-instructions and inspect the project with the current helper.', code: 'PROJECT_KEY_REQUIRED' },
+      { status: 400 },
+    )
+  }
+  let verifiedGithubRepoId: number | null = null
 
   // Grave-first is a product UX preference, not a cremation data invariant.
   // Keep this endpoint independent from slot economy so CLI /bury and explicit
@@ -372,8 +348,9 @@ export async function POST(request: NextRequest) {
       authenticatedUsername: authorGithub,
     })
     if (!eligibility.ok) {
-      return NextResponse.json({ error: eligibility.error }, { status: eligibility.status })
+      return NextResponse.json({ error: eligibility.error, code: 'REPO_NOT_ELIGIBLE' }, { status: eligibility.status })
     }
+    verifiedGithubRepoId = githubRepoId
 
     try {
       const contentsResponse = await fetchGitHubRepoRootContents(parsedGithubUrl.owner, parsedGithubUrl.repo)
@@ -398,72 +375,16 @@ export async function POST(request: NextRequest) {
 
   }
 
-  // Insert record
-  const { data, error: insertError } = await supabaseAdmin
-    .from('cremated')
-    .insert({
-      name: trimmedName,
-      cause: trimmedCause,
-      author_github: authorGithub,
-      source: actor.source === 'session' ? 'github' : 'skill',
-      ...(trimmedGithubUrl && { github_url: trimmedGithubUrl }),
-      ...(trimmedLastCommit && { last_commit_message: trimmedLastCommit }),
-    })
-    .select('id, name, cause, author_github, github_url, last_commit_message, created_at, source')
-    .single()
-
-  if (insertError) {
-    return NextResponse.json(
-      { error: 'Failed to create record' },
-      { status: 500 }
-    )
-  }
-
-  // Post-insert race-condition check (only after first 50)
-  if (pastFirstBurn) {
-    const { count: postCount } = await supabaseAdmin
-      .from('cremated')
-      .select('id', { count: 'exact', head: true })
-      .eq('author_github', authorGithub)
-      .gte('created_at', todayStart.toISOString())
-
-    if ((postCount ?? 0) > 3) {
-      const { error: delErr } = await supabaseAdmin.from('cremated').delete().eq('id', data.id)
-      if (delErr) console.error('Rate-limit rollback failed for cremated', data.id)
-      return NextResponse.json(
-        { error: 'Rate limit exceeded. Maximum 3 cremations per day.' },
-        { status: 429 }
-      )
-    }
-  }
-
-  // Increment cremated_count for the user
-  const { error: incrementError } = await supabaseAdmin.rpc('increment_cremated_count', {
-    username: authorGithub,
+  return writeCremation({
+    author: authorGithub,
+    name: trimmedName,
+    cause: trimmedCause,
+    source: actor.source === 'session' ? 'github' : 'skill',
+    projectKey: typeof project_key === 'string' ? project_key : null,
+    githubUrl: trimmedGithubUrl,
+    githubRepoId: verifiedGithubRepoId,
+    lastCommitMessage: trimmedLastCommit,
   })
-
-  if (incrementError) {
-    const { data: userData, error: loadUserError } = await supabaseAdmin
-      .from('users')
-      .select('cremated_count')
-      .eq('github_username', authorGithub)
-      .single()
-
-    if (loadUserError) {
-      console.error('Failed to load cremated_count fallback user', loadUserError)
-    } else {
-      const { error: updateUserError } = await supabaseAdmin
-        .from('users')
-        .update({ cremated_count: (userData?.cremated_count ?? 0) + 1 })
-        .eq('github_username', authorGithub)
-
-      if (updateUserError) {
-        console.error('Failed to update cremated_count fallback', updateUserError)
-      }
-    }
-  }
-
-  return NextResponse.json(data, { status: 201 })
 }
 
 export async function GET(request: NextRequest) {

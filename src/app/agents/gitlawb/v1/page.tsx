@@ -34,7 +34,7 @@ export default function GitlawbAgentSkillV1Page() {
         <section style={{ marginBottom: 28, border: '1px solid rgba(200,80,60,0.42)', borderRadius: 12, padding: 16, background: 'rgba(80,20,12,0.18)' }}>
           <h2 style={{ color: '#e8a08a', fontSize: 20 }}>Paused status</h2>
           <p style={{ color: '#c6b6a6', lineHeight: 1.7 }}>
-            Do not install this archived skill for normal VibeCemetery use. Current product focus is GitHub scanning, graves, cremations, and /bury.
+            Do not install this archived skill for normal VibeCemetery use. Current product focus is GitHub scanning, graves, local project cremations.
           </p>
         </section>
 
