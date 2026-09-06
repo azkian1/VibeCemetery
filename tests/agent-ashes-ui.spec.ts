@@ -22,13 +22,13 @@ test('Necropolis no longer contains the AI-Bots tab', () => {
   ])
 })
 
-test('human layer modals label ranks as GitHub Reapers', () => {
+test('human layer modals separate graves and verified token offerings', () => {
   const source = [
     'src/components/modals/LeaderboardModal.tsx',
     'src/components/modals/CrematoryModal.tsx',
   ].map((path) => readFileSync(path, 'utf8')).join('\n')
-  expect(source).toContain('GitHub Reaper')
-  expect(source).toContain('GitHub Reapers')
+  expect(source).toContain('Offerings (GRAVE)')
+  expect(source).toContain('Recent offerings')
   expect(source).not.toContain('Git Reaper')
 })
 

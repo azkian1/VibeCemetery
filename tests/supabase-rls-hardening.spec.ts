@@ -11,7 +11,6 @@ const BASE_SERVER_ONLY_TABLES = [
   'users',
   'graves',
   'f_votes',
-  'cremated',
   'cli_tokens',
   'cli_link_sessions',
   'agent_ashes',

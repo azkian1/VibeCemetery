@@ -5,7 +5,6 @@ create table if not exists public.users (
   github_username text not null unique,
   avatar_url text,
   graves_count integer not null default 0,
-  cremated_count integer not null default 0,
   x_first_grave_shared_at timestamptz,
   created_at timestamptz not null default timezone('utc', now()),
   updated_at timestamptz not null default timezone('utc', now())
@@ -23,10 +22,13 @@ create table if not exists public.graves (
   epitaph text,
   description text,
   stack text[],
-  github_url text not null,
-  github_repo_id bigint not null unique,
+  github_url text,
+  github_repo_id bigint unique,
   author_github text,
-  slot_id integer not null unique,
+  slot_id integer not null,
+  map_version text not null default 'v1' check (map_version in ('v1','v2')),
+  grave_gid integer,
+  constraint graves_slot_id_map_version_key unique(slot_id,map_version),
   tier integer not null default 0,
   f_count integer not null default 0,
   last_commit_message text,
@@ -45,21 +47,6 @@ create table if not exists public.f_votes (
 );
 
 create index if not exists f_votes_username_idx on public.f_votes (username);
-
-create table if not exists public.cremated (
-  id bigint generated always as identity primary key,
-  name text not null,
-  cause text not null,
-  author_github text not null,
-  github_url text,
-  last_commit_message text,
-  source text not null default 'github',
-  created_at timestamptz not null default timezone('utc', now()),
-  constraint cremated_source_check check (source in ('github', 'skill'))
-);
-
-create index if not exists cremated_author_github_idx on public.cremated (author_github);
-create index if not exists cremated_created_at_idx on public.cremated (created_at desc);
 
 create table if not exists public.agent_ashes (
   id uuid primary key default gen_random_uuid(),
@@ -130,15 +117,6 @@ as $$
   where github_username = username;
 $$;
 
-create or replace function public.increment_cremated_count(username text)
-returns void
-language sql
-as $$
-  update public.users
-  set cremated_count = cremated_count + 1,
-      updated_at = timezone('utc', now())
-  where github_username = username;
-$$;
 
 -- The application accesses all public tables through server-side API routes
 -- using SUPABASE_SERVICE_KEY. Keep the Supabase Data API closed to browser
@@ -155,9 +133,6 @@ ALTER TABLE public.f_votes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.f_votes FORCE ROW LEVEL SECURITY;
 REVOKE ALL ON TABLE public.f_votes FROM anon, authenticated;
 
-ALTER TABLE public.cremated ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.cremated FORCE ROW LEVEL SECURITY;
-REVOKE ALL ON TABLE public.cremated FROM anon, authenticated;
 
 ALTER TABLE public.cli_tokens ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.cli_tokens FORCE ROW LEVEL SECURITY;
@@ -453,112 +428,105 @@ grant execute on function public.reverify_grave_burn(uuid, text, numeric, text, 
 grant execute on function public.get_grave_burn_stats(uuid)
   to service_role;
 
--- Atomic cremation writes (keep in sync with cremation-write-v2.sql).
--- Apply BEFORE deploying the matching API. Safe to reapply; preserves legacy rows.
+
+-- Apply after map-v2-grave-gid.sql. All calls go through the service role.
 begin;
+-- Early production installs predate this column used by atomic counter updates.
+alter table public.users add column if not exists updated_at timestamptz not null default now();
+alter table public.graves alter column github_url drop not null;
+alter table public.graves alter column github_repo_id drop not null;
+alter table public.graves add column if not exists source text not null default 'github';
+alter table public.graves add column if not exists project_key text;
+do $$ begin
+  if not exists (select 1 from pg_constraint where conname = 'graves_source_identity_check' and conrelid = 'public.graves'::regclass) then
+    alter table public.graves add constraint graves_source_identity_check check (
+      (source = 'github' and github_repo_id is not null and github_repo_id > 0 and github_url is not null)
+      or (source = 'local' and github_repo_id is null and github_url is null and project_key is not null and project_key ~ '^sha256:[a-f0-9]{64}$')
+    );
+  end if;
+end $$;
+create unique index if not exists graves_author_project_key_unique on public.graves(lower(author_github), project_key) where project_key is not null;
 
-alter table public.cremated add column if not exists project_key text;
-alter table public.cremated add column if not exists github_repo_id bigint;
-
-create unique index if not exists cremated_author_project_key_idx
-  on public.cremated (lower(author_github), project_key) where project_key is not null;
-create unique index if not exists cremated_author_repo_id_idx
-  on public.cremated (lower(author_github), github_repo_id) where github_repo_id is not null;
-create index if not exists cremated_author_day_idx
-  on public.cremated (lower(author_github), created_at);
-
--- Only the server may call this function, after authentication and (when linked)
--- GitHub validation. A client-supplied project key is identity, not proof of code.
-create or replace function public.create_cremation_once(
-  p_author_github text,
-  p_name text,
-  p_cause text,
-  p_source text,
-  p_project_key text,
-  p_github_url text,
-  p_github_repo_id bigint,
-  p_last_commit_message text
-)
-returns jsonb
-language plpgsql
-security invoker
-set search_path = public, pg_temp
-as $$
+create or replace function public.create_grave_once(
+  p_author_github text, p_grave jsonb, p_auto_slot_ids integer[], p_slot_id integer,
+  p_map_version text, p_grave_gid integer default null
+) returns jsonb language plpgsql set search_path = public, pg_temp as $$
 declare
-  v_author text := lower(p_author_github);
-  v_url text := lower(rtrim(p_github_url, '/'));
-  v_record public.cremated%rowtype;
-  v_total bigint;
-  v_daily bigint;
-  v_now timestamptz;
-  v_day timestamptz;
+  v_author text := lower(trim(p_author_github));
+  v_source text := p_grave->>'source';
+  v_key text := p_grave->>'project_key';
+  v_repo bigint := (p_grave->>'github_repo_id')::bigint;
+  v_grave public.graves%rowtype;
+  v_slots integer;
+  v_limit integer;
+  v_constraint text;
 begin
-  if v_author is null or v_author !~ '^[a-z0-9]([a-z0-9-]{0,37}[a-z0-9])?$'
-    or p_name is null or length(btrim(p_name)) not between 1 and 100
-    or p_cause is null or length(btrim(p_cause)) not between 1 and 200
-    or p_source is null or p_source not in ('github', 'skill')
-    or (p_project_key is not null and p_project_key !~ '^sha256:[a-f0-9]{64}$')
-    or (p_project_key is null and p_github_repo_id is null)
-    or (p_github_repo_id is not null and p_github_repo_id <= 0)
-    or (p_github_url is not null and p_github_repo_id is null)
-    or (p_source = 'github' and (p_github_repo_id is null or p_github_url is null)) then
-    raise exception 'Invalid cremation input' using errcode = '22023';
+  if v_author is null or v_author = '' or p_map_version is null or p_map_version not in ('v1','v2') then
+    return jsonb_build_object('status','failed');
   end if;
-
-  -- Serializes duplicate lookup, quotas, insert and counter for this account.
-  perform pg_advisory_xact_lock(hashtext('cremation-v2'), hashtext(v_author));
-  v_now := clock_timestamp();
-  v_day := date_trunc('day', v_now at time zone 'UTC') at time zone 'UTC';
-
-  select * into v_record from public.cremated
-  where lower(author_github) = v_author and (
-    (p_project_key is not null and project_key = p_project_key)
-    or (p_github_repo_id is not null and github_repo_id = p_github_repo_id)
-    -- Covers records written before project_key / github_repo_id existed.
-    or (v_url is not null and lower(rtrim(github_url, '/')) = v_url)
-  ) order by id limit 1;
-
-  if found then
-    -- Remember the verified numeric identity for legacy rows so a later rename
-    -- still resolves to this cremation. Never rewrite its public content.
-    if v_record.github_repo_id is null and p_github_repo_id is not null
-      and lower(rtrim(v_record.github_url, '/')) = v_url
-      and not exists (select 1 from public.cremated
-        where lower(author_github) = v_author and github_repo_id = p_github_repo_id) then
-      update public.cremated set github_repo_id = p_github_repo_id
-        where id = v_record.id returning * into v_record;
+  perform pg_advisory_xact_lock(hashtext('grave-account:' || v_author));
+  select 4 + case when x_first_grave_shared_at is not null then 1 else 0 end into v_limit
+    from public.users where lower(github_username) = v_author for update;
+  if v_limit is null then return jsonb_build_object('status','failed'); end if;
+  if v_source = 'local' then
+    if v_key is null or v_key !~ '^sha256:[a-f0-9]{64}$' or v_repo is not null or p_grave->>'github_url' is not null then
+      return jsonb_build_object('status','failed');
     end if;
-    return jsonb_build_object('status', 'existing',
-      'record', to_jsonb(v_record) - 'project_key' - 'github_repo_id');
+    select * into v_grave from public.graves where lower(author_github) = v_author and project_key = v_key;
+    if found then return jsonb_build_object('status','replayed','grave',to_jsonb(v_grave) - 'project_key'); end if;
+  elsif v_source = 'github' then
+    if v_repo is null or v_repo <= 0 or p_grave->>'github_url' is null then return jsonb_build_object('status','failed'); end if;
+    if exists(select 1 from public.graves where github_repo_id = v_repo) then return jsonb_build_object('status','duplicate_repo'); end if;
+  else return jsonb_build_object('status','failed');
   end if;
-
-  select count(*), count(*) filter (where created_at >= v_day)
-    into v_total, v_daily from public.cremated where lower(author_github) = v_author;
-  -- Preserve the existing product allowance: first 50 total, then 3 per UTC day.
-  if v_total >= 50 and v_daily >= 3 then
-    return jsonb_build_object('status', 'rate_limited', 'retry_after_seconds',
-      greatest(1, ceil(extract(epoch from (v_day + interval '1 day' - v_now)))::integer));
+  select count(*)::integer into v_slots from public.graves where lower(author_github) = v_author;
+  if v_slots >= v_limit then
+    return jsonb_build_object('status','user_slots_exhausted','slots_unlocked',v_limit,'slots_used',v_slots);
   end if;
-
-  insert into public.cremated (
-    name, cause, author_github, source, project_key, github_url, github_repo_id,
-    last_commit_message, created_at
-  ) values (
-    p_name, p_cause, v_author, p_source, p_project_key, p_github_url, p_github_repo_id,
-    p_last_commit_message, v_now
-  ) returning * into v_record;
-
-  update public.users set cremated_count = v_total + 1
-    where lower(github_username) = v_author;
-
-  return jsonb_build_object('status', 'created',
-    'record', to_jsonb(v_record) - 'project_key' - 'github_repo_id');
-end;
-$$;
-
-revoke all on function public.create_cremation_once(text, text, text, text, text, text, bigint, text)
-  from public, anon, authenticated;
-grant execute on function public.create_cremation_once(text, text, text, text, text, text, bigint, text)
-  to service_role;
-
+  if p_slot_id is null or p_slot_id = 0 then return jsonb_build_object('status','no_slots'); end if;
+  if p_auto_slot_ids is null or not coalesce(p_slot_id = any(p_auto_slot_ids), false) then return jsonb_build_object('status','failed'); end if;
+  begin
+    insert into public.graves(name,description,epitaph,born_at,died_at,cause,stack,github_url,github_repo_id,
+      author_github,slot_id,last_commit_message,map_version,grave_gid,source,project_key)
+    values(p_grave->>'name',p_grave->>'description',p_grave->>'epitaph',(p_grave->>'born_at')::timestamptz,
+      (p_grave->>'died_at')::timestamptz,p_grave->>'cause',
+      case when jsonb_typeof(p_grave->'stack') = 'array' then array(select jsonb_array_elements_text(p_grave->'stack')) else null end,
+      p_grave->>'github_url',v_repo,v_author,p_slot_id,p_grave->>'last_commit_message',p_map_version,p_grave_gid,v_source,v_key)
+    returning * into v_grave;
+  exception when unique_violation then
+    get stacked diagnostics v_constraint = constraint_name;
+    if v_constraint = 'graves_github_repo_id_key' then return jsonb_build_object('status','duplicate_repo'); end if;
+    if v_constraint in ('graves_slot_id_key','graves_slot_id_map_version_key') then return jsonb_build_object('status','slot_collision'); end if;
+    raise;
+  end;
+  update public.users set graves_count = v_slots + 1, updated_at = now() where lower(github_username) = v_author;
+  return jsonb_build_object('status','created','grave',to_jsonb(v_grave) - 'project_key');
+end $$;
+revoke all on function public.create_grave_once(text,jsonb,integer[],integer,text,integer) from public,anon,authenticated;
+grant execute on function public.create_grave_once(text,jsonb,integer[],integer,text,integer) to service_role;
 commit;
+
+-- Apply after web3-grave-burn-mvp.sql. All amounts leave SQL as decimal strings.
+create or replace function public.get_offering_ledger() returns jsonb
+language sql stable set search_path = public, pg_temp as $$
+with verified as (
+  select b.*, g.name as grave_name, lower(g.author_github) as grave_author
+  from public.grave_burns b join public.graves g on g.id = b.grave_id where b.status = 'verified'
+), received as (
+  select grave_id, sum(amount_raw) as amount from verified group by grave_id
+), authors as (
+  select coalesce(lower(g.author_github),'anonymous') as author, count(*) as buried, coalesce(sum(r.amount),0) as offerings
+  from public.graves g left join received r on r.grave_id = g.id group by coalesce(lower(g.author_github),'anonymous')
+), causes as (
+  select coalesce(cause,'Unknown') as cause, count(*) as count from public.graves group by coalesce(cause,'Unknown')
+), recent as (select * from verified order by verified_at desc nulls last, id desc limit 50)
+select jsonb_build_object(
+  'totalBurnedRaw', (select coalesce(sum(amount_raw),0)::text from verified),
+  'burnCount', (select count(*) from verified),
+  'authors', coalesce((select jsonb_agg(jsonb_build_object('author',author,'buried',buried,'offeringsRaw',offerings::text) order by buried desc,offerings desc,author) from authors),'[]'::jsonb),
+  'causes', coalesce((select jsonb_agg(jsonb_build_object('cause',cause,'count',count) order by count desc,cause) from causes),'[]'::jsonb),
+  'recent', coalesce((select jsonb_agg(jsonb_build_object('id',id,'graveId',grave_id,'graveName',grave_name,'walletAddress',wallet_address,'githubUsername',github_username,'amountRaw',amount_raw::text,'txHash',tx_hash,'verifiedAt',verified_at) order by verified_at desc nulls last,id desc) from recent),'[]'::jsonb)
+);
+$$;
+revoke all on function public.get_offering_ledger() from public,anon,authenticated;
+grant execute on function public.get_offering_ledger() to service_role;

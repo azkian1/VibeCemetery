@@ -2,7 +2,7 @@ import { defineConfig } from '@playwright/test'
 
 export default defineConfig({
   testDir: './tests',
-  testMatch: 'web3-burn.e2e.spec.ts',
+  testMatch: ['web3-burn.e2e.spec.ts', 'simplification.e2e.spec.ts'],
   timeout: 45_000,
   expect: { timeout: 15_000 },
   workers: 1,

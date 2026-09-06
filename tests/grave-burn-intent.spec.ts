@@ -30,7 +30,7 @@ class MemoryBurnStore implements GraveBurnStore {
   graveResult: GraveLookupResult = 'found'
   intents = new Map<string, GraveBurnIntentRecord>()
 
-  async findBurnableV1Grave(): Promise<GraveLookupResult> {
+  async findBurnableGrave(): Promise<GraveLookupResult> {
     return this.graveResult
   }
 

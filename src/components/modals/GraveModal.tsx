@@ -13,7 +13,6 @@ import InsetBlock from '@/components/ui/InsetBlock';
 import { cemeteryEvents } from '@/game/events';
 import { epitaphFallback } from '@/gravedigger/epitaphs';
 import { buildGraveTweetIntentUrl } from '@/lib/grave-share';
-import { useCemeteryMapVersion } from '@/context/GameContext';
 import dynamic from 'next/dynamic';
 
 const GraveBurnPanel = dynamic(() => import('./grave/GraveBurnPanel'), { ssr: false });
@@ -35,7 +34,6 @@ export default function GraveModal() {
   const { state, dispatch } = useGame();
   const { data: session, update: updateSession } = useSession();
   const isMobile = useIsMobile();
-  const mapVersion = useCemeteryMapVersion();
   const isLoggedIn = !!session?.user;
   const slotId = modalData?.slotId;
   const slotType = modalData?.slotType;
@@ -164,7 +162,6 @@ export default function GraveModal() {
   // ── Meta grave ──
   if (!grave) {
     const totalGraves = state.graves.size;
-    const totalCremated = state.cremated.length;
     let totalF = 0;
     state.graves.forEach((g) => { totalF += g.f_count ?? 0; });
 
@@ -244,7 +241,6 @@ export default function GraveModal() {
             <div style={{ display: 'flex', gap: 8, justifyContent: 'center', margin: '0 0 14px' }}>
               {[
                 { label: 'Graves buried', value: totalGraves },
-                { label: 'Projects cremated', value: totalCremated },
                 { label: 'Respects paid', value: totalF },
               ].map((s) => (
                 <div key={s.label} style={{
@@ -408,7 +404,7 @@ export default function GraveModal() {
 
           <OrnamentDivider />
 
-          {mapVersion === 'v1' && slotId != null && (
+          {slotId != null && (
             <GraveBurnPanel graveId={g.id} slotId={slotId} />
           )}
 

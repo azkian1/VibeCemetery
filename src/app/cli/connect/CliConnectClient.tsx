@@ -89,7 +89,7 @@ export default function CliConnectClient({ linkId }: { linkId: string }) {
             Connect your coding agent
           </h1>
           <p style={{ margin: '0 0 14px', fontSize: 13, color: '#aaa9a0', textAlign: 'center', lineHeight: 1.6 }}>
-            Approve your coding agent’s request to create cremation records under your GitHub account. Your agent will continue after you approve.
+            Approve your coding agent’s request to create burial records under your GitHub account. Your agent will continue after you approve.
           </p>
 
           <InsetBlock>
@@ -122,7 +122,7 @@ export default function CliConnectClient({ linkId }: { linkId: string }) {
                   Link request approved.
                 </div>
                 <div style={{ color: '#8a8980', fontSize: 13, lineHeight: 1.6 }}>
-                  Return to your coding agent to continue the cremation.
+                  Return to your coding agent to continue the burial.
                 </div>
               </div>
             ) : (

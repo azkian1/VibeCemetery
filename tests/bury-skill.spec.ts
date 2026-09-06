@@ -5,7 +5,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSyn
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 
-const helperPath = `${process.cwd().replace(/\\/g, '/')}/SKILL/skills/bury-workflow/scripts/bury-helper.mjs`
+const helperPath = `${process.cwd().replace(/\\/g, '/')}/src/agent/burial-helper.mjs`
 const detectionFixtures = JSON.parse(
   readFileSync(`${process.cwd()}/tests/fixtures/bury-detection-fixtures.json`, 'utf8'),
 )
@@ -27,7 +27,7 @@ test.describe('bury skill helpers', () => {
     })
 
     expect(paths.configPath).toBe('C:\\Users\\example\\AppData\\Roaming\\Claude\\vibecemetery\\bury.json')
-    expect(paths.registryPath).toBe('C:\\Users\\example\\AppData\\Roaming\\Claude\\vibecemetery\\cremated-registry.json')
+    expect(paths.registryPath).toBe('C:\\Users\\example\\AppData\\Roaming\\Claude\\vibecemetery\\buried-registry.json')
   })
 
   test('keeps only sanitized github remotes', async () => {
@@ -83,7 +83,7 @@ test.describe('bury skill helpers', () => {
         path: 'C:/Users/example/Desktop/Projects/_ARCHIVE/../_ARCHIVE/LegacyApp',
         git_remote: 'https://user:token@github.com/example-owner/legacy-app.git',
         first_commit: '5a380e438ab0887c70b37908fd1ccc7ea690872e',
-        cremated_at: '2026-03-16',
+        buried_at: '2026-03-16',
         cause: 'Lost interest',
       },
     ])
@@ -94,36 +94,29 @@ test.describe('bury skill helpers', () => {
         path_fingerprint: `sha256:${createHash('sha256').update(canonicalLegacyPath).digest('hex')}`,
         git_remote: 'github.com/example-owner/legacy-app',
         first_commit: '5a380e438ab0887c70b37908fd1ccc7ea690872e',
-        cremated_at: '2026-03-16',
+        buried_at: '2026-03-16',
         cause: 'Lost interest',
       },
     ])
     expect(normalizeRegistryEntries(entries)).toEqual(entries)
   })
 
-  test('only publishes a sanitized GitHub link when explicitly selected', async () => {
-    const { buildCremationBody } = await loadHelper()
-    const payload = { name: 'LegacyApp', cause: 'Lost interest', project_key: `sha256:${'a'.repeat(64)}`,
-      github_url: 'https://user:token@github.com/example-owner/legacy-app.git', last_commit_message: 'final commit' }
-    expect(buildCremationBody(payload)).toEqual({ name: payload.name, cause: payload.cause,
-      project_key: payload.project_key, last_commit_message: 'final commit' })
-    expect(buildCremationBody({ ...payload, include_github_url: true })).toEqual({
-      name: payload.name, cause: payload.cause, project_key: payload.project_key,
-      github_url: 'https://github.com/example-owner/legacy-app', last_commit_message: 'final commit',
-    })
-    expect(() => buildCremationBody({ ...payload, include_github_url: true,
-      github_url: 'https://github.com/example-owner/legacy-app/issues/1' })).toThrow('Invalid GitHub URL')
+  test('local burial payload excludes repository links and enforces an explicit field allowlist', async () => {
+    const { buildBurialBody } = await loadHelper()
+    const payload = { name: 'Local project', cause: 'Retired', project_key: 'sha256:' + 'a'.repeat(64), secret: 'not for publication', raw_path: 'C:/private' }
+    expect(buildBurialBody(payload)).toEqual({ name: payload.name, cause: payload.cause, project_key: payload.project_key, source: 'local', map_version: 'v2' })
+    expect(() => buildBurialBody({ ...payload, github_url: 'https://github.com/owner/repo' })).toThrow()
   })
 
   test('limits API fields and rejects missing identity before any network request', async () => {
-    const { buildCremationBody, sendCremation } = await loadHelper()
-    const body = buildCremationBody({ name: 'x'.repeat(110), cause: 'c'.repeat(220),
-      project_key: `sha256:${'b'.repeat(64)}`, last_commit_message: 'm'.repeat(220) })
+    const { buildBurialBody, sendBurial } = await loadHelper()
+    const body = buildBurialBody({ name: 'x'.repeat(110), cause: 'c'.repeat(220),
+      project_key: `sha256:${'b'.repeat(64)}`, last_commit_message: 'm'.repeat(520) })
     expect(body.name).toHaveLength(100)
     expect(body.cause).toHaveLength(200)
-    expect(body.last_commit_message).toHaveLength(200)
+    expect(body.last_commit_message).toHaveLength(500)
     let fetched = false
-    await expect(sendCremation({ name: 'Project', cause: 'Retired' }, 'test-token', () => { fetched = true }))
+    await expect(sendBurial({ name: 'Project', cause: 'Retired' }, 'test-token', () => { fetched = true }))
       .rejects.toThrow('project_key')
     expect(fetched).toBe(false)
   })
@@ -140,35 +133,35 @@ test.describe('bury skill helpers', () => {
   })
 
   test('preserves 403 and temporary 429 details, retry time and successful record identity', async () => {
-    const { sendCremation } = await loadHelper()
+    const { sendBurial } = await loadHelper()
     const payload = { name: 'Project', cause: 'Retired', project_key: `sha256:${'a'.repeat(64)}` }
     const responses = [
       Response.json({ error: 'You can only bury your own GitHub repositories', code: 'REPO_NOT_ELIGIBLE' }, { status: 403 }),
       Response.json({ error: 'Too many verification attempts' }, { status: 429, headers: { 'Retry-After': '30' } }),
-      Response.json({ id: 123, name: 'Project' }, { status: 201 }),
-      Response.json({ id: 123, name: 'Project' }, { status: 200 }),
+      Response.json({ id: '00000000-0000-4000-8000-000000000123', name: 'Project' }, { status: 201 }),
+      Response.json({ id: '00000000-0000-4000-8000-000000000123', name: 'Project' }, { status: 200 }),
     ]
     const bodies: string[] = []
     const fetchMock = async (url: string, options: RequestInit) => {
-      expect(url).toBe('https://vibecemetery.app/api/cremated')
+      expect(url).toBe('https://vibecemetery.app/api/graves')
       expect(options.signal).toBeInstanceOf(AbortSignal)
       expect(options.redirect).toBe('error')
       bodies.push(String(options.body))
       return responses.shift()!
     }
-    expect(await sendCremation(payload, 'test-token', fetchMock)).toMatchObject({ status: 403, ok: false, code: 'REPO_NOT_ELIGIBLE', error: 'You can only bury your own GitHub repositories' })
-    expect(await sendCremation(payload, 'test-token', fetchMock)).toMatchObject({ status: 429, ok: false, code: null, retry_after_seconds: 30 })
-    expect(await sendCremation(payload, 'test-token', fetchMock)).toMatchObject({ status: 201, ok: true, record_id: 123, replayed: false })
-    expect(await sendCremation(payload, 'test-token', fetchMock)).toMatchObject({ status: 200, ok: true, record_id: 123, replayed: true })
+    expect(await sendBurial(payload, 'test-token', fetchMock)).toMatchObject({ status: 403, ok: false, code: 'REPO_NOT_ELIGIBLE', error: 'You can only bury your own GitHub repositories' })
+    expect(await sendBurial(payload, 'test-token', fetchMock)).toMatchObject({ status: 429, ok: false, code: null, retry_after_seconds: 30 })
+    expect(await sendBurial(payload, 'test-token', fetchMock)).toMatchObject({ status: 201, ok: true, record_id: '00000000-0000-4000-8000-000000000123', replayed: false })
+    expect(await sendBurial(payload, 'test-token', fetchMock)).toMatchObject({ status: 200, ok: true, record_id: '00000000-0000-4000-8000-000000000123', replayed: true })
     expect(new Set(bodies).size).toBe(1)
   })
 
-  test('does not report malformed success or an uncertain network outcome as cremated', async () => {
-    const { sendCremation } = await loadHelper()
+  test('does not report malformed success or an uncertain network outcome as buried', async () => {
+    const { sendBurial } = await loadHelper()
     const payload = { name: 'Project', cause: 'Retired', project_key: `sha256:${'a'.repeat(64)}` }
-    expect(await sendCremation(payload, 'test-token', async () => new Response('<html>gateway</html>', { status: 201 })))
+    expect(await sendBurial(payload, 'test-token', async () => new Response('<html>gateway</html>', { status: 201 })))
       .toMatchObject({ status: 201, ok: false, record_id: null })
-    expect(await sendCremation(payload, 'test-token', async () => { throw new Error('network failed') }))
+    expect(await sendBurial(payload, 'test-token', async () => { throw new Error('network failed') }))
       .toMatchObject({ status: 0, ok: false, code: 'NETWORK_ERROR' })
   })
 
@@ -261,7 +254,7 @@ test.describe('bury skill helpers', () => {
     ])
   })
 
-  test('detects a direct-path project from the filesystem and marks it cremated by path fingerprint', async () => {
+  test('detects a direct-path project from the filesystem and marks it buried by path fingerprint', async () => {
     const { computePathFingerprint, detectProjectCandidates } = await loadHelper()
     const fixtureRoot = mkdtempSync(path.join(tmpdir(), 'bury-direct-root-'))
 
@@ -276,14 +269,14 @@ test.describe('bury skill helpers', () => {
           path_fingerprint: computePathFingerprint(fixtureRoot),
           git_remote: '',
           first_commit: '',
-          cremated_at: '2026-04-15',
-          cause: 'Already cremated',
+          buried_at: '2026-04-15',
+          cause: 'Already buried',
         }],
       })).toEqual([
         expect.objectContaining({
           path: fixtureRoot,
           name: path.basename(fixtureRoot),
-          status: 'Cremated',
+          status: 'Buried',
           path_fingerprint: computePathFingerprint(fixtureRoot),
           classification: expect.objectContaining({
             isCandidate: true,
@@ -401,24 +394,11 @@ test.describe('bury skill helpers', () => {
     })
   })
 
-  test('builds selection prompt with selectable rows only and no all shortcut', async () => {
-    const { buildSelectionPromptModel } = await loadHelper()
-
-    const model = buildSelectionPromptModel([
-      { name: '18scenario_generator', status: 'Untracked' },
-      { name: 'DemoMini', status: 'Cremated' },
-      { name: 'Puzzle', status: 'Dead' },
-      { name: 'DemoBot', status: 'Cremated' },
-      { name: 'Transcript', status: 'Untracked' },
-    ])
-
-    expect(model.selectableRows.map((row: { index: number; name: string }) => ({ index: row.index, name: row.name }))).toEqual([
-      { index: 1, name: '18scenario_generator' },
-      { index: 2, name: 'Puzzle' },
-      { index: 3, name: 'Transcript' },
-    ])
-    expect(model.crematedRows.map((row: { name: string }) => row.name)).toEqual(['DemoMini', 'DemoBot'])
-    expect(model.acceptedReplies).toEqual(['1,2,3', 'all dead'])
+  test('local burial payload excludes repository links and enforces explicit field allowlist', async () => {
+    const { buildBurialBody } = await loadHelper()
+    const payload = { name: 'Local project', cause: 'Retired', project_key: 'sha256:' + 'a'.repeat(64), secret: 'not for publication', raw_path: 'C:/private' }
+    expect(buildBurialBody(payload)).toEqual({ name: payload.name, cause: payload.cause, project_key: payload.project_key, source: 'local', map_version: 'v2' })
+    expect(() => buildBurialBody({ ...payload, github_url: 'https://github.com/owner/repo' })).toThrow()
   })
 
   test('omits all dead reply when there are no selectable dead projects', async () => {
@@ -604,11 +584,11 @@ test.describe('bury skill helpers', () => {
   })
 
   test('workflow requires inspect-project helper instead of direct git -C commands', () => {
-    const workflow = readFileSync(`${process.cwd()}/SKILL/skills/bury-workflow/SKILL.md`, 'utf8')
-    const helper = readFileSync(`${process.cwd()}/SKILL/skills/bury-workflow/scripts/bury-helper.mjs`, 'utf8')
+    const workflow = readFileSync(`${process.cwd()}/src/lib/agent-instructions.ts`, 'utf8')
+    const helper = readFileSync(`${process.cwd()}/src/agent/burial-helper.mjs`, 'utf8')
 
-    expect(workflow).toContain('inspect-project')
-    expect(workflow).toContain('Never run `git -C` directly')
+    expect(workflow).toContain('helper.inspectProject(candidate.path)')
+    expect(workflow).toContain('Do not run code, builds, hooks or package scripts')
     expect(workflow).not.toContain('git -C "<path>"')
     expect(helper).toContain('resolveTrustedGitBinary')
     expect(helper).not.toContain("execFileSync('git'")

@@ -47,14 +47,10 @@ test('shared cemetery loaders dispatch only the latest guarded request', () => {
   )
 
   expect(source).toContain('beginLatestRequest(gravesRequestStateRef.current)')
-  expect(source).toContain('beginLatestRequest(crematedRequestStateRef.current)')
   expect(source).toContain('signal: request.controller.signal')
   expect(source).toContain('isLatestRequest(gravesRequestStateRef.current, request)')
-  expect(source).toContain('isLatestRequest(crematedRequestStateRef.current, request)')
   expect(source).toContain('abortLatestRequest(gravesRequestStateRef.current)')
-  expect(source).toContain('abortLatestRequest(crematedRequestStateRef.current)')
   expect(dispatchBlock).toContain("action.type === 'ADD_GRAVE'")
-  expect(dispatchBlock).toContain("action.type === 'ADD_CREMATED'")
 })
 
 test('F-status requests are bound to the active session and invalidated on account changes', () => {

@@ -27,7 +27,7 @@ function AgentsHubContent() {
           <p style={{ margin: '0 0 10px', color: '#8fa8c0', letterSpacing: 2, fontSize: 12, textTransform: 'uppercase' }}>Paused Experiment</p>
           <h1 style={{ margin: '0 0 12px', color: '#e8d5a3', fontSize: 'clamp(28px, 5vw, 42px)', lineHeight: 1.08 }}>Agent Layer Is On Pause</h1>
           <p style={{ margin: '0 auto 28px', maxWidth: 560, color: '#aaa9a0', lineHeight: 1.7, fontFamily: "var(--font-geist-sans), Arial, sans-serif" }}>
-            The GitLawb / Agent Ash layer is archived for now. VibeCemetery is focused on filling the human cemetery first: GitHub graves, cremations, and local project cremations.
+            The GitLawb / Agent Ash layer is archived for now. VibeCemetery is focused on filling the human cemetery first: GitHub graves, and local project graves.
           </p>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: 14 }}>

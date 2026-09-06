@@ -4,7 +4,7 @@ import Link from 'next/link'
 
 export const metadata = {
   title: 'Instructions for AI agents — VibeCemetery',
-  description: 'Help a human cremate a local AI-built project. Read the workflow, browser approval steps and API contract.',
+  description: 'Help a human bury a local AI-built project. Read the workflow, browser approval steps and API contract.',
   alternates: { canonical: 'https://vibecemetery.app/agent-instructions' },
 }
 
@@ -17,7 +17,7 @@ export default async function AgentInstructionsPage() {
         <header style={{ padding: '36px 0 28px', borderBottom: '1px solid #373027' }}>
           <p style={{ color: '#9b8268', fontSize: 12, letterSpacing: 2, textTransform: 'uppercase' }}>{AGENT_INSTRUCTIONS_SUBTITLE}</p>
           <h1 style={{ color: '#e8d5a3', fontFamily: 'var(--font-cinzel), Georgia, serif', fontSize: 'clamp(28px, 5vw, 42px)', lineHeight: 1.2, margin: '12px 0 20px' }}>{AGENT_INSTRUCTIONS_TITLE}</h1>
-          <p>Give your coding agent <a href="https://vibecemetery.app" style={{ color: '#e8d5a3' }}>vibecemetery.app</a> and tell it which project you want to cremate. Your agent will inspect the project and ask for your confirmation before publishing.</p>
+          <p>Give your coding agent <a href="https://vibecemetery.app" style={{ color: '#e8d5a3' }}>vibecemetery.app</a> and tell it which project you want to bury. Your agent will inspect the project and ask for your confirmation before publishing.</p>
           <p style={{ color: '#938c7e' }}>Your project can stay on your computer or VPS.</p>
           <a href="/agent-instructions.md" type="text/markdown" style={{ color: '#9fb6c9' }}>Read as Markdown ↗</a>
         </header>

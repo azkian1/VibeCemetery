@@ -66,7 +66,7 @@ export default function PhaserCanvasV2() {
 
   const handleBuildingClick = useCallback((data: SlotEventData) => {
     const modal: ModalType =
-      data.name === 'Chapel' ? 'mausoleum' : 'mausoleum';
+      data.name === 'Crematory' ? 'crematory' : 'mausoleum';
     dispatch({
       type: 'OPEN_MODAL',
       id: createModalInstanceId(),

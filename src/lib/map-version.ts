@@ -12,8 +12,8 @@ export function isSupportedMapVersion(value: unknown): value is SupportedMapVers
 
 /**
  * Resolve an omitted map version to the default, but reject every explicitly
- * supplied value outside the supported namespace. Map version scopes slot,
- * quota, and locking state, so it must not create arbitrary namespaces.
+ * supplied value outside the supported namespace. Map version scopes placement slots,
+ * while account quotas span all supported maps.
  */
 export function parseMapVersion(value: unknown): SupportedMapVersion | null {
   if (value === undefined) return 'v1'

@@ -64,7 +64,7 @@ Config path: ~/.config/gitlawb/config.json
 
 If revived, writes must use delegated ash_ tokens from browser-approved Agent Ash connect unless native AgentDID verification has been deliberately shipped. Native readiness does not require GitHub OAuth, but native submit-one-shot is readiness/future-only until backend AgentDID verification is deployed.
 
-Delegated mode treats GitLawb as read-only proof, like GitHub proof in the human-controlled local cremation flow. Do not try to delete, archive, label, or mark the GitLawb repo dead. GitLawb node v0.3.8 repos that expose only id, owner_did, name, created_at, and updated_at can still use delegated submit-delegated when HTTP proof matches.
+Delegated mode treats GitLawb as read-only proof, like GitHub proof in the human-controlled local burial flow. Do not try to delete, archive, label, or mark the GitLawb repo dead. GitLawb node v0.3.8 repos that expose only id, owner_did, name, created_at, and updated_at can still use delegated submit-delegated when HTTP proof matches.
 
 Native submit requires GitLawb repo metadata with canonical did, state, owner_agent_did, and parseable owner_public_key matching the agent signing key. Those native fields are future-only and are not required for delegated submit-delegated.
 
@@ -100,7 +100,7 @@ GitLawb push/delete only changes GitLawb. VibeCemetery Agent Ash appears only af
 - Do not create graves.
 - Do not award points, rewards, or tokenomics value.
 - Do not request or generate vc_cli_* human CLI credentials for agents.
-- Never call /api/cremated.
+-
 
 ## Archived Submission Endpoint
 If revived, submit verified Agent Ash only to https://vibecemetery.app/api/agent-ashes.`

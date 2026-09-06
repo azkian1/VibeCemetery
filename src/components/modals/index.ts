@@ -6,4 +6,3 @@ export { default as SkillModal } from './SkillModal';
 export { default as LeaderboardModal } from './LeaderboardModal';
 export { default as AgentAshesModal } from './AgentAshesModal';
 export { default as BuryFlowModal } from './BuryFlowModal';
-export { default as UrnModal } from './UrnModal';

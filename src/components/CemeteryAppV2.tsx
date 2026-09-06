@@ -1,9 +1,10 @@
 'use client';
 
+import Web3Provider from '@/web3/Web3Provider';
 import { Suspense, useEffect, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import dynamic from 'next/dynamic';
-import { CemeteryMapVersionContext, createModalInstanceId, GameProvider, useGame, useGraves, useCremated, useFStatus, useModal, type ModalType } from '@/context/GameContext';
+import { CemeteryMapVersionContext, createModalInstanceId, GameProvider, useGame, useGraves, useFStatus, useModal, type ModalType } from '@/context/GameContext';
 import { cemeteryEvents } from '@/game/events';
 import { removeBuryModalIntentFromUrl, shouldOpenBuryModalFromSearchParams } from '@/lib/bury-intent';
 import { consumePendingBurialCeremony } from '@/lib/pending-burial-ceremony';
@@ -12,6 +13,7 @@ import { ModalOverlayTopContext } from './modals/ModalOverlay';
 const PhaserCanvasV2 = dynamic(() => import('./PhaserCanvasV2'), { ssr: false });
 const HoverTooltip = dynamic(() => import('./HoverTooltip'), { ssr: false });
 const GraveModal = dynamic(() => import('./modals/GraveModal'), { ssr: false });
+const CrematoryModal = dynamic(() => import('./modals/CrematoryModal'), { ssr: false });
 const MausoleumModal = dynamic(() => import('./modals/MausoleumModal'), { ssr: false });
 const TopBar = dynamic(() => import('./hud/TopBar'), { ssr: false });
 const BuryFlowModal = dynamic(() => import('./modals/BuryFlowModal'), { ssr: false });
@@ -26,11 +28,9 @@ const AgentAshesModal = dynamic(() => import('./modals/AgentAshesModal'), { ssr:
 const SkillModal = dynamic(() => import('./modals/SkillModal'), { ssr: false });
 const AgentSkillModal = dynamic(() => import('./modals/AgentSkillModal'), { ssr: false });
 const ProfileModal = dynamic(() => import('./modals/ProfileModal'), { ssr: false });
-const UrnModal = dynamic(() => import('./modals/UrnModal'), { ssr: false });
 
 export function GameDataLoadersV2() {
   useGraves({ mapVersion: 'v2' });
-  useCremated();
   useFStatus();
   return null;
 }
@@ -39,7 +39,6 @@ function DeepLinkOpenerV2() {
   const searchParams = useSearchParams();
   const { state, dispatch } = useGame();
   const navigatedFor = useRef<string | null>(null);
-  const urnHandled = useRef<string | null>(null);
   const buryIntentHandled = useRef(false);
   const pendingCeremonyHandled = useRef(false);
   const activeModalRef = useRef(state.activeModal);
@@ -77,14 +76,13 @@ function DeepLinkOpenerV2() {
     const graveId = searchParams.get('grave');
     if (!graveId || graveId === navigatedFor.current) return;
 
-    navigatedFor.current = graveId;
 
     const timers: ReturnType<typeof setTimeout>[] = [];
     const isMobile = typeof window !== 'undefined' && window.innerWidth < 640;
     const halve = (ms: number) => isMobile ? Math.ceil(ms / 2) : ms;
 
     if (graveId === 'meta') {
-      const metaSlot = state.slotPositions.find(s => s.id === 105);
+      const metaSlot = state.slotPositions.find(s => s.id === 105 && s.type === 'meta_grave');
       if (metaSlot) {
         timers.push(setTimeout(() => {
           cemeteryEvents.emit('minimap_click', {
@@ -96,6 +94,7 @@ function DeepLinkOpenerV2() {
           cemeteryEvents.emit('highlight_slot', { slotId: 105 });
         }, halve(2450)));
         timers.push(setTimeout(() => {
+          navigatedFor.current = graveId;
           if (activeModalRef.current) return;
           dispatch({ type: 'OPEN_MODAL', id: createModalInstanceId(), modal: 'grave', data: { slotId: 105, slotType: 'meta_grave' } });
         }, halve(4700)));
@@ -116,6 +115,7 @@ function DeepLinkOpenerV2() {
           cemeteryEvents.emit('highlight_slot', { slotId: slot.id });
         }, halve(2450)));
         timers.push(setTimeout(() => {
+          navigatedFor.current = graveId;
           if (activeModalRef.current) return;
           dispatch({ type: 'OPEN_MODAL', id: createModalInstanceId(), modal: 'grave', data: { slotId: slot.id } });
         }, halve(4700)));
@@ -126,21 +126,6 @@ function DeepLinkOpenerV2() {
     return () => { for (const t of timers) clearTimeout(t); };
   }, [state.gravesLoading, state.slotPositions.length, state.slotPositions, state.graves, searchParams, dispatch]);
 
-  useEffect(() => {
-    if (state.slotPositions.length === 0 || state.crematedLoading) return;
-    const urnId = searchParams.get('urn');
-    if (!urnId || urnId === urnHandled.current) return;
-
-    const item = state.cremated.find(c => String(c.id) === urnId);
-    if (!item) return;
-    urnHandled.current = urnId;
-
-    const timer = setTimeout(() => {
-      if (activeModalRef.current) return;
-      dispatch({ type: 'OPEN_MODAL', id: createModalInstanceId(), modal: 'urn', data: { crematedItem: item } });
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [state.slotPositions.length, state.crematedLoading, state.cremated, searchParams, dispatch]);
 
   return null;
 }
@@ -156,8 +141,7 @@ const MODAL_MAP: Record<ModalType, React.ComponentType<any>> = {
   agentSkill: AgentSkillModal,
   skill: SkillModal,
   profile: ProfileModal,
-  urn: UrnModal,
-  crematory: MausoleumModal,
+  crematory: CrematoryModal,
 };
 
 function ModalLayer() {
@@ -189,6 +173,7 @@ function ModalLayer() {
 export default function CemeteryAppV2() {
   return (
     <CemeteryMapVersionContext.Provider value="v2">
+      <Web3Provider>
       <GameProvider>
         <GameDataLoadersV2 />
         <Suspense fallback={null}>
@@ -211,6 +196,7 @@ export default function CemeteryAppV2() {
           </main>
         </div>
       </GameProvider>
+      </Web3Provider>
     </CemeteryMapVersionContext.Provider>
   );
 }

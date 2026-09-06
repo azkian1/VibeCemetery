@@ -109,12 +109,15 @@ export async function resolveCliActor(request: Request): Promise<CliActor | null
     return null
   }
 
-  const { data: cliToken } = await supabaseAdmin
+  const { data: cliToken, error: tokenLookupError } = await supabaseAdmin
     .from('cli_tokens')
     .select('id, github_username')
     .eq('token_hash', hashCliToken(bearerToken))
     .is('revoked_at', null)
     .maybeSingle()
+
+  // A storage outage is not an invalid credential: clients must not discard it.
+  if (tokenLookupError) throw new Error('CLI authentication temporarily unavailable')
 
   if (!cliToken?.github_username) {
     return null

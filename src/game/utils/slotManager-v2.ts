@@ -38,7 +38,7 @@ const BUILDING_SOURCES = [
   },
   {
     id: 5003,
-    name: 'Service Building',
+    name: 'Crematory',
     layerName: 'ServiceBuildingsPreview_map4',
     objectName: 'service_technical_building_4x5_map4',
   },

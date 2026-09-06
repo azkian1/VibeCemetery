@@ -17,7 +17,7 @@ export interface GravediggerTemplate {
   /** Which placeholders this template requires */
   requires: string[];
   /** Which cemetery record types may use this template */
-  contexts?: Array<'grave' | 'cremated'>;
+  contexts?: Array<'grave'>;
 }
 
 // ── By project name ──

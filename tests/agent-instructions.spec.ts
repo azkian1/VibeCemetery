@@ -25,7 +25,7 @@ test('server page and Markdown expose the same workflow without client-side fetc
     expect(html).toContain(section.title)
     expect(text).toContain(section.text)
   }
-  for (const required of ['project_key', '/api/cli/link/start', '/api/cli/link/status', '/api/cremated', '/urn/RECORD_ID']) {
+  for (const required of ['project_key', '/api/cli/link/start', '/api/cli/link/status', '/api/graves', '/grave/RECORD_ID']) {
     expect(html).toContain(required)
     expect(text).toContain(required)
   }
@@ -43,7 +43,7 @@ test('published helper matches the SHA-256 in both instruction formats', async (
   const source = await response.text()
   const hash = createHash('sha256').update(source).digest('hex')
   expect(response.headers.get('content-type')).toContain('text/javascript')
-  expect(source).toContain('export async function sendCremation')
+  expect(source).toContain('export async function sendBurial')
   expect(await (await markdown()).text()).toContain(`SHA-256: ${hash}`)
   expect(await serverPageTree()).toContain(hash)
 })
@@ -74,21 +74,21 @@ assert.match(info.project_key, /^sha256:[a-f0-9]{64}$/);
 helper.saveConfig({ cli_token: 'vc_cli_test_only' });
 const { config } = helper.loadConfig();
 let requests = 0;
-const payload = { name: info.name, cause: 'Retired', project_key: info.project_key, include_github_url: false };
-const result = await helper.sendCremation(payload, config.cli_token, async (url, options) => {
+const payload = { name: info.name, cause: 'Retired', project_key: info.project_key, map_version: 'v2' };
+const result = await helper.sendBurial(payload, config.cli_token, async (url, options) => {
   requests++;
-  assert.equal(url, 'https://vibecemetery.app/api/cremated');
+  assert.equal(url, 'https://vibecemetery.app/api/graves');
   assert.equal(options.headers.Authorization, 'Bearer vc_cli_test_only');
   const body = JSON.parse(options.body);
   assert.equal(body.project_key, info.project_key);
   assert.equal(body.github_url, undefined);
-  return Response.json({ id: 42, name: info.name, cause: body.cause }, { status: 201 });
+  return Response.json({ id: '00000000-0000-4000-8000-000000000042', name: info.name, cause: body.cause }, { status: 201 });
 });
 assert.equal(result.ok, true);
-assert.equal(result.record_id, 42);
-helper.saveRegistry([{ ...info, cause: payload.cause, cremated_at: '2026-09-06' }]);
+assert.equal(result.record_id, '00000000-0000-4000-8000-000000000042');
+helper.saveRegistry([{ ...info, cause: payload.cause, buried_at: '2026-09-06' }]);
 assert.equal(helper.loadRegistry().entries.length, 1);
-assert.equal(helper.detectProjectCandidates(project, { registryEntries: helper.loadRegistry().entries })[0].status, 'Cremated');
+assert.equal(helper.detectProjectCandidates(project, { registryEntries: helper.loadRegistry().entries })[0].status, 'Buried');
 assert.deepEqual(fs.readdirSync(project), ['index.html']);
 assert.equal(fs.existsSync(path.join(process.env.HOME, '.claude')), false);
 assert.equal(requests, 1);

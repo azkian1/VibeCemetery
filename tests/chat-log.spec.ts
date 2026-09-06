@@ -6,15 +6,13 @@ test('chat status bar includes Total, Buried, and Cremated counters', () => {
   expect(CHAT_STATUS_ITEMS).toEqual([
     { key: 'total', label: 'Total', emoji: '💀' },
     { key: 'buried', label: 'Buried', emoji: '🪦' },
-    { key: 'cremated', label: 'Cremated', emoji: '🔥' },
   ])
 })
 
 test('chat status counts graves plus cremations as total records', () => {
-  expect(getChatStatusCounts({ graveCount: 3, crematedCount: 2 })).toEqual({
-    total: 5,
+  expect(getChatStatusCounts({ graveCount: 3 })).toEqual({
+    total: 3,
     buried: 3,
-    cremated: 2,
   })
 })
 

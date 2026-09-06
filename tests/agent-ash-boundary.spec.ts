@@ -5,7 +5,6 @@ import {
   isAgentAshEnvelope,
   isAgentAshIngestToken,
 } from '../src/lib/agent-ash-boundary'
-import { POST as postCremated } from '../src/app/api/cremated/route'
 import { POST as postGraves } from '../src/app/api/graves/route'
 
 test.describe('Agent Ash product boundary', () => {
@@ -21,18 +20,6 @@ test.describe('Agent Ash product boundary', () => {
     expect(isAgentAshEnvelope(null)).toBe(false)
   })
 
-  test('human cremation endpoint rejects Agent Ash tokens before reading body', async () => {
-    const response = await postCremated(new NextRequest('http://localhost/api/cremated', {
-      method: 'POST',
-      headers: { authorization: 'Bearer ash_dead_agent_token_123' },
-      body: '{',
-    }))
-
-    expect(response.status).toBe(403)
-    await expect(response.json()).resolves.toEqual({
-      error: 'Agent Ash ingest tokens cannot access human cremations',
-    })
-  })
 
   test('human grave endpoint rejects Agent Ash tokens before session auth', async () => {
     const response = await postGraves(new NextRequest('http://localhost/api/graves', {

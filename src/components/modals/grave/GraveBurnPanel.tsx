@@ -3,7 +3,6 @@
 import { useConnection } from 'wagmi'
 import StoneButton from '@/components/ui/StoneButton'
 import WalletButton from '@/components/web3/WalletButton'
-import { useCemeteryMapVersion } from '@/context/GameContext'
 import { GRAVE_BURN_PRESETS, GRAVE_CHAIN_ID, WEB3_GRAVE_BURNS_VISIBLE } from '@/web3/config'
 import { useGraveBurn } from '@/web3/useGraveBurn'
 
@@ -25,9 +24,8 @@ export default function GraveBurnPanel({
   graveId: string
   slotId: number
 }) {
-  const mapVersion = useCemeteryMapVersion()
 
-  if (!WEB3_GRAVE_BURNS_VISIBLE || mapVersion !== 'v1') return null
+  if (!WEB3_GRAVE_BURNS_VISIBLE) return null
 
   return <EnabledGraveBurnPanel graveId={graveId} slotId={slotId} />
 }

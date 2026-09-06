@@ -1,4 +1,5 @@
 export const graveTokenAbi = [
+  { type: 'function', name: 'totalSupply', stateMutability: 'view', inputs: [], outputs: [{ name: '', type: 'uint256' }] },
   {
     type: 'function',
     name: 'transfer',

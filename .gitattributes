@@ -1,5 +1,2 @@
-# The downloadable /bury bundle is pinned by byte-level SHA-256 hashes.
-# Keep identical bytes in Windows worktrees and Linux deployments.
-/SKILL/commands/bury.md text eol=lf
-/SKILL/skills/bury-workflow/** text eol=lf
-/SKILL/install/** text eol=lf
+# Keep published helper bytes identical on Windows and Linux.
+/src/agent/burial-helper.mjs text eol=lf

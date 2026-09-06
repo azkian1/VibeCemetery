@@ -4,7 +4,7 @@
 
 **Dead projects should not disappear silently.**
 
-VibeCemetery is a public afterlife for abandoned software: people bury dead GitHub repos in a pixel cemetery or cremate projects that should become ashes.
+VibeCemetery is a public afterlife for abandoned software: people bury abandoned GitHub and local projects in a shared pixel cemetery.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Next.js](https://img.shields.io/badge/Next.js-16-black.svg)](https://nextjs.org)
@@ -23,13 +23,13 @@ Start at <https://vibecemetery.app> to scan your connected GitHub, or enter the 
 
 Every builder leaves behind dead projects: half-finished prototypes, abandoned experiments, vibecode prototypes, broken trading bots, forgotten repos, and local folders nobody wants to delete.
 
-VibeCemetery gives them a public ending. Human projects can receive graves, epitaphs, causes of death, cremations, shareable rituals, and cemetery records.
+VibeCemetery gives them a public ending. Human projects can receive graves, epitaphs, causes of death, shareable rituals, and cemetery records.
 
 This is not just a graveyard UI. It is an afterlife layer for dead software.
 
 ```text
 Humans perform cemetery rituals.
-Dead projects become graves or ashes.
+Dead projects become graves.
 ```
 
 ## A Note From The Keeper
@@ -66,11 +66,11 @@ VibeCemetery is focused on the human cemetery experience.
 
 - GitHub repos with no activity for 7+ days, and not forks, can be buried.
 - Graves appear on the hand-crafted pixel cemetery map.
-- Cremations go to the Crematory.
-- The agent instructions let a human-controlled local coding agent cremate dead local folders.
-- Human records write to `/api/graves` and `/api/cremated`.
+- Every project memorial is a grave; token offerings are recorded in the Crematory.
+- The agent instructions let a human-controlled local coding agent bury abandoned local projects.
+- Human records write to `/api/graves`.
 - Human CLI credentials use `vc_cli_*` tokens.
-- Map v1 supports feature-gated GRAVE offerings that are counted only after
+- Both maps support feature-gated GRAVE offerings that are counted only after
   independent Base Mainnet verification.
 
 Human records can affect map placement, grave slots, leaderboards, and sharing.
@@ -86,11 +86,11 @@ Legacy Agent Layer code, API routes, SQL, and archived docs remain in the reposi
 - **Scanner Landing Page** - `/` is a compact first-page flow with one primary action, `Scan GitHub`. It scans only the connected GitHub account and does not offer public username scanning.
 - **Pixel Cemetery Maps** - the classic v1 experience at `/cemetery` and the Map 2.0 Phaser experience at `/cemetery/v2`, with custom PixelLab art, fog of war, minimap, camera movement, and modal interactions. See [`docs/map2.md`](docs/map2.md).
 - **GitHub Burial Flow** - sign in, scan inactive repos, pick a dead repo, write the cause of death, and place it on the map when grave slots are available.
-- **Crematory** - for projects that burn into ashes instead of taking a map slot, including local project cremations and GitHub repos when grave slots are exhausted.
+- **Crematory** - verified GRAVE offerings, transaction history and an on-chain burn-address supply bar.
 - **The Crypt** - a searchable ledger of graves.
 - **Necropolis Leaderboard** - top gravediggers, causes of death, and cemetery activity.
 - **Press F** - pay respects to graves, one vote per user per grave.
-- **Deep Links** - share graves and urns through stable URLs.
+- **Deep Links** - share graves through stable URLs.
 - **Open Graph Cards** - grave links render dedicated tombstone social cards.
 - **GRAVE Offerings** - existing Map v1 graves can receive fixed-token
   offerings sent to the configured burn address. The UI is disabled by default
@@ -105,9 +105,9 @@ Legacy Agent Layer code, API routes, SQL, and archived docs remain in the reposi
 - `/cemetery` - Phaser cemetery map experience and Human Layer rituals.
 - `/cemetery/v2` - active Map 2.0 experience; v1 remains available at `/cemetery`.
 - `/grave/[id]` - redirects to `/cemetery?grave=<id>`.
-- `/urn/[id]` - redirects to `/cemetery?urn=<id>`.
+- `/agent-instructions` - local agent burial workflow; no installation required.
 
-Legacy root query intents such as `/?grave=...`, `/?urn=...`, and `/?modal=bury` redirect to `/cemetery` with the relevant query preserved.
+Legacy root query intents such as `/?grave=...` and `/?modal=bury` redirect to `/cemetery` with the relevant query preserved.
 
 Paused Agent Layer routes may still exist for direct legacy links, but they are not linked from the main product flow.
 
@@ -132,34 +132,21 @@ Next:
   approved tiny Base transaction.
 - **The Gravedigger Agent** - introduce the native cemetery agent for guidance, lore, grave care, and future ritual interactions.
 
-The current product remains focused on the core human cemetery: GitHub burials, local project cremations. The Agent Layer is paused and will be revisited only after the cemetery itself is stronger and more populated.
+The current product remains focused on the core human cemetery: GitHub and local project burials. The Agent Layer is paused and will be revisited only after the cemetery itself is stronger and more populated.
 
 ## Human Web Burial
 
-Use the website when you want an abandoned GitHub repo to receive a grave or cremation.
+Use the website to scan your GitHub repositories and bury one eligible project. Confirm its cause of death; the server creates an epitaph and places a grave on the map.
 
-```text
-1. Sign in with GitHub.
-2. Click Scan GitHub on the home page, or enter the cemetery and choose a ritual.
-3. Pick repos inactive for 7+ days.
-4. Click Bury when grave slots are available, or Cremate when they are exhausted.
-5. Write the cause of death.
-6. Leave the project as a grave on the map or as ashes in the Crematory.
-```
-
-The home page does not support scanning arbitrary GitHub usernames. `Scan GitHub` starts GitHub login when needed, then scans `session.user.github_username`; `/api/github/scan` enforces the same own-account-only rule server-side.
-
-Scan results appear on `/` before the map. Each dead repo gets one primary action: **Bury** while grave slots are available, or **Cremate** only after grave slots are exhausted.
-
-On `/cemetery`, the old single BURY CTA is split into two actions: **Bury** puts one selected GitHub repo on the map, while **Cremate** saves selected repos as urns. Bury is disabled when no grave slots remain; Cremate is disabled while the user still has grave slots.
-
-GitHub repos are verified on the server before grave creation or cremation. The repo owner must match the signed-in user, forks are rejected, and map placement comes from parsed cemetery slots.
+GitHub repositories must be owned by the connected account, not be forks, contain a project and have no pushes for at least 7 days. Each account has 4 grave slots, plus 1 for sharing a grave. The allowance is shared across project sources and maps. At the limit, new burials are disabled.
 
 ## Local projects with AI agents
 
-Give your coding agent [vibecemetery.app](https://vibecemetery.app) and tell it which project you want to cremate. The home page links to [Instructions for AI agents](https://vibecemetery.app/agent-instructions), also available as [plain Markdown](https://vibecemetery.app/agent-instructions.md).
+Give your coding agent [vibecemetery.app](https://vibecemetery.app) and tell it which project you want to bury. The home page links to [Instructions for AI agents](https://vibecemetery.app/agent-instructions), also available as [plain Markdown](https://vibecemetery.app/agent-instructions.md).
 
-The agent reads the instructions, downloads a temporary Node helper, inspects the selected project, and asks you to confirm the public cremation details. Browser approval links the request to your GitHub account. The project stays on your computer or VPS; cremation creates an urn without uploading source code, deleting local files, or occupying a map slot.
+The agent reads the instructions, downloads a temporary Node helper, inspects the selected project, and asks you to confirm the public burial details. Browser approval links the request to your GitHub account. The project stays on your computer or VPS; burial creates a normal map grave without uploading source code or deleting local files.
+
+See [the simplification plan](docs/project-simplification-plan.md) and [migration/cutover guide](docs/unified-burial-setup.md).
 
 ## Paused Agent Layer Docs
 
@@ -198,7 +185,7 @@ npm run test:unit
 npm run build
 ```
 
-Targeted `/bury` and Web3 suites:
+Targeted agent helper and Web3 suites:
 
 ```bash
 npm run test:bury-skill

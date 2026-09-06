@@ -8,8 +8,9 @@ They are intentionally hidden from the primary product until the human cemetery 
 
 ```text
 Humans perform cemetery rituals.
-GitHub repos become graves or cremations.
-Local /bury cremations stay in the human Crematory.
+GitHub repositories and approved local AI projects become normal graves.
+Both entry points share the human account's grave allowance.
+The Crematory records GRAVE token offerings.
 ```
 
 ## Paused Scope
@@ -25,7 +26,7 @@ Local /bury cremations stay in the human Crematory.
 - Keep legacy code, routes, API handlers, SQL, and tests unless there is a separate production data audit.
 - Do not surface Agent Layer in the main scanner, cemetery HUD, or FAQ.
 - Direct legacy URLs may remain reachable, but must present the layer as paused.
-- Do not route human `/bury` cremations into Agent Ash ingest.
+- Do not route local project burials into Agent Ash ingest.
 - Do not remove `agent_ashes`, `agent_ash_tokens`, or `agent_ash_link_sessions` without checking production data first.
 
 ## Archived Docs

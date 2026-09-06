@@ -8,6 +8,7 @@ import {
 test.describe('bury login intent', () => {
   test('returns to the cemetery with the bury modal intent after GitHub login', () => {
     expect(getBuryLoginCallbackUrl()).toBe('/cemetery?modal=bury')
+    expect(getBuryLoginCallbackUrl('v2')).toBe('/cemetery/v2?modal=bury')
   })
 
   test('opens only for the bury modal query intent', () => {

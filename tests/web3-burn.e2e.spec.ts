@@ -1,4 +1,6 @@
 import { expect, test } from '@playwright/test'
+import { getAutoAssignableGraveSlots } from '../src/lib/map-slots'
+import { pickGraveGidV2 } from '../src/game/utils/tileRegistry-v2'
 
 const graveId = '22222222-2222-4222-8222-222222222222'
 const intentId = '11111111-1111-4111-8111-111111111111'
@@ -7,7 +9,9 @@ const txHash = `0x${'ab'.repeat(32)}`
 const signature = `0x${'34'.repeat(65)}`
 const amountRaw = (100n * 10n ** 18n).toString()
 
-test('injected wallet completes a stubbed verified Map v1 burn offering', async ({ page }) => {
+for (const mapVersion of ['v1', 'v2'] as const) {
+test(`injected wallet completes a stubbed verified ${mapVersion} burn offering`, async ({ page }) => {
+  const slot = getAutoAssignableGraveSlots(mapVersion)[0]
   await page.addInitScript(({ walletAddress, hash, signed }) => {
     let chainId = '0x1'
     let connected = false
@@ -68,9 +72,9 @@ test('injected wallet completes a stubbed verified Map v1 burn offering', async 
     if (url.pathname === '/api/graves' && request.method() === 'GET') {
       return json([{
         id: graveId,
-        slot_id: 15,
-        grave_gid: null,
-        map_version: 'v1',
+        slot_id: slot.id,
+        grave_gid: mapVersion === 'v2' ? pickGraveGidV2(slot.type, 0) : null,
+        map_version: mapVersion,
         name: 'Stubbed Grave',
         cause: 'Test fixture',
         epitaph: 'No token value crossed this test.',
@@ -82,7 +86,6 @@ test('injected wallet completes a stubbed verified Map v1 burn offering', async 
         last_commit_message: 'test: browser ritual',
       }])
     }
-    if (url.pathname === '/api/cremated') return json([])
     if (url.pathname === '/api/f-status') return json({ grave_ids: [] })
 
     if (url.pathname === `/api/graves/${graveId}/burn-intents` && request.method() === 'POST') {
@@ -158,7 +161,7 @@ test('injected wallet completes a stubbed verified Map v1 burn offering', async 
     return json({})
   })
 
-  await page.goto(`/cemetery?grave=${graveId}`)
+  await page.goto(`${mapVersion === 'v2' ? '/cemetery/v2' : '/cemetery'}?grave=${graveId}`)
   await expect(page.getByRole('button', { name: 'Connect wallet' })).toBeVisible()
   await page.getByRole('button', { name: 'Connect wallet' }).click()
   await expect(page.getByRole('button', { name: 'Switch to Base' })).toBeVisible()
@@ -168,3 +171,4 @@ test('injected wallet completes a stubbed verified Map v1 burn offering', async 
   await expect(page.getByText('Ritual accepted')).toBeVisible()
   await expect(page.getByText('100 GRAVE', { exact: true })).toBeVisible()
 })
+}

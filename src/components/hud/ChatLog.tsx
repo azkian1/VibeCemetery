@@ -24,20 +24,16 @@ const MESSAGE_PREFIXES: Partial<Record<ChatMessage['type'], string>> = {
 export const CHAT_STATUS_ITEMS = [
   { key: 'total', label: 'Total', emoji: '💀' },
   { key: 'buried', label: 'Buried', emoji: '🪦' },
-  { key: 'cremated', label: 'Cremated', emoji: '🔥' },
 ];
 
 export function getChatStatusCounts({
   graveCount,
-  crematedCount,
 }: {
   graveCount: number;
-  crematedCount: number;
-}): { total: number; buried: number; cremated: number } {
+}): { total: number; buried: number } {
   return {
-    total: graveCount + crematedCount,
+    total: graveCount,
     buried: graveCount,
-    cremated: crematedCount,
   };
 }
 
@@ -54,7 +50,7 @@ export default function ChatLog() {
   const { messages, addMessage } = useChat();
   const { state } = useGame();
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const statusCounts = getChatStatusCounts({ graveCount: state.graves.size, crematedCount: state.cremated.length });
+  const statusCounts = getChatStatusCounts({ graveCount: state.graves.size });
   const scrollRef = useRef<HTMLDivElement>(null);
   const isAtBottomRef = useRef(true);
   const lastIdleIndexRef = useRef(-1);
@@ -130,8 +126,8 @@ export default function ChatLog() {
         // 50% chance: dynamic template from real cemetery data
         let text: string | null = null;
         const s = stateRef.current;
-        if (Math.random() < 0.5 && (s.graves.size > 0 || s.cremated.length > 0)) {
-          text = generateFromGrave(s.graves, s.cremated);
+        if (Math.random() < 0.5 && s.graves.size > 0) {
+          text = generateFromGrave(s.graves);
         }
 
         // Fallback: static phrase
@@ -217,7 +213,6 @@ export default function ChatLog() {
       }}>
         <span style={{ whiteSpace: 'nowrap' }}>{CHAT_STATUS_ITEMS[0].label}: {statusCounts.total} {CHAT_STATUS_ITEMS[0].emoji}</span>
         <span style={{ whiteSpace: 'nowrap' }}>{CHAT_STATUS_ITEMS[1].label}: {statusCounts.buried} {CHAT_STATUS_ITEMS[1].emoji}</span>
-        <span style={{ whiteSpace: 'nowrap' }}>{CHAT_STATUS_ITEMS[2].label}: {statusCounts.cremated} {CHAT_STATUS_ITEMS[2].emoji}</span>
         <button
           type="button"
           data-testid="chat-collapse-toggle"

@@ -10,7 +10,6 @@ import {
   getAgentAshSkillInstallLink,
   getAgentAshSkillInstallSource,
 } from '../src/lib/agent-ash-install'
-import { INSTALLER_CONTRACT } from '../SKILL/install/install-contract.mjs'
 
 test('paused Agent Ash install contract points to archived GitLawb setup and VibeCemetery skill only', () => {
   const contract = getAgentAshInstallContract()
@@ -38,7 +37,6 @@ test('paused Agent Ash install contract points to archived GitLawb setup and Vib
   expect(getAgentAshSkillInstallCommand()).toBe('curl -fsSL https://vibecemetery.app/agents/gitlawb/v1/install.sh | bash')
   expect(AGENT_ASH_SKILL_SOURCE_CONTRACT.siteBaseUrl).toBe('https://vibecemetery.app/agents/gitlawb/v1')
   expect(AGENT_ASH_SKILL_SOURCE_CONTRACT.skillPath).toBe('~/.hermes/skills/gitlawb')
-  expect(INSTALLER_CONTRACT).not.toHaveProperty('installRef')
   expect(contract).toContain('~/.config/gitlawb/config.json')
   expect(contract).toContain('agent_ash_token')
   expect(contract).toContain('ash_')
@@ -65,7 +63,6 @@ test('paused Agent Ash install contract points to archived GitLawb setup and Vib
   expect(contract).not.toContain('If no real ash_ token is available')
   expect(contract).toContain('Obtain the token only through browser-approved Agent Ash connect.')
   expect(contract).toContain('/api/agent-ashes')
-  expect(contract).toContain('Never call /api/cremated')
   expect(contract).toContain('Do not request or generate vc_cli_* human CLI credentials for agents.')
   expect(contract).not.toContain('hermes skills install gitlawb\n')
   expect(contract).not.toContain('87222203d7d7c5b55e8694eaf2de5ea9811872c9')
@@ -86,13 +83,10 @@ test('CTA buttons keep Human bury and cremate rituals separate from Agent Skill'
   const source = readFileSync(join(process.cwd(), 'src', 'components', 'hud', 'CTAButtons.tsx'), 'utf8')
 
   expect(source).toContain('Bury')
-  expect(source).toContain('Cremate')
   expect(source).toContain("open('bury', { flowMode: 'cemetery-shovel' })")
-  expect(source).toContain("open('bury', { flowMode: 'cemetery-fire' })")
   expect(source).not.toContain("open('skill')")
   expect(source).not.toContain("open('agentSkill')")
   expect(source).not.toContain('BURY')
-  expect(source).toContain('0 0 18px')
 })
 
 test('Agent skill modal is paused legacy copy', () => {

@@ -6,9 +6,7 @@ test('modal grave refetches inherit v1 by default and v2 from the cemetery shell
   const contextSource = readFileSync(join(process.cwd(), 'src', 'context', 'GameContext.tsx'), 'utf8')
   const v2AppSource = readFileSync(join(process.cwd(), 'src', 'components', 'CemeteryAppV2.tsx'), 'utf8')
   const modalSources = [
-    'ProfileModal.tsx',
     'MausoleumModal.tsx',
-    'LeaderboardModal.tsx',
   ].map((file) => readFileSync(join(process.cwd(), 'src', 'components', 'modals', file), 'utf8'))
 
   expect(contextSource).toContain("createContext<CemeteryMapVersion>('v1')")

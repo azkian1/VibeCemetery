@@ -39,5 +39,5 @@ export default async function GravePage({
     throw new Error(`Failed to load grave share data: ${result.message}`)
   }
 
-  return <GraveRedirectClient graveId={id} />
+  return <GraveRedirectClient graveId={id} mapVersion={result.grave.map_version} />
 }

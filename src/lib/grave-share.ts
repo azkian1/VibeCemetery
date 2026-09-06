@@ -5,6 +5,7 @@ const GRAVE_OG_IMAGE_VERSION = 'social-v3'
 
 export interface GraveShareData {
   id: string
+  map_version?: 'v1' | 'v2'
   name: string
   cause: string | null
   epitaph: string | null

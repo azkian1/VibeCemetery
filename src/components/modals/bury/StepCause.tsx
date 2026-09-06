@@ -21,44 +21,24 @@ const DEATH_CAUSES = [
 interface StepCauseProps {
   repos: DeadRepo[];
   selected: Set<number>;
-  graveSet: Set<number>;
   causes: Map<number, string>;
   onSetCause: (id: number, cause: string) => void;
   onSubmit: () => void;
   onBack: () => void;
   loading: boolean;
-  burialOnly?: boolean;
 }
 
 export default function StepCause({
   repos,
   selected,
-  graveSet,
   causes,
   onSetCause,
   onSubmit,
   onBack,
   loading,
-  burialOnly = false,
 }: StepCauseProps) {
   const selectedRepos = repos.filter((r) => selected.has(r.id));
-  const graveCount = burialOnly ? selectedRepos.length : [...selected].filter(id => graveSet.has(id)).length;
-  const cremateCount = burialOnly ? 0 : selected.size - graveCount;
-  
-  const getButtonText = () => {
-    if (loading) {
-      if (graveCount > 0 && cremateCount > 0) return 'Processing...';
-      if (graveCount > 0) return 'Burying...';
-      return 'Cremating...';
-    }
-    if (graveCount > 0 && cremateCount > 0) {
-      return `Bury ${graveCount} & Cremate ${cremateCount}`;
-    }
-    if (graveCount > 0) {
-      return `Bury ${graveCount} project${graveCount !== 1 ? 's' : ''}`;
-    }
-    return `Cremate ${cremateCount} project${cremateCount !== 1 ? 's' : ''}`;
-  };
+  const getButtonText = () => loading ? 'Burying...' : 'Bury project';
 
   return (
     <div>
@@ -170,9 +150,7 @@ export default function StepCause({
         </button>
       </div>
       <p style={{ color: '#6a6960', fontSize: 12, lineHeight: 1.5, margin: '12px 0 0', textAlign: 'center' }}>
-        {burialOnly
-          ? 'Buried projects appear on the cemetery map. One project, one grave.'
-          : 'Buried projects appear on the cemetery map. Cremated projects go to the Crematory.'}
+        Buried projects appear on the cemetery map. One project, one grave.
       </p>
     </div>
   );

@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { AGENT_INSTRUCTIONS_PATH, AGENT_INSTRUCTIONS_TITLE, AGENT_INSTRUCTIONS_SUBTITLE } from '@/lib/agent-instructions';
+import { useAccountGraves } from '@/hooks/useAccountGraves';
 import { useEffect, useState } from 'react';
 import { signIn, useSession } from 'next-auth/react';
 import { GameProvider, useModal } from '@/context/GameContext';
@@ -9,7 +10,7 @@ import { useGame } from '@/context/GameContext';
 import { ModalLayer } from '@/components/CemeteryApp';
 import { calculateUserSlotEconomy, isAutoAssignableGraveSlotType } from '@/lib/slot-economy';
 import type { BuryFlowMode } from '@/components/modals/BuryFlowModal';
-import type { CrematedData, DeadRepo, GitHubScanResult, GraveData } from '@/types/game';
+import type { DeadRepo, GitHubScanResult, GraveData } from '@/types/game';
 import type { SlotPositionData } from '@/game/events';
 
 const AUTH_GATE_COPY = 'Connect GitHub to scan and bury your own repos.';
@@ -57,26 +58,17 @@ export function formatLastPushAge(value: string, now = new Date()): string {
 export function filterFreshDeadRepos({
   repos,
   graves,
-  cremated,
-  username,
 }: {
   repos: DeadRepo[];
   graves: Map<number, GraveData>;
-  cremated: CrematedData[];
   username: string | null;
 }): DeadRepo[] {
   const buriedRepoIds = new Set<number>();
-  graves.forEach((grave) => buriedRepoIds.add(grave.github_repo_id));
+  graves.forEach((grave) => { if (grave.github_repo_id != null) buriedRepoIds.add(grave.github_repo_id); });
 
-  const crematedNames = new Set(
-    cremated
-      .filter((item) => !username || item.author_github.toLowerCase() === username.toLowerCase())
-      .map((item) => item.name.toLowerCase()),
-  );
 
   return repos.filter((repo) => {
     if (buriedRepoIds.has(repo.id)) return false;
-    if (crematedNames.has(repo.name.toLowerCase())) return false;
     return true;
   });
 }
@@ -107,10 +99,8 @@ export function calculateAvailableGraveSlotsForHome({
   return calculateUserSlotEconomy({ slotsUsed, hasSharedFirstGrave }).availableSlots;
 }
 
-export function decideHomeRepoAction(availableSlots: number): { label: 'Bury' | 'Cremate'; flowMode: BuryFlowMode } {
-  return availableSlots > 0
-    ? { label: 'Bury', flowMode: 'home-preselected-burial' }
-    : { label: 'Cremate', flowMode: 'home-preselected-cremation' };
+export function decideHomeRepoAction(availableSlots: number): { label: string; flowMode: BuryFlowMode; disabled: boolean } {
+  return { label: availableSlots > 0 ? 'Bury' : 'No grave slots left', flowMode: 'home-preselected-burial', disabled: availableSlots <= 0 };
 }
 
 export function shouldShowHomeScannerChrome(repos: DeadRepo[] | null): boolean {
@@ -120,15 +110,10 @@ export function shouldShowHomeScannerChrome(repos: DeadRepo[] | null): boolean {
 function ScannerShell() {
   const { data: session, status } = useSession();
   const { open } = useModal();
-  const { state, dispatch } = useGame();
+  const { dispatch } = useGame();
   const authenticatedUsername = session?.user?.github_username ?? null;
-  const hasSharedFirstGrave = Boolean(session?.user?.x_first_grave_shared_at);
-  const availableGraveSlots = calculateAvailableGraveSlotsForHome({
-    graves: state.graves,
-    username: authenticatedUsername,
-    hasSharedFirstGrave,
-    slotPositions: state.slotPositions,
-  });
+  const account = useAccountGraves();
+  const availableGraveSlots = account.data?.availableSlots ?? 0;
   const repoAction = decideHomeRepoAction(availableGraveSlots);
   const [isCompactViewport, setIsCompactViewport] = useState(false);
   const [repos, setRepos] = useState<DeadRepo[] | null>(null);
@@ -158,10 +143,9 @@ function ScannerShell() {
 
     try {
       const username = encodeURIComponent(authenticatedUsername);
-      const [scanRes, gravesRes, crematedRes, mapRes] = await Promise.all([
+      const [scanRes, gravesRes, mapRes] = await Promise.all([
         fetch(`/api/github/scan?username=${username}`),
-        fetch(`/api/graves?author=${username}&limit=50`),
-        fetch(`/api/cremated?author=${username}&limit=50`),
+        fetch('/api/graves/account'),
         fetch('/map/az.tmj'),
       ]);
       const data = await scanRes.json().catch(() => null) as GitHubScanResult | { error?: string } | null;
@@ -169,14 +153,13 @@ function ScannerShell() {
         setMessage(data && 'error' in data && data.error ? data.error : `Scan failed (${scanRes.status})`);
         return;
       }
-      if (!gravesRes.ok || !crematedRes.ok || !mapRes.ok) {
+      if (!gravesRes.ok || !mapRes.ok) {
         setMessage('The cemetery ledger could not be loaded. Please try again.');
         return;
       }
 
-      const [graveRows, crematedRows, map] = await Promise.all([
-        gravesRes.json() as Promise<GraveData[]>,
-        crematedRes.json() as Promise<CrematedData[]>,
+      const [accountRows, map] = await Promise.all([
+        gravesRes.json() as Promise<{ graves: GraveData[] }>,
         mapRes.json() as Promise<HomeMapData>,
       ]);
       const slotPositions = extractHomeSlotPositions(map);
@@ -185,16 +168,14 @@ function ScannerShell() {
         return;
       }
       const graves = new Map<number, GraveData>();
-      for (const grave of graveRows) graves.set(grave.slot_id, grave);
+      for (const grave of accountRows.graves.filter(g => g.map_version !== 'v2')) graves.set(grave.slot_id, grave);
       dispatch({ type: 'SET_GRAVES', graves });
-      dispatch({ type: 'SET_CREMATED', cremated: crematedRows });
       dispatch({ type: 'SET_SLOT_POSITIONS', slots: slotPositions });
 
       const scan = data as GitHubScanResult;
       setRepos(filterFreshDeadRepos({
         repos: scan.dead_repos,
-        graves,
-        cremated: crematedRows,
+        graves: new Map(accountRows.graves.map((grave, index) => [index, grave])),
         username: authenticatedUsername,
       }));
       setTotalRepos(scan.total_repos);
@@ -285,7 +266,7 @@ function ScannerShell() {
                             <p style={repoMetaStyle}>Language: {repo.language ?? 'Unknown'}</p>
                             <p style={repoMetaStyle}>Status: Dead</p>
                           </div>
-                          <button type="button" onClick={() => open('bury', { initialDeadRepos: [repo], flowMode: repoAction.flowMode })} style={{ ...navButtonStyle, color: repoAction.flowMode === 'home-preselected-burial' ? '#e8d5a3' : '#e8b8a3' }}>{repoAction.label}</button>
+                          <button type="button" disabled={repoAction.disabled || account.loading} onClick={() => open('bury', { initialDeadRepos: [repo], flowMode: repoAction.flowMode })} style={{ ...navButtonStyle, color: repoAction.flowMode === 'home-preselected-burial' ? '#e8d5a3' : '#e8b8a3' }}>{repoAction.label}</button>
                         </div>
                       </article>
                     ))}

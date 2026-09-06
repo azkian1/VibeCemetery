@@ -1,4 +1,4 @@
-import type { GraveData, CrematedData } from '@/types/game';
+import type { GraveData } from '@/types/game';
 import { ALL_TEMPLATES } from './templates';
 import type { GravediggerTemplate } from './templates';
 
@@ -12,7 +12,7 @@ interface TemplateData {
   stack_count?: string;
 }
 
-type TemplateContext = 'grave' | 'cremated'
+type TemplateContext = 'grave'
 
 function hasNonAscii(value: string | null | undefined): boolean {
   return !!value && /[^\x00-\x7F]/.test(value);
@@ -60,14 +60,6 @@ function extractData(grave: GraveData): TemplateData {
   };
 }
 
-function extractCrematedData(c: CrematedData): TemplateData {
-  return {
-    name: truncate(c.name, 30),
-    cause: truncate(c.cause, 40),
-    last_commit: truncate(c.last_commit_message, 50),
-  };
-}
-
 function fill(template: string, data: TemplateData): string {
   return template.replace(/\{(\w+)\}/g, (match, key) => {
     const val = data[key as keyof TemplateData];
@@ -83,28 +75,16 @@ function filterTemplates(data: TemplateData, context: TemplateContext): Gravedig
 }
 
 /**
- * Generate a dynamic phrase from a random grave or cremated project.
+ * Generate a dynamic phrase from a random grave.
  * Returns null if no data or no matching templates.
  */
 export function generateFromGrave(
   graves: Map<number, GraveData>,
-  cremated: CrematedData[],
 ): string | null {
   const graveArr = Array.from(graves.values());
-  const totalItems = graveArr.length + cremated.length;
-  if (totalItems === 0) return null;
-
-  // Pick a random source
-  const idx = Math.floor(Math.random() * totalItems);
-  let data: TemplateData;
-  let context: TemplateContext;
-  if (idx < graveArr.length) {
-    data = extractData(graveArr[idx]);
-    context = 'grave';
-  } else {
-    data = extractCrematedData(cremated[idx - graveArr.length]);
-    context = 'cremated';
-  }
+  if (graveArr.length === 0) return null;
+  const data = extractData(graveArr[Math.floor(Math.random() * graveArr.length)]);
+  const context: TemplateContext = 'grave';
 
   // Stack count (how many graves share this stack)
   if (data.stack) {

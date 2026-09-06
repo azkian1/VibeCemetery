@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { useSession, signIn } from 'next-auth/react';
 import type { DeadRepo, GitHubScanResult } from '@/types/game';
 import { getBuryLoginCallbackUrl } from '@/lib/bury-intent';
+import { useCemeteryMapVersion } from '@/context/GameContext';
 import {
   abortLatestRequest,
   beginLatestRequest,
@@ -14,16 +15,14 @@ import {
 } from '@/lib/latest-request';
 
 export const BURY_GITHUB_CONNECT_LABEL = 'Connect GitHub';
-export const LOCAL_TERMINAL_CREMATION_COPY = 'For local AI projects, read the agent instructions';
-export const LOCAL_TERMINAL_CREMATION_PROMPT_MARGIN_TOP = 28;
+export const LOCAL_AGENT_INSTRUCTIONS_COPY = 'For local AI projects, read the agent instructions';
+export const LOCAL_AGENT_INSTRUCTIONS_PROMPT_MARGIN_TOP = 28;
 
 export function shouldShowRescanAfterSuccessfulScan(): boolean {
   return false;
 }
 
-export function shouldShowCremationSkillPrompt(cremationOnly: boolean): boolean {
-  return cremationOnly;
-}
+
 
 interface StepScanProps {
   repos: DeadRepo[];
@@ -32,8 +31,6 @@ interface StepScanProps {
   username: string | null;
   filteredCount: number;
   recordsLoading?: boolean;
-  burialOnly?: boolean;
-  cremationOnly?: boolean;
   onOpenSkill?: () => void;
   onScanned: (repos: DeadRepo[], total: number) => void;
   onError: (err: string) => void;
@@ -48,8 +45,6 @@ export default function StepScan({
   username: defaultUsername,
   filteredCount,
   recordsLoading = false,
-  burialOnly = false,
-  cremationOnly = false,
   onOpenSkill,
   onScanned,
   onError,
@@ -57,6 +52,7 @@ export default function StepScan({
   setLoading,
 }: StepScanProps) {
   const { status } = useSession();
+  const mapVersion = useCemeteryMapVersion();
   const [dots, setDots] = useState('');
   const [scanPhase, setScanPhase] = useState('Connecting to GitHub...');
   const scanRequestStateRef = useRef<LatestRequestState>(createLatestRequestState());
@@ -148,7 +144,7 @@ export default function StepScan({
           Dead repos are non-forks with no pushes for 7+ days.
         </p>
         <button
-          onClick={() => signIn('github', { callbackUrl: getBuryLoginCallbackUrl() })}
+          onClick={() => signIn('github', { callbackUrl: getBuryLoginCallbackUrl(mapVersion) })}
           style={{
             padding: '8px 24px',
             border: '1px solid #3a3530',
@@ -239,11 +235,11 @@ export default function StepScan({
         Found <strong>{repos.length}</strong> dead repo{repos.length !== 1 ? 's' : ''}
       </p>
       <p style={{ color: '#6a6960', fontSize: 12, lineHeight: 1.5, margin: '0 0 12px' }}>
-        {burialOnly ? 'Choose one project for one grave.' : 'Choose which projects deserve a grave, and which should be cremated.'}
+        Choose one project for one grave.
       </p>
       {filteredCount > 0 && (
         <p style={{ color: '#6a6960', fontSize: 12, marginBottom: 16 }}>
-          {filteredCount} already buried or cremated
+          {filteredCount} already buried
         </p>
       )}
       <button
@@ -261,12 +257,12 @@ export default function StepScan({
       >
         Next
       </button>
-      {shouldShowCremationSkillPrompt(cremationOnly) && onOpenSkill && (
+      {onOpenSkill && (
         <button
           onClick={onOpenSkill}
           style={{
             display: 'block',
-            margin: `${LOCAL_TERMINAL_CREMATION_PROMPT_MARGIN_TOP}px auto 0`,
+            margin: `${LOCAL_AGENT_INSTRUCTIONS_PROMPT_MARGIN_TOP}px auto 0`,
             color: '#7898b8',
             fontSize: 13,
             cursor: 'pointer',
@@ -278,7 +274,7 @@ export default function StepScan({
             fontFamily: 'inherit',
           }}
         >
-          {LOCAL_TERMINAL_CREMATION_COPY}
+          {LOCAL_AGENT_INSTRUCTIONS_COPY}
         </button>
       )}
       {shouldShowRescanAfterSuccessfulScan() && rescanButton}

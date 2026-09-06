@@ -9,12 +9,12 @@ export default async function Home({
   const params = await searchParams;
   const query = new URLSearchParams();
 
-  for (const key of ['grave', 'urn', 'modal']) {
+  for (const key of ['grave', 'modal']) {
     const value = params[key];
     if (typeof value === 'string') query.set(key, value);
   }
 
-  if (query.has('grave') || query.has('urn') || query.get('modal') === 'bury') {
+  if (query.has('grave') || query.get('modal') === 'bury') {
     redirect(`/cemetery?${query.toString()}`);
   }
 

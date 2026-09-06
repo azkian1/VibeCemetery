@@ -1,8 +1,8 @@
 # Local Setup
 
 This document is the contributor-facing setup source of truth. Use it together
-with `.env.example`, `docs/supabase-schema.sql`, `docs/grave-slot-rpc.sql`,
-`docs/cli-auth-v1.sql`, and `docs/web3-grave-burn-mvp.md`.
+with `.env.example`, `docs/supabase-schema.sql`, and
+`docs/unified-burial-setup.md` for the current release and migration order.
 
 ## What You Need
 
@@ -55,10 +55,10 @@ Optional production-only rate limiting:
 - `UPSTASH_REDIS_REST_TOKEN`
 - `TRUST_PROXY_HEADERS` for non-Vercel deployments only when the trusted proxy strips spoofed forwarding headers
 
-Required only when enabling Map v1 Web3 grave offerings:
+Required when enabling Web3 grave offerings on either map:
 
 - `WEB3_GRAVE_BURNS_ENABLED=true` — authoritative server write flag
-- `NEXT_PUBLIC_WEB3_GRAVE_BURNS_ENABLED=true` — Map v1 UI flag
+- `NEXT_PUBLIC_WEB3_GRAVE_BURNS_ENABLED=true` — grave offering UI flag (both maps)
 - `BASE_RPC_URL` — private or authenticated HTTPS Base Mainnet RPC
 - `GRAVE_BURN_REVERIFY_SECRET` — bearer secret for manual/external reverify
 - `CRON_SECRET` — bearer secret sent by Vercel Cron; it may use the same value
@@ -73,7 +73,7 @@ Keep both Web3 flags `false` until the release checklist in
 `docs/web3-grave-burn-mvp.md` passes. Never put `BASE_RPC_URL`,
 `GRAVE_BURN_REVERIFY_SECRET`, or `CRON_SECRET` in a `NEXT_PUBLIC_*` variable.
 
-The Map v1 burn release deploys the Next.js application, Supabase migration,
+The grave offering release deploys the Next.js application, Supabase migration,
 environment variables, and the existing `vercel.json` reverify schedule. It
 does **not** deploy a new smart contract: the grave modal calls `transfer` on
 the existing GRAVE ERC-20 only after a signed server intent is authorized.
@@ -82,49 +82,28 @@ is added to the profile/cabinet or global navigation in this release.
 
 ## 3. Bootstrap Supabase
 
-Apply the schema file first:
+For a fresh database, apply the complete current schema:
 
 ```sql
 -- run in Supabase SQL editor
 docs/supabase-schema.sql
 ```
 
-Then apply the atomic grave slot RPC:
-
-```sql
--- run after the base schema
-docs/grave-slot-rpc.sql
-```
-
-Apply the atomic cremation migration before deploying the updated cremation API:
-
-```sql
-docs/cremation-write-v2.sql
-```
-
-It preserves existing cremations and adds retry deduplication, atomic quotas and
-counter updates. Re-running it is safe. The new API deliberately refuses writes
-if the RPC is missing. The current agent instructions and helper include `project_key` in local
-requests; legacy clients without it must switch to `/agent-instructions`.
-
 Then apply the CLI auth hardening migration:
 
 ```sql
--- run after the grave slot RPC
+-- run after the base schema
 docs/cli-auth-v1.sql
 ```
 
-For an existing database that predates Web3 grave offerings, apply the
-idempotent Web3 migration:
+For an existing database follow [unified-burial-setup.md](unified-burial-setup.md):
+apply any missing map and Web3 prerequisites, then `unified-burials.sql` and
+`offering-ledger.sql`. The fresh schema already contains these functions.
+Do not apply historical `grave-slot-rpc.sql` or old map RPCs afterward: they
+were superseded by the account-wide `create_grave_once` function.
 
-```sql
--- run after the map-version migration
-docs/web3-grave-burn-mvp.sql
-```
-
-A fresh database created from the current `docs/supabase-schema.sql` already
-contains the Web3 tables and functions. Re-running the standalone Web3
-migration is safe and is recommended when upgrading an existing environment.
+After application cutover, export legacy project records and follow the separate
+`retire-project-cremations.sql` cleanup step. It preserves graves and token offerings.
 
 Finally, apply the mandatory RLS hardening migration to the external Supabase
 project. It is idempotent and also protects tables created by earlier schema
@@ -144,13 +123,12 @@ The app expects these tables and functions to exist:
 
 - `users`
 - `graves`
-- `cremated`
 - `f_votes`
 - `cli_link_sessions`
 - `cli_tokens`
 - `increment_graves_count(username text)`
-- `increment_cremated_count(username text)`
-- `insert_grave_if_user_slot_available(...)`
+- `create_grave_once(...)`
+- `get_offering_ledger()`
 
 When Web3 grave offerings are enabled, the app additionally expects:
 
@@ -237,13 +215,13 @@ Check `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`, `NEXTAUTH_URL`, and `NEXTAUTH_
 
 ### CLI token flows fail
 
-Make sure the base schema, grave-slot RPC, and CLI auth migration were applied,
+Make sure the unified burial schema and CLI auth migration were applied,
 then set `CLI_TOKEN_SECRET`.
 
 ### Web3 panel is absent
 
-Confirm that the page is `/cemetery`, the selected grave belongs to map
-version `v1`, and `NEXT_PUBLIC_WEB3_GRAVE_BURNS_ENABLED=true` was present when
+Confirm that the page is `/cemetery` or `/cemetery/v2`, the selected grave belongs to map
+version `v1` or `v2`, and `NEXT_PUBLIC_WEB3_GRAVE_BURNS_ENABLED=true` was present when
 the Next.js process started.
 
 ### Web3 writes return 503

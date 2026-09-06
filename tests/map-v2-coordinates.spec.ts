@@ -207,7 +207,7 @@ test.describe('map v2 coordinates', () => {
       [5000, 'Chapel', 'ChapelPreview_8d_lowdetail_palette_copy', 'chapel_8d_160x256_lowdetail_palette_copy'],
       [5001, 'Gravedigger Lodge', 'GravediggerLodgePreview_map4', 'gravedigger_lodge_sysadmin_complete_map4'],
       [5002, 'Service Garage', 'ServiceBuildingsPreview_map4', 'service_garage_2x3_map4'],
-      [5003, 'Service Building', 'ServiceBuildingsPreview_map4', 'service_technical_building_4x5_map4'],
+      [5003, 'Crematory', 'ServiceBuildingsPreview_map4', 'service_technical_building_4x5_map4'],
       [5004, 'Main Gate', 'MainGate1dsQ4Preview_map4', 'main_gate_1ds_q4_full_320x160_map4_compare'],
       [5005, 'Side Wicket', 'Side_map4', 'side_wicket_chek_q1_extensions_512x96_map4_compare'],
     ] as const

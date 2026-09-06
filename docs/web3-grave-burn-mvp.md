@@ -1,5 +1,11 @@
 # Web3 Grave Burn MVP — As-Built Specification
 
+**2026-09-06 update:** the current release extends this verified offering flow to both
+maps and adds the Crematory ledger, burn-address supply bar and received offerings
+in Necropolis. For these changes and migration order, [unified-burial-setup.md](unified-burial-setup.md)
+takes precedence. The Map v1-only boundaries and global-ledger exclusions below
+describe the original MVP; its transfer verification and authorization protocol still apply.
+
 **Status:** implemented and locally verified for Map v1 on 2026-08-21; production release
 remains gated by the deployment checklist in section 14.
 

@@ -34,7 +34,7 @@ export default function GitlawbAgentSkillV1Page() {
         <section style={{ marginBottom: 28, border: '1px solid rgba(200,80,60,0.42)', borderRadius: 12, padding: 16, background: 'rgba(80,20,12,0.18)' }}>
           <h2 style={{ color: '#e8a08a', fontSize: 20 }}>Paused status</h2>
           <p style={{ color: '#c6b6a6', lineHeight: 1.7 }}>
-            Do not install this archived skill for normal VibeCemetery use. Current product focus is GitHub scanning, graves, local project cremations.
+            Do not install this archived skill for normal VibeCemetery use. Current product focus is GitHub scanning, graves, local project burials.
           </p>
         </section>
 
@@ -91,7 +91,7 @@ export default function GitlawbAgentSkillV1Page() {
         <section>
           <h2 style={{ color: '#e8d5a3', fontSize: 20 }}>Not included</h2>
           <p style={{ color: '#aaa9a0', lineHeight: 1.7 }}>
-            This page does not install GitLawb, create graves, call /api/cremated, reuse human CLI tokens, or award points, rewards, or tokenomics value.
+            This page does not install GitLawb, create graves, reuse human CLI tokens, or award points, rewards, or tokenomics value.
           </p>
         </section>
       </div>

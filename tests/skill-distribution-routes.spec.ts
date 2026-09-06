@@ -12,7 +12,7 @@ test('legacy install page redirects to agent instructions', () => {
 test('Next tracing includes the temporary helper without distributing the old installer', () => {
   const source = readFileSync(join(process.cwd(), 'next.config.ts'), 'utf8')
   expect(source).toContain("'/agent-instructions/helper.mjs'")
-  expect(source).toContain("'./SKILL/skills/bury-workflow/scripts/bury-helper.mjs'")
+  expect(source).toContain("'./src/agent/burial-helper.mjs'")
   expect(source).not.toContain('/skills/bury/v1/')
   expect(source).not.toContain("'./SKILL/**/*'")
 })

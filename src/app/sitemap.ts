@@ -29,21 +29,5 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     }
   }
 
-  // Cremated → /urn/[id]
-  const { data: cremated } = await supabaseAdmin
-    .from('cremated')
-    .select('id')
-    .order('created_at', { ascending: false });
-
-  if (cremated) {
-    for (const c of cremated) {
-      entries.push({
-        url: `${BASE_URL}/urn/${c.id}`,
-        changeFrequency: 'weekly',
-        priority: 0.5,
-      });
-    }
-  }
-
   return entries;
 }

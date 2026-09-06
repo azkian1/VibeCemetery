@@ -4,9 +4,9 @@ import Link from 'next/link'
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 
-export default function GraveRedirectClient({ graveId }: { graveId: string }) {
+export default function GraveRedirectClient({ graveId, mapVersion }: { graveId: string; mapVersion?: 'v1' | 'v2' }) {
   const router = useRouter()
-  const target = `/cemetery?grave=${graveId}`
+  const target = `${mapVersion === 'v2' ? '/cemetery/v2' : '/cemetery'}?grave=${graveId}`
 
   useEffect(() => {
     router.replace(target)

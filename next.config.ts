@@ -41,9 +41,9 @@ const nextConfig: NextConfig = {
     root: process.cwd(),
   },
   outputFileTracingIncludes: {
-    '/agent-instructions': ['./SKILL/skills/bury-workflow/scripts/bury-helper.mjs'],
-    '/agent-instructions.md': ['./SKILL/skills/bury-workflow/scripts/bury-helper.mjs'],
-    '/agent-instructions/helper.mjs': ['./SKILL/skills/bury-workflow/scripts/bury-helper.mjs'],
+    '/agent-instructions': ['./src/agent/burial-helper.mjs'],
+    '/agent-instructions.md': ['./src/agent/burial-helper.mjs'],
+    '/agent-instructions/helper.mjs': ['./src/agent/burial-helper.mjs'],
     '/agents/gitlawb/v1/\\[\\.\\.\\.path\\]': [
       './SKILL/skills/gitlawb/**/*',
       './SKILL/agent-install/install-gitlawb.sh',

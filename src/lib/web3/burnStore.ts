@@ -51,7 +51,7 @@ export type BindBurnOutcome =
   | { outcome: 'conflict' | 'invalid_state' | 'expired' | 'not_found' }
 
 export interface GraveBurnStore {
-  findBurnableV1Grave(graveId: string): Promise<GraveLookupResult>
+  findBurnableGrave(graveId: string): Promise<GraveLookupResult>
   createIntent(input: CreateIntentInput): Promise<GraveBurnIntentRecord>
   getIntent(graveId: string, intentId: string): Promise<GraveBurnIntentRecord | null>
   expireIntentAtomic(input: {
@@ -141,12 +141,12 @@ function mapBurn(row: DbRow): GraveBurnRecord {
 }
 
 export class SupabaseGraveBurnStore implements GraveBurnStore {
-  async findBurnableV1Grave(graveId: string): Promise<GraveLookupResult> {
+  async findBurnableGrave(graveId: string): Promise<GraveLookupResult> {
     const { data, error } = await supabaseAdmin
       .from('graves')
       .select('id')
       .eq('id', graveId)
-      .eq('map_version', 'v1')
+      .in('map_version', ['v1', 'v2'])
       .maybeSingle()
 
     if (error) {
