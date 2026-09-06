@@ -1,0 +1,54 @@
+.body {
+  padding: 24px 28px;
+  display: flex;
+  flex-direction: column;
+  max-height: 80dvh;
+  font-family: var(--vc-font);
+  color: #aaa9a0;
+}
+.title { margin: 0 24px 4px; font-size: 20px; font-weight: 700; color: #e8d5a3; text-align: center; }
+.subtitle { font-size: 12px; color: #9a998f; text-align: center; margin: 0 0 16px; line-height: 1.6; }
+.tabs { display: flex; justify-content: center; gap: 16px; margin-bottom: 16px; flex-shrink: 0; }
+.tabs button { padding: 8px 4px; border: 0; border-bottom: 1px solid transparent; background: none; color: #8a8980; font: inherit; font-size: 12px; cursor: pointer; }
+.tabs button[aria-selected='true'] { border-color: #c8a050; color: #e8d5a3; }
+.tableFrame { min-height: 0; max-height: 50vh; overflow: auto; border: 1px solid #3a3935; border-radius: 2px; }
+.table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.table th { position: sticky; top: 0; z-index: 1; background: #1a1a18; border-bottom: 1px solid #3a3935; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: #8a8980; padding: 8px; text-align: left; }
+.table th[aria-sort='ascending'], .table th[aria-sort='descending'] { color: #e8d5a3; }
+.table th button { background: none; border: 0; padding: 0; color: inherit; font: inherit; letter-spacing: inherit; text-transform: inherit; text-align: inherit; white-space: nowrap; cursor: pointer; width: 100%; }
+.table td { padding: 10px 8px; font-size: 12px; vertical-align: middle; }
+.table tr { border-bottom: 1px solid rgba(58,57,53,0.3); }
+.table tbody tr:last-child { border-bottom: 0; }
+.table tbody tr:hover { background: rgba(200,160,80,0.04); }
+.table .numeric, .table .amount { text-align: right; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.table .amount { color: #e8d5a3; }
+.table .rank { text-align: center; color: #6a6960; }
+.unit { display: block; margin-top: 3px; font-size: 9px; color: #8a8980; letter-spacing: 1px; }
+.project { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; font-weight: 700; color: #e8d5a3; text-decoration: none; }
+.project:hover { text-decoration: underline; }
+.reaper { display: block; font-size: 11px; margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #7898b8; }
+.author { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #7898b8; font: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+.author:hover { color: #e8d5a3; }
+.cause { color: #d07868; font-style: italic; overflow-wrap: anywhere; }
+.sectionTitle { font-size: 12px; font-weight: 700; color: #e8d5a3; text-transform: uppercase; letter-spacing: 1.5px; margin: 0 0 10px; }
+.supply { padding: 14px 16px; border: 1px solid #3a3935; border-radius: 2px; margin-bottom: 18px; background: rgba(0,0,0,0.12); flex-shrink: 0; }
+.supplyAmount { margin: 0 0 12px; font-size: 12px; color: #9a998f; overflow-wrap: anywhere; line-height: 1.6; }
+.supplyAmount strong { color: #e8d5a3; font-size: 22px; }
+.progress { height: 8px; background: #11100e; border: 1px solid #3a3935; border-radius: 2px; overflow: hidden; }
+.progress > div { height: 100%; background: linear-gradient(90deg, #8d3923, #c8a050); }
+.supplyPercent { margin: 7px 0 0; color: #c8a050; font-size: 12px; }
+.note { font-size: 10px; color: #8a8980; line-height: 1.6; margin: 8px 0 0; }
+.footer { margin: 0; font-size: 11px; color: #9a998f; text-align: center; line-height: 1.6; flex-shrink: 0; }
+.empty { font-size: 12px; color: #8a8980; text-align: center; padding: 16px; margin: 0; }
+.body button:focus-visible, .body a:focus-visible { outline: 1px solid #e8d5a3; outline-offset: 3px; }
+@media (max-width: 640px) {
+  .body { padding: 20px 16px; max-height: 90dvh; }
+  .tableFrame { max-height: 60vh; }
+  .table th { font-size: 10px; letter-spacing: 0.8px; }
+  .supply { padding: 12px; }
+  .supplyAmount strong { font-size: 20px; }
+}
+@media (max-height: 600px) {
+  .body { max-height: none; }
+  .tableFrame { max-height: 40vh; }
+}

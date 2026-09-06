@@ -13,9 +13,4 @@ test.describe('external window opens', () => {
     }
   })
 
-  test('offering transaction links isolate external tabs', () => {
-    const source = readFileSync('src/components/modals/CrematoryModal.tsx', 'utf8')
-    expect(source).toContain('rel="noopener noreferrer"')
-    expect(source).toContain('BASE_EXPLORER_TX_URL + burn.txHash')
-  })
 })

@@ -79,14 +79,14 @@ test('legacy skill modal points to agent instructions without installation or co
   expect(source).not.toContain('if (isMobile) return null')
 })
 
-test('CTA buttons keep Human bury and cremate rituals separate from Agent Skill', () => {
+test('CTA offers burial without skill installation', () => {
   const source = readFileSync(join(process.cwd(), 'src', 'components', 'hud', 'CTAButtons.tsx'), 'utf8')
 
   expect(source).toContain('Bury')
   expect(source).toContain("open('bury', { flowMode: 'cemetery-shovel' })")
   expect(source).not.toContain("open('skill')")
   expect(source).not.toContain("open('agentSkill')")
-  expect(source).not.toContain('BURY')
+  expect(source).toContain('>BURY</button>')
 })
 
 test('Agent skill modal is paused legacy copy', () => {

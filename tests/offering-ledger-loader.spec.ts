@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 import { createOfferingLedgerLoader, type LedgerRows } from '../src/lib/web3/offeringLedgerLoader'
-const rows: LedgerRows = { totalBurnedRaw: '100000000000000000001', burnCount: 1, authors: [], causes: [], recent: [] }
+const rows: LedgerRows = { totalBurnedRaw: '100000000000000000001', burnCount: 1, authors: [], causes: [], recent: [], graves: [] }
 const supply = { totalSupplyRaw: '1000', burnAddressBalanceRaw: '100', percent: 10, blockNumber: '42' }
 
 test('Necropolis returns its database ledger without initiating a chain request', async () => {

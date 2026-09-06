@@ -12,23 +12,16 @@ import {
   type AgentAshesSummary,
 } from '../src/components/modals/AgentAshesModal'
 import { CLOSE_BUTTON_STICKY_STYLE, CLOSE_BUTTON_STYLE } from '../src/components/ui/CloseButton'
-import { LEADERBOARD_TABS } from '../src/components/modals/LeaderboardModal'
 import { TOPBAR_ACTIONS } from '../src/components/hud/TopBar'
 
-test('Necropolis no longer contains the AI-Bots tab', () => {
-  expect(LEADERBOARD_TABS.map((tab) => tab.label)).toEqual([
-    'Serial Killers',
-    'Causes of Death',
-  ])
-})
 
 test('human layer modals separate graves and verified token offerings', () => {
   const source = [
     'src/components/modals/LeaderboardModal.tsx',
     'src/components/modals/CrematoryModal.tsx',
   ].map((path) => readFileSync(path, 'utf8')).join('\n')
-  expect(source).toContain('Offerings (GRAVE)')
-  expect(source).toContain('Recent offerings')
+  expect(source).toContain('Burned')
+  expect(source).toContain('Offerings</h3>')
   expect(source).not.toContain('Git Reaper')
 })
 

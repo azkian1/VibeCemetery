@@ -92,7 +92,6 @@ tome.md
 /public/next.svg
 /public/vercel.svg
 /public/window.svg
-postcss.config.mjs
 
 # Local settings
 /.claude/

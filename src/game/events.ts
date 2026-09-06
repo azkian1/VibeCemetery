@@ -94,6 +94,7 @@ type Callback = (data: any) => void;
 
 class CemeteryEventBus {
   private listeners = new Map<CemeteryEventType, Set<Callback>>();
+  private latest = new Map<CemeteryEventType, CemeteryEventMap[CemeteryEventType]>();
 
   on<E extends CemeteryEventType>(event: E, cb: (data: CemeteryEventMap[E]) => void) {
     if (!this.listeners.has(event)) {
@@ -107,11 +108,18 @@ class CemeteryEventBus {
   }
 
   emit<E extends CemeteryEventType>(event: E, data: CemeteryEventMap[E]) {
+    // Dynamically loaded HUD components may mount after the scene is ready.
+    if (event === 'minimap_tiles' || event === 'camera_move') this.latest.set(event, data);
     this.listeners.get(event)?.forEach((cb) => cb(data));
+  }
+
+  getLatest<E extends CemeteryEventType>(event: E): CemeteryEventMap[E] | undefined {
+    return this.latest.get(event) as CemeteryEventMap[E] | undefined;
   }
 
   clear() {
     this.listeners.clear();
+    this.latest.clear();
   }
 }
 

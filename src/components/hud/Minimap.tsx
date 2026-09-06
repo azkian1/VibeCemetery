@@ -123,6 +123,8 @@ export default function Minimap() {
       draw();
     };
     cemeteryEvents.on('minimap_tiles', onTiles);
+    const latest = cemeteryEvents.getLatest('minimap_tiles');
+    if (latest) onTiles(latest);
     return () => {
       cemeteryEvents.off('minimap_tiles', onTiles);
     };
@@ -136,6 +138,8 @@ export default function Minimap() {
       draw();
     };
     cemeteryEvents.on('camera_move', onCameraMove);
+    const latest = cemeteryEvents.getLatest('camera_move');
+    if (latest) onCameraMove(latest);
     return () => {
       cemeteryEvents.off('camera_move', onCameraMove);
     };

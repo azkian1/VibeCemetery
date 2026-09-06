@@ -7,11 +7,23 @@ import { graveTokenAbi } from '@/web3/abi'
 import { checkRateLimit, getClientIp } from '@/lib/rate-limit'
 import type { NextRequest } from 'next/server'
 import { createOfferingLedgerLoader, type LedgerRows } from '@/lib/web3/offeringLedgerLoader'
+import { loadGraveOfferings, type GraveOfferingRow } from '@/lib/web3/graveOfferings'
 const loadLedger = createOfferingLedgerLoader({
   loadRows: async () => {
-    const { data, error } = await supabaseAdmin.rpc('get_offering_ledger')
+    const [{ data, error }, graves] = await Promise.all([
+      supabaseAdmin.rpc('get_offering_ledger'),
+      loadGraveOfferings(async afterId => {
+        let query = supabaseAdmin.from('grave_burns')
+          .select('id,grave_id,amount_raw::text,graves!inner(name,author_github)')
+          .eq('status', 'verified').order('id', { ascending: true }).limit(500)
+        if (afterId) query = query.gt('id', afterId)
+        const result = await query.returns<GraveOfferingRow[]>()
+        if (result.error || !result.data) throw new Error('Grave burn ledger unavailable')
+        return result.data
+      }),
+    ])
     if (error || !data) throw new Error('Ledger unavailable')
-    return data as LedgerRows
+    return { ...data, graves } as LedgerRows
   },
   loadSupply: async () => {
     const client = await getBasePublicClient()

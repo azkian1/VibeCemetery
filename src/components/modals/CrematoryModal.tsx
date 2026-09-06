@@ -1,45 +1,78 @@
 'use client'
+
 import Link from 'next/link'
+import { useMemo, useState } from 'react'
 import { useModal } from '@/context/GameContext'
 import { useOfferingLedger } from '@/hooks/useOfferingLedger'
 import { useIsMobile } from '@/hooks/useIsMobile'
-import { formatGraveAmount } from '@/lib/web3/offeringLedger'
-import { shortenWalletAddress } from '@/lib/web3/graveBurnStats'
-import { BASE_EXPLORER_TX_URL } from '@/web3/config'
+import { compareRawAmounts, formatGraveAmount } from '@/lib/web3/offeringLedger'
 import ModalOverlay from './ModalOverlay'
 import StoneFrame from '@/components/ui/StoneFrame'
 import CloseButton from '@/components/ui/CloseButton'
-import InsetBlock from '@/components/ui/InsetBlock'
+import OrnamentDivider from '@/components/ui/OrnamentDivider'
 import LoadErrorState from '@/components/ui/LoadErrorState'
+import styles from './LedgerModal.module.css'
+
 export default function CrematoryModal() {
   const { close } = useModal()
+  const isMobile = useIsMobile()
   const { data, error, loading, refetch } = useOfferingLedger({ includeSupply: true })
-  return <ModalOverlay onClose={close}><StoneFrame isMobile={useIsMobile()} maxWidth={720}>
-    <CloseButton onClick={close} />
-    <div style={{ padding: '28px 24px', color: '#aaa9a0', fontFamily: 'var(--font-geist-sans), Arial, sans-serif' }}>
-      <h2 style={{ color: '#e8d5a3', textAlign: 'center', fontFamily: 'var(--font-cinzel), Georgia, serif', margin: '0 0 12px' }}>Crematory</h2>
-      <p style={{ textAlign: 'center', fontSize: 13, lineHeight: 1.6 }}>Offer GRAVE in memory of a project. Open a grave to make an offering. Tokens are sent permanently to the burn address; offerings grant no rewards or extra grave slots.</p>
-      {loading && <p>Loading offerings...</p>}
-      {error && <LoadErrorState message={error} onRetry={refetch} />}
-      {data && !error && <>
-        <InsetBlock label="Cemetery offerings"><strong style={{ color: '#e8d5a3', fontSize: 24, overflowWrap: 'anywhere' }}>{formatGraveAmount(data.totalBurnedRaw)} GRAVE</strong><p>{data.burnCount} verified transaction{data.burnCount === 1 ? '' : 's'}</p></InsetBlock>
-        <InsetBlock label="GRAVE at the burn address">
-          {data.supply ? <>
-            <p>{formatGraveAmount(data.supply.burnAddressBalanceRaw)} / {formatGraveAmount(data.supply.totalSupplyRaw)} GRAVE</p>
-            <div role="progressbar" aria-label="Share of token supply at the burn address" aria-valuemin={0} aria-valuemax={100} aria-valuenow={data.supply.percent} style={{ height: 12, background: '#1a1714', borderRadius: 4, overflow: 'hidden' }}><div style={{ height: '100%', width: data.supply.percent + '%', background: 'linear-gradient(90deg, #8d3923, #d2a454)' }} /></div>
-            <p>{data.supply.percent}% of current token supply</p>
-            <p style={{ fontSize: 11, color: '#8a8980' }}>Includes all transfers to this burn address, including those outside the cemetery. These transfers do not reduce the contract’s totalSupply.</p>
-          </> : <p>Supply data is temporarily unavailable.</p>}
-        </InsetBlock>
-        <h3 style={{ color: '#d9c79e', fontSize: 15 }}>Recent offerings</h3>
-        <div style={{ maxHeight: 300, overflowY: 'auto' }}>
-          {data.recent.length ? data.recent.map(burn => <div key={burn.id} style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto', gap: 8, padding: '12px 0', borderBottom: '1px solid #302b24', fontSize: 13 }}>
-            <div><Link onClick={close} href={'/grave/' + burn.graveId} style={{ color: '#e8d5a3' }}>{burn.graveName}</Link><div style={{ color: '#8a8980', fontSize: 11, marginTop: 5 }}>{burn.githubUsername ? '@' + burn.githubUsername : shortenWalletAddress(burn.walletAddress)}</div></div>
-            <a href={BASE_EXPLORER_TX_URL + burn.txHash} target="_blank" rel="noopener noreferrer" style={{ color: '#c7a46a', overflowWrap: 'anywhere' }}>{formatGraveAmount(burn.amountRaw)} GRAVE ↗</a>
-          </div>) : <p>No verified offerings yet.</p>}
-        </div>
-        {data.recent.length === 50 && <p style={{ fontSize: 11 }}>Showing the latest 50. Totals include all verified offerings.</p>}
-      </>}
-    </div>
-  </StoneFrame></ModalOverlay>
+  const [descending, setDescending] = useState(true)
+  const graves = useMemo(() => [...(data?.graves ?? [])].sort((a, b) =>
+    compareRawAmounts(a.amountRaw, b.amountRaw) * (descending ? -1 : 1)
+      || a.graveName.localeCompare(b.graveName) || a.graveId.localeCompare(b.graveId),
+  ), [data, descending])
+
+  return <ModalOverlay onClose={close}>
+    <StoneFrame isMobile={isMobile} maxWidth={720}>
+      <div className={styles.body}>
+        <CloseButton onClick={close} />
+        <h2 className={styles.title}>Crematory</h2>
+        <p className={styles.subtitle}>Burn $GRAVE in memory of a project. Open a grave to pay tribute.</p>
+        {loading && <p className={styles.empty}>Checking the records...</p>}
+        {error && <LoadErrorState message={error} onRetry={refetch} />}
+        {data && !error && <>
+          <section className={styles.supply} aria-label="Burned supply">
+            <h3 className={styles.sectionTitle}>Burned</h3>
+            {data.supply ? <>
+              <p className={styles.supplyAmount}>
+                <strong>{formatGraveAmount(data.supply.burnAddressBalanceRaw)}</strong>
+                <span> / {formatGraveAmount(data.supply.totalSupplyRaw)} $GRAVE</span>
+              </p>
+              <div role="progressbar" aria-label="Share of token supply at the burn address"
+                aria-valuemin={0} aria-valuemax={100} aria-valuenow={data.supply.percent} className={styles.progress}>
+                <div style={{ width: data.supply.percent + '%' }} />
+              </div>
+              <p className={styles.supplyPercent}>{data.supply.percent}% of token supply</p>
+              <p className={styles.note}>Includes all transfers to the burn address, both inside and outside the cemetery. The contract’s total supply stays unchanged.</p>
+            </> : <p className={styles.note}>Supply data is temporarily unavailable.</p>}
+          </section>
+          <h3 className={styles.sectionTitle} id="grave-offerings-title">Offerings</h3>
+          <div className={styles.tableFrame}>
+            <table className={styles.table} aria-labelledby="grave-offerings-title">
+              <colgroup><col style={{ width: 32 }} /><col /><col style={{ width: isMobile ? 116 : 180 }} /></colgroup>
+              <thead><tr>
+                <th scope="col" className={styles.rank}>#</th>
+                <th scope="col">Grave</th>
+                <th scope="col" className={styles.numeric} aria-sort={descending ? 'descending' : 'ascending'}>
+                  <button type="button" onClick={() => setDescending(value => !value)}>$GRAVE {descending ? '▾' : '▴'}</button>
+                </th>
+              </tr></thead>
+              <tbody>{graves.map((grave, index) => <tr key={grave.graveId}>
+                <td className={styles.rank}>{index + 1}</td>
+                <td>
+                  <Link className={styles.project} title={grave.graveName} onClick={close} href={'/grave/' + grave.graveId}>{grave.graveName}</Link>
+                  <span className={styles.reaper}>{grave.author ? '@' + grave.author : 'anonymous'}</span>
+                </td>
+                <td className={styles.amount}>{formatGraveAmount(grave.amountRaw)}</td>
+              </tr>)}</tbody>
+            </table>
+            {!graves.length && <p className={styles.empty}>No verified burns yet.</p>}
+          </div>
+          <OrnamentDivider />
+          <p className={styles.footer}>Tokens are burned permanently. No rewards or extra grave slots.</p>
+        </>}
+      </div>
+    </StoneFrame>
+  </ModalOverlay>
 }

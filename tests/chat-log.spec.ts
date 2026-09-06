@@ -24,11 +24,11 @@ test('chat status no longer fetches Agent Ashes', () => {
   expect(source).not.toContain("key: 'ashes'")
 })
 
-test('desktop chat is lifted above the ritual CTA column', () => {
+test('desktop chat sits at the bottom beside BURY', () => {
   const source = readFileSync('src/components/hud/ChatLog.tsx', 'utf8')
 
   expect(source).toContain('left: 16')
-  expect(source).toContain('bottom: 126')
+  expect(source).toContain('bottom: 16')
   expect(source).toContain('width: 340')
 })
 

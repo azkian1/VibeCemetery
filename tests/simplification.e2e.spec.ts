@@ -12,8 +12,11 @@ function localGrave(mapVersion: MapVersion) {
     map_version: mapVersion, github_url: null, github_repo_id: null,
     epitaph: 'An idea laid to rest.', born_at: '2020-01-01', died_at: '2024-01-01', f_count: 2, stack: ['TypeScript'] }
 }
+const secondId = '33333333-3333-4333-8333-333333333333'
 const ledger = { totalBurnedRaw: '100000000000000000001', burnCount: 1,
   authors: [{ author: 'tester', buried: 4, offeringsRaw: '100000000000000000001' }], causes: [{ cause: 'Lost interest', count: 4 }],
+  graves: [{ graveId: id, graveName: 'Local project', author: 'tester', amountRaw: '25263442113724649798733865' },
+    { graveId: secondId, graveName: 'Another project', author: 'other', amountRaw: '100000000000000000001' }],
   supply: { percent: 10, totalSupplyRaw: '1000000000000000000000', burnAddressBalanceRaw: '100000000000000000000', blockNumber: '42' },
   recent: [{ id, graveId: id, graveName: 'Local project', walletAddress: '0x' + '1'.repeat(40), githubUsername: null,
     amountRaw: '100000000000000000001', txHash: '0x' + 'a'.repeat(64), verifiedAt: '2026-09-06T00:00:00Z' }] }
@@ -52,17 +55,21 @@ for (const mapVersion of ['v1'] as const) {
 test.describe(mapVersion, () => {
 const mapPath = '/cemetery'
 
-test('Necropolis recovers from a ledger error and shows exact received offerings', async ({ page }, testInfo) => {
+test('Necropolis recovers from a ledger error and shows whole burned token amounts', async ({ page }, testInfo) => {
   const { recoverLedger } = await fixtures(page, mapVersion, { failLedger: true })
   await page.goto(mapPath)
   await page.getByRole('button', { name: 'Open Necropolis leaderboard' }).click()
   await expect(page.getByText('The offering ledger could not be loaded.')).toBeVisible()
   recoverLedger()
   await page.getByRole('button', { name: 'Try Again' }).click()
-  await expect(page.getByRole('columnheader', { name: 'Offerings (GRAVE)' })).toBeVisible()
-  await expect(page.getByRole('cell', { name: '100.000000000000000001', exact: true })).toBeVisible()
+  await expect(page.getByRole('columnheader', { name: /Burned.*\$GRAVE/ })).toBeVisible()
+  await expect(page.getByRole('cell', { name: '100', exact: true })).toBeVisible()
   await expect(page.getByRole('columnheader', { name: /Cremated|Total/ })).toHaveCount(0)
+  await expect(page.getByRole('tab')).toHaveCount(2)
   await page.screenshot({ path: testInfo.outputPath('necropolis.png') })
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.screenshot({ path: testInfo.outputPath('necropolis-mobile.png') })
+  expect(await page.getByRole('dialog').evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true)
 })
 
 test('approved account submits one burial to the current map and guards a pending write', async ({ page }) => {
@@ -119,6 +126,17 @@ test('Crematory building opens supply ledger and remains readable on mobile', as
   await expect(page.getByRole('heading', { name: 'Crematory', exact: true })).toBeVisible()
   await expect(page.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '10')
   await expect(page.getByRole('link', { name: 'Local project', exact: true })).toHaveAttribute('href', '/grave/' + id)
+  const table = page.getByRole('table', { name: 'Offerings', exact: true })
+  const rows = table.locator('tbody tr')
+  await expect(rows).toHaveCount(2)
+  await expect(rows.first()).toContainText('Local project')
+  await expect(rows.first().locator('td').last()).toHaveText('25,263,442')
+  await table.getByRole('button', { name: '$GRAVE' }).click()
+  await expect(rows.first()).toContainText('Another project')
+  await expect(table.getByRole('columnheader', { name: '$GRAVE' })).toHaveAttribute('aria-sort', 'ascending')
+  await expect(page.getByText(/Cemetery offerings|verified transaction|Recent offerings/)).toHaveCount(0)
+  await expect(page.getByRole('dialog')).not.toContainText('100.000000000000000001')
+  await page.screenshot({ path: testInfo.outputPath('crematory.png') })
   await page.setViewportSize({ width: 390, height: 844 })
   await page.screenshot({ path: testInfo.outputPath('crematory-mobile.png') })
   expect(await page.getByRole('dialog').evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true)
@@ -147,3 +165,46 @@ test('HUD and FAQ describe graves, the shared allowance and token offerings', as
 })
 })
 }
+
+test('v1 minimap survives late mounting and the red BURY button sits beside the bottom chat', async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await fixtures(page, 'v1')
+  await page.goto('/cemetery')
+  await expect(page.getByTestId('phaser-stage')).toHaveAttribute('data-scene-ready', 'true')
+  await page.setViewportSize({ width: 1280, height: 800 })
+  const minimap = page.getByRole('img', { name: 'Cemetery minimap' })
+  const terrainPixels = () => minimap.evaluate((el: HTMLCanvasElement) => {
+    const pixels = el.getContext('2d')!.getImageData(0, 0, el.width, el.height).data
+    let count = 0
+    for (let i = 0; i < pixels.length; i += 4) {
+      if ((pixels[i] === 61 && pixels[i + 1] === 61 && pixels[i + 2] === 46)
+        || (pixels[i] === 106 && pixels[i + 1] === 96 && pixels[i + 2] === 80)) count++
+    }
+    return count
+  })
+  await expect.poll(terrainPixels).toBeGreaterThan(5000)
+  await expect(page.getByTestId('gate-epitaph')).toHaveCount(0)
+  const chat = page.getByTestId('cemetery-chat')
+  const bury = page.getByRole('button', { name: 'Bury a project', exact: true })
+  const chatBox = (await chat.boundingBox())!, buryBox = (await bury.boundingBox())!
+  expect(buryBox.x).toBeGreaterThan(chatBox.x + chatBox.width)
+  expect(Math.abs(chatBox.y + chatBox.height - buryBox.y - buryBox.height)).toBeLessThan(2)
+  expect(800 - chatBox.y - chatBox.height).toBe(16)
+  await expect(bury).toHaveText('BURY')
+  const redBackground = await bury.evaluate(el => getComputedStyle(el).backgroundImage)
+  expect(redBackground).toContain('rgb(106, 40, 40)')
+  await bury.hover()
+  expect(await bury.evaluate(el => getComputedStyle(el).backgroundImage)).toContain('rgb(128, 52, 52)')
+  await page.getByTestId('chat-collapse-toggle').click()
+  expect(800 - (await chat.boundingBox())!.y - (await chat.boundingBox())!.height).toBe(16)
+  await page.getByTestId('chat-collapse-toggle').click()
+  await page.screenshot({ path: testInfo.outputPath('v1-hud.png') })
+  await bury.click()
+  await expect(page.getByRole('dialog')).toBeVisible()
+  // The minimap is mounted a second time after resizing, without a scene reload.
+  await page.keyboard.press('Escape')
+  await page.setViewportSize({ width: 390, height: 844 })
+  await expect(minimap).toHaveCount(0)
+  await page.setViewportSize({ width: 1280, height: 800 })
+  await expect.poll(terrainPixels).toBeGreaterThan(5000)
+})
