@@ -150,7 +150,7 @@ test('production entry points expose only the released v1 map', async ({ page })
   expect(response?.status()).toBe(404)
 })
 
-test('HUD and FAQ describe graves, the shared allowance and token offerings', async ({ page }) => {
+test('HUD and FAQ describe graves, the shared allowance and token tributes', async ({ page }) => {
   await fixtures(page, mapVersion)
   await page.goto(mapPath)
   await expect(page.getByText('Buried: 1', { exact: false })).toBeVisible()
@@ -159,7 +159,7 @@ test('HUD and FAQ describe graves, the shared allowance and token offerings', as
   await page.getByRole('button', { name: 'How many graves do I get?' }).click()
   await expect(page.getByRole('region', { name: 'How many graves do I get?' })).toContainText('share this account allowance')
   await page.getByRole('button', { name: 'What is the Crematory?' }).click()
-  await expect(page.getByRole('region', { name: 'What is the Crematory?' })).toContainText('GRAVE token offerings')
+  await expect(page.getByRole('region', { name: 'What is the Crematory?' })).toContainText('Tributes lists graves')
   await page.getByRole('button', { name: 'Can my AI agent bury a local project?' }).click()
   await expect(page.getByRole('region', { name: 'Can my AI agent bury a local project?' })).toContainText('normal grave')
 })
