@@ -21,7 +21,7 @@ test('human layer modals separate graves and verified token offerings', () => {
     'src/components/modals/CrematoryModal.tsx',
   ].map((path) => readFileSync(path, 'utf8')).join('\n')
   expect(source).toContain('Burned')
-  expect(source).toContain('Offerings</h3>')
+  expect(source).toContain('Tributes</h3>')
   expect(source).not.toContain('Git Reaper')
 })
 

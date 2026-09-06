@@ -30,7 +30,7 @@
 .author { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #7898b8; font: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
 .author:hover { color: #e8d5a3; }
 .cause { color: #d07868; font-style: italic; overflow-wrap: anywhere; }
-.sectionTitle { font-size: 12px; font-weight: 700; color: #e8d5a3; text-transform: uppercase; letter-spacing: 1.5px; margin: 0 0 10px; }
+.sectionTitle { text-align: center; font-size: 12px; font-weight: 700; color: #e8d5a3; text-transform: uppercase; letter-spacing: 1.5px; margin: 0 0 10px; }
 .supply { padding: 14px 16px; border: 1px solid #3a3935; border-radius: 2px; margin-bottom: 18px; background: rgba(0,0,0,0.12); flex-shrink: 0; }
 .supplyAmount { margin: 0 0 12px; font-size: 12px; color: #9a998f; overflow-wrap: anywhere; line-height: 1.6; }
 .supplyAmount strong { color: #e8d5a3; font-size: 22px; }

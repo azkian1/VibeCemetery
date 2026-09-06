@@ -126,7 +126,7 @@ test('Crematory building opens supply ledger and remains readable on mobile', as
   await expect(page.getByRole('heading', { name: 'Crematory', exact: true })).toBeVisible()
   await expect(page.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '10')
   await expect(page.getByRole('link', { name: 'Local project', exact: true })).toHaveAttribute('href', '/grave/' + id)
-  const table = page.getByRole('table', { name: 'Offerings', exact: true })
+  const table = page.getByRole('table', { name: 'Tributes', exact: true })
   const rows = table.locator('tbody tr')
   await expect(rows).toHaveCount(2)
   await expect(rows.first()).toContainText('Local project')

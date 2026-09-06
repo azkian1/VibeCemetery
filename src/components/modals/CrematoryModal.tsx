@@ -47,7 +47,7 @@ export default function CrematoryModal() {
               <p className={styles.note}>Includes all transfers to the burn address, both inside and outside the cemetery. The contract’s total supply stays unchanged.</p>
             </> : <p className={styles.note}>Supply data is temporarily unavailable.</p>}
           </section>
-          <h3 className={styles.sectionTitle} id="grave-offerings-title">Offerings</h3>
+          <h3 className={styles.sectionTitle} id="grave-offerings-title">Tributes</h3>
           <div className={styles.tableFrame}>
             <table className={styles.table} aria-labelledby="grave-offerings-title">
               <colgroup><col style={{ width: 32 }} /><col /><col style={{ width: isMobile ? 116 : 180 }} /></colgroup>
