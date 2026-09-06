@@ -24,7 +24,7 @@ loadEnvLocal();
 
 export default defineConfig({
   testDir: './tests',
-  testIgnore: ['**/web3-burn.e2e.spec.ts'],
+  testIgnore: ['**/web3-burn.e2e.spec.ts', '**/simplification.e2e.spec.ts'],
   timeout: 30_000,
   expect: { timeout: 10_000 },
   // The suite shares one local Next server, in-memory rate limits, and a Phaser boot path.

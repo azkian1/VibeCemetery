@@ -103,6 +103,9 @@ export function classifyProjectRootEntries(entries) {
   if (normalizedEntries.some((entry) => entry.isDirectory && entry.normalizedName === '.git')) {
     strongMatches.push('.git/')
   }
+  if (rootFiles.some((entry) => entry.normalizedName === '.git')) {
+    strongMatches.push('.git')
+  }
 
   for (const marker of STRONG_MARKER_FILES) {
     if (rootFiles.some((entry) => entry.normalizedName === marker.toLowerCase())) {
@@ -258,7 +261,7 @@ export function detectProjectCandidates(scanPath, options = {}) {
   const resolvedScanPath = assertSafeScanPath(scanPath, options)
   const registryEntries = normalizeRegistryEntries(Array.isArray(options.registryEntries) ? options.registryEntries : [])
   const scanPathEntries = readProjectRootEntries(resolvedScanPath)
-  const childDirectories = fs.readdirSync(resolvedScanPath, { withFileTypes: true }).flatMap((entry) => {
+  const childDirectories = classifyProjectRootEntries(scanPathEntries).isCandidate ? [] : fs.readdirSync(resolvedScanPath, { withFileTypes: true }).flatMap((entry) => {
     if (!entry.isDirectory() || SKIPPED_CHILD_DIRECTORY_NAMES.includes(entry.name)) {
       return []
     }
@@ -287,7 +290,7 @@ export function detectProjectCandidates(scanPath, options = {}) {
       ...candidate,
       name: path.basename(candidate.path),
       path_fingerprint: pathFingerprint,
-      status: registryMatch ? 'Cremated' : 'Untracked',
+      status: registryMatch ? 'Buried' : 'Untracked',
     }
   })
 }
@@ -298,9 +301,9 @@ export function buildSelectionPromptModel(rows) {
     status: sanitizeDisplayText(typeof row?.status === 'string' ? row.status : '', 40),
   })).filter((row) => row.name) : []
 
-  const crematedRows = normalizedRows.filter((row) => row.status === 'Cremated')
+  const buriedRows = normalizedRows.filter((row) => row.status === 'Buried')
   const selectableRows = normalizedRows
-    .filter((row) => row.status !== 'Cremated')
+    .filter((row) => row.status !== 'Buried')
     .map((row, index) => ({ ...row, index: index + 1 }))
 
   const acceptedReplies = []
@@ -316,7 +319,7 @@ export function buildSelectionPromptModel(rows) {
 
   return {
     selectableRows,
-    crematedRows,
+    buriedRows,
     acceptedReplies,
   }
 }
@@ -332,7 +335,7 @@ export function computeStoragePaths(options = {}) {
     return {
       baseDir,
       configPath: path.join(baseDir, 'bury.json'),
-      registryPath: path.join(baseDir, 'cremated-registry.json'),
+      registryPath: path.join(baseDir, 'buried-registry.json'),
     }
   }
 
@@ -340,7 +343,7 @@ export function computeStoragePaths(options = {}) {
   return {
     baseDir,
     configPath: path.join(baseDir, 'bury.json'),
-    registryPath: path.join(baseDir, 'cremated-registry.json'),
+    registryPath: path.join(baseDir, 'buried-registry.json'),
   }
 }
 
@@ -372,7 +375,7 @@ export function sanitizeGitHubRemote(remote) {
   }
 
   try {
-    const url = new URL(raw)
+    const url = new URL(/^github\.com\//i.test(raw) ? `https://${raw}` : raw)
     const host = url.hostname.toLowerCase()
     if (host !== 'github.com' && host !== 'www.github.com') {
       return { registryValue: '', githubUrl: '' }
@@ -415,7 +418,7 @@ function resolveTrustedGitBinary() {
   return trustedGitBinary
 }
 
-function runGit(projectPath, args) {
+function runGit(projectPath, args, fallback = '') {
   try {
     const env = { ...process.env }
     for (const key of Object.keys(env)) {
@@ -424,7 +427,7 @@ function runGit(projectPath, args) {
       }
     }
 
-    return execFileSync(resolveTrustedGitBinary(), args, {
+    return execFileSync(resolveTrustedGitBinary(), ['-c', 'core.fsmonitor=false', ...args], {
       cwd: projectPath,
       env,
       encoding: 'utf8',
@@ -433,7 +436,7 @@ function runGit(projectPath, args) {
       windowsHide: true,
     }).trim()
   } catch {
-    return ''
+    return fallback
   }
 }
 
@@ -478,16 +481,27 @@ export function inspectProject(projectPath) {
     ? ''
     : sanitizeDisplayText(runGit(resolvedProjectPath, ['rev-list', '--max-parents=0', 'HEAD']).split(/\r?\n/)[0] || '', 80)
   const ageSeconds = lastCommitTimestamp === null ? null : Math.floor(Date.now() / 1000) - lastCommitTimestamp
-  const status = lastCommitTimestamp === null ? 'Untracked' : ageSeconds >= 7 * 24 * 60 * 60 ? 'Dead' : 'Alive'
+  // An old commit alone does not mean the working tree has been abandoned.
+  // Failed status inspection must not silently classify a project as Dead.
+  const workingTreeStatus = hasOwnGitRepository
+    ? runGit(resolvedProjectPath, ['status', '--porcelain', '--untracked-files=normal'], null)
+    : null
+  const hasLocalChanges = workingTreeStatus === null ? null : workingTreeStatus.length > 0
+  const status = lastCommitTimestamp === null || hasLocalChanges === null
+    ? 'Untracked'
+    : hasLocalChanges || ageSeconds < 7 * 24 * 60 * 60 ? 'Alive' : 'Dead'
+  const pathFingerprint = computePathFingerprint(resolvedProjectPath)
 
   return {
-    name: sanitizeDisplayText(path.basename(resolvedProjectPath), 120),
+    name: sanitizeDisplayText(path.basename(resolvedProjectPath), 100),
     last_commit_display: lastCommitDisplay,
     last_commit_timestamp: lastCommitTimestamp,
     last_commit_subject: lastCommitSubject,
     main_language: inferMainLanguage(classification),
     status,
-    path_fingerprint: computePathFingerprint(resolvedProjectPath),
+    has_local_changes: hasLocalChanges,
+    path_fingerprint: pathFingerprint,
+    project_key: computeProjectKey({ git_remote: remote.registryValue, path_fingerprint: pathFingerprint }),
     git_remote: remote.registryValue,
     github_url: remote.githubUrl,
     first_commit: /^[a-f0-9]{40}$/i.test(firstCommit) ? firstCommit.toLowerCase() : '',
@@ -562,7 +576,7 @@ export function normalizeRegistryEntries(entries) {
       path_fingerprint: pathFingerprint,
       git_remote: remote,
       first_commit: sanitizeDisplayText(typeof entry.first_commit === 'string' ? entry.first_commit : '', 80),
-      cremated_at: sanitizeDisplayText(typeof entry.cremated_at === 'string' ? entry.cremated_at : '', 20),
+      buried_at: sanitizeDisplayText(typeof entry.buried_at === 'string' ? entry.buried_at : '', 20),
       cause: sanitizeDisplayText(typeof entry.cause === 'string' ? entry.cause : '', 200),
     }].filter((item) => item.name)
   })
@@ -656,19 +670,62 @@ export function saveRegistry(entries) {
   return targetPath
 }
 
-export function buildCremationBody(payload) {
+export function computeProjectKey(project) {
+  const remote = sanitizeGitHubRemote(project?.git_remote || '').registryValue.toLowerCase()
+  const fingerprint = project?.path_fingerprint
+  // The shared first commit of a template is not a project identity.
+  const identity = remote || (/^sha256:[a-f0-9]{64}$/.test(fingerprint || '') ? fingerprint : '')
+  if (!identity) throw new Error('Missing project identity; inspect the project again')
+  return `sha256:${crypto.createHash('sha256').update(`bury-project-v1:${identity}`).digest('hex')}`
+}
+
+/** Accept actual calendar dates and timezone-qualified ISO timestamps. */
+export function isValidGraveDate(value) {
+  if (typeof value !== 'string') return false
+  const match = /^(\d{4})-(\d{2})-(\d{2})(?:T([01]\d|2[0-3]):([0-5]\d):([0-5]\d)(?:\.\d{1,3})?(?:Z|[+-](?:(?:0\d|1[0-3]):[0-5]\d|14:00)))?$/.exec(value)
+  if (!match) return false
+  const year = Number(match[1]), month = Number(match[2]), day = Number(match[3])
+  const leap = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0)
+  const days = [31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+  return year >= 1 && month >= 1 && month <= 12 && day >= 1 && day <= days[month - 1] && Number.isFinite(Date.parse(value))
+}
+
+export function hasOrderedGraveDates(bornAt, diedAt) {
+  return bornAt == null || diedAt == null || (
+    isValidGraveDate(bornAt) && isValidGraveDate(diedAt) && Date.parse(bornAt) <= Date.parse(diedAt)
+  )
+}
+
+export function buildBurialBody(payload) {
+  if (!/^sha256:[a-f0-9]{64}$/.test(payload?.project_key || '')) {
+    throw new Error('Missing or invalid project_key; inspect the project again')
+  }
   const body = {
-    name: sanitizeDisplayText(payload?.name, 120),
+    name: sanitizeDisplayText(payload?.name, 100),
     cause: sanitizeDisplayText(payload?.cause, 200),
+    project_key: payload.project_key,
   }
 
-  const normalizedRemote = sanitizeGitHubRemote(typeof payload?.github_url === 'string' ? payload.github_url : '')
-  if (normalizedRemote.githubUrl) {
-    body.github_url = normalizedRemote.githubUrl
+  if (payload?.github_url != null || payload?.github_repo_id != null) throw new Error('Use the GitHub scanner for linked repository burials')
+  body.source = 'local'
+  body.map_version = payload?.map_version ?? 'v1'
+  if (body.map_version !== 'v1') throw new Error('Invalid map version')
+  if (payload?.description) body.description = sanitizeDisplayText(payload.description, 500)
+  if (payload?.stack) {
+    if (!Array.isArray(payload.stack) || payload.stack.length > 20 || payload.stack.some(item => typeof item !== 'string' || item.length > 50)) throw new Error('Invalid stack')
+    body.stack = payload.stack.map(item => sanitizeDisplayText(item, 50))
   }
+  for (const key of ['born_at', 'died_at']) {
+    if (payload?.[key] != null) {
+      if (!isValidGraveDate(payload[key])) throw new Error('Invalid project date')
+      body[key] = payload[key]
+    }
+  }
+  if (!hasOrderedGraveDates(body.born_at, body.died_at)) throw new Error('died_at must not precede born_at')
+  if (!body.name || !body.cause) throw new Error('name and cause are required')
 
   if (payload?.last_commit_message) {
-    body.last_commit_message = sanitizeDisplayText(payload.last_commit_message, 200)
+    body.last_commit_message = sanitizeDisplayText(payload.last_commit_message, 500)
   }
 
   return body
@@ -686,7 +743,42 @@ async function readStdin() {
   })
 }
 
-export async function postCremationFromStdin() {
+export async function sendBurial(payload, cliToken, fetchImpl = fetch) {
+  const body = buildBurialBody(payload)
+  let response
+  let result
+  try {
+    response = await fetchImpl(`${API_BASE_URL}/api/graves`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${cliToken}` },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(45_000),
+      redirect: 'error',
+    })
+    result = await response.json().catch(() => null)
+  } catch {
+    // The server may already have committed. Keep the same project_key on retry.
+    return { status: 0, ok: false, error: 'Request failed or timed out; retry with the same project_key', code: 'NETWORK_ERROR' }
+  }
+
+  const code = typeof result?.code === 'string' && /^[A-Z_]{1,60}$/.test(result.code) ? result.code : null
+  const retryAfter = response.headers.get('retry-after')
+  const retryAfterSeconds = retryAfter && /^\d+$/.test(retryAfter) ? Number(retryAfter) : null
+  const recordId = typeof result?.id === 'string' && /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(result.id) ? result.id : null
+  const ok = (response.status === 200 || response.status === 201) && recordId !== null
+  return {
+    status: response.status,
+    ok,
+    error: ok ? null : sanitizeDisplayText(typeof result?.error === 'string' ? result.error : 'Invalid API response', 300),
+    code,
+    retry_after_seconds: retryAfterSeconds,
+    record_id: recordId,
+    grave_url: ok ? `${API_BASE_URL}/grave/${recordId}` : null,
+    replayed: ok && response.status === 200,
+  }
+}
+
+export async function postBurialFromStdin() {
   const stdin = await readStdin()
   const payload = JSON.parse(typeof stdin === 'string' ? stdin : '')
   const { config } = loadConfig()
@@ -697,23 +789,7 @@ export async function postCremationFromStdin() {
     return
   }
 
-  const body = buildCremationBody(payload)
-
-  const response = await fetch(`${API_BASE_URL}/api/cremated`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${cliToken}`,
-    },
-    body: JSON.stringify(body),
-  })
-
-  let error = null
-  if (!response.ok) {
-    error = response.status === 429 ? 'Rate limited' : response.status >= 500 ? 'API unreachable' : 'Request failed'
-  }
-
-  process.stdout.write(JSON.stringify({ status: response.status, ok: response.ok, error }))
+  process.stdout.write(`${JSON.stringify(await sendBurial(payload, cliToken))}\n`)
 }
 
 async function main() {
@@ -724,8 +800,8 @@ async function main() {
     return
   }
 
-  if (command === 'post-cremation') {
-    await postCremationFromStdin()
+  if (command === 'post-burial') {
+    await postBurialFromStdin()
     return
   }
 

@@ -129,7 +129,7 @@ export default function AgentAshConnectClient({ linkId }: { linkId: string }) {
                   Agent Ash approvals are paused.
                 </div>
                 <div>
-                  No new Agent Ash token will be issued from this page. Use the human cemetery, GitHub scan, cremations, and /bury instead.
+                  No new Agent Ash token will be issued from this page. Use the human cemetery, GitHub scan, local project burials instead.
                 </div>
               </div>
             ) : status === 'loading' ? (
@@ -169,7 +169,7 @@ export default function AgentAshConnectClient({ linkId }: { linkId: string }) {
                 <div style={{ textAlign: 'left', color: '#aaa9a0', fontSize: 13, marginBottom: 14, lineHeight: 1.7 }}>
                   <div style={{ color: '#d7c78f' }}>If revived, this agent could submit verified Agent Ash records.</div>
                   <div style={{ color: '#c87868' }}>
-                    This agent cannot create graves, call /api/cremated, use vc_cli tokens, or consume map slots.
+                    This agent cannot create graves, use vc_cli tokens, or consume map slots.
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>

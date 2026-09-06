@@ -2,7 +2,7 @@
 
 These files describe the paused GitLawb / Agent Ash experiment.
 
-They are retained for future reference only. The active product is the human cemetery: GitHub scan, graves, cremations, and `/bury`.
+They are retained for future reference only and describe historical behavior. The active product uses GitHub scanning and GitHub-approved local agents to create graves, plus voluntary GRAVE token offerings. Follow the current agent instructions and unified burial release guide.
 
 Current status lives in:
 

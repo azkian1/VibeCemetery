@@ -3,11 +3,12 @@ import { readFileSync } from 'node:fs'
 import {
   calculateAvailableGraveSlotsForHome,
   decideHomeRepoAction,
+  extractHomeSlotPositions,
   filterFreshDeadRepos,
   formatLastPushAge,
   shouldShowHomeScannerChrome,
 } from '../src/components/HomeScannerLanding'
-import type { CrematedData, DeadRepo, GraveData } from '../src/types/game'
+import type { DeadRepo, GraveData } from '../src/types/game'
 
 test.describe('home scanner entry flow', () => {
   test('formats last push age for result cards', () => {
@@ -23,9 +24,8 @@ test.describe('home scanner entry flow', () => {
       repo({ id: 3, name: 'fresh' }),
     ]
     const graves = new Map<number, GraveData>([[10, grave({ github_repo_id: 1 })]])
-    const cremated: CrematedData[] = [cremation({ name: 'Cremated', author_github: 'octocat' })]
 
-    expect(filterFreshDeadRepos({ repos, graves, cremated, username: 'octocat' }).map((item) => item.name)).toEqual(['fresh'])
+    expect(filterFreshDeadRepos({ repos, graves, username: 'octocat' }).map((item) => item.name)).toEqual(['cremated', 'fresh'])
   })
 
   test('routes first-page repo action to burial while grave slots remain', () => {
@@ -38,7 +38,7 @@ test.describe('home scanner entry flow', () => {
     })
 
     expect(availableSlots).toBe(4)
-    expect(decideHomeRepoAction(availableSlots)).toEqual({ label: 'Bury', flowMode: 'home-preselected-burial' })
+    expect(decideHomeRepoAction(availableSlots)).toEqual({ label: 'Bury', flowMode: 'home-preselected-burial', disabled: false })
   })
 
   test('routes first-page repo action to cremation when no grave slots remain', () => {
@@ -54,7 +54,7 @@ test.describe('home scanner entry flow', () => {
     })
 
     expect(availableSlots).toBe(0)
-    expect(decideHomeRepoAction(availableSlots)).toEqual({ label: 'Cremate', flowMode: 'home-preselected-cremation' })
+    expect(decideHomeRepoAction(availableSlots)).toEqual({ label: 'No grave slots left', flowMode: 'home-preselected-burial', disabled: true })
   })
 
   test('ignores non-auto graves when map slot positions are known', () => {
@@ -72,6 +72,37 @@ test.describe('home scanner entry flow', () => {
     expect(shouldShowHomeScannerChrome(null)).toBe(true)
     expect(shouldShowHomeScannerChrome([])).toBe(false)
     expect(shouldShowHomeScannerChrome([repo({ id: 4, name: 'dead' })])).toBe(false)
+  })
+
+  test('defers the cemetery ledger and slot map until a user starts a scan', () => {
+    const source = readFileSync('src/components/HomeScannerLanding.tsx', 'utf8')
+    const runScanStart = source.indexOf('const runScan = async () =>')
+    const mapFetch = source.indexOf("fetch('/map/az.tmj')")
+
+    expect(source).not.toContain('GameDataLoaders')
+    expect(runScanStart).toBeGreaterThan(-1)
+    expect(mapFetch).toBeGreaterThan(runScanStart)
+    expect(source.slice(0, runScanStart)).not.toContain("fetch('/map/az.tmj')")
+    expect(source).toContain('Promise.all([')
+    expect(source).toContain("fetch('/api/graves/account')")
+    expect(source).not.toContain('/api/cremated')
+  })
+
+  test('keeps non-auto slots out of home slot economy after the scan loads map classifications', () => {
+    const slotPositions = extractHomeSlotPositions({
+      layers: [{
+        name: 'slots',
+        objects: [{ id: 99, type: 'grave_special', name: 'Special', x: 0, y: 0, width: 1, height: 1 }],
+      }],
+    })
+    const graves = new Map<number, GraveData>([[99, grave({ slot_id: 99, author_github: 'octocat' })]])
+
+    expect(calculateAvailableGraveSlotsForHome({
+      graves,
+      username: 'octocat',
+      hasSharedFirstGrave: false,
+      slotPositions,
+    })).toBe(4)
   })
 
   test('home keeps wallet hidden and does not surface the paused Agent Layer', () => {
@@ -123,18 +154,6 @@ function grave(overrides: Partial<GraveData>): GraveData {
     author_github: 'octocat',
     slot_id: 10,
     tier: 1,
-    ...overrides,
-  }
-}
-
-function cremation(overrides: Partial<CrematedData>): CrematedData {
-  return {
-    id: 1,
-    name: 'cremated',
-    cause: 'dead',
-    author_github: 'octocat',
-    created_at: '2026-05-01T00:00:00Z',
-    source: 'github',
     ...overrides,
   }
 }

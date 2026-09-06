@@ -15,63 +15,16 @@ interface FaqItem {
 }
 
 const FAQ_ITEMS: FaqItem[] = [
-  {
-    question: 'What is this?',
-    answer:
-      'VibeCemetery is an interactive graveyard for dead vibe-coded projects. ' +
-      'Every grave is an abandoned repo with a cause of death and a final note.\n\n' +
-      'Visit a grave. Read the epitaph. Press F to pay respects.',
-  },
-  {
-    question: 'Who is the Gravedigger?',
-    answer:
-      'An old-school developer who has seen thousands of repos rise and fall. ' +
-      'Now he digs graves and mutters something when a project goes under. ' +
-      'Cynical, but fair. He has buried a few of his own.',
-  },
-  {
-    question: 'How does it work?',
-    answer:
-      '1. Sign in with GitHub\n' +
-      '2. Press "Scan GitHub" to scan your own repos\n' +
-      '3. Pick a repo with no pushes for 7+ days\n' +
-      '4. Click "Bury" if you have grave slots, or "Cremate" if you do not\n' +
-      '5. Choose the cause of death\n' +
-      '6. Graves appear on the map; cremations go to the Crematory',
-  },
-  {
-    question: 'Can I bury from mobile?',
-    answer:
-      'Mobile is a showcase view for walking the cemetery. ' +
-      'To connect GitHub and bury a repo, open VibeCemetery on desktop.',
-  },
-  {
-    question: 'What counts as a "dead" project?',
-    answer:
-      'A repository with no pushes for 7+ days. Forks are excluded. ' +
-      'If the project comes back to life — well, zombies happen.',
-  },
-  {
-    question: 'What is the Crematory?',
-    answer:
-      'Not every project gets a grave. Cremation is for projects that should become ashes instead of taking a map slot. ' +
-      'They end up in the Crematory. ' +
-      'Ashes to ashes.',
-  },
-  {
-    question: 'How does /bury work in the terminal?',
-    answer:
-      '/bury is a terminal command for human-controlled AI coding tools. Approve it once in the browser, then run /bury in your editor to scan safe local folders and cremate dead projects. ' +
-      'These cremations appear in the human Crematory.',
-  },
-  {
-    question: 'A Note From The Keeper',
-    answer:
-      'VibeCemetery is a solo indie project built with Claude Code, OpenCode, and GPT.\n\n' +
-      'After building too many small projects that went nowhere, I realized I had made a graveyard. VibeCemetery became a place to give those projects an ending.\n\n' +
-      'Scan your GitHub. Pick a cause of death. Begin the ritual. Let it go.\n\n' +
-      'This is not about failure. It is a ritual for moving on.',
-  },
+  { question: 'What is this?', answer: 'VibeCemetery is a graveyard for abandoned projects. Every project gets a grave, an epitaph and a link to share. Visit a grave and press F to pay respects.' },
+  { question: 'How do I bury a project?', answer: 'Connect GitHub, scan your repositories, choose an eligible project and a cause of death, then confirm the burial. Your grave appears on the map. Burial does not delete your code.' },
+  { question: 'Can my AI agent bury a local project?', answer: 'Give your coding agent vibecemetery.app and identify the project. It reads the agent instructions, inspects the project locally and asks you to approve the public details and GitHub account access. Your source stays on your computer or VPS. The result is a normal grave with the same epitaph and sharing features.' },
+  { question: 'How many graves do I get?', answer: 'Your GitHub account starts with 4 grave slots. Sharing your first grave unlocks 1 more, up to 5. GitHub and local projects share this account allowance. When it is used, new burials are unavailable; existing graves stay.' },
+  { question: 'What counts as an abandoned project?', answer: 'GitHub repositories must belong to your connected account, contain a project, not be forks and have no pushes for at least 7 days. For local projects, the agent checks Git history and uncommitted changes; you decide which project is abandoned.' },
+  { question: 'What is the Crematory?', answer: 'The Crematory records GRAVE token offerings to graves. It shows verified transactions and totals, plus the share of token supply held at the burn address. Projects are buried on the map.' },
+  { question: 'How do GRAVE offerings work?', answer: 'Open a grave, connect your wallet on Base and choose an amount. You approve the offering and transfer GRAVE permanently to the burn address. No tokens go to the project owner. Only verified transactions count. Offerings provide no rewards or extra grave slots. Transfers to the burn address do not reduce the token contract’s totalSupply.' },
+  { question: 'What does Offerings mean in the Necropolis?', answer: 'It is the total verified GRAVE offered to an author’s graves, including offerings by visitors without a GitHub account. It measures offerings received by those graves, not tokens spent by the author.' },
+  { question: 'Can I visit on mobile?', answer: 'Yes. You can explore the cemetery and read graves on mobile. The local agent workflow runs on the computer or VPS where your project lives; browser approval can happen on another device.' },
+  { question: 'Who is the Gravedigger?', answer: 'An old-school developer who has seen thousands of projects rise and fall. Now he digs graves and mutters when a project goes under. He has buried a few of his own.' },
 ];
 
 function FaqAccordion({ item, index }: { item: FaqItem; index: number }) {
@@ -170,6 +123,7 @@ export default function BurgerMenu() {
             Links
           </h3>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+            <a href="/agent-instructions" style={{ color: '#b7c4cf', padding: '8px 0' }}>Instructions for AI agents ↗</a>
             <StoneButton
               onClick={() => window.open('https://x.com/vibecmtry', '_blank', 'noopener,noreferrer')}
               style={{ width: '100%', maxWidth: 280 }}

@@ -2,14 +2,17 @@ type SlotLike = { id: number }
 
 export type AtomicInsertRpcResult<T> =
   | { status: 'created'; grave: T }
+  | { status: 'replayed'; grave: T }
   | { status: 'duplicate_repo' }
   | { status: 'user_slots_exhausted'; slots_unlocked: number; slots_used: number }
   | { status: 'rate_limited' }
   | { status: 'slot_collision' }
+  | { status: 'no_slots' }
   | { status: 'failed'; message?: string }
 
 export type AtomicInsertWithSlotRetryResult<T> =
   | { status: 'created'; data: T }
+  | { status: 'replayed'; data: T }
   | { status: 'duplicate_repo' }
   | { status: 'user_slots_exhausted'; slots_unlocked: number; slots_used: number }
   | { status: 'rate_limited' }
@@ -23,7 +26,7 @@ function normalizeRpcResult<T>(result: unknown): AtomicInsertRpcResult<T> {
   }
 
   const status = String(result.status)
-  if (status === 'created') {
+  if (status === 'created' || status === 'replayed') {
     if (!('grave' in result) || !result.grave || typeof result.grave !== 'object') {
       return { status: 'failed', message: 'Invalid created atomic insert RPC response' }
     }
@@ -39,7 +42,7 @@ function normalizeRpcResult<T>(result: unknown): AtomicInsertRpcResult<T> {
     return result as AtomicInsertRpcResult<T>
   }
 
-  if (status === 'duplicate_repo' || status === 'rate_limited' || status === 'slot_collision' || status === 'failed') {
+  if (status === 'no_slots' || status === 'duplicate_repo' || status === 'rate_limited' || status === 'slot_collision' || status === 'failed') {
     return result as AtomicInsertRpcResult<T>
   }
 
@@ -73,8 +76,8 @@ export async function insertGraveAtomicallyWithSlotRetry<T>({
     seenSlotIds.add(pickedSlot.id)
 
     const result = normalizeRpcResult<T>(await insertGrave(pickedSlot.id))
-    if (result.status === 'created') {
-      return { status: 'created', data: result.grave }
+    if (result.status === 'created' || result.status === 'replayed') {
+      return { status: result.status, data: result.grave }
     }
 
     if (result.status === 'slot_collision') {

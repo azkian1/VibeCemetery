@@ -52,7 +52,7 @@ export default function AgentSkillModal() {
 
           <p style={{ fontSize: 14, color: '#aaa9a0', margin: '0 0 20px', lineHeight: 1.65, textAlign: 'center' }}>
             The GitLawb / Agent Ash experiment is paused until the cemetery is more populated.
-            This is not the human /bury CLI.
+            For local projects, follow the instructions for AI agents.
           </p>
 
           <div style={{ marginBottom: 16 }}>
@@ -70,7 +70,7 @@ export default function AgentSkillModal() {
                   {copied ? 'COPIED!' : 'COPY ARCHIVE URL'}
                 </StoneButton>
                 <div style={{ color: '#77746a', fontSize: 13, lineHeight: 1.5, textAlign: 'center' }}>
-                  If revived, Agent Ash must keep ash_ ingest tokens separate from human vc_cli_ /bury keys.
+                  If revived, Agent Ash must keep ash_ ingest tokens separate from human vc_cli_ access tokens.
                 </div>
               </div>
             </InsetBlock>

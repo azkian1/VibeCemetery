@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useState } from 'react';
 import { useChat, useGame } from '@/context/GameContext';
 import type { ChatMessage } from '@/context/GameContext';
 import {
@@ -24,20 +24,16 @@ const MESSAGE_PREFIXES: Partial<Record<ChatMessage['type'], string>> = {
 export const CHAT_STATUS_ITEMS = [
   { key: 'total', label: 'Total', emoji: '💀' },
   { key: 'buried', label: 'Buried', emoji: '🪦' },
-  { key: 'cremated', label: 'Cremated', emoji: '🔥' },
 ];
 
 export function getChatStatusCounts({
   graveCount,
-  crematedCount,
 }: {
   graveCount: number;
-  crematedCount: number;
-}): { total: number; buried: number; cremated: number } {
+}): { total: number; buried: number } {
   return {
-    total: graveCount + crematedCount,
+    total: graveCount,
     buried: graveCount,
-    cremated: crematedCount,
   };
 }
 
@@ -53,7 +49,8 @@ export default function ChatLog() {
   const isMobile = useIsMobile();
   const { messages, addMessage } = useChat();
   const { state } = useGame();
-  const statusCounts = getChatStatusCounts({ graveCount: state.graves.size, crematedCount: state.cremated.length });
+  const [isCollapsed, setIsCollapsed] = useState(false);
+  const statusCounts = getChatStatusCounts({ graveCount: state.graves.size });
   const scrollRef = useRef<HTMLDivElement>(null);
   const isAtBottomRef = useRef(true);
   const lastIdleIndexRef = useRef(-1);
@@ -129,8 +126,8 @@ export default function ChatLog() {
         // 50% chance: dynamic template from real cemetery data
         let text: string | null = null;
         const s = stateRef.current;
-        if (Math.random() < 0.5 && (s.graves.size > 0 || s.cremated.length > 0)) {
-          text = generateFromGrave(s.graves, s.cremated);
+        if (Math.random() < 0.5 && s.graves.size > 0) {
+          text = generateFromGrave(s.graves);
         }
 
         // Fallback: static phrase
@@ -188,7 +185,7 @@ export default function ChatLog() {
         bottom: 126,
         left: 16,
         width: 340,
-        height: 220,
+        height: isCollapsed ? 'auto' : 220,
         zIndex: 40,
         display: 'flex',
         flexDirection: 'column',
@@ -198,26 +195,60 @@ export default function ChatLog() {
     >
       {/* Pinned status bar — HUD frame style */}
       <div style={{
-        padding: '5px 10px',
-        fontSize: 14,
+        position: 'relative',
+        boxSizing: 'border-box',
+        padding: '5px 40px 5px 10px',
+        fontSize: 13,
         lineHeight: '1.4',
         color: '#8a8980',
         background: 'linear-gradient(180deg, #2a2825 0%, #1e1c18 100%)',
         border: '1px solid #3a3530',
-        borderRadius: '2px 2px 0 0',
+        borderRadius: isCollapsed ? '2px' : '2px 2px 0 0',
         boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03), 0 1px 2px rgba(0,0,0,0.3)',
         flexShrink: 0,
         display: 'flex',
-        gap: 12,
-        flexWrap: 'wrap',
+        alignItems: 'center',
+        gap: 7,
+        flexWrap: 'nowrap',
       }}>
-        <span>{CHAT_STATUS_ITEMS[0].label}: {statusCounts.total} {CHAT_STATUS_ITEMS[0].emoji}</span>
-        <span>{CHAT_STATUS_ITEMS[1].label}: {statusCounts.buried} {CHAT_STATUS_ITEMS[1].emoji}</span>
-        <span>{CHAT_STATUS_ITEMS[2].label}: {statusCounts.cremated} {CHAT_STATUS_ITEMS[2].emoji}</span>
+        <span style={{ whiteSpace: 'nowrap' }}>{CHAT_STATUS_ITEMS[0].label}: {statusCounts.total} {CHAT_STATUS_ITEMS[0].emoji}</span>
+        <span style={{ whiteSpace: 'nowrap' }}>{CHAT_STATUS_ITEMS[1].label}: {statusCounts.buried} {CHAT_STATUS_ITEMS[1].emoji}</span>
+        <button
+          type="button"
+          data-testid="chat-collapse-toggle"
+          onClick={() => setIsCollapsed((collapsed) => !collapsed)}
+          aria-expanded={!isCollapsed}
+          aria-label={isCollapsed ? 'Развернуть чат' : 'Свернуть чат'}
+          title={isCollapsed ? 'Развернуть чат' : 'Свернуть чат'}
+          style={{
+            position: 'absolute',
+            top: '50%',
+            right: 6,
+            transform: 'translateY(-50%)',
+            flexShrink: 0,
+            width: 26,
+            height: 24,
+            padding: 0,
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            border: '1px solid #5b5144',
+            borderRadius: 2,
+            color: '#e8d5a3',
+            background: 'linear-gradient(180deg, #39342d 0%, #26221e 100%)',
+            boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06)',
+            cursor: 'pointer',
+            fontSize: 17,
+            lineHeight: 1,
+          }}
+        >
+          <span aria-hidden="true">{isCollapsed ? '⌃' : '⌄'}</span>
+        </button>
       </div>
 
       {/* Chat messages — transparent body with frame border */}
-      <div
+      {!isCollapsed && <div
+        id="cemetery-chat-messages"
         style={{
           flex: 1,
           background: 'rgba(20, 18, 16, 0.60)',
@@ -260,7 +291,7 @@ export default function ChatLog() {
             </div>
           ))}
         </div>
-      </div>
+      </div>}
     </div>
   );
 }

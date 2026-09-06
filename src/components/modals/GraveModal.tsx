@@ -164,7 +164,6 @@ export default function GraveModal() {
   // ── Meta grave ──
   if (!grave) {
     const totalGraves = state.graves.size;
-    const totalCremated = state.cremated.length;
     let totalF = 0;
     state.graves.forEach((g) => { totalF += g.f_count ?? 0; });
 
@@ -244,7 +243,6 @@ export default function GraveModal() {
             <div style={{ display: 'flex', gap: 8, justifyContent: 'center', margin: '0 0 14px' }}>
               {[
                 { label: 'Graves buried', value: totalGraves },
-                { label: 'Projects cremated', value: totalCremated },
                 { label: 'Respects paid', value: totalF },
               ].map((s) => (
                 <div key={s.label} style={{

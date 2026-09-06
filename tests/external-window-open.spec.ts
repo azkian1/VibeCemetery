@@ -13,12 +13,9 @@ test.describe('external window opens', () => {
     }
   })
 
-  test('urn modal only keeps share action', () => {
-    const source = readFileSync('src/components/modals/UrnModal.tsx', 'utf8')
-
-    expect(source).toContain('Share Urn')
-    expect(source).not.toContain('Open GitHub Repo')
-    expect(source).not.toContain('View Remains')
-    expect(source).not.toContain("window.open(url, '_blank', 'noopener,noreferrer')")
+  test('offering transaction links isolate external tabs', () => {
+    const source = readFileSync('src/components/modals/CrematoryModal.tsx', 'utf8')
+    expect(source).toContain('rel="noopener noreferrer"')
+    expect(source).toContain('BASE_EXPLORER_TX_URL + burn.txHash')
   })
 })

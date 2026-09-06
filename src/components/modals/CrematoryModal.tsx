@@ -1,303 +1,45 @@
-'use client';
-
-import { useEffect, useState, useMemo } from 'react';
-import { useModal, useCremated } from '@/context/GameContext';
-import type { CrematedData } from '@/types/game';
-import ModalOverlay from './ModalOverlay';
-import { useIsMobile } from '@/hooks/useIsMobile';
-import StoneFrame from '@/components/ui/StoneFrame';
-import CloseButton from '@/components/ui/CloseButton';
-import InsetBlock from '@/components/ui/InsetBlock';
-import OrnamentDivider from '@/components/ui/OrnamentDivider';
-import LoadErrorState from '@/components/ui/LoadErrorState';
-
-type Tab = 'columbarium' | 'ashpit';
-const TABS: { key: Tab; label: string }[] = [
-  { key: 'columbarium', label: 'Columbarium' },
-  { key: 'ashpit', label: 'Ash Pit' },
-];
-
-function timeAgo(dateStr: string): string {
-  const t = new Date(dateStr).getTime();
-  if (isNaN(t)) return '—';
-  const seconds = Math.floor((Date.now() - t) / 1000);
-  const days = Math.floor(seconds / 86400);
-  if (days > 30) return `${Math.floor(days / 30)}mo ago`;
-  if (days > 0) return `${days}d ago`;
-  const hours = Math.floor(seconds / 3600);
-  if (hours > 0) return `${hours}h ago`;
-  return 'just now';
-}
-
+'use client'
+import Link from 'next/link'
+import { useModal } from '@/context/GameContext'
+import { useOfferingLedger } from '@/hooks/useOfferingLedger'
+import { useIsMobile } from '@/hooks/useIsMobile'
+import { formatGraveAmount } from '@/lib/web3/offeringLedger'
+import { shortenWalletAddress } from '@/lib/web3/graveBurnStats'
+import { BASE_EXPLORER_TX_URL } from '@/web3/config'
+import ModalOverlay from './ModalOverlay'
+import StoneFrame from '@/components/ui/StoneFrame'
+import CloseButton from '@/components/ui/CloseButton'
+import InsetBlock from '@/components/ui/InsetBlock'
+import LoadErrorState from '@/components/ui/LoadErrorState'
 export default function CrematoryModal() {
-  const { close, push } = useModal();
-  const { cremated, loading, error, refetch } = useCremated({ auto: false });
-  const isMobile = useIsMobile();
-  const [tab, setTab] = useState<Tab>('columbarium');
-
-  useEffect(() => { refetch(); }, [refetch]);
-
-  const { urns, ashes } = useMemo(() => {
-    const urns: CrematedData[] = [];
-    const ashes: CrematedData[] = [];
-    for (const c of cremated) {
-      if (c.github_url) {
-        urns.push(c);
-      } else {
-        ashes.push(c);
-      }
-    }
-    return { urns, ashes };
-  }, [cremated]);
-
-  const handleUrnClick = (item: CrematedData) => {
-    push('urn', { crematedItem: item });
-  };
-
-  const tabStyle = (active: boolean): React.CSSProperties => ({
-    flex: 1,
-    background: 'none',
-    border: 'none',
-    borderBottom: active ? '2px solid #c8a050' : '2px solid transparent',
-    color: active ? '#e8d5a3' : '#6a6960',
-    fontSize: isMobile ? 14 : 13,
-    padding: isMobile ? '10px 14px' : '6px 14px',
-    minHeight: isMobile ? 44 : undefined,
-    cursor: 'pointer',
-    fontFamily: 'inherit',
-    transition: 'color 0.2s',
-    textAlign: 'center',
-  });
-
-  const headerCell: React.CSSProperties = {
-    fontSize: 11,
-    textTransform: 'uppercase',
-    letterSpacing: 1.5,
-    color: '#6a6960',
-    padding: '6px 8px',
-  };
-
-  const handleTabKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
-      e.preventDefault();
-      const idx = TABS.findIndex((t) => t.key === tab);
-      const next = e.key === 'ArrowRight'
-        ? TABS[(idx + 1) % TABS.length].key
-        : TABS[(idx - 1 + TABS.length) % TABS.length].key;
-      setTab(next);
-    }
-  };
-
-  const renderTable = (items: CrematedData[], clickable: boolean) => {
-    if (items.length === 0) return null;
-    return (
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'auto 1fr auto auto',
-      }}>
-        <span style={headerCell}>#</span>
-        <span style={headerCell}>Project</span>
-        <span style={headerCell}>GitHub Reaper</span>
-        <span style={{ ...headerCell, textAlign: 'right' }}>When</span>
-        <span style={{ gridColumn: '1 / -1', borderBottom: '1px solid #3a3935' }} />
-
-        {items.map((c, i) => {
-          const border = i < items.length - 1 ? '1px solid rgba(58,57,53,0.3)' : 'none';
-          return (
-            <div
-              key={c.id}
-              style={{
-                display: 'contents',
-                cursor: clickable ? 'pointer' : 'default',
-              }}
-              onClick={clickable ? () => handleUrnClick(c) : undefined}
-              onMouseEnter={clickable ? (e) => {
-                const parent = e.currentTarget;
-                for (const child of Array.from(parent.children) as HTMLElement[]) {
-                  child.style.background = 'rgba(200,160,80,0.06)';
-                }
-              } : undefined}
-              onMouseLeave={clickable ? (e) => {
-                const parent = e.currentTarget;
-                for (const child of Array.from(parent.children) as HTMLElement[]) {
-                  child.style.background = 'transparent';
-                }
-              } : undefined}
-            >
-              <span style={{
-                fontSize: 12,
-                color: '#8a8980',
-                padding: '8px 12px 8px 8px',
-                borderBottom: border,
-              }}>
-                {i + 1}
-              </span>
-              <span style={{
-                padding: '8px',
-                borderBottom: border,
-                overflow: 'hidden',
-                minWidth: 0,
-              }}>
-                <div style={{
-                  fontSize: 13,
-                  color: '#e8d5a3',
-                  fontWeight: 'bold',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                }}>
-                  {c.name}
-                </div>
-                <div style={{
-                  fontSize: 12,
-                  color: '#c87868',
-                  fontStyle: 'italic',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                  marginTop: 2,
-                }}>
-                  {c.cause}
-                </div>
-              </span>
-              <span style={{
-                fontSize: 12,
-                color: '#7898b8',
-                padding: '8px',
-                borderBottom: border,
-                whiteSpace: 'nowrap',
-              }}>
-                {c.author_github}
-              </span>
-              <span style={{
-                fontSize: 11,
-                color: '#6a6960',
-                padding: '8px',
-                borderBottom: border,
-                textAlign: 'right',
-                whiteSpace: 'nowrap',
-              }}>
-                {timeAgo(c.created_at)}
-              </span>
-            </div>
-          );
-        })}
-      </div>
-    );
-  };
-
-  return (
-    <ModalOverlay onClose={close}>
-      <StoneFrame isMobile={isMobile} maxWidth={600}>
-        <div style={{
-          padding: isMobile ? '20px 16px' : '24px 28px',
-          display: 'flex',
-          flexDirection: 'column',
-          maxHeight: '80vh',
-        }}>
-          <CloseButton onClick={close} />
-
-          <h2 style={{ margin: '0 0 4px', fontSize: 20, color: '#e8d5a3', textAlign: 'center' }}>
-            Crematory
-          </h2>
-          <p style={{ fontSize: 12, color: '#8a8980', textAlign: 'center', margin: '0 0 16px' }}>
-            Dust to dust. No grave, no stone — just a name in the ash.
-          </p>
-
-          {/* Tabs */}
-          <div
-            role="tablist"
-            aria-label="Crematory sections"
-            onKeyDown={handleTabKeyDown}
-            style={{ display: 'flex', justifyContent: 'center', borderBottom: '1px solid #3a3935', marginBottom: 12 }}
-          >
-            {TABS.map((t) => (
-              <button
-                key={t.key}
-                role="tab"
-                id={`crem-tab-${t.key}`}
-                aria-selected={tab === t.key}
-                aria-controls="crem-panel"
-                tabIndex={tab === t.key ? 0 : -1}
-                style={tabStyle(tab === t.key)}
-                onClick={() => setTab(t.key)}
-              >
-                {t.label}
-                <span style={{
-                  marginLeft: 6,
-                  fontSize: 13,
-                  fontWeight: 'bold',
-                  color: tab === t.key ? '#e8d5a3' : '#8a8980',
-                }}>
-                  {t.key === 'columbarium' ? urns.length : ashes.length}
-                </span>
-              </button>
-            ))}
-          </div>
-
-          {/* Tab content */}
-          <div
-            role="tabpanel"
-            id="crem-panel"
-            aria-labelledby={`crem-tab-${tab}`}
-            style={{ height: 300, overflowY: 'auto' }}
-          >
-            {loading && (
-              <p style={{ color: '#8a8980', textAlign: 'center', padding: 40, margin: 0 }}>
-                Sweeping the ashes...
-              </p>
-            )}
-
-            {!loading && error && (
-              <InsetBlock>
-                <LoadErrorState
-                  compact
-                  message="The crematory ledger failed to load."
-                  onRetry={refetch}
-                />
-              </InsetBlock>
-            )}
-
-            {/* Columbarium — GitHub projects with urns */}
-            {!loading && !error && tab === 'columbarium' && (
-              <InsetBlock>
-                {urns.length === 0 ? (
-                  <p style={{ color: '#6a6960', textAlign: 'center', padding: 20, margin: 0, fontStyle: 'italic' }}>
-                    The niches are empty. No urns placed yet.
-                  </p>
-                ) : (
-                  renderTable(urns, true)
-                )}
-              </InsetBlock>
-            )}
-
-            {/* Ash Pit — CLI cremations without GitHub */}
-            {!loading && !error && tab === 'ashpit' && (
-              <InsetBlock>
-                {ashes.length === 0 ? (
-                  <p style={{ color: '#6a6960', textAlign: 'center', padding: 20, margin: 0, fontStyle: 'italic' }}>
-                    The pit is clean. No ashes scattered here.
-                  </p>
-                ) : (
-                  renderTable(ashes, false)
-                )}
-              </InsetBlock>
-            )}
-          </div>
-
-          {/* Footer */}
-          <OrnamentDivider />
-          <div style={{ textAlign: 'center' }}>
-            <span style={{ color: '#8a8980', fontSize: 13 }}>
-              {error
-                ? 'The furnace records are silent'
-                : cremated.length > 0
-                ? <><div style={{ fontSize: 20, fontWeight: 'bold', color: '#e8d5a3', marginBottom: 2 }}>{cremated.length}</div>{cremated.length === 1 ? 'project' : 'projects'} reduced to ash</>
-                : 'The furnace awaits its first offering'}
-            </span>
-          </div>
+  const { close } = useModal()
+  const { data, error, loading, refetch } = useOfferingLedger({ includeSupply: true })
+  return <ModalOverlay onClose={close}><StoneFrame isMobile={useIsMobile()} maxWidth={720}>
+    <CloseButton onClick={close} />
+    <div style={{ padding: '28px 24px', color: '#aaa9a0', fontFamily: 'var(--font-geist-sans), Arial, sans-serif' }}>
+      <h2 style={{ color: '#e8d5a3', textAlign: 'center', fontFamily: 'var(--font-cinzel), Georgia, serif', margin: '0 0 12px' }}>Crematory</h2>
+      <p style={{ textAlign: 'center', fontSize: 13, lineHeight: 1.6 }}>Offer GRAVE in memory of a project. Open a grave to make an offering. Tokens are sent permanently to the burn address; offerings grant no rewards or extra grave slots.</p>
+      {loading && <p>Loading offerings...</p>}
+      {error && <LoadErrorState message={error} onRetry={refetch} />}
+      {data && !error && <>
+        <InsetBlock label="Cemetery offerings"><strong style={{ color: '#e8d5a3', fontSize: 24, overflowWrap: 'anywhere' }}>{formatGraveAmount(data.totalBurnedRaw)} GRAVE</strong><p>{data.burnCount} verified transaction{data.burnCount === 1 ? '' : 's'}</p></InsetBlock>
+        <InsetBlock label="GRAVE at the burn address">
+          {data.supply ? <>
+            <p>{formatGraveAmount(data.supply.burnAddressBalanceRaw)} / {formatGraveAmount(data.supply.totalSupplyRaw)} GRAVE</p>
+            <div role="progressbar" aria-label="Share of token supply at the burn address" aria-valuemin={0} aria-valuemax={100} aria-valuenow={data.supply.percent} style={{ height: 12, background: '#1a1714', borderRadius: 4, overflow: 'hidden' }}><div style={{ height: '100%', width: data.supply.percent + '%', background: 'linear-gradient(90deg, #8d3923, #d2a454)' }} /></div>
+            <p>{data.supply.percent}% of current token supply</p>
+            <p style={{ fontSize: 11, color: '#8a8980' }}>Includes all transfers to this burn address, including those outside the cemetery. These transfers do not reduce the contract’s totalSupply.</p>
+          </> : <p>Supply data is temporarily unavailable.</p>}
+        </InsetBlock>
+        <h3 style={{ color: '#d9c79e', fontSize: 15 }}>Recent offerings</h3>
+        <div style={{ maxHeight: 300, overflowY: 'auto' }}>
+          {data.recent.length ? data.recent.map(burn => <div key={burn.id} style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto', gap: 8, padding: '12px 0', borderBottom: '1px solid #302b24', fontSize: 13 }}>
+            <div><Link onClick={close} href={'/grave/' + burn.graveId} style={{ color: '#e8d5a3' }}>{burn.graveName}</Link><div style={{ color: '#8a8980', fontSize: 11, marginTop: 5 }}>{burn.githubUsername ? '@' + burn.githubUsername : shortenWalletAddress(burn.walletAddress)}</div></div>
+            <a href={BASE_EXPLORER_TX_URL + burn.txHash} target="_blank" rel="noopener noreferrer" style={{ color: '#c7a46a', overflowWrap: 'anywhere' }}>{formatGraveAmount(burn.amountRaw)} GRAVE ↗</a>
+          </div>) : <p>No verified offerings yet.</p>}
         </div>
-      </StoneFrame>
-    </ModalOverlay>
-  );
+        {data.recent.length === 50 && <p style={{ fontSize: 11 }}>Showing the latest 50. Totals include all verified offerings.</p>}
+      </>}
+    </div>
+  </StoneFrame></ModalOverlay>
 }

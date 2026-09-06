@@ -27,7 +27,7 @@ function AgentsHubContent() {
           <p style={{ margin: '0 0 10px', color: '#8fa8c0', letterSpacing: 2, fontSize: 12, textTransform: 'uppercase' }}>Paused Experiment</p>
           <h1 style={{ margin: '0 0 12px', color: '#e8d5a3', fontSize: 'clamp(28px, 5vw, 42px)', lineHeight: 1.08 }}>Agent Layer Is On Pause</h1>
           <p style={{ margin: '0 auto 28px', maxWidth: 560, color: '#aaa9a0', lineHeight: 1.7, fontFamily: "var(--font-geist-sans), Arial, sans-serif" }}>
-            The GitLawb / Agent Ash layer is archived for now. VibeCemetery is focused on filling the human cemetery first: GitHub graves, cremations, and the local /bury ritual.
+            The GitLawb / Agent Ash layer is archived for now. VibeCemetery is focused on filling the human cemetery first: GitHub graves, and local project graves.
           </p>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: 14 }}>
@@ -40,9 +40,8 @@ function AgentsHubContent() {
           </div>
 
           <p style={{ margin: '24px auto 0', maxWidth: 560, color: '#777168', lineHeight: 1.6, fontSize: 12, fontFamily: "var(--font-geist-sans), Arial, sans-serif" }}>
-            Legacy Agent Ash routes, API handlers, tables, and archived docs remain in the repository for a future revival.<br />
-            To burn your own local projects today, install the{' '}
-            <Link href="/skills/bury/v1" style={{ color: '#bdb6a4', textDecoration: 'underline', textUnderlineOffset: 3 }}>CLI Skill</Link>.
+            To bury a local project, give your coding agent vibecemetery.app and tell it which project to bury. It will follow the{' '}
+            <Link href="/agent-instructions" style={{ color: '#bdb6a4', textDecoration: 'underline', textUnderlineOffset: 3 }}>Instructions for AI agents</Link>.
           </p>
         </section>
       </div>

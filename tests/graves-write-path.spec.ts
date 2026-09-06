@@ -273,11 +273,11 @@ test.describe('insertOutcomeResponse', () => {
     await expect(response?.json()).resolves.toEqual({ error: 'No free grave slots available on the map' })
   })
 
-  test('maps failed to HTTP 500', async () => {
+  test('maps failed to HTTP 503', async () => {
     const response = insertOutcomeResponse({ status: 'failed', message: 'rpc failed' })
 
-    expect(response?.status).toBe(500)
-    await expect(response?.json()).resolves.toEqual({ error: 'Failed to create grave' })
+    expect(response?.status).toBe(503)
+    await expect(response?.json()).resolves.toEqual({ error: 'Burial service unavailable. Please try again later.' })
   })
 
   test('leaves created outcomes unhandled', () => {

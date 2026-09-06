@@ -4,18 +4,24 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { useSession, signIn } from 'next-auth/react';
 import type { DeadRepo, GitHubScanResult } from '@/types/game';
 import { getBuryLoginCallbackUrl } from '@/lib/bury-intent';
+import {
+  abortLatestRequest,
+  beginLatestRequest,
+  createLatestRequestState,
+  finishLatestRequest,
+  isLatestRequest,
+  type LatestRequestState,
+} from '@/lib/latest-request';
 
 export const BURY_GITHUB_CONNECT_LABEL = 'Connect GitHub';
-export const LOCAL_TERMINAL_CREMATION_COPY = 'For local folders, set up /bury terminal cremation';
-export const LOCAL_TERMINAL_CREMATION_PROMPT_MARGIN_TOP = 28;
+export const LOCAL_AGENT_INSTRUCTIONS_COPY = 'For local AI projects, read the agent instructions';
+export const LOCAL_AGENT_INSTRUCTIONS_PROMPT_MARGIN_TOP = 28;
 
 export function shouldShowRescanAfterSuccessfulScan(): boolean {
   return false;
 }
 
-export function shouldShowCremationSkillPrompt(cremationOnly: boolean): boolean {
-  return cremationOnly;
-}
+
 
 interface StepScanProps {
   repos: DeadRepo[];
@@ -24,8 +30,6 @@ interface StepScanProps {
   username: string | null;
   filteredCount: number;
   recordsLoading?: boolean;
-  burialOnly?: boolean;
-  cremationOnly?: boolean;
   onOpenSkill?: () => void;
   onScanned: (repos: DeadRepo[], total: number) => void;
   onError: (err: string) => void;
@@ -40,8 +44,6 @@ export default function StepScan({
   username: defaultUsername,
   filteredCount,
   recordsLoading = false,
-  burialOnly = false,
-  cremationOnly = false,
   onOpenSkill,
   onScanned,
   onError,
@@ -51,40 +53,41 @@ export default function StepScan({
   const { status } = useSession();
   const [dots, setDots] = useState('');
   const [scanPhase, setScanPhase] = useState('Connecting to GitHub...');
+  const scanRequestStateRef = useRef<LatestRequestState>(createLatestRequestState());
 
-  const runScan = useCallback((forceRefresh = false) => {
-    if (!defaultUsername) return () => {};
+  const runScan = useCallback(async (forceRefresh = false) => {
+    if (!defaultUsername) return;
 
-    const controller = new AbortController();
+    const request = beginLatestRequest(scanRequestStateRef.current);
     setLoading(true);
     onError('');
 
     const params = new URLSearchParams({ username: defaultUsername });
     if (forceRefresh) params.set('refresh', '1');
 
-    fetch(`/api/github/scan?${params.toString()}`, { signal: controller.signal })
-      .then(async (res) => {
-        if (!res.ok) {
-          if (res.status === 429) {
-            onError('Rate limited by GitHub. Try again in a minute.');
-          } else {
-            onError(`Scan failed (${res.status})`);
-          }
-          return;
+    try {
+      const res = await fetch(`/api/github/scan?${params.toString()}`, { signal: request.controller.signal });
+      if (!isLatestRequest(scanRequestStateRef.current, request)) return;
+      if (!res.ok) {
+        if (res.status === 429) {
+          onError('Rate limited by GitHub. Try again in a minute.');
+        } else {
+          onError(`Scan failed (${res.status})`);
         }
-        const data: GitHubScanResult = await res.json();
-        onScanned(data.dead_repos, data.total_repos);
-      })
-      .catch((err) => {
-        if (err.name !== 'AbortError') onError('Network error — check your connection.');
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setLoading(false);
-      });
-
-    return () => {
-      controller.abort();
-    };
+        return;
+      }
+      const data: GitHubScanResult = await res.json();
+      if (!isLatestRequest(scanRequestStateRef.current, request)) return;
+      onScanned(data.dead_repos, data.total_repos);
+    } catch (error) {
+      if (!isLatestRequest(scanRequestStateRef.current, request)) return;
+      if ((error as Error).name !== 'AbortError') onError('Network error — check your connection.');
+    } finally {
+      if (isLatestRequest(scanRequestStateRef.current, request)) {
+        setLoading(false);
+      }
+      finishLatestRequest(scanRequestStateRef.current, request);
+    }
   }, [defaultUsername, onError, onScanned, setLoading]);
   const runScanRef = useRef(runScan);
 
@@ -113,9 +116,15 @@ export default function StepScan({
 
   // Auto-scan own repos on mount (only own GitHub)
   useEffect(() => {
-    if (!defaultUsername) return;
-    if (recordsLoading) return;
-    return runScanRef.current(false);
+    const scanRequestState = scanRequestStateRef.current;
+    if (!defaultUsername || recordsLoading) {
+      abortLatestRequest(scanRequestState);
+      return;
+    }
+    void runScanRef.current(false);
+    return () => {
+      abortLatestRequest(scanRequestState);
+    };
   }, [defaultUsername, recordsLoading]);
 
   // Not authenticated
@@ -224,11 +233,11 @@ export default function StepScan({
         Found <strong>{repos.length}</strong> dead repo{repos.length !== 1 ? 's' : ''}
       </p>
       <p style={{ color: '#6a6960', fontSize: 12, lineHeight: 1.5, margin: '0 0 12px' }}>
-        {burialOnly ? 'Choose one project for one grave.' : 'Choose which projects deserve a grave, and which should be cremated.'}
+        Choose one project for one grave.
       </p>
       {filteredCount > 0 && (
         <p style={{ color: '#6a6960', fontSize: 12, marginBottom: 16 }}>
-          {filteredCount} already buried or cremated
+          {filteredCount} already buried
         </p>
       )}
       <button
@@ -246,12 +255,12 @@ export default function StepScan({
       >
         Next
       </button>
-      {shouldShowCremationSkillPrompt(cremationOnly) && onOpenSkill && (
+      {onOpenSkill && (
         <button
           onClick={onOpenSkill}
           style={{
             display: 'block',
-            margin: `${LOCAL_TERMINAL_CREMATION_PROMPT_MARGIN_TOP}px auto 0`,
+            margin: `${LOCAL_AGENT_INSTRUCTIONS_PROMPT_MARGIN_TOP}px auto 0`,
             color: '#7898b8',
             fontSize: 13,
             cursor: 'pointer',
@@ -263,7 +272,7 @@ export default function StepScan({
             fontFamily: 'inherit',
           }}
         >
-          {LOCAL_TERMINAL_CREMATION_COPY}
+          {LOCAL_AGENT_INSTRUCTIONS_COPY}
         </button>
       )}
       {shouldShowRescanAfterSuccessfulScan() && rescanButton}

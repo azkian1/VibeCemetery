@@ -22,13 +22,13 @@ test('Necropolis no longer contains the AI-Bots tab', () => {
   ])
 })
 
-test('human layer modals label ranks as GitHub Reapers', () => {
+test('human layer modals separate graves and verified token offerings', () => {
   const source = [
     'src/components/modals/LeaderboardModal.tsx',
     'src/components/modals/CrematoryModal.tsx',
   ].map((path) => readFileSync(path, 'utf8')).join('\n')
-  expect(source).toContain('GitHub Reaper')
-  expect(source).toContain('GitHub Reapers')
+  expect(source).toContain('Offerings (GRAVE)')
+  expect(source).toContain('Recent offerings')
   expect(source).not.toContain('Git Reaper')
 })
 
@@ -43,8 +43,8 @@ test('Agent Layer page is a paused landing page without Agent Ash entry points',
 
   expect(source).toContain('Back')
   expect(source).toContain('Agent Layer Is On Pause')
-  expect(source).toContain('Legacy Agent Ash routes, API handlers, tables, and archived docs remain')
-  expect(source).toContain('href="/skills/bury/v1"')
+  expect(source).toContain('To bury a local project, give your coding agent vibecemetery.app')
+  expect(source).toContain('href="/agent-instructions"')
   expect(source).toContain('href="/cemetery"')
   expect(source).not.toContain("open('agentAshes')")
   expect(source).not.toContain('href="/agents/gitlawb"')

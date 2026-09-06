@@ -86,20 +86,20 @@ export default function CliConnectClient({ linkId }: { linkId: string }) {
       <StoneFrame isMobile={false} maxWidth={520}>
         <div style={{ padding: '24px 28px' }}>
           <h1 style={{ margin: '0 0 8px', fontSize: 24, color: '#e8d5a3', textAlign: 'center' }}>
-            Connect CLI
+            Connect your coding agent
           </h1>
           <p style={{ margin: '0 0 14px', fontSize: 13, color: '#aaa9a0', textAlign: 'center', lineHeight: 1.6 }}>
-            Approve a live `/bury` link request from your agent. This page only confirms browser access; the token is claimed outside the site.
+            Approve your coding agent’s request to create burial records under your GitHub account. Your agent will continue after you approve.
           </p>
 
           <InsetBlock>
             {!hasLinkRequest ? (
               <div style={{ textAlign: 'center', color: '#8a8980', fontSize: 13, lineHeight: 1.6 }}>
-                Start `/bury` in your terminal first. The CLI will open this page again with a live link request.
+                Ask your coding agent to follow the instructions at vibecemetery.app. It will give you a fresh approval link.
               </div>
             ) : !claimToken ? (
               <div style={{ textAlign: 'center', color: '#c87868', fontSize: 13, lineHeight: 1.6 }}>
-                This link request is missing approval proof. Restart `/bury` and open the fresh link.
+                This link request is missing approval proof. Ask your coding agent for a fresh approval link.
               </div>
             ) : status === 'loading' ? (
               <div style={{ textAlign: 'center', color: '#8a8980', fontSize: 13 }}>
@@ -122,7 +122,7 @@ export default function CliConnectClient({ linkId }: { linkId: string }) {
                   Link request approved.
                 </div>
                 <div style={{ color: '#8a8980', fontSize: 13, lineHeight: 1.6 }}>
-                  Return to your agent. If it started this request, it can claim the token exactly once.
+                  Return to your coding agent to continue the burial.
                 </div>
               </div>
             ) : (
@@ -131,7 +131,7 @@ export default function CliConnectClient({ linkId }: { linkId: string }) {
                   Signed in as <span style={{ color: '#e8d5a3' }}>{session.user.github_username}</span>
                 </div>
                 <StoneButton onClick={handleApprove} disabled={submitting}>
-                  {submitting ? 'Approving...' : 'Approve CLI Access'}
+                  {submitting ? 'Approving...' : 'Approve Agent Access'}
                 </StoneButton>
               </div>
             )}

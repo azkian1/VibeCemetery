@@ -33,7 +33,7 @@ export function insertOutcomeResponse<T>(
   }
 
   if (insertOutcome.status === 'failed') {
-    return NextResponse.json({ error: 'Failed to create grave' }, { status: 500 })
+    return NextResponse.json({ error: 'Burial service unavailable. Please try again later.' }, { status: 503 })
   }
 
   if (insertOutcome.status === 'user_slots_exhausted') {

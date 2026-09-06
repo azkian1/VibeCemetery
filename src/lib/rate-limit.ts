@@ -16,7 +16,16 @@ const MAX_BUCKETS = 5000;
 const CLEANUP_INTERVAL = 60_000;
 let lastCleanup = Date.now();
 
+function isLocalPlaywrightE2ERuntime(): boolean {
+  return process.env.PLAYWRIGHT_E2E === '1' && process.env.NODE_ENV !== 'production';
+}
+
 function getUpstashConfig() {
+  // Next loads .env.local itself after Playwright supplies webServer.env.
+  // Keep browser E2E hermetic even when a developer has shared Upstash
+  // credentials locally; production is never allowed to take this path.
+  if (isLocalPlaywrightE2ERuntime()) return null;
+
   const url = process.env.UPSTASH_REDIS_REST_URL?.trim();
   const token = process.env.UPSTASH_REDIS_REST_TOKEN?.trim();
   return url && token ? { url: url.replace(/\/+$/, ''), token } : null;
@@ -64,17 +73,32 @@ const memoryStore: RateLimitStore = {
   },
 };
 
-async function upstashCommand<T>(path: string): Promise<T> {
+// Keep the counter and its expiry in one Redis operation. Repair counters left
+// without a TTL by the previous INCR/PEXPIRE implementation, without extending
+// healthy fixed windows on subsequent requests.
+const RATE_LIMIT_SCRIPT = `
+local count = redis.call('INCR', KEYS[1])
+local ttl = redis.call('PTTL', KEYS[1])
+if ttl < 0 then
+  redis.call('PEXPIRE', KEYS[1], ARGV[1])
+  ttl = tonumber(ARGV[1])
+end
+return {count, ttl}
+`;
+
+async function upstashCommand(command: (string | number)[]): Promise<unknown> {
   const config = getUpstashConfig();
   if (!config) {
     throw new Error('Upstash config missing');
   }
 
-  const response = await fetch(`${config.url}${path}`, {
+  const response = await fetch(config.url, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${config.token}`,
+      'Content-Type': 'application/json',
     },
+    body: JSON.stringify(command),
     cache: 'no-store',
   });
 
@@ -82,22 +106,27 @@ async function upstashCommand<T>(path: string): Promise<T> {
     throw new Error(`Upstash rate limit request failed with ${response.status}`);
   }
 
-  const json = await response.json() as { result?: T };
-  return json.result as T;
+  const json: unknown = await response.json();
+  if (!json || typeof json !== 'object' || 'error' in json || !('result' in json)) {
+    throw new Error('Invalid Upstash rate limit response');
+  }
+  return json.result;
 }
 
 const upstashStore: RateLimitStore = {
   async check(key, maxRequests, windowMs) {
-    const encodedKey = encodeURIComponent(key);
-    const count = await upstashCommand<number>(`/incr/${encodedKey}`);
-
-    if (count === 1) {
-      await upstashCommand<number>(`/pexpire/${encodedKey}/${windowMs}`);
+    const result = await upstashCommand(['EVAL', RATE_LIMIT_SCRIPT, 1, key, windowMs]);
+    if (
+      !Array.isArray(result) || result.length !== 2
+      || !Number.isSafeInteger(result[0]) || result[0] < 1
+      || !Number.isSafeInteger(result[1]) || result[1] < 0
+    ) {
+      throw new Error('Invalid Upstash rate limit counter or TTL');
     }
+    const [count, ttl] = result;
 
     if (count > maxRequests) {
-      const ttl = await upstashCommand<number>(`/pttl/${encodedKey}`);
-      return { allowed: false, retryAfterMs: ttl > 0 ? ttl : windowMs };
+      return { allowed: false, retryAfterMs: Math.max(1, ttl) };
     }
 
     return { allowed: true };

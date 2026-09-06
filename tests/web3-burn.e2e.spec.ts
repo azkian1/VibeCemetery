@@ -1,3 +1,4 @@
+import { serveLocalCemeteryAssets } from './fixtures/cemetery-assets'
 import { expect, test } from '@playwright/test'
 import { encodeFunctionResult, multicall3Abi } from 'viem'
 
@@ -17,6 +18,7 @@ const encodedMulticallBalance = encodeFunctionResult({
 })
 
 test('injected wallet completes a stubbed verified Map v1 burn offering', async ({ page }) => {
+  await serveLocalCemeteryAssets(page)
   await page.addInitScript(({ walletAddress, hash, signed, balanceResult }) => {
     let chainId = '0x1'
     let connected = false
@@ -238,6 +240,7 @@ test('injected wallet completes a stubbed verified Map v1 burn offering', async 
 })
 
 test('4001 clears safely while a lost broadcast response survives reload and auto-recovers', async ({ page }) => {
+  await serveLocalCemeteryAssets(page)
   const recoveryIntentId = '33333333-3333-4333-8333-333333333333'
   await page.addInitScript(({ walletAddress, hash, signed, balanceResult }) => {
     let chainId = '0x2105'

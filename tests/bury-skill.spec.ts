@@ -5,7 +5,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSyn
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 
-const helperPath = `${process.cwd().replace(/\\/g, '/')}/SKILL/skills/bury-workflow/scripts/bury-helper.mjs`
+const helperPath = `${process.cwd().replace(/\\/g, '/')}/src/agent/burial-helper.mjs`
 const detectionFixtures = JSON.parse(
   readFileSync(`${process.cwd()}/tests/fixtures/bury-detection-fixtures.json`, 'utf8'),
 )
@@ -27,7 +27,7 @@ test.describe('bury skill helpers', () => {
     })
 
     expect(paths.configPath).toBe('C:\\Users\\example\\AppData\\Roaming\\Claude\\vibecemetery\\bury.json')
-    expect(paths.registryPath).toBe('C:\\Users\\example\\AppData\\Roaming\\Claude\\vibecemetery\\cremated-registry.json')
+    expect(paths.registryPath).toBe('C:\\Users\\example\\AppData\\Roaming\\Claude\\vibecemetery\\buried-registry.json')
   })
 
   test('keeps only sanitized github remotes', async () => {
@@ -83,7 +83,7 @@ test.describe('bury skill helpers', () => {
         path: 'C:/Users/example/Desktop/Projects/_ARCHIVE/../_ARCHIVE/LegacyApp',
         git_remote: 'https://user:token@github.com/example-owner/legacy-app.git',
         first_commit: '5a380e438ab0887c70b37908fd1ccc7ea690872e',
-        cremated_at: '2026-03-16',
+        buried_at: '2026-03-16',
         cause: 'Lost interest',
       },
     ])
@@ -94,35 +94,75 @@ test.describe('bury skill helpers', () => {
         path_fingerprint: `sha256:${createHash('sha256').update(canonicalLegacyPath).digest('hex')}`,
         git_remote: 'github.com/example-owner/legacy-app',
         first_commit: '5a380e438ab0887c70b37908fd1ccc7ea690872e',
-        cremated_at: '2026-03-16',
+        buried_at: '2026-03-16',
         cause: 'Lost interest',
       },
     ])
+    expect(normalizeRegistryEntries(entries)).toEqual(entries)
   })
 
-  test('sanitizes github_url before building cremation payloads', async () => {
-    const { buildCremationBody } = await loadHelper()
+  test('local burial payload excludes repository links and enforces an explicit field allowlist', async () => {
+    const { buildBurialBody } = await loadHelper()
+    const payload = { name: 'Local project', cause: 'Retired', project_key: 'sha256:' + 'a'.repeat(64), secret: 'not for publication', raw_path: 'C:/private' }
+    expect(buildBurialBody(payload)).toEqual({ name: payload.name, cause: payload.cause, project_key: payload.project_key, source: 'local', map_version: 'v1' })
+    expect(() => buildBurialBody({ ...payload, github_url: 'https://github.com/owner/repo' })).toThrow()
+  })
 
-    expect(buildCremationBody({
-      name: 'LegacyApp',
-      cause: 'Lost interest',
-      github_url: 'https://user:token@github.com/example-owner/legacy-app.git',
-      last_commit_message: 'final commit',
-    })).toEqual({
-      name: 'LegacyApp',
-      cause: 'Lost interest',
-      github_url: 'https://github.com/example-owner/legacy-app',
-      last_commit_message: 'final commit',
-    })
+  test('limits API fields and rejects missing identity before any network request', async () => {
+    const { buildBurialBody, sendBurial } = await loadHelper()
+    const body = buildBurialBody({ name: 'x'.repeat(110), cause: 'c'.repeat(220),
+      project_key: `sha256:${'b'.repeat(64)}`, last_commit_message: 'm'.repeat(520) })
+    expect(body.name).toHaveLength(100)
+    expect(body.cause).toHaveLength(200)
+    expect(body.last_commit_message).toHaveLength(500)
+    let fetched = false
+    await expect(sendBurial({ name: 'Project', cause: 'Retired' }, 'test-token', () => { fetched = true }))
+      .rejects.toThrow('project_key')
+    expect(fetched).toBe(false)
+  })
 
-    expect(buildCremationBody({
-      name: 'LegacyApp',
-      cause: 'Lost interest',
-      github_url: 'https://github.com/example-owner/legacy-app/issues/1',
-    })).toEqual({
-      name: 'LegacyApp',
-      cause: 'Lost interest',
-    })
+  test('identity survives clone moves with the same remote and separates shared templates', async () => {
+    const { computeProjectKey } = await loadHelper()
+    const original = { git_remote: 'https://github.com/Owner/Repo.git', path_fingerprint: `sha256:${'a'.repeat(64)}` }
+    expect(computeProjectKey(original)).toBe(computeProjectKey({ ...original,
+      git_remote: 'git@github.com:owner/repo.git', path_fingerprint: `sha256:${'b'.repeat(64)}` }))
+    expect(computeProjectKey(original)).toBe(computeProjectKey({
+      git_remote: 'github.com/owner/repo', path_fingerprint: `sha256:${'c'.repeat(64)}` }))
+    expect(computeProjectKey({ ...original, git_remote: '', first_commit: 'same-template' }))
+      .not.toBe(computeProjectKey({ git_remote: '', first_commit: 'same-template', path_fingerprint: `sha256:${'b'.repeat(64)}` }))
+  })
+
+  test('preserves 403 and temporary 429 details, retry time and successful record identity', async () => {
+    const { sendBurial } = await loadHelper()
+    const payload = { name: 'Project', cause: 'Retired', project_key: `sha256:${'a'.repeat(64)}` }
+    const responses = [
+      Response.json({ error: 'You can only bury your own GitHub repositories', code: 'REPO_NOT_ELIGIBLE' }, { status: 403 }),
+      Response.json({ error: 'Too many verification attempts' }, { status: 429, headers: { 'Retry-After': '30' } }),
+      Response.json({ id: '00000000-0000-4000-8000-000000000123', name: 'Project' }, { status: 201 }),
+      Response.json({ id: '00000000-0000-4000-8000-000000000123', name: 'Project' }, { status: 200 }),
+    ]
+    const bodies: string[] = []
+    const fetchMock = async (url: string, options: RequestInit) => {
+      expect(url).toBe('https://vibecemetery.app/api/graves')
+      expect(options.signal).toBeInstanceOf(AbortSignal)
+      expect(options.redirect).toBe('error')
+      bodies.push(String(options.body))
+      return responses.shift()!
+    }
+    expect(await sendBurial(payload, 'test-token', fetchMock)).toMatchObject({ status: 403, ok: false, code: 'REPO_NOT_ELIGIBLE', error: 'You can only bury your own GitHub repositories' })
+    expect(await sendBurial(payload, 'test-token', fetchMock)).toMatchObject({ status: 429, ok: false, code: null, retry_after_seconds: 30 })
+    expect(await sendBurial(payload, 'test-token', fetchMock)).toMatchObject({ status: 201, ok: true, record_id: '00000000-0000-4000-8000-000000000123', replayed: false })
+    expect(await sendBurial(payload, 'test-token', fetchMock)).toMatchObject({ status: 200, ok: true, record_id: '00000000-0000-4000-8000-000000000123', replayed: true })
+    expect(new Set(bodies).size).toBe(1)
+  })
+
+  test('does not report malformed success or an uncertain network outcome as buried', async () => {
+    const { sendBurial } = await loadHelper()
+    const payload = { name: 'Project', cause: 'Retired', project_key: `sha256:${'a'.repeat(64)}` }
+    expect(await sendBurial(payload, 'test-token', async () => new Response('<html>gateway</html>', { status: 201 })))
+      .toMatchObject({ status: 201, ok: false, record_id: null })
+    expect(await sendBurial(payload, 'test-token', async () => { throw new Error('network failed') }))
+      .toMatchObject({ status: 0, ok: false, code: 'NETWORK_ERROR' })
   })
 
   test('strips UTF-8 BOM before parsing JSON config text', async () => {
@@ -161,6 +201,7 @@ test.describe('bury skill helpers', () => {
     const { classifyProjectRootEntries } = await loadHelper()
 
     expect(classifyProjectRootEntries(detectionFixtures[3].entries)).toMatchObject(detectionFixtures[3].expected)
+    expect(classifyProjectRootEntries([{ name: '.git', type: 'file' }])).toMatchObject({ isCandidate: true, strongMatches: ['.git'] })
   })
 
   test('prefers the scan path itself when it already looks like a project', async () => {
@@ -213,7 +254,7 @@ test.describe('bury skill helpers', () => {
     ])
   })
 
-  test('detects a direct-path project from the filesystem and marks it cremated by path fingerprint', async () => {
+  test('detects a direct-path project from the filesystem and marks it buried by path fingerprint', async () => {
     const { computePathFingerprint, detectProjectCandidates } = await loadHelper()
     const fixtureRoot = mkdtempSync(path.join(tmpdir(), 'bury-direct-root-'))
 
@@ -228,14 +269,14 @@ test.describe('bury skill helpers', () => {
           path_fingerprint: computePathFingerprint(fixtureRoot),
           git_remote: '',
           first_commit: '',
-          cremated_at: '2026-04-15',
-          cause: 'Already cremated',
+          buried_at: '2026-04-15',
+          cause: 'Already buried',
         }],
       })).toEqual([
         expect.objectContaining({
           path: fixtureRoot,
           name: path.basename(fixtureRoot),
-          status: 'Cremated',
+          status: 'Buried',
           path_fingerprint: computePathFingerprint(fixtureRoot),
           classification: expect.objectContaining({
             isCandidate: true,
@@ -353,24 +394,11 @@ test.describe('bury skill helpers', () => {
     })
   })
 
-  test('builds selection prompt with selectable rows only and no all shortcut', async () => {
-    const { buildSelectionPromptModel } = await loadHelper()
-
-    const model = buildSelectionPromptModel([
-      { name: '18scenario_generator', status: 'Untracked' },
-      { name: 'DemoMini', status: 'Cremated' },
-      { name: 'Puzzle', status: 'Dead' },
-      { name: 'DemoBot', status: 'Cremated' },
-      { name: 'Transcript', status: 'Untracked' },
-    ])
-
-    expect(model.selectableRows.map((row: { index: number; name: string }) => ({ index: row.index, name: row.name }))).toEqual([
-      { index: 1, name: '18scenario_generator' },
-      { index: 2, name: 'Puzzle' },
-      { index: 3, name: 'Transcript' },
-    ])
-    expect(model.crematedRows.map((row: { name: string }) => row.name)).toEqual(['DemoMini', 'DemoBot'])
-    expect(model.acceptedReplies).toEqual(['1,2,3', 'all dead'])
+  test('local burial payload excludes repository links and enforces explicit field allowlist', async () => {
+    const { buildBurialBody } = await loadHelper()
+    const payload = { name: 'Local project', cause: 'Retired', project_key: 'sha256:' + 'a'.repeat(64), secret: 'not for publication', raw_path: 'C:/private' }
+    expect(buildBurialBody(payload)).toEqual({ name: payload.name, cause: payload.cause, project_key: payload.project_key, source: 'local', map_version: 'v1' })
+    expect(() => buildBurialBody({ ...payload, github_url: 'https://github.com/owner/repo' })).toThrow()
   })
 
   test('omits all dead reply when there are no selectable dead projects', async () => {
@@ -473,6 +501,12 @@ test.describe('bury skill helpers', () => {
         name: path.basename(fixtureRoot),
         status: 'Dead',
       })
+      writeFileSync(path.join(fixtureRoot, 'package.json'), '{"name":"still-working"}')
+      expect(inspectProject(fixtureRoot)).toMatchObject({ status: 'Alive', has_local_changes: true })
+      execFileSync('git', ['checkout', '--', 'package.json'], { cwd: fixtureRoot, stdio: 'ignore' })
+      writeFileSync(path.join(fixtureRoot, 'new-file.ts'), 'export const active = true')
+      expect(inspectProject(fixtureRoot)).toMatchObject({ status: 'Alive', has_local_changes: true })
+
     } finally {
       rmSync(fixtureRoot, { recursive: true, force: true })
     }
@@ -550,11 +584,11 @@ test.describe('bury skill helpers', () => {
   })
 
   test('workflow requires inspect-project helper instead of direct git -C commands', () => {
-    const workflow = readFileSync(`${process.cwd()}/SKILL/skills/bury-workflow/SKILL.md`, 'utf8')
-    const helper = readFileSync(`${process.cwd()}/SKILL/skills/bury-workflow/scripts/bury-helper.mjs`, 'utf8')
+    const workflow = readFileSync(`${process.cwd()}/src/lib/agent-instructions.ts`, 'utf8')
+    const helper = readFileSync(`${process.cwd()}/src/agent/burial-helper.mjs`, 'utf8')
 
-    expect(workflow).toContain('inspect-project')
-    expect(workflow).toContain('Never run `git -C` directly')
+    expect(workflow).toContain('helper.inspectProject(candidate.path)')
+    expect(workflow).toContain('Do not run code, builds, hooks or package scripts')
     expect(workflow).not.toContain('git -C "<path>"')
     expect(helper).toContain('resolveTrustedGitBinary')
     expect(helper).not.toContain("execFileSync('git'")

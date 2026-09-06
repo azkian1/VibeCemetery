@@ -8,7 +8,9 @@ export interface GraveData {
   description: string | null;
   stack: string | null;
   github_url: string | null;
-  github_repo_id: number;
+  github_repo_id: number | null;
+  map_version?: 'v1' | 'v2';
+  source?: 'github' | 'local';
   author_github: string | null;
   slot_id: number;
   tier: number;
@@ -16,23 +18,11 @@ export interface GraveData {
   last_commit_message?: string;
 }
 
-export interface CrematedData {
-  id: number;
-  name: string;
-  cause: string;
-  author_github: string;
-  created_at: string;
-  github_url?: string | null;
-  last_commit_message?: string | null;
-  source: 'github' | 'skill';
-}
-
 export interface BuryResult {
   name: string;
   success: boolean;
-  type: 'grave' | 'cremated';
+  type: 'grave';
   grave?: GraveData;
-  cremated?: CrematedData;
   error?: string;
 }
 

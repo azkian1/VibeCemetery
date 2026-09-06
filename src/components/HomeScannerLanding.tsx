@@ -1,17 +1,51 @@
 'use client';
 
 import Link from 'next/link';
+import { AGENT_INSTRUCTIONS_PATH, AGENT_INSTRUCTIONS_TITLE, AGENT_INSTRUCTIONS_SUBTITLE } from '@/lib/agent-instructions';
+import { useAccountGraves } from '@/hooks/useAccountGraves';
 import { useEffect, useState } from 'react';
 import { signIn, useSession } from 'next-auth/react';
 import { GameProvider, useModal } from '@/context/GameContext';
 import { useGame } from '@/context/GameContext';
-import { GameDataLoaders, ModalLayer } from '@/components/CemeteryApp';
+import { ModalLayer } from '@/components/CemeteryApp';
 import { calculateUserSlotEconomy, isAutoAssignableGraveSlotType } from '@/lib/slot-economy';
 import type { BuryFlowMode } from '@/components/modals/BuryFlowModal';
-import type { CrematedData, DeadRepo, GitHubScanResult, GraveData } from '@/types/game';
+import type { DeadRepo, GitHubScanResult, GraveData } from '@/types/game';
 import type { SlotPositionData } from '@/game/events';
 
 const AUTH_GATE_COPY = 'Connect GitHub to scan and bury your own repos.';
+
+interface HomeMapSlotObject {
+  id: number;
+  type: string;
+  name?: string;
+  x?: number;
+  y?: number;
+  width?: number;
+  height?: number;
+}
+
+interface HomeMapData {
+  layers?: Array<{
+    name?: string;
+    objects?: HomeMapSlotObject[];
+  }>;
+}
+
+export function extractHomeSlotPositions(map: HomeMapData | null): SlotPositionData[] {
+  const objects = map?.layers?.find((layer) => layer.name === 'slots')?.objects ?? [];
+  return objects
+    .filter((slot) => slot.type?.startsWith('grave'))
+    .map((slot) => ({
+      id: slot.id,
+      type: slot.type,
+      name: slot.name ?? '',
+      x: slot.x ?? 0,
+      y: slot.y ?? 0,
+      width: slot.width ?? 0,
+      height: slot.height ?? 0,
+    }));
+}
 
 export function formatLastPushAge(value: string, now = new Date()): string {
   const pushedAt = new Date(value);
@@ -24,26 +58,17 @@ export function formatLastPushAge(value: string, now = new Date()): string {
 export function filterFreshDeadRepos({
   repos,
   graves,
-  cremated,
-  username,
 }: {
   repos: DeadRepo[];
   graves: Map<number, GraveData>;
-  cremated: CrematedData[];
   username: string | null;
 }): DeadRepo[] {
   const buriedRepoIds = new Set<number>();
-  graves.forEach((grave) => buriedRepoIds.add(grave.github_repo_id));
+  graves.forEach((grave) => { if (grave.github_repo_id != null) buriedRepoIds.add(grave.github_repo_id); });
 
-  const crematedNames = new Set(
-    cremated
-      .filter((item) => !username || item.author_github.toLowerCase() === username.toLowerCase())
-      .map((item) => item.name.toLowerCase()),
-  );
 
   return repos.filter((repo) => {
     if (buriedRepoIds.has(repo.id)) return false;
-    if (crematedNames.has(repo.name.toLowerCase())) return false;
     return true;
   });
 }
@@ -74,10 +99,8 @@ export function calculateAvailableGraveSlotsForHome({
   return calculateUserSlotEconomy({ slotsUsed, hasSharedFirstGrave }).availableSlots;
 }
 
-export function decideHomeRepoAction(availableSlots: number): { label: 'Bury' | 'Cremate'; flowMode: BuryFlowMode } {
-  return availableSlots > 0
-    ? { label: 'Bury', flowMode: 'home-preselected-burial' }
-    : { label: 'Cremate', flowMode: 'home-preselected-cremation' };
+export function decideHomeRepoAction(availableSlots: number): { label: string; flowMode: BuryFlowMode; disabled: boolean } {
+  return { label: availableSlots > 0 ? 'Bury' : 'No grave slots left', flowMode: 'home-preselected-burial', disabled: availableSlots <= 0 };
 }
 
 export function shouldShowHomeScannerChrome(repos: DeadRepo[] | null): boolean {
@@ -87,17 +110,10 @@ export function shouldShowHomeScannerChrome(repos: DeadRepo[] | null): boolean {
 function ScannerShell() {
   const { data: session, status } = useSession();
   const { open } = useModal();
-  const { state, dispatch } = useGame();
+  const { dispatch } = useGame();
   const authenticatedUsername = session?.user?.github_username ?? null;
-  const hasSharedFirstGrave = Boolean(session?.user?.x_first_grave_shared_at);
-  const [mapSlotsLoading, setMapSlotsLoading] = useState(true);
-  const recordsLoading = state.gravesLoading || state.crematedLoading || mapSlotsLoading;
-  const availableGraveSlots = calculateAvailableGraveSlotsForHome({
-    graves: state.graves,
-    username: authenticatedUsername,
-    hasSharedFirstGrave,
-    slotPositions: state.slotPositions,
-  });
+  const account = useAccountGraves();
+  const availableGraveSlots = account.data?.availableSlots ?? 0;
   const repoAction = decideHomeRepoAction(availableGraveSlots);
   const [isCompactViewport, setIsCompactViewport] = useState(false);
   const [repos, setRepos] = useState<DeadRepo[] | null>(null);
@@ -105,43 +121,6 @@ function ScannerShell() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const showScannerChrome = shouldShowHomeScannerChrome(repos);
-
-  useEffect(() => {
-    if (state.slotPositions.length > 0) {
-      setMapSlotsLoading(false);
-      return;
-    }
-
-    let cancelled = false;
-    fetch('/map/az.tmj')
-      .then((res) => res.ok ? res.json() : null)
-      .then((map: { layers?: Array<{ name?: string; objects?: Array<{ id: number; type: string; name?: string; x?: number; y?: number; width?: number; height?: number }> }> } | null) => {
-        if (cancelled) return;
-        const objects = map?.layers?.find((layer) => layer.name === 'slots')?.objects ?? [];
-        dispatch({
-          type: 'SET_SLOT_POSITIONS',
-          slots: objects
-            .filter((slot) => slot.type?.startsWith('grave'))
-            .map((slot) => ({
-              id: slot.id,
-              type: slot.type,
-              name: slot.name ?? '',
-              x: slot.x ?? 0,
-              y: slot.y ?? 0,
-              width: slot.width ?? 0,
-              height: slot.height ?? 0,
-            })),
-        });
-      })
-      .catch(() => {
-        if (!cancelled) setMessage('The grave slot map could not be loaded. Slot routing may be delayed.');
-      })
-      .finally(() => {
-        if (!cancelled) setMapSlotsLoading(false);
-      });
-
-    return () => { cancelled = true; };
-  }, [dispatch, state.slotPositions.length]);
 
   useEffect(() => {
     const updateViewport = () => setIsCompactViewport(window.innerWidth < 640);
@@ -158,27 +137,45 @@ function ScannerShell() {
       return;
     }
 
-    if (recordsLoading) {
-      setMessage('Opening cemetery ledger before scanning...');
-      return;
-    }
-
     setLoading(true);
     setMessage(null);
     setRepos(null);
 
     try {
-      const res = await fetch(`/api/github/scan?username=${encodeURIComponent(authenticatedUsername)}`);
-      const data = await res.json().catch(() => null) as GitHubScanResult | { error?: string } | null;
-      if (!res.ok) {
-        setMessage(data && 'error' in data && data.error ? data.error : `Scan failed (${res.status})`);
+      const username = encodeURIComponent(authenticatedUsername);
+      const [scanRes, gravesRes, mapRes] = await Promise.all([
+        fetch(`/api/github/scan?username=${username}`),
+        fetch('/api/graves/account'),
+        fetch('/map/az.tmj'),
+      ]);
+      const data = await scanRes.json().catch(() => null) as GitHubScanResult | { error?: string } | null;
+      if (!scanRes.ok) {
+        setMessage(data && 'error' in data && data.error ? data.error : `Scan failed (${scanRes.status})`);
         return;
       }
+      if (!gravesRes.ok || !mapRes.ok) {
+        setMessage('The cemetery ledger could not be loaded. Please try again.');
+        return;
+      }
+
+      const [accountRows, map] = await Promise.all([
+        gravesRes.json() as Promise<{ graves: GraveData[] }>,
+        mapRes.json() as Promise<HomeMapData>,
+      ]);
+      const slotPositions = extractHomeSlotPositions(map);
+      if (slotPositions.length === 0) {
+        setMessage('The cemetery slot map could not be loaded. Please try again.');
+        return;
+      }
+      const graves = new Map<number, GraveData>();
+      for (const grave of accountRows.graves.filter(g => g.map_version !== 'v2')) graves.set(grave.slot_id, grave);
+      dispatch({ type: 'SET_GRAVES', graves });
+      dispatch({ type: 'SET_SLOT_POSITIONS', slots: slotPositions });
+
       const scan = data as GitHubScanResult;
       setRepos(filterFreshDeadRepos({
         repos: scan.dead_repos,
-        graves: state.graves,
-        cremated: state.cremated,
+        graves: new Map(accountRows.graves.map((grave, index) => [index, grave])),
         username: authenticatedUsername,
       }));
       setTotalRepos(scan.total_repos);
@@ -228,10 +225,10 @@ function ScannerShell() {
                 <button
                   type="button"
                   onClick={() => { void runScan(); }}
-                  disabled={loading || status === 'loading' || recordsLoading}
+                  disabled={loading || status === 'loading'}
                   style={{ border: '1px solid #6a3020', borderRadius: 12, background: loading ? '#3a2520' : 'linear-gradient(180deg, #7a2a24 0%, #421512 100%)', color: '#f4dfaa', padding: '16px 18px', fontWeight: 700, letterSpacing: 1, cursor: loading ? 'wait' : 'pointer', fontFamily: 'inherit', fontSize: 15, boxShadow: '0 0 28px rgba(122,42,36,0.25)' }}
                 >
-                  {loading ? 'Scanning GitHub...' : recordsLoading ? 'Opening Ledger...' : authenticatedUsername ? `Scan @${authenticatedUsername}` : 'Scan GitHub'}
+                  {loading ? 'Scanning GitHub...' : authenticatedUsername ? `Scan @${authenticatedUsername}` : 'Scan GitHub'}
                 </button>
               </div>
             </>
@@ -239,13 +236,19 @@ function ScannerShell() {
 
           {showScannerChrome && (
             <div style={{ display: 'grid', gap: 10, marginTop: 14 }}>
-              <Link href="/cemetery" style={enterCemeteryLinkStyle}>Enter Cemetery</Link>
+              <Link href="/cemetery" style={enterCemeteryLinkStyle}>Explore the cemetery</Link>
             </div>
           )}
 
           {showScannerChrome && (
             <p style={{ margin: '16px 0 0', color: '#777168', fontSize: 12, fontFamily: "var(--font-geist-sans), Arial, sans-serif" }}>Dead repos = non-forks inactive for 7+ days. Only your connected GitHub can be scanned.</p>
           )}
+          <div style={{ marginTop: 22, paddingTop: 18, borderTop: '1px solid rgba(232,213,163,0.12)' }}>
+            <a href={AGENT_INSTRUCTIONS_PATH} style={{ color: '#b7c4cf', fontSize: 14, textUnderlineOffset: 4 }}>
+              {AGENT_INSTRUCTIONS_TITLE} ↗
+            </a>
+            <p style={{ margin: '7px 0 0', color: '#9a9386', fontSize: 12, fontFamily: "var(--font-geist-sans), Arial, sans-serif" }}>{AGENT_INSTRUCTIONS_SUBTITLE}</p>
+          </div>
           {message && <p style={{ margin: '14px 0 0', color: '#c78373', fontSize: 13, fontFamily: "var(--font-geist-sans), Arial, sans-serif" }}>{message}</p>}
 
           {repos && (
@@ -263,7 +266,7 @@ function ScannerShell() {
                             <p style={repoMetaStyle}>Language: {repo.language ?? 'Unknown'}</p>
                             <p style={repoMetaStyle}>Status: Dead</p>
                           </div>
-                          <button type="button" onClick={() => open('bury', { initialDeadRepos: [repo], flowMode: repoAction.flowMode })} style={{ ...navButtonStyle, color: repoAction.flowMode === 'home-preselected-burial' ? '#e8d5a3' : '#e8b8a3' }}>{repoAction.label}</button>
+                          <button type="button" disabled={repoAction.disabled || account.loading} onClick={() => open('bury', { initialDeadRepos: [repo], flowMode: repoAction.flowMode })} style={{ ...navButtonStyle, color: repoAction.flowMode === 'home-preselected-burial' ? '#e8d5a3' : '#e8b8a3' }}>{repoAction.label}</button>
                         </div>
                       </article>
                     ))}
@@ -273,7 +276,7 @@ function ScannerShell() {
                 <div style={{ border: '1px solid #34302a', padding: 16, background: 'rgba(13,12,11,0.64)' }}>
                   <h2 style={{ margin: '0 0 8px', fontSize: 18 }}>No suitable projects found.</h2>
                   <p style={{ ...repoMetaStyle, marginBottom: 14 }}>You do not have eligible projects to bury right now. A repo must be inactive for 7+ days and not be a fork. Scanned {totalRepos} non-fork repo{totalRepos === 1 ? '' : 's'}.</p>
-                  <Link href="/cemetery" style={secondaryLinkStyle}>Enter Cemetery</Link>
+                  <Link href="/cemetery" style={secondaryLinkStyle}>Explore the cemetery</Link>
                 </div>
               )}
             </section>
@@ -321,7 +324,6 @@ const repoMetaStyle: React.CSSProperties = {
 export default function HomeScannerLanding() {
   return (
     <GameProvider>
-      <GameDataLoaders />
       <ScannerShell />
     </GameProvider>
   );

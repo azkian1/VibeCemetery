@@ -1,0 +1,2 @@
+# Keep published helper bytes identical on Windows and Linux.
+/src/agent/burial-helper.mjs text eol=lf
