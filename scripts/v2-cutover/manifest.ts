@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import { GRAVE_GIDS_V2 } from '../../src/game/utils/tileRegistry-v2.ts'
-import { inferGraveSlotTypeV2 } from '../../src/lib/map-layout-v2.ts'
+import { inferGraveSlotTypeV2, isActiveGraveSlotV2 } from '../../src/lib/map-layout-v2.ts'
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 export const TABLES = ['graves', 'f_votes', 'grave_burn_intents', 'grave_burns', 'users'] as const
@@ -69,7 +69,7 @@ export function readSlots(mapText: string): Slot[] {
   const slots: Slot[] = []
   const ids = new Set<number>()
   for (const obj of layer.objects) {
-    if (obj.gid || obj.type === 'meta_grave' || obj.type === 'grave_special') continue
+    if (!isActiveGraveSlotV2(obj.id) || obj.gid || obj.type === 'meta_grave' || obj.type === 'grave_special') continue
     const type = inferGraveSlotTypeV2(obj.width, obj.height)
     ensure(type, `Unknown v2 slot footprint: ${obj.id}`)
     ensure(Number.isSafeInteger(obj.id) && obj.id > 0 && !ids.has(obj.id), 'Invalid or duplicate v2 slot ID')

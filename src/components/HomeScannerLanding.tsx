@@ -13,7 +13,7 @@ import type { BuryFlowMode } from '@/components/modals/BuryFlowModal';
 import type { DeadRepo, GitHubScanResult, GraveData } from '@/types/game';
 import type { SlotPositionData } from '@/game/events';
 import { CEMETERY_MAP_V2_URL } from '@/lib/map-version';
-import { inferGraveSlotTypeV2 } from '@/lib/map-layout-v2';
+import { inferGraveSlotTypeV2, isActiveGraveSlotV2 } from '@/lib/map-layout-v2';
 
 const AUTH_GATE_COPY = 'Connect GitHub to scan and bury your own repos.';
 
@@ -40,7 +40,7 @@ interface HomeMapData {
 export function extractHomeSlotPositions(map: HomeMapData | null): SlotPositionData[] {
   const layer = map?.layers?.find((layer) => layer.name === 'GraveObj');
   return (layer?.objects ?? [])
-    .filter((slot) => !slot.gid && slot.type !== 'grave_special' && slot.type !== 'meta_grave'
+    .filter((slot) => isActiveGraveSlotV2(slot.id) && !slot.gid && slot.type !== 'grave_special' && slot.type !== 'meta_grave'
       && inferGraveSlotTypeV2(slot.width ?? 0, slot.height ?? 0))
     .map((slot) => ({
       id: slot.id,

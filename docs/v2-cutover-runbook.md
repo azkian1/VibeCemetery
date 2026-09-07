@@ -1,6 +1,6 @@
 # v2 cutover release candidate
 
-Status: local implementation and read-only live preflight complete; Preview publication, production migration and deployment are pending.
+Status: branch published and Preview ready; 144 active slots approved. Local verification and fresh read-only live preflight complete. Production migration and production deployment remain pending.
 Baseline: `af1eab7` (`codex/map2-unification`). Work branch: `codex/v2-cutover`.
 The pre-existing `docs/rekt-product-spec.md` draft is outside this change.
 
@@ -121,3 +121,20 @@ The temporary harness stays in ignored `.local-archive`; its request evidence st
 After the manual review, the full unit suite passed 507/507 and the mocked browser suite passed 18/18. TypeScript, lint and the production build passed again; all 53 client chunks passed the v1-asset audit. No runtime code changes were needed as a result of this review. The loopback review server was reset to the nine original migrated fixtures for the user's own inspection.
 
 Follow-up building corrections: the lodge opens a caretaker notice, the two eastern sprites share one Crematory hitbox, and the main gate and adjacent fence have no interactive slots. The chapel still opens The Crypt. Manual clicks verified the lodge, both crematory wings, chapel, gate and both fence sides; the notice fits at 390px. All 10 focused map tests, TypeScript, lint, build and the updated 54-chunk asset audit passed. Publication remains deferred.
+
+## Authorized release preflight — 2026-09-07
+
+The user subsequently authorized branch publication, production migration/deployment, and retirement after successful verification. The earlier publication deferral no longer applies.
+
+- Published `codex/v2-cutover` at `3f9512b`. [Vercel Preview](https://vercel.com/azats-projects-db37144a/vibecemetery/FphVEwkrohG86fjb4jmPJJAr9bbU) is Ready; the production domain still serves `master` commit `9010b01`.
+- Manually checked the published v2 map, desktop HUD/mobile controls, FAQ, Necropolis with real offering totals, the v1 route alias with preserved query parameters, and the meta memorial. The observed asset inventory contains the v2 TMJ and 74 images, no v1 map/Storage requests, and no browser errors or warnings. Existing grave placement and real writes still require the post-migration checks.
+- A fresh live read-only query confirmed nine v1 graves, zero v2 graves, nine users, seven F votes, seven intents and four burns. Verified raw total remains `25263442113724649798733865`. The database burial gate is still absent.
+- Re-exported all 11 public application tables as raw JSON, preserving exact numeric literals, plus Storage metadata and SHA-256 checksums into the private archive. The SQL schema export includes 153 columns, 13 functions, 57 constraints, indexes, triggers, permissions, policies and Storage metadata. This is a pre-gate backup; repeat the data export and snapshot after closing the gate immediately before migration.
+- The newly added capacity requirements need a map-owner decision before migration: all 144 authored rectangles have unique IDs, supported footprints and no intersections; none are decorative/special objects and none has `zone_id`. The extra 24 therefore represent a difference from the 120-place concept, not duplicate or technical objects. An optional 120-active/24-reserve proposal was prepared privately; it has not changed the runtime. The user was asked whether to approve all 144 current slots or that proposal, and which real repository to use for the controlled production burial.
+- No production database mutation, Storage permission change, real token transfer or production deployment has occurred during this release preflight.
+
+The owner then approved all 144 authored slots, retaining the 666-place master target and reducing the combined future-zone budget to 522. The 120-active/24-reserve proposal is superseded. The audit and shared active-ID catalog are recorded in `docs/v2-slot-audit.md` and `src/lib/map-layout-v2.ts`. A concrete repository for the controlled production burial is still needed.
+
+Validation after pinning the active slots: 508/508 unit tests, then 12/12 focused migration tests including the inherited-privileges regression, 18/18 isolated browser scenarios, TypeScript, lint and production build passed. All 54 client chunks pass the v1 asset audit.
+
+Installed the additive database gate on the verified production project after the private backup. Live checks confirm `burials_paused=false`, `v1_retired=false`, nine unchanged graves, and service-role read access without write access to the gate. The SQL now explicitly revokes inherited service-role table privileges before granting SELECT, so default Supabase ACLs cannot let application credentials reopen it. Migration has not run yet.

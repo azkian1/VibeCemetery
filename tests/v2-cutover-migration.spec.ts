@@ -7,6 +7,7 @@ import { spawnSync } from 'node:child_process'
 import { createManifest, migrationSql, readSlots, rollbackSql, validateManifest, type Snapshot } from '../scripts/v2-cutover/manifest'
 import { getAutoAssignableGraveSlots } from '../src/lib/map-slots'
 import { extractHomeSlotPositions } from '../src/components/HomeScannerLanding'
+import { ACTIVE_GRAVE_SLOT_IDS_V2, ACTIVE_GRAVE_CAPACITY_V2, CEMETERY_MASTER_CAPACITY_V2, isActiveGraveSlotV2 } from '../src/lib/map-layout-v2'
 
 const mapText = readFileSync('public/map/cemetery-v2.tmj', 'utf8')
 const snapshotSql = readFileSync('scripts/v2-cutover/snapshot.sql', 'utf8')
@@ -31,6 +32,7 @@ test.beforeAll(async () => {
   // Historical production fields are not part of the fresh-install users schema.
   await db.exec(`alter table public.users add column id uuid not null default gen_random_uuid();
     alter table public.users add column cremated_count integer default 8;`)
+  await db.exec('alter default privileges in schema public grant all on tables to service_role;')
   await db.exec(gateSql)
 })
 test.afterAll(async () => { await db?.close() })
@@ -75,8 +77,32 @@ test.beforeEach(async () => {
 test('home, server and migration use the same authored v2 slots', () => {
   const expected = getAutoAssignableGraveSlots().map(s => s.id).sort((a, b) => a - b)
   expect(expected).toHaveLength(144)
+  expect(expected).toEqual(ACTIVE_GRAVE_SLOT_IDS_V2)
+  expect(ACTIVE_GRAVE_CAPACITY_V2).toBe(144)
+  expect(CEMETERY_MASTER_CAPACITY_V2).toBe(666)
   expect(readSlots(mapText).map(s => s.id).sort((a, b) => a - b)).toEqual(expected)
   expect(extractHomeSlotPositions(JSON.parse(mapText)).map(s => s.id).sort((a, b) => a - b)).toEqual(expected)
+})
+
+test('future authored slots stay closed until their IDs are explicitly activated', () => {
+  const extendedMap = JSON.parse(mapText)
+  extendedMap.layers.find((layer: { name: string }) => layer.name === 'GraveObj').objects.push({
+    id: 900001, x: 0, y: 0, width: 32, height: 64, type: '', name: '',
+  })
+  expect(isActiveGraveSlotV2(900001)).toBe(false)
+  expect(readSlots(JSON.stringify(extendedMap))).toEqual(readSlots(mapText))
+  expect(extractHomeSlotPositions(extendedMap)).toEqual(extractHomeSlotPositions(JSON.parse(mapText)))
+  const founderSlots = createManifest(snapshot, mapText).placements.map(p => p.new_slot_id)
+  expect(() => createManifest(snapshot, JSON.stringify(extendedMap), [900001, ...founderSlots.slice(1)])).toThrow('reserved or unknown')
+})
+
+test('application credentials can read but cannot reopen the gate despite inherited grants', async () => {
+  const result = await db.query(`select
+    has_table_privilege('service_role','public.cemetery_write_control','SELECT') as can_read,
+    has_table_privilege('service_role','public.cemetery_write_control','INSERT,UPDATE,DELETE,TRUNCATE') as can_write,
+    has_table_privilege('anon','public.cemetery_write_control','SELECT,INSERT,UPDATE,DELETE') as anonymous_access,
+    has_table_privilege('authenticated','public.cemetery_write_control','SELECT,INSERT,UPDATE,DELETE') as signed_in_access`)
+  expect(result.rows).toEqual([{ can_read: true, can_write: false, anonymous_access: false, signed_in_access: false }])
 })
 
 test('manifest is deterministic, excludes occupied slots and covers each UUID', () => {

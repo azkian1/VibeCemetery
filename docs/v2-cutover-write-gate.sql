@@ -7,7 +7,9 @@ create table if not exists public.cemetery_write_control (
 );
 insert into public.cemetery_write_control(singleton) values(true) on conflict do nothing;
 alter table public.cemetery_write_control enable row level security;
-revoke all on public.cemetery_write_control from public, anon, authenticated;
+-- Supabase may grant ALL on new tables to service_role through default ACLs.
+-- Reset those grants too: application credentials may read, never reopen, the gate.
+revoke all on public.cemetery_write_control from public, anon, authenticated, service_role;
 grant select on public.cemetery_write_control to service_role;
 
 create or replace function public.guard_cemetery_burial()

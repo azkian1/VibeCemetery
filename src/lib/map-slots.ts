@@ -2,7 +2,7 @@ import { readFileSync } from 'fs';
 import { join } from 'path';
 import { isAutoAssignableGraveSlotType, isAutoAssignableGraveSlotTypeV2 } from './slot-economy';
 import { CEMETERY_MAP_V2_FILE } from './map-version';
-import { inferGraveSlotTypeV2 } from './map-layout-v2';
+import { inferGraveSlotTypeV2, isActiveGraveSlotV2 } from './map-layout-v2';
 
 interface TmjObject {
   id: number;
@@ -87,7 +87,7 @@ function getGraveSlotsV2(): GraveSlot[] {
 export function getAutoAssignableGraveSlots(mapVersion: string = 'v2'): GraveSlot[] {
   return getGraveSlots(mapVersion).filter((slot) =>
     mapVersion === 'v2'
-      ? isAutoAssignableGraveSlotTypeV2(slot.type)
+      ? isActiveGraveSlotV2(slot.id) && isAutoAssignableGraveSlotTypeV2(slot.type)
       : isAutoAssignableGraveSlotType(slot.type),
   );
 }
@@ -109,7 +109,7 @@ const TIER_BIAS_V2: Record<string, number> = {};
 /**
  * Pick a random free slot for automatic burial.
  * - v1: T0 (`grave`) and T1 (`grave_tall`) — bias ~80/20.
- * - v2: all authored grave footprints participate with equal per-slot odds.
+ * - v2: approved active grave footprints participate with equal per-slot odds.
  */
 export function pickRandomFreeSlot(usedIds: Set<number>, mapVersion: string = 'v2'): GraveSlot | null {
   const allSlots = getAutoAssignableGraveSlots(mapVersion);
