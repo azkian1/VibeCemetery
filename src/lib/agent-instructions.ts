@@ -37,7 +37,7 @@ Text sanitization removes control characters; it does not detect secrets. Before
 
 Use local burial without a GitHub link. If the user wants a linked GitHub repository memorial, direct them to the site scanner, which checks ownership and eligibility. last_commit_message is optional: include it only if the user approved publishing that subject.
 
-Build helper input as { name, cause, project_key, map_version: 'v1' }. The helper sets source: 'local'. It never sends source code or raw paths. Optional approved fields: description (500 characters), stack (up to 20 strings of 50 characters), born_at and died_at (ISO dates), last_commit_message (500 characters). Use known dates only; an unknown date is omitted. last_commit_timestamp can supply died_at. Do not invent a birth date from the first_commit hash.`,
+Build helper input as { name, cause, project_key, map_version: 'v2' }. The helper sets source: 'local'. It never sends source code or raw paths. Optional approved fields: description (500 characters), stack (up to 20 strings of 50 characters), born_at and died_at (ISO dates), last_commit_message (500 characters). Use known dates only; an unknown date is omitted. last_commit_timestamp can supply died_at. Do not invent a birth date from the first_commit hash.`,
   },
   {
     title: '5. Obtain browser approval',

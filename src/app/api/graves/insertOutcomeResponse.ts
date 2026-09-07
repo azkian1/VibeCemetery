@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import type { AtomicInsertWithSlotRetryResult } from './atomicInsertWithSlotRetry'
+import { CEMETERY_BURIALS_PAUSED, CEMETERY_VERSION_RETIRED } from '@/lib/map-version'
 
 export function insertOutcomeResponse<T>(
   insertOutcome: AtomicInsertWithSlotRetryResult<T>,
@@ -33,6 +34,12 @@ export function insertOutcomeResponse<T>(
   }
 
   if (insertOutcome.status === 'failed') {
+    if (insertOutcome.message === CEMETERY_BURIALS_PAUSED.code) {
+      return NextResponse.json(CEMETERY_BURIALS_PAUSED, { status: 503, headers: { 'Retry-After': '60' } })
+    }
+    if (insertOutcome.message === CEMETERY_VERSION_RETIRED.code) {
+      return NextResponse.json(CEMETERY_VERSION_RETIRED, { status: 410 })
+    }
     return NextResponse.json({ error: 'Burial service unavailable. Please try again later.' }, { status: 503 })
   }
 

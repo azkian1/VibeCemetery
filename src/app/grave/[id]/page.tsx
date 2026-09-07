@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { notFound, redirect } from 'next/navigation'
+import { notFound } from 'next/navigation'
 import GraveRedirectClient from './GraveRedirectClient'
 import { buildGraveShareMetadata, buildNoIndexMetadata } from '@/lib/grave-share'
 import { getGraveShareData } from '@/lib/grave-share-server'
@@ -30,7 +30,7 @@ export default async function GravePage({
 }) {
   const { id } = await params
   if (!UUID_RE.test(id)) {
-    redirect('/')
+    notFound()
   }
 
   const result = await getGraveShareData(id)
@@ -39,5 +39,5 @@ export default async function GravePage({
     throw new Error(`Failed to load grave share data: ${result.message}`)
   }
 
-  return <GraveRedirectClient graveId={id} mapVersion={result.grave.map_version} />
+  return <GraveRedirectClient graveId={result.grave.id} />
 }

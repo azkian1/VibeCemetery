@@ -4,7 +4,7 @@ import { PUBLIC_GRAVE_FIELDS } from '@/lib/public-grave'
 import { supabaseAdmin } from '@/lib/supabase'
 import { checkRateLimit } from '@/lib/rate-limit'
 import { getGraveSlots } from '@/lib/map-slots'
-import { parseMapVersion } from '@/lib/map-version'
+import { parseMapVersion, CEMETERY_VERSION_RETIRED } from '@/lib/map-version'
 import { createGravePostHandler } from './writeHandler'
 
 // ---------------------------------------------------------------------------
@@ -18,6 +18,10 @@ export async function GET(req: NextRequest) {
   )
   if (!mapVersion) {
     return NextResponse.json({ error: 'map_version must be one of: v1, v2' }, { status: 400 })
+  }
+
+  if (mapVersion === 'v1') {
+    return NextResponse.json(CEMETERY_VERSION_RETIRED, { status: 410 })
   }
 
   const limitParam = parseInt(searchParams.get('limit') ?? '500', 10)
@@ -36,38 +40,14 @@ export async function GET(req: NextRequest) {
     .order('slot_id', { ascending: true })
     .range(offset, offset + limit - 1)
 
-  // Filter by map_version when column exists; gracefully skip if migration not applied
+  // Cutover requires the migrated v2 schema; database errors must stay visible.
   query = query.eq('map_version', mapVersion)
 
   if (author) {
     query = query.eq('author_github', author)
   }
 
-  let { data, error } = await query
-
-  // Legacy databases predate map_version. Their records belong to map1;
-  // map2 must start empty rather than accidentally rendering those graves
-  // into unrelated Cemetery Map 2.0 slots.
-  if (error && error.message?.includes('map_version')) {
-    if (mapVersion === 'v2') {
-      return NextResponse.json([])
-    }
-
-    let fallbackQuery = supabaseAdmin
-      .from('graves')
-      .select(PUBLIC_GRAVE_FIELDS)
-      .in('slot_id', knownSlotIds)
-      .order('slot_id', { ascending: true })
-      .range(offset, offset + limit - 1)
-
-    if (author) {
-      fallbackQuery = fallbackQuery.eq('author_github', author)
-    }
-
-    const fallback = await fallbackQuery
-    data = fallback.data
-    error = fallback.error
-  }
+  const { data, error } = await query
 
   if (error) {
     return NextResponse.json({ error: 'Failed to fetch graves' }, { status: 500 })

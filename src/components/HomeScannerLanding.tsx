@@ -7,17 +7,20 @@ import { useEffect, useState } from 'react';
 import { signIn, useSession } from 'next-auth/react';
 import { GameProvider, useModal } from '@/context/GameContext';
 import { useGame } from '@/context/GameContext';
-import { ModalLayer } from '@/components/CemeteryApp';
-import { calculateUserSlotEconomy, isAutoAssignableGraveSlotType } from '@/lib/slot-economy';
+import { ModalLayer } from '@/components/ModalLayer';
+import { calculateUserSlotEconomy, isAutoAssignableGraveSlotTypeV2 } from '@/lib/slot-economy';
 import type { BuryFlowMode } from '@/components/modals/BuryFlowModal';
 import type { DeadRepo, GitHubScanResult, GraveData } from '@/types/game';
 import type { SlotPositionData } from '@/game/events';
+import { CEMETERY_MAP_V2_URL } from '@/lib/map-version';
+import { inferGraveSlotTypeV2 } from '@/lib/map-layout-v2';
 
 const AUTH_GATE_COPY = 'Connect GitHub to scan and bury your own repos.';
 
 interface HomeMapSlotObject {
   id: number;
-  type: string;
+  type?: string;
+  gid?: number;
   name?: string;
   x?: number;
   y?: number;
@@ -28,20 +31,23 @@ interface HomeMapSlotObject {
 interface HomeMapData {
   layers?: Array<{
     name?: string;
+    offsetx?: number;
+    offsety?: number;
     objects?: HomeMapSlotObject[];
   }>;
 }
 
 export function extractHomeSlotPositions(map: HomeMapData | null): SlotPositionData[] {
-  const objects = map?.layers?.find((layer) => layer.name === 'slots')?.objects ?? [];
-  return objects
-    .filter((slot) => slot.type?.startsWith('grave'))
+  const layer = map?.layers?.find((layer) => layer.name === 'GraveObj');
+  return (layer?.objects ?? [])
+    .filter((slot) => !slot.gid && slot.type !== 'grave_special' && slot.type !== 'meta_grave'
+      && inferGraveSlotTypeV2(slot.width ?? 0, slot.height ?? 0))
     .map((slot) => ({
       id: slot.id,
-      type: slot.type,
+      type: inferGraveSlotTypeV2(slot.width ?? 0, slot.height ?? 0)!,
       name: slot.name ?? '',
-      x: slot.x ?? 0,
-      y: slot.y ?? 0,
+      x: (slot.x ?? 0) + (layer?.offsetx ?? 0),
+      y: (slot.y ?? 0) + (layer?.offsety ?? 0),
       width: slot.width ?? 0,
       height: slot.height ?? 0,
     }));
@@ -87,7 +93,7 @@ export function calculateAvailableGraveSlotsForHome({
   if (!username) return 0;
 
   const autoSlotIds = slotPositions.length > 0
-    ? new Set(slotPositions.filter((slot) => isAutoAssignableGraveSlotType(slot.type)).map((slot) => slot.id))
+    ? new Set(slotPositions.filter((slot) => isAutoAssignableGraveSlotTypeV2(slot.type)).map((slot) => slot.id))
     : null;
   let slotsUsed = 0;
   graves.forEach((grave) => {
@@ -146,7 +152,7 @@ function ScannerShell() {
       const [scanRes, gravesRes, mapRes] = await Promise.all([
         fetch(`/api/github/scan?username=${username}`),
         fetch('/api/graves/account'),
-        fetch('/map/az.tmj'),
+        fetch(CEMETERY_MAP_V2_URL),
       ]);
       const data = await scanRes.json().catch(() => null) as GitHubScanResult | { error?: string } | null;
       if (!scanRes.ok) {
@@ -168,7 +174,7 @@ function ScannerShell() {
         return;
       }
       const graves = new Map<number, GraveData>();
-      for (const grave of accountRows.graves.filter(g => g.map_version !== 'v2')) graves.set(grave.slot_id, grave);
+      for (const grave of accountRows.graves.filter(g => g.map_version === 'v2')) graves.set(grave.slot_id, grave);
       dispatch({ type: 'SET_GRAVES', graves });
       dispatch({ type: 'SET_SLOT_POSITIONS', slots: slotPositions });
 

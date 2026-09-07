@@ -77,12 +77,12 @@ test.describe('home scanner entry flow', () => {
   test('defers the cemetery ledger and slot map until a user starts a scan', () => {
     const source = readFileSync('src/components/HomeScannerLanding.tsx', 'utf8')
     const runScanStart = source.indexOf('const runScan = async () =>')
-    const mapFetch = source.indexOf("fetch('/map/az.tmj')")
+    const mapFetch = source.indexOf("fetch(CEMETERY_MAP_V2_URL)")
 
     expect(source).not.toContain('GameDataLoaders')
     expect(runScanStart).toBeGreaterThan(-1)
     expect(mapFetch).toBeGreaterThan(runScanStart)
-    expect(source.slice(0, runScanStart)).not.toContain("fetch('/map/az.tmj')")
+    expect(source.slice(0, runScanStart)).not.toContain("fetch(CEMETERY_MAP_V2_URL)")
     expect(source).toContain('Promise.all([')
     expect(source).toContain("fetch('/api/graves/account')")
     expect(source).not.toContain('/api/cremated')
@@ -91,8 +91,11 @@ test.describe('home scanner entry flow', () => {
   test('keeps non-auto slots out of home slot economy after the scan loads map classifications', () => {
     const slotPositions = extractHomeSlotPositions({
       layers: [{
-        name: 'slots',
-        objects: [{ id: 99, type: 'grave_special', name: 'Special', x: 0, y: 0, width: 1, height: 1 }],
+        name: 'GraveObj',
+        objects: [
+          { id: 99, type: 'grave_special', name: 'Special', x: 0, y: 0, width: 64, height: 64 },
+          { id: 100, x: 64, y: 0, width: 32, height: 64 },
+        ],
       }],
     })
     const graves = new Map<number, GraveData>([[99, grave({ slot_id: 99, author_github: 'octocat' })]])

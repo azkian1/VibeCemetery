@@ -1,4 +1,4 @@
-import { serveLocalCemeteryAssets } from './fixtures/cemetery-assets'
+import { rejectLegacyCemeteryAssets } from './fixtures/cemetery-assets'
 import { expect, test } from '@playwright/test'
 import { encodeFunctionResult, multicall3Abi } from 'viem'
 import { getAutoAssignableGraveSlots } from '../src/lib/map-slots'
@@ -18,12 +18,12 @@ const encodedMulticallBalance = encodeFunctionResult({
   result: [{ success: true, returnData: encodedWalletBalance }],
 })
 
-for (const mapVersion of ['v1', 'v2'] as const) {
+for (const mapVersion of ['v2'] as const) {
 test.describe(mapVersion, () => {
-const mapPath = mapVersion === 'v1' ? '/cemetery' : '/cemetery/v2'
+const mapPath = '/cemetery'
 
 test('injected wallet completes a stubbed verified burn offering', async ({ page }) => {
-  await serveLocalCemeteryAssets(page)
+  await rejectLegacyCemeteryAssets(page)
   await page.addInitScript(({ walletAddress, hash, signed, balanceResult }) => {
     let chainId = '0x1'
     let connected = false
@@ -245,7 +245,7 @@ test('injected wallet completes a stubbed verified burn offering', async ({ page
 })
 
 test('4001 clears safely while a lost broadcast response survives reload and auto-recovers', async ({ page }) => {
-  await serveLocalCemeteryAssets(page)
+  await rejectLegacyCemeteryAssets(page)
   const recoveryIntentId = '33333333-3333-4333-8333-333333333333'
   await page.addInitScript(({ walletAddress, hash, signed, balanceResult }) => {
     let chainId = '0x2105'

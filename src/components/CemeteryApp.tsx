@@ -3,31 +3,21 @@
 import { Suspense, useEffect, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import dynamic from 'next/dynamic';
-import { createModalInstanceId, GameProvider, useGame, useGraves, useFStatus, useModal, type ModalType } from '@/context/GameContext';
+import { createModalInstanceId, GameProvider, useGame, useGraves, useFStatus } from '@/context/GameContext';
 import { cemeteryEvents } from '@/game/events';
 import { removeBuryModalIntentFromUrl, shouldOpenBuryModalFromSearchParams } from '@/lib/bury-intent';
 import { consumePendingBurialCeremony } from '@/lib/pending-burial-ceremony';
 import Web3Provider from '@/web3/Web3Provider';
-import { ModalOverlayTopContext } from './modals/ModalOverlay';
+import { ModalLayer } from './ModalLayer';
 
 const PhaserCanvas = dynamic(() => import('./PhaserCanvas'), { ssr: false });
 const HoverTooltip = dynamic(() => import('./HoverTooltip'), { ssr: false });
-const GraveModal = dynamic(() => import('./modals/GraveModal'), { ssr: false });
-const CrematoryModal = dynamic(() => import('./modals/CrematoryModal'), { ssr: false });
-const MausoleumModal = dynamic(() => import('./modals/MausoleumModal'), { ssr: false });
 const TopBar = dynamic(() => import('./hud/TopBar'), { ssr: false });
-const BuryFlowModal = dynamic(() => import('./modals/BuryFlowModal'), { ssr: false });
-const BurgerMenu = dynamic(() => import('./hud/BurgerMenu'), { ssr: false });
 const CTAButtons = dynamic(() => import('./hud/CTAButtons'), { ssr: false });
 const ChatLog = dynamic(() => import('./hud/ChatLog'), { ssr: false });
 const Minimap = dynamic(() => import('./hud/Minimap'), { ssr: false });
 const GateEpitaph = dynamic(() => import('./hud/GateEpitaph'), { ssr: false });
 const ZoomButtons = dynamic(() => import('./hud/ZoomButtons'), { ssr: false });
-const LeaderboardModal = dynamic(() => import('./modals/LeaderboardModal'), { ssr: false });
-const AgentAshesModal = dynamic(() => import('./modals/AgentAshesModal'), { ssr: false });
-const SkillModal = dynamic(() => import('./modals/SkillModal'), { ssr: false });
-const AgentSkillModal = dynamic(() => import('./modals/AgentSkillModal'), { ssr: false });
-const ProfileModal = dynamic(() => import('./modals/ProfileModal'), { ssr: false });
 
 export function GameDataLoaders() {
   useGraves();
@@ -143,45 +133,6 @@ function DeepLinkOpener() {
   return null;
 }
 
-const MODAL_MAP: Record<ModalType, React.ComponentType> = {
-  grave: GraveModal,
-  crematory: CrematoryModal,
-  mausoleum: MausoleumModal,
-  burger: BurgerMenu,
-  leaderboard: LeaderboardModal,
-  agentAshes: AgentAshesModal,
-  agentSkill: AgentSkillModal,
-  bury: BuryFlowModal,
-  skill: SkillModal,
-  profile: ProfileModal,
-};
-
-export function ModalLayer() {
-  const { modalStack } = useModal();
-  if (modalStack.length === 0) return null;
-  return (
-    <>
-      {modalStack.map((entry, i) => {
-        const C = MODAL_MAP[entry.modal];
-        if (!C) return null;
-        const isTop = i === modalStack.length - 1;
-        return (
-          <div
-            key={entry.id}
-            style={{ display: isTop ? 'contents' : 'none' }}
-            aria-hidden={!isTop}
-            inert={!isTop || undefined}
-          >
-            <ModalOverlayTopContext.Provider value={isTop}>
-              <C />
-            </ModalOverlayTopContext.Provider>
-          </div>
-        );
-      })}
-    </>
-  );
-}
-
 export default function CemeteryApp() {
   return (
     <Web3Provider>
@@ -207,3 +158,5 @@ export default function CemeteryApp() {
     </Web3Provider>
   );
 }
+
+export { ModalLayer } from './ModalLayer';

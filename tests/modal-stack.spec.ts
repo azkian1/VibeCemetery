@@ -5,7 +5,7 @@ import { shouldHandleModalOverlayEscape } from '../src/components/modals/ModalOv
 
 test('modal stack uses explicit instance ids instead of serialized data keys', () => {
   const contextSource = readFileSync(join(process.cwd(), 'src', 'context', 'GameContext.tsx'), 'utf8')
-  const appSource = readFileSync(join(process.cwd(), 'src', 'components', 'CemeteryApp.tsx'), 'utf8')
+  const appSource = readFileSync(join(process.cwd(), 'src', 'components', 'ModalLayer.tsx'), 'utf8')
 
   expect(contextSource).toContain('id: ModalInstanceId')
   expect(contextSource).toContain('createModalInstanceId()')
@@ -18,8 +18,8 @@ test('Escape only closes the top overlay when two modal stack entries remain mou
   const closeCount = isTopByEntry.filter((isTop) => shouldHandleModalOverlayEscape(isTop, 'Escape')).length
   const overlaySource = readFileSync(join(process.cwd(), 'src', 'components', 'modals', 'ModalOverlay.tsx'), 'utf8')
   const appSources = [
-    'CemeteryApp.tsx',
-    'CemeteryAppV2.tsx',
+    'ModalLayer.tsx',
+
   ].map((file) => readFileSync(join(process.cwd(), 'src', 'components', file), 'utf8'))
 
   expect(closeCount).toBe(1)

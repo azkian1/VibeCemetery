@@ -26,7 +26,7 @@ create table if not exists public.graves (
   github_repo_id bigint unique,
   author_github text,
   slot_id integer not null,
-  map_version text not null default 'v1' check (map_version in ('v1','v2')),
+  map_version text not null default 'v2' check (map_version in ('v1','v2')),
   grave_gid integer,
   constraint graves_slot_id_map_version_key unique(slot_id,map_version),
   tier integer not null default 0,

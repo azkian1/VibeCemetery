@@ -5,10 +5,10 @@ Project guidance. Detailed reference: `docs/CLAUDE.md`.
 ## Product and release scope
 
 - Next.js 16 / React 19 app with a GitHub scanner at `/` and the released Phaser cemetery at `/cemetery`.
-- `/cemetery/v2` is implemented in the development branch; it has not been released on the primary domain. Do not describe v1 as view-only or promote v2 as part of a v1 fix.
+- This branch is a v2 cutover candidate: `/cemetery` uses v2; versioned routes redirect. Production data migration and deployment are pending. Follow `docs/v2-cutover-runbook.md`; preserve the v1 source/assets until each existing grave is verified after migration.
 - GitHub-owned repositories and local projects submitted by GitHub-approved coding agents receive normal graves. Project cremation is retired; its compatibility endpoint returns 410.
 - The current account allowance is 4 graves plus one historical sharing slot, shared across sources and maps. `docs/rekt-product-spec.md` is a future specification, not implemented behavior.
-- GRAVE tributes are voluntary Base transfers to the existing burn address. Both development maps use the same verified burn/recovery flow; no payout, claim or extra slot is awarded.
+- GRAVE tributes are voluntary Base transfers to the existing burn address. The v2 cemetery uses the existing verified burn/recovery flow; no payout, claim or extra slot is awarded.
 - GitLawb / Agent Ash remains paused. The current local-project flow starts from the site's agent instructions and needs no skill installation.
 
 ## Commands
@@ -16,7 +16,7 @@ Project guidance. Detailed reference: `docs/CLAUDE.md`.
 - Development: `npm run dev`
 - Typecheck: `npx tsc --noEmit --incremental false`
 - Unit suite: `npm run test:unit`
-- Mocked browser scenarios on both maps: `npm run test:web3-e2e`
+- Mocked v2 browser scenarios and retirement redirects: `npm run test:web3-e2e`
 - Lint / build: `npm run lint` / `npm run build`
 - Do not run the broad API smoke suite against a production database. Browser burial and wallet tests must use fixtures.
 

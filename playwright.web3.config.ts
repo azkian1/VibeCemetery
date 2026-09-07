@@ -5,8 +5,7 @@ import { defineConfig } from '@playwright/test'
 // keys would let the dev server reload live credentials from that file.
 const testServerEnv = {
   ...process.env,
-  // The v1 image loader uses this origin too; Chromium blocks port 9 before
-  // Playwright can intercept its image requests. Use the local app origin.
+  // All application APIs are stubbed; map assets come from the local app.
   NEXT_PUBLIC_SUPABASE_URL: 'http://127.0.0.1:3010',
   NEXT_PUBLIC_SUPABASE_ANON_KEY: 'e2e-only-anon-key',
   SUPABASE_SERVICE_KEY: 'e2e-only-service-key',
@@ -24,11 +23,13 @@ const testServerEnv = {
   // Read through the injected test wallet, never a developer's public RPC.
   NEXT_PUBLIC_BASE_READ_RPC_URL: '',
   GRAVE_BURN_REVERIFY_SECRET: 'e2e-only-reverify-secret',
+  CEMETERY_BURIALS_PAUSED: 'false',
   CRON_SECRET: 'e2e-only-cron-secret',
 }
 
 export default defineConfig({
   testDir: './tests',
+  outputDir: './test-results/v2-browser',
   testMatch: ['web3-burn.e2e.spec.ts', 'simplification.e2e.spec.ts'],
   timeout: 45_000,
   expect: { timeout: 15_000 },

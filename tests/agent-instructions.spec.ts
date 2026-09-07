@@ -34,7 +34,7 @@ test('server page and Markdown expose the same workflow without client-side fetc
   expect(html).not.toContain('Copy prompt')
   expect(text).not.toContain('install.sh')
   expect(text).not.toContain('CLAUDE_SKILL_DIR')
-  expect(text).toContain("map_version: 'v1'")
+  expect(text).toContain("map_version: 'v2'")
   expect(text).not.toMatch(/skill|\/bury/i)
   expect(html).not.toMatch(/skill installation|\/skills\/bury/i)
 })
@@ -75,7 +75,7 @@ assert.match(info.project_key, /^sha256:[a-f0-9]{64}$/);
 helper.saveConfig({ cli_token: 'vc_cli_test_only' });
 const { config } = helper.loadConfig();
 let requests = 0;
-const payload = { name: info.name, cause: 'Retired', project_key: info.project_key, map_version: 'v1' };
+const payload = { name: info.name, cause: 'Retired', project_key: info.project_key, map_version: 'v2' };
 const result = await helper.sendBurial(payload, config.cli_token, async (url, options) => {
   requests++;
   assert.equal(url, 'https://vibecemetery.app/api/graves');

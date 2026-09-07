@@ -84,7 +84,7 @@ Legacy Agent Layer code, API routes, SQL, and archived docs remain in the reposi
 ## Product Surface
 
 - **Scanner Landing Page** - `/` is a compact first-page flow with one primary action, `Scan GitHub`. It scans only the connected GitHub account and does not offer public username scanning.
-- **Pixel Cemetery Maps** - the released v1 experience at `/cemetery` and the development Map 2.0 experience at `/cemetery/v2`, with custom PixelLab art, fog of war, minimap, camera movement, and modal interactions. See [`docs/map2.md`](docs/map2.md).
+- **Pixel Cemetery Map** - this release candidate serves Map 2.0 at `/cemetery`, with custom PixelLab art, fog of war, minimap, camera movement, and modal interactions. See [`docs/map2.md`](docs/map2.md).
 - **GitHub Burial Flow** - sign in, scan inactive repos, pick a dead repo, write the cause of death, and place it on the map when grave slots are available.
 - **Crematory** - centered Burned supply and a sortable Tributes ledger by grave, with whole-token GRAVE amounts.
 - **The Crypt** - a searchable ledger of graves.
@@ -92,7 +92,7 @@ Legacy Agent Layer code, API routes, SQL, and archived docs remain in the reposi
 - **Press F** - pay respects to graves, one vote per user per grave.
 - **Deep Links** - share graves through stable URLs.
 - **Open Graph Cards** - grave links render dedicated tombstone social cards.
-- **GRAVE Tributes** - graves on both development maps use the same verified burn flow, including recovery of lost transaction hashes. Feature flags control availability on each deployment. Connect Wallet is scoped to the grave
+- **GRAVE Tributes** - graves use the verified burn flow, including recovery of lost transaction hashes. Feature flags control availability on each deployment. Connect Wallet is scoped to the grave
   modal; no new smart contract or cabinet-level wallet connection is part of
   this release. See
   [`docs/web3-grave-burn-mvp.md`](docs/web3-grave-burn-mvp.md).
@@ -101,8 +101,8 @@ Legacy Agent Layer code, API routes, SQL, and archived docs remain in the reposi
 
 - `/` - scanner landing page for connected-account GitHub scans.
 - `/cemetery` - Phaser cemetery map experience and Human Layer rituals.
-- `/cemetery/v2` - Map 2.0 in this development branch; not released on the primary domain.
-- `/grave/[id]` - opens the grave on its stored map version.
+- `/cemetery/v1` and `/cemetery/v2` - permanent redirects to `/cemetery`, preserving navigation query parameters.
+- `/grave/[id]` - validates the UUID and opens `/cemetery?grave=[id]`, retaining its share metadata.
 - `/agent-instructions` - local agent burial workflow; no installation required.
 
 Legacy root query intents such as `/?grave=...` and `/?modal=bury` redirect to `/cemetery` with the relevant query preserved.
@@ -116,14 +116,14 @@ VibeCemetery is moving toward more original IP, deeper cemetery rituals, and a s
 Implemented:
 
 - **Scanner-first UX cleanup** - the front page now starts with the GitHub Scanner and the Human Layer rituals are clearer.
-- **Cemetery Map 2.0** - the 140×104 custom PixelLab map is implemented at `/cemetery/v2` in the development branch, with fog-aware camera bounds and a circular minimap.
+- **Cemetery Map 2.0** - the 140×104 custom PixelLab map is implemented at `/cemetery` in the release candidate, with fog-aware camera bounds and a circular minimap.
 - **$GRAVE burn-offering MVP** - signed intents, server-side Base verification,
   atomic duplicate protection, per-grave verified totals/top mourners, and
   protected reorg checks are implemented behind release flags.
 
 Next:
 
-- **Map v2 release** - finish visual work and explicitly release the second map; v1 remains the working production cemetery.
+- **Map v2 cutover** - migrate every existing grave with UUID/history preserved, release v2 and then retire v1 Storage/runtime. Follow [`docs/v2-cutover-runbook.md`](docs/v2-cutover-runbook.md); production migration has not been executed by this code change.
 - **Swamp of Shame** - expand the world with a new shame-themed cemetery zone.
 - **Burn maintenance** - preserve verified accounting, reorg checks and lost-hash recovery as the cemetery evolves.
 - **The Gravedigger Agent** - introduce the native cemetery agent for guidance, lore, grave care, and future ritual interactions.
@@ -188,7 +188,7 @@ npm run test:bury-skill
 npm run test:web3-e2e
 ```
 
-The browser suite overrides application credentials with inert values and mocks API writes and wallet transfers. It needs the licensed v1 PNGs in `public/map/`, or `PLAYWRIGHT_TILESET_BASE_URL` pointing to a public folder containing those PNGs. This optional URL is used only for image requests; it does not configure Supabase API access.
+The browser suite overrides application credentials with inert values, mocks API writes and wallet transfers, and loads the committed v2 assets. Any request for retired v1 map assets fails the suite. Run `npm run check:v2-bundle` after the production build.
 
 Database setup references:
 
@@ -199,11 +199,9 @@ Database setup references:
 
 ## Assets
 
-The cemetery map uses paid pixel-art tilesets by [Kokoro Reflections](https://kokororeflections.itch.io). The repository includes the Tiled map data, but not the licensed PNG tilesets.
+The v2 runtime loads `public/map/cemetery-v2.tmj` and its own committed PNG assets from the application host/CDN. No Supabase Storage tileset setup is required.
 
-The MIT license applies to the project code only. Kokoro Reflections assets are third-party paid assets and are not included in this repository or licensed under MIT.
-
-You can still work on docs, API routes, auth, CLI flows, and most non-map logic without the art assets. Full local map rendering requires the external tilesets described in [`docs/setup.md`](docs/setup.md).
+V1 licensed originals must stay in a private local archive outside Git and public hosting. The old runtime and TMJ are retained temporarily in this branch until every migrated UUID has passed release smoke; see the [cutover runbook](docs/v2-cutover-runbook.md). The MIT license applies to project code, not third-party paid assets.
 
 ## Contributing
 

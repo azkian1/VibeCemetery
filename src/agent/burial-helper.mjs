@@ -708,8 +708,9 @@ export function buildBurialBody(payload) {
 
   if (payload?.github_url != null || payload?.github_repo_id != null) throw new Error('Use the GitHub scanner for linked repository burials')
   body.source = 'local'
-  body.map_version = payload?.map_version ?? 'v1'
-  if (!['v1', 'v2'].includes(body.map_version)) throw new Error('Invalid map version')
+  body.map_version = payload?.map_version ?? 'v2'
+  if (body.map_version === 'v1') throw new Error('CEMETERY_VERSION_RETIRED: update your client and use map_version v2')
+  if (body.map_version !== 'v2') throw new Error('Invalid map version')
   if (payload?.description) body.description = sanitizeDisplayText(payload.description, 500)
   if (payload?.stack) {
     if (!Array.isArray(payload.stack) || payload.stack.length > 20 || payload.stack.some(item => typeof item !== 'string' || item.length > 50)) throw new Error('Invalid stack')

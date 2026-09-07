@@ -55,10 +55,10 @@ Optional production-only rate limiting:
 - `UPSTASH_REDIS_REST_TOKEN`
 - `TRUST_PROXY_HEADERS` for non-Vercel deployments only when the trusted proxy strips spoofed forwarding headers
 
-Required when enabling Web3 grave offerings on either map:
+Required when enabling Web3 grave offerings on the cemetery map:
 
 - `WEB3_GRAVE_BURNS_ENABLED=true` — authoritative server write flag
-- `NEXT_PUBLIC_WEB3_GRAVE_BURNS_ENABLED=true` — grave offering UI flag (both maps)
+- `NEXT_PUBLIC_WEB3_GRAVE_BURNS_ENABLED=true` — grave offering UI flag (v2)
 - `BASE_RPC_URL` — private or authenticated HTTPS Base Mainnet RPC
 - `GRAVE_BURN_REVERIFY_SECRET` — bearer secret for manual/external reverify
 - `CRON_SECRET` — bearer secret sent by Vercel Cron; it may use the same value
@@ -155,15 +155,9 @@ The scan endpoint only allows a signed-in user to scan their own GitHub username
 
 ## 5. Understand Asset Requirements
 
-The repository includes the Tiled map JSON, but it does not include the paid Kokoro Reflections PNG tilesets.
+V2 uses the committed `public/map/cemetery-v2.tmj` and its PNG assets from the application host. No licensed v1 tilesets or Supabase Storage setup is needed. Keep licensed originals and purchase records in a private local archive outside Git and public hosting.
 
-Local behavior:
-
-- If `NEXT_PUBLIC_SUPABASE_URL` is set, Phaser loads tilesets from Supabase Storage.
-- If the storage bucket or files are missing, the map will fail to render and the UI will show the load error state.
-- There is currently no bundled placeholder art mode in the repo.
-
-If you only need to work on API routes, auth, CLI flows, or documentation, the missing tilesets are not a blocker.
+For existing installations, follow [v2-cutover-runbook.md](v2-cutover-runbook.md) before deploying this branch. Install the additive database write gate, save a private export, create a manifest and migrate every v1 grave before release. The v1 source/TMJ remain pending verified retirement.
 
 ## 6. Run The App
 
@@ -172,9 +166,8 @@ npm run dev
 ```
 
 Open `http://localhost:3000`. The root route is the scanner landing page. The
-classic Phaser map and its optional grave-offering UI live at
-`http://localhost:3000/cemetery`; Cemetery Map 2.0 lives at
-`http://localhost:3000/cemetery/v2`.
+v2 Phaser map and its optional grave-offering UI live at
+`http://localhost:3000/cemetery`. Versioned routes permanently redirect there.
 
 ## 7. Verification Commands
 
@@ -209,7 +202,7 @@ Notes:
 
 ### Blank or broken map
 
-Check that your Supabase project exposes the tileset PNG files expected by `src/game/scenes/CemeteryScene.ts`.
+Check that `/map/cemetery-v2.tmj` and its referenced PNG files return 200 from the application host. Check the browser network and asset error UI; v2 does not fetch Storage tilesets.
 
 ### Auth fails immediately on boot
 
@@ -222,8 +215,7 @@ then set `CLI_TOKEN_SECRET`.
 
 ### Web3 panel is absent
 
-Confirm that the page is `/cemetery` or `/cemetery/v2`, the selected grave belongs to map
-version `v1` or `v2`, and `NEXT_PUBLIC_WEB3_GRAVE_BURNS_ENABLED=true` was present when
+Confirm that the page is `/cemetery`, the selected grave belongs to v2, and `NEXT_PUBLIC_WEB3_GRAVE_BURNS_ENABLED=true` was present when
 the Next.js process started.
 
 ### Web3 writes return 503
@@ -241,4 +233,4 @@ hash mismatch marks a burn `orphaned`.
 
 ## Map release scope
 
-The current primary-domain release is v1. The second route is available in this development branch, and its publication requires a separate release. Use [map2.md](map2.md) for the supported asset set and camera contract; keep local experiments outside public assets.
+This branch is a v2 cutover candidate. Production migration, release and v1 Storage retirement are separate pending operations documented in [v2-cutover-runbook.md](v2-cutover-runbook.md). Use [map2.md](map2.md) for the supported asset set and camera contract; keep local experiments outside public assets.

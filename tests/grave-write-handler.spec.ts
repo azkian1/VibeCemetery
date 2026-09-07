@@ -6,6 +6,7 @@ import { createGravePostHandler } from '../src/app/api/graves/writeHandler'
 import { getAutoAssignableGraveSlots } from '../src/lib/map-slots'
 import type { CliActor } from '../src/lib/cli-auth'
 import { publicGrave } from '../src/lib/public-grave'
+import { GRAVE_GIDS_V2 } from '../src/game/utils/tileRegistry-v2'
 
 let db: PGlite
 let actor: CliActor | null
@@ -13,6 +14,10 @@ let repoOwner = 'Tester'
 let repoLookups = 0
 let rateAllowed = true
 let authFailure = false
+let paused = false
+let collideOnce = false
+let rpcError: string | null = null
+let attempts: Record<string, unknown>[] = []
 let lastWrite: Record<string, unknown> | null
 const key = (n: number) => 'sha256:' + n.toString(16).padStart(64, '0')
 const local = (n = 1) => ({ source: 'local', project_key: key(n), name: 'Local project', cause: 'Lost interest', map_version: 'v2' })
@@ -29,6 +34,9 @@ const database = {
   async rpc(name: string, params: Record<string, unknown>) {
     expect(name).toBe('create_grave_once')
     lastWrite = params
+    attempts.push(params)
+    if (rpcError) return { data: null, error: { message: rpcError } }
+    if (collideOnce) { collideOnce = false; return { data: { status: 'slot_collision' }, error: null } }
     try {
       const result = await db.query<{ result: unknown }>('select public.create_grave_once($1,$2::jsonb,$3::integer[],$4,$5,$6) as result',
         [params.p_author_github, JSON.stringify(params.p_grave), params.p_auto_slot_ids, params.p_slot_id, params.p_map_version, params.p_grave_gid])
@@ -39,6 +47,7 @@ const database = {
 
 const handler = createGravePostHandler({
   supabaseAdmin: database,
+  burialsPaused: () => paused,
   resolveCliActor: async () => { if (authFailure) throw new Error('Storage unavailable'); return actor },
   checkRateLimit: async () => rateAllowed ? { allowed: true } : { allowed: false, retryAfterMs: 2000 },
   fetchGitHubRepo: async () => { repoLookups++; return Response.json({ id: 42, owner: { login: repoOwner }, fork: false, pushed_at: '2020-01-01T00:00:00Z', size: 20 }) },
@@ -57,7 +66,8 @@ test.afterAll(async () => { await db?.close() })
 test.beforeEach(async () => {
   await db.exec("truncate public.graves cascade; truncate public.users; insert into public.users(github_id,github_username) values(1,'Tester');")
   actor = { username: 'Tester', source: 'cli' }
-  repoOwner = 'Tester'; repoLookups = 0; rateAllowed = true; authFailure = false; lastWrite = null
+  repoOwner = 'Tester'; repoLookups = 0; rateAllowed = true; authFailure = false; paused = false; lastWrite = null
+  collideOnce = false; rpcError = null; attempts = []
 })
 
 test('local HTTP request produces a real grave, server epitaph, map sprite and private identity', async () => {
@@ -74,11 +84,59 @@ test('local HTTP request produces a real grave, server epitaph, map sprite and p
   expect(lastWrite).not.toBeNull()
 })
 
+test('omitted version creates v2; explicit v1 and invalid versions never reach the RPC', async () => {
+  const response = await request({ ...local(), map_version: undefined })
+  expect(response.status).toBe(201)
+  expect(await response.json()).toMatchObject({ map_version: 'v2' })
+  lastWrite = null
+  const retired = await request({ ...local(2), map_version: 'v1' })
+  expect(retired.status).toBe(410)
+  expect(await retired.json()).toMatchObject({ code: 'CEMETERY_VERSION_RETIRED' })
+  for (const version of ['invalid', '', null, 2]) expect((await request({ ...local(2), map_version: version })).status).toBe(400)
+  expect(lastWrite).toBeNull()
+})
+
+test('maintenance pauses only creation before GitHub verification and slot selection', async () => {
+  paused = true
+  const response = await request(local())
+  expect(response.status).toBe(503)
+  expect(response.headers.get('Retry-After')).toBe('60')
+  expect(await response.json()).toMatchObject({ code: 'CEMETERY_BURIALS_PAUSED' })
+  expect(lastWrite).toBeNull()
+  expect(repoLookups).toBe(0)
+})
+
+test('collision retries stay in v2 with a distinct slot and a compatible persisted sprite', async () => {
+  collideOnce = true
+  const response = await request(local())
+  expect(response.status).toBe(201)
+  expect(attempts).toHaveLength(2)
+  expect(attempts[0].p_slot_id).not.toBe(attempts[1].p_slot_id)
+  for (const attempt of attempts) {
+    expect(attempt.p_map_version).toBe('v2')
+    const slot = getAutoAssignableGraveSlots().find(s => s.id === attempt.p_slot_id)!
+    expect(GRAVE_GIDS_V2[slot.type]).toContain(attempt.p_grave_gid)
+  }
+  expect(await response.json()).toMatchObject({ slot_id: attempts[1].p_slot_id, grave_gid: attempts[1].p_grave_gid })
+})
+
+test('database gate errors retain stable HTTP codes when an older deployment hits the trigger', async () => {
+  rpcError = 'CEMETERY_BURIALS_PAUSED'
+  const pausedResponse = await request(local())
+  expect(pausedResponse.status).toBe(503)
+  expect(pausedResponse.headers.get('Retry-After')).toBe('60')
+  expect(await pausedResponse.json()).toMatchObject({ code: rpcError })
+  rpcError = 'CEMETERY_VERSION_RETIRED'
+  const retired = await request(local())
+  expect(retired.status).toBe(410)
+  expect(await retired.json()).toMatchObject({ code: rpcError })
+})
+
 test('API recovery works at account limit and ignores changed replay metadata', async () => {
   const first = await (await request(local())).json()
-  for (let n = 2; n <= 4; n++) expect((await request({ ...local(n), map_version: n % 2 ? 'v1' : 'v2' })).status).toBe(201)
+  for (let n = 2; n <= 4; n++) expect((await request({ ...local(n), map_version: 'v2' })).status).toBe(201)
   expect((await request(local(5))).status).toBe(403)
-  const replay = await request({ ...local(), name: 'CHANGED', map_version: 'v1' })
+  const replay = await request({ ...local(), name: 'CHANGED', map_version: 'v2' })
   expect(replay.status).toBe(200)
   expect(await replay.json()).toEqual(first)
   expect((await db.query('select graves_count from public.users')).rows).toEqual([{ graves_count: 4 }])
@@ -87,7 +145,7 @@ test('API recovery works at account limit and ignores changed replay metadata', 
 test('session and agent projects use the same allowance and GitHub checks remain required', async () => {
   for (let n = 1; n <= 3; n++) await request(local(n))
   actor = { username: 'TESTER', source: 'session' }
-  const github = { name: 'GitHub project', cause: 'Lost interest', github_repo_id: 42, github_url: 'https://github.com/Tester/repo', map_version: 'v1' }
+  const github = { name: 'GitHub project', cause: 'Lost interest', github_repo_id: 42, github_url: 'https://github.com/Tester/repo', map_version: 'v2' }
   repoOwner = 'SomeoneElse'
   expect((await request(github)).status).toBe(403)
   repoOwner = 'Tester'

@@ -64,7 +64,7 @@ export default function BuryFlowModal() {
       const ceremony = { slot_id: grave.slot_id, id: grave.id, name: grave.name,
         chatText: 'A project has been buried. Rest in peace.',
         gravediggerPhrase: GRAVEDIGGER_BURIAL[Math.floor(Math.random() * GRAVEDIGGER_BURIAL.length)] }
-      const mapPath = mapVersion === 'v2' ? '/cemetery/v2' : '/cemetery'
+      const mapPath = '/cemetery'
       if (window.location.pathname === mapPath) cemeteryEvents.emit('burial_ceremony', ceremony)
       else {
         const saved = savePendingBurialCeremony(ceremony)

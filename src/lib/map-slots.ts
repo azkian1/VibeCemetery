@@ -2,6 +2,7 @@ import { readFileSync } from 'fs';
 import { join } from 'path';
 import { isAutoAssignableGraveSlotType, isAutoAssignableGraveSlotTypeV2 } from './slot-economy';
 import { CEMETERY_MAP_V2_FILE } from './map-version';
+import { inferGraveSlotTypeV2 } from './map-layout-v2';
 
 interface TmjObject {
   id: number;
@@ -29,13 +30,6 @@ export interface GraveSlot {
   type: string;
 }
 
-function inferGraveTypeFromDims(w: number, h: number): string {
-  if (w === 32 && h === 64) return 'grave_tall';
-  if (w === 64 && h === 32) return 'grave_wide';
-  if (w === 64 && h === 64) return 'grave_large';
-  return 'grave_tall';
-}
-
 let cachedSlotsV1: GraveSlot[] | null = null;
 let cachedSlotsV2: GraveSlot[] | null = null;
 
@@ -46,7 +40,7 @@ export function getGraveSlotIds(): number[] {
 }
 
 /** Returns all grave slots (id + type) from the Tiled map, sorted by id ascending. */
-export function getGraveSlots(mapVersion: string = 'v1'): GraveSlot[] {
+export function getGraveSlots(mapVersion: string = 'v2'): GraveSlot[] {
   if (mapVersion === 'v2') return getGraveSlotsV2();
   return getGraveSlotsV1();
 }
@@ -78,10 +72,11 @@ function getGraveSlotsV2(): GraveSlot[] {
   if (!graveLayer?.objects) return [];
 
   cachedSlotsV2 = graveLayer.objects
-    .filter((o) => !o.gid)
+    .filter((o) => !o.gid && o.type !== 'grave_special' && o.type !== 'meta_grave'
+      && inferGraveSlotTypeV2(o.width, o.height))
     .map((o) => ({
       id: o.id,
-      type: inferGraveTypeFromDims(o.width, o.height),
+      type: inferGraveSlotTypeV2(o.width, o.height)!,
     }))
     .sort((a, b) => a.id - b.id);
 
@@ -89,7 +84,7 @@ function getGraveSlotsV2(): GraveSlot[] {
 }
 
 /** Returns only slots that normal users can receive through automatic burial. */
-export function getAutoAssignableGraveSlots(mapVersion: string = 'v1'): GraveSlot[] {
+export function getAutoAssignableGraveSlots(mapVersion: string = 'v2'): GraveSlot[] {
   return getGraveSlots(mapVersion).filter((slot) =>
     mapVersion === 'v2'
       ? isAutoAssignableGraveSlotTypeV2(slot.type)
@@ -97,12 +92,12 @@ export function getAutoAssignableGraveSlots(mapVersion: string = 'v1'): GraveSlo
   );
 }
 
-export function countAutoAssignableGraveUsage(graves: { slot_id: number }[], mapVersion: string = 'v1'): number {
+export function countAutoAssignableGraveUsage(graves: { slot_id: number }[], mapVersion: string = 'v2'): number {
   const autoSlotIds = new Set(getAutoAssignableGraveSlots(mapVersion).map((slot) => slot.id));
   return graves.reduce((count, grave) => count + (autoSlotIds.has(grave.slot_id) ? 1 : 0), 0);
 }
 
-export function filterGravesToKnownMapSlots<T extends { slot_id: number }>(graves: T[], mapVersion: string = 'v1'): T[] {
+export function filterGravesToKnownMapSlots<T extends { slot_id: number }>(graves: T[], mapVersion: string = 'v2'): T[] {
   const slotIds = new Set(getGraveSlots(mapVersion).map((slot) => slot.id));
   return graves.filter((grave) => slotIds.has(grave.slot_id));
 }
@@ -116,7 +111,7 @@ const TIER_BIAS_V2: Record<string, number> = {};
  * - v1: T0 (`grave`) and T1 (`grave_tall`) — bias ~80/20.
  * - v2: all authored grave footprints participate with equal per-slot odds.
  */
-export function pickRandomFreeSlot(usedIds: Set<number>, mapVersion: string = 'v1'): GraveSlot | null {
+export function pickRandomFreeSlot(usedIds: Set<number>, mapVersion: string = 'v2'): GraveSlot | null {
   const allSlots = getAutoAssignableGraveSlots(mapVersion);
   const pools = new Map<string, GraveSlot[]>();
   const tierBias = mapVersion === 'v2' ? TIER_BIAS_V2 : TIER_BIAS_V1;

@@ -3,8 +3,8 @@ import { countAutoAssignableGraveUsage, filterGravesToKnownMapSlots, getAutoAssi
 
 test.describe('map slot economy', () => {
   test('keeps grave_special reserved outside the user slot economy', () => {
-    const allSlots = getGraveSlots()
-    const autoSlots = getAutoAssignableGraveSlots()
+    const allSlots = getGraveSlots('v1')
+    const autoSlots = getAutoAssignableGraveSlots('v1')
 
     expect(allSlots.some((slot) => slot.type === 'grave_special')).toBe(true)
     expect(autoSlots.some((slot) => slot.type === 'grave_special')).toBe(false)
@@ -12,8 +12,8 @@ test.describe('map slot economy', () => {
   })
 
   test('counts only graves occupying auto-assignable slots as normal user slot usage', () => {
-    const autoSlot = getAutoAssignableGraveSlots()[0]
-    const reservedSlot = getGraveSlots().find((slot) => !['grave', 'grave_tall'].includes(slot.type))
+    const autoSlot = getAutoAssignableGraveSlots('v1')[0]
+    const reservedSlot = getGraveSlots('v1').find((slot) => !['grave', 'grave_tall'].includes(slot.type))
 
     expect(autoSlot).toBeTruthy()
     expect(reservedSlot).toBeTruthy()
@@ -22,21 +22,21 @@ test.describe('map slot economy', () => {
       { slot_id: autoSlot.id },
       { slot_id: reservedSlot!.id },
       { slot_id: autoSlot.id },
-    ])).toBe(2)
+    ], 'v1')).toBe(2)
   })
 
   test('filters leaked smoke graves that do not belong to the current map', () => {
-    const renderableSlot = getGraveSlots()[0]
+    const renderableSlot = getGraveSlots('v1')[0]
     const graves = filterGravesToKnownMapSlots([
       { id: 'real-grave', slot_id: renderableSlot.id },
       { id: 'leaked-smoke-grave', slot_id: 915309 },
-    ])
+    ], 'v1')
 
     expect(graves).toEqual([{ id: 'real-grave', slot_id: renderableSlot.id }])
   })
 
   test('keeps existing Oroshimoro grave slot renderable', () => {
-    const slot = getGraveSlots().find((item) => item.id === 289)
+    const slot = getGraveSlots('v1').find((item) => item.id === 289)
 
     expect(slot).toEqual({ id: 289, type: 'grave_tall' })
   })

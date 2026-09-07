@@ -1,5 +1,5 @@
-import CemeteryApp from '@/components/CemeteryApp';
+import CemeteryAppV2 from '@/components/CemeteryAppV2';
 
 export default function CemeteryPage() {
-  return <CemeteryApp />;
+  return <CemeteryAppV2 />;
 }

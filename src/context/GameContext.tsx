@@ -225,7 +225,7 @@ const GameContext = createContext<{
   fStatusRequestStateRef: { current: LatestRequestState };
 } | null>(null);
 
-export const CemeteryMapVersionContext = createContext<CemeteryMapVersion>('v1');
+export const CemeteryMapVersionContext = createContext<CemeteryMapVersion>('v2');
 
 // ── Provider ───────────────────────────────────────────
 
@@ -333,7 +333,7 @@ export function useModal() {
 export function useGraves(options?: { auto?: boolean; mapVersion?: 'v1' | 'v2' }) {
   const { state, dispatch, gravesRequestStateRef } = useGame();
   const auto = options?.auto ?? true;
-  const mapVersion = options?.mapVersion ?? 'v1';
+  const mapVersion = options?.mapVersion ?? 'v2';
 
   const fetchGraves = useCallback(async () => {
     const request = beginLatestRequest(gravesRequestStateRef.current);

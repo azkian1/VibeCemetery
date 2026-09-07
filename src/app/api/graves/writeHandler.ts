@@ -7,7 +7,7 @@ import { isAgentAshEnvelope, isAgentAshIngestToken } from '@/lib/agent-ash-bound
 import { getClientIp, type checkRateLimit as RateLimit } from '@/lib/rate-limit'
 import { getAutoAssignableGraveSlots, pickRandomFreeSlot } from '@/lib/map-slots'
 import { sanitizePublicText } from '@/lib/sanitize-public-text'
-import { parseMapVersion } from '@/lib/map-version'
+import { parseMapVersion, CEMETERY_VERSION_RETIRED, CEMETERY_BURIALS_PAUSED } from '@/lib/map-version'
 import { generateEpitaph } from '@/gravedigger/epitaphs'
 import { insertGraveAtomicallyWithSlotRetry, type AtomicInsertRpcResult } from './atomicInsertWithSlotRetry'
 import { insertOutcomeResponse } from './insertOutcomeResponse'
@@ -26,12 +26,14 @@ const GITHUB_REPO_VERIFY_WINDOW_MS = 60_000
 export function createGravePostHandler({
   resolveCliActor, supabaseAdmin, checkRateLimit,
   fetchGitHubRepo = defaultFetchRepo, fetchGitHubRepoRootContents = defaultFetchContents,
+  burialsPaused = () => process.env.CEMETERY_BURIALS_PAUSED === 'true',
 }: {
   resolveCliActor: typeof ResolveActor
   supabaseAdmin: Pick<SupabaseClient, 'from' | 'rpc'>
   checkRateLimit: typeof RateLimit
   fetchGitHubRepo?: typeof defaultFetchRepo
   fetchGitHubRepoRootContents?: typeof defaultFetchContents
+  burialsPaused?: () => boolean
 }) {
   return async function POST(req: NextRequest) {
     const bearerToken = req.headers.get('authorization')?.match(/^Bearer\s+(.+)$/i)?.[1]?.trim()
@@ -107,6 +109,12 @@ export function createGravePostHandler({
     const mapVersion = parseMapVersion(map_version)
     if (!mapVersion) {
       return NextResponse.json({ error: 'map_version must be one of: v1, v2' }, { status: 400 })
+    }
+    if (mapVersion === 'v1') {
+      return NextResponse.json(CEMETERY_VERSION_RETIRED, { status: 410 })
+    }
+    if (burialsPaused()) {
+      return NextResponse.json(CEMETERY_BURIALS_PAUSED, { status: 503, headers: { 'Retry-After': '60' } })
     }
 
     // 3. Validate github_url format
@@ -297,7 +305,7 @@ export function createGravePostHandler({
           return slot ?? { id: 0 }
         },
         insertGrave: async (slotId) => {
-          const graveGid = mapVersion === 'v2' ? pickRandomGraveGid(pickedSlotType) : null
+          const graveGid = pickRandomGraveGid(pickedSlotType)
           const { data, error } = await supabaseAdmin.rpc('create_grave_once', {
             p_author_github: author_github, p_grave: graveRow, p_auto_slot_ids: autoSlotIds,
             p_slot_id: slotId, p_map_version: mapVersion, p_grave_gid: graveGid,

@@ -8,6 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "test:unit": "playwright test -c playwright.unit.config.ts",
+    "cutover": "node --experimental-strip-types scripts/v2-cutover/cli.mts",
+    "check:v2-bundle": "node scripts/check-v2-bundle.mjs",
     "test:e2e": "playwright test -c playwright.config.ts",
     "test:web3-e2e": "playwright test -c playwright.web3.config.ts",
     "test:bury-skill": "playwright test -c tests/bury-skill-config.ts"

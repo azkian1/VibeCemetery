@@ -4,7 +4,6 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { useSession, signIn } from 'next-auth/react';
 import type { DeadRepo, GitHubScanResult } from '@/types/game';
 import { getBuryLoginCallbackUrl } from '@/lib/bury-intent';
-import { useCemeteryMapVersion } from '@/context/GameContext';
 import {
   abortLatestRequest,
   beginLatestRequest,
@@ -52,7 +51,6 @@ export default function StepScan({
   setLoading,
 }: StepScanProps) {
   const { status } = useSession();
-  const mapVersion = useCemeteryMapVersion();
   const [dots, setDots] = useState('');
   const [scanPhase, setScanPhase] = useState('Connecting to GitHub...');
   const scanRequestStateRef = useRef<LatestRequestState>(createLatestRequestState());
@@ -144,7 +142,7 @@ export default function StepScan({
           Dead repos are non-forks with no pushes for 7+ days.
         </p>
         <button
-          onClick={() => signIn('github', { callbackUrl: getBuryLoginCallbackUrl(mapVersion) })}
+          onClick={() => signIn('github', { callbackUrl: getBuryLoginCallbackUrl() })}
           style={{
             padding: '8px 24px',
             border: '1px solid #3a3530',

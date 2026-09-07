@@ -4,30 +4,20 @@ import Web3Provider from '@/web3/Web3Provider';
 import { Suspense, useEffect, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import dynamic from 'next/dynamic';
-import { CemeteryMapVersionContext, createModalInstanceId, GameProvider, useGame, useGraves, useFStatus, useModal, type ModalType } from '@/context/GameContext';
+import { CemeteryMapVersionContext, createModalInstanceId, GameProvider, useGame, useGraves, useFStatus } from '@/context/GameContext';
 import { cemeteryEvents } from '@/game/events';
 import { removeBuryModalIntentFromUrl, shouldOpenBuryModalFromSearchParams } from '@/lib/bury-intent';
 import { consumePendingBurialCeremony } from '@/lib/pending-burial-ceremony';
-import { ModalOverlayTopContext } from './modals/ModalOverlay';
+import { ModalLayer } from './ModalLayer';
 
 const PhaserCanvasV2 = dynamic(() => import('./PhaserCanvasV2'), { ssr: false });
 const HoverTooltip = dynamic(() => import('./HoverTooltip'), { ssr: false });
-const GraveModal = dynamic(() => import('./modals/GraveModal'), { ssr: false });
-const CrematoryModal = dynamic(() => import('./modals/CrematoryModal'), { ssr: false });
-const MausoleumModal = dynamic(() => import('./modals/MausoleumModal'), { ssr: false });
 const TopBar = dynamic(() => import('./hud/TopBar'), { ssr: false });
-const BuryFlowModal = dynamic(() => import('./modals/BuryFlowModal'), { ssr: false });
-const BurgerMenu = dynamic(() => import('./hud/BurgerMenu'), { ssr: false });
 const CTAButtons = dynamic(() => import('./hud/CTAButtons'), { ssr: false });
 const ChatLog = dynamic(() => import('./hud/ChatLog'), { ssr: false });
 const Minimap = dynamic(() => import('./hud/Minimap'), { ssr: false });
 const GateEpitaph = dynamic(() => import('./hud/GateEpitaph'), { ssr: false });
 const ZoomButtons = dynamic(() => import('./hud/ZoomButtons'), { ssr: false });
-const LeaderboardModal = dynamic(() => import('./modals/LeaderboardModal'), { ssr: false });
-const AgentAshesModal = dynamic(() => import('./modals/AgentAshesModal'), { ssr: false });
-const SkillModal = dynamic(() => import('./modals/SkillModal'), { ssr: false });
-const AgentSkillModal = dynamic(() => import('./modals/AgentSkillModal'), { ssr: false });
-const ProfileModal = dynamic(() => import('./modals/ProfileModal'), { ssr: false });
 
 export function GameDataLoadersV2() {
   useGraves({ mapVersion: 'v2' });
@@ -98,6 +88,13 @@ function DeepLinkOpenerV2() {
           if (activeModalRef.current) return;
           dispatch({ type: 'OPEN_MODAL', id: createModalInstanceId(), modal: 'grave', data: { slotId: 105, slotType: 'meta_grave' } });
         }, halve(4700)));
+      } else {
+        // The authored v2 map has no dedicated meta slot. Preserve the public
+        // memorial link without reserving or impersonating a normal grave.
+        navigatedFor.current = graveId;
+        if (!activeModalRef.current) {
+          dispatch({ type: 'OPEN_MODAL', id: createModalInstanceId(), modal: 'grave', data: { slotType: 'meta_grave' } });
+        }
       }
     } else {
       for (const g of state.graves.values()) {
@@ -130,46 +127,6 @@ function DeepLinkOpenerV2() {
   return null;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const MODAL_MAP: Record<ModalType, React.ComponentType<any>> = {
-  grave: GraveModal,
-  mausoleum: MausoleumModal,
-  bury: BuryFlowModal,
-  burger: BurgerMenu,
-  leaderboard: LeaderboardModal,
-  agentAshes: AgentAshesModal,
-  agentSkill: AgentSkillModal,
-  skill: SkillModal,
-  profile: ProfileModal,
-  crematory: CrematoryModal,
-};
-
-function ModalLayer() {
-  const { modalStack } = useModal();
-  if (modalStack.length === 0) return null;
-  return (
-    <>
-      {modalStack.map((entry, i) => {
-        const C = MODAL_MAP[entry.modal];
-        if (!C) return null;
-        const isTop = i === modalStack.length - 1;
-        return (
-          <div
-            key={entry.id}
-            style={{ display: isTop ? 'contents' : 'none' }}
-            aria-hidden={!isTop}
-            inert={!isTop || undefined}
-          >
-            <ModalOverlayTopContext.Provider value={isTop}>
-              <C />
-            </ModalOverlayTopContext.Provider>
-          </div>
-        );
-      })}
-    </>
-  );
-}
-
 export default function CemeteryAppV2() {
   return (
     <CemeteryMapVersionContext.Provider value="v2">
@@ -182,7 +139,7 @@ export default function CemeteryAppV2() {
 
         <div style={{ display: 'flex', flexDirection: 'column', height: '100dvh', width: '100%', overflow: 'hidden', background: '#1a1918' }}>
           <header style={{ flexShrink: 0, position: 'relative', zIndex: 10 }}>
-            <TopBar mapVersion="v2" />
+            <TopBar />
           </header>
           <main style={{ flex: 1, position: 'relative', overflow: 'hidden', minHeight: 0 }}>
             <PhaserCanvasV2 />

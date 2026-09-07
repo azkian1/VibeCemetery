@@ -36,6 +36,11 @@ export function createContentSecurityPolicy(
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  // Framework redirects preserve all incoming query values, including repeats.
+  redirects: async () => [
+    { source: '/cemetery/v1', destination: '/cemetery', permanent: true },
+    { source: '/cemetery/v2', destination: '/cemetery', permanent: true },
+  ],
   transpilePackages: ['phaser'],
   turbopack: {
     root: process.cwd(),

@@ -6,14 +6,14 @@ Updated 2026-09-07. Root guidance is in `CLAUDE.md`.
 
 The public product buries abandoned GitHub repositories and local projects submitted by GitHub-approved coding agents. Every memorial is a grave with an epitaph, public link, F interactions and optional GRAVE tributes. Project cremations and urns are retired. Agent Ash / GitLawb is a separate paused experiment.
 
-Production v1 is `/cemetery`. The development branch also implements `/cemetery/v2`; a successful Preview build does not release that map on the primary domain. Both development shells use shared account quotas, modals and burn verification. The current allowance remains 4 + 1 sharing slot. REKT and its new quotas are specifications only.
+This branch serves v2 at `/cemetery` with versioned redirects. Production migration/deployment remain pending; follow `v2-cutover-runbook.md`. A successful local or Preview build does not release the map on the primary domain. Shared quotas, modals and burn verification are preserved. The current allowance remains 4 + 1 sharing slot. REKT and its new quotas are specifications only.
 
 ## Runtime structure
 
 | Area | Implementation |
 | --- | --- |
 | Landing page | `src/components/HomeScannerLanding.tsx` |
-| v1 / v2 shells | `CemeteryApp.tsx`, `CemeteryAppV2.tsx`, corresponding PhaserCanvas components |
+| Public shell | `CemeteryAppV2.tsx`, `PhaserCanvasV2.tsx`; shared `ModalLayer.tsx`. V1 source retained only until migration smoke. |
 | State / modal ownership | `src/context/GameContext.tsx` |
 | Scenes | `src/game/scenes/CemeteryScene.ts`, `CemeterySceneV2.ts` |
 | Shared event bus | `src/game/events.ts`; retained minimap and viewport events are map-scoped |
@@ -36,7 +36,7 @@ Production v1 is `/cemetery`. The development branch also implements `/cemetery/
 
 ## Map behavior
 
-See `map2.md` for v2 coordinates, fog and assets. Preserve the authored terrain and slot placement. Shared UI changes must be checked on both map shells. In particular, the two maps have different world sizes and the minimap must retain its own raster after responsive remounting.
+See `map2.md` for v2 coordinates, fog and assets. Preserve the authored terrain and slot placement. Shared UI changes must be checked on the v2 shell at desktop/mobile sizes; the minimap must retain its raster after responsive remounting.
 
 Bury sits to the right of the bottom chat. The red button, ledger borders/typography, whole-token formatting and FAQ vocabulary follow the v1 UI corrections. Do not reintroduce the old Bury panel, project cremation counters or the obsolete Offerings FAQ entry.
 
