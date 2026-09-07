@@ -1,6 +1,6 @@
 # v2 cutover release candidate
 
-Status: branch published and Preview ready; 144 active slots approved. Local verification and fresh read-only live preflight complete. Production migration and production deployment remain pending.
+Status: v2 is live in production with 144 approved active slots. All nine old graves are migrated and verified on Preview and production. Burial writes are open for v2 and rejected for v1. A controlled new burial, Storage privatization, source/asset retirement and the observation window remain pending.
 Baseline: `af1eab7` (`codex/map2-unification`). Work branch: `codex/v2-cutover`.
 The pre-existing `docs/rekt-product-spec.md` draft is outside this change.
 
@@ -138,3 +138,24 @@ The owner then approved all 144 authored slots, retaining the 666-place master t
 Validation after pinning the active slots: 508/508 unit tests, then 12/12 focused migration tests including the inherited-privileges regression, 18/18 isolated browser scenarios, TypeScript, lint and production build passed. All 54 client chunks pass the v1 asset audit.
 
 Installed the additive database gate on the verified production project after the private backup. Live checks confirm `burials_paused=false`, `v1_retired=false`, nine unchanged graves, and service-role read access without write access to the gate. The SQL now explicitly revokes inherited service-role table privileges before granting SELECT, so default Supabase ACLs cannot let application credentials reopen it. Migration has not run yet.
+
+## Production cutover — 2026-09-07
+
+- The current production release is `f9c6f97b70b63bd337a2db49bda98042894ba1b8`, deployed from `master` without a force push. [Production deployment](https://vercel.com/azats-projects-db37144a/vibecemetery/AkTWYv6T5ydYXNtGdnmfcrQnKiLA) and [matching Preview](https://vercel.com/azats-projects-db37144a/vibecemetery/2ZJ44wh21zNL9bcFo2exJptzEW6y) are Ready.
+- Production history had diverged through earlier squash/parallel development. Compared the candidate against `9010b01`: burn recovery, ledger components, CTA, chat, terminology, wallet runtime and the dependency lockfile already matched after the `af1eab7` port. Reviewed remaining backend differences as intentional v2 cutover changes. A history-only merge records both parents and keeps exactly the tested `06ff226` tree; its before/after tree hashes match.
+- Closed the independent burial gate and saved a repeatable-read, read-only backup at `2026-09-07T14:02:33.216113Z`. The private export contains all 12 public tables, SQL schema/security definitions, Storage metadata, protected-table fingerprints and exact decimal amounts. Raw JSON and CSV, separate table files, the snapshot, manifest, restoration SQL and SHA-256 checksums remain outside Git.
+- The live dry run passed every invariant and rolled back. A separate query confirmed nine v1 graves, zero v2 graves and the unchanged verified raw total after rollback. The committed SQL had an identical body to the rehearsed SQL; only its explanatory header and final transaction command differ.
+- Applied the migration on `lnyfogihvackjwhdvgzo/main`: nine v2 graves, zero v1 graves, unique compatible slots/GIDs. A separate REST comparison checked every original field in all nine graves, nine users, seven F votes, seven burn intents and four burns against the backup. Only the three approved placement fields changed. Verified raw GRAVE remained `25263442113724649798733865`.
+- Opened all nine original `/grave/[uuid]` links on the authenticated Preview. Canonical URL, project name, epitaph, F and GRAVE display matched for each one. Repeated all nine on production at 1280px and 390px. Public HTTP checks also verified each share page, per-grave offering endpoint, full UUID set and placement. Invalid and absent UUIDs returned 404; v1 reads returned 410; both old cemetery aliases returned 308 preserving query parameters, including repeated values.
+- Manually checked production FAQ, Necropolis, author-filtered Crypt, nested memorial return, profile, meta memorial and Crematory/Tributes. After closing the full modal stack, the map accepts input, chat messages remain, chat collapse/expand works, and clicking an open area on the minimap moves the camera. Mobile Find on Map and zoom work.
+- Reopened the database gate only after production smoke. Confirmed `burials_paused=false`, `v1_retired=true`, nine v2 graves. Existing deployments cannot create v1 graves.
+- Performed one controlled F on the owner's `myvibe` grave: 0 → 1, persisted after reload, with the second vote disabled. This intentional post-migration check adds one F vote (7 → 8); it is not migration drift. No GRAVE transfer occurred. HTTP reconciliation at `2026-09-07T14:30:03Z` confirmed all nine UUIDs and the unchanged exact GRAVE total after that vote.
+- A fresh production page inventory contained the v2 TMJ, 76 images, 28 scripts and no v1 map or Storage URLs. Inspected browser logs contained no errors or warnings. The initial production deployment still retains the old public files on disk until the retirement follow-up; absence of requests is not deletion.
+
+### Remaining release gate
+
+The signed-in profile shows one existing grave and four available account slots. The owner still needs to name the actual project for the controlled create → ceremony → reload → share-link check. Do not bury an arbitrary repository or send a real token transfer to complete this checklist.
+
+After that check, privatize the inventoried `tilesets` bucket, verify cold-cache production again, and prepare the retirement commit. The specific legacy dependencies are `CemeteryApp.tsx`, `PhaserCanvas.tsx`, `game/config.ts`, `CemeteryScene.ts`, the v1 slot/tile utilities, and the v1 reader in `lib/map-slots.ts`. Update the mixed v1/v2 assertions in `phaser-resize`, `ceremony`, `grave-reconciliation` and `grave-burn-map-boundary` tests rather than deleting the v2 coverage. Remove `public/map/az.tmj` and only inventoried licensed public PNGs after checking their private copies. Rebuild, run the required tests and bundle audit, then publish the retirement commit.
+
+Storage is still public and its ten objects are intact. No Storage deletion, source retirement or 72-hour monitoring automation has been performed as part of this cutover. Those remain required work; the original goal is not complete.
