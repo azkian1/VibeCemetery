@@ -84,17 +84,15 @@ Legacy Agent Layer code, API routes, SQL, and archived docs remain in the reposi
 ## Product Surface
 
 - **Scanner Landing Page** - `/` is a compact first-page flow with one primary action, `Scan GitHub`. It scans only the connected GitHub account and does not offer public username scanning.
-- **Pixel Cemetery Maps** - the classic v1 experience at `/cemetery` and the Map 2.0 Phaser experience at `/cemetery/v2`, with custom PixelLab art, fog of war, minimap, camera movement, and modal interactions. See [`docs/map2.md`](docs/map2.md).
+- **Pixel Cemetery Maps** - the released v1 experience at `/cemetery` and the development Map 2.0 experience at `/cemetery/v2`, with custom PixelLab art, fog of war, minimap, camera movement, and modal interactions. See [`docs/map2.md`](docs/map2.md).
 - **GitHub Burial Flow** - sign in, scan inactive repos, pick a dead repo, write the cause of death, and place it on the map when grave slots are available.
-- **Crematory** - verified GRAVE offerings, transaction history and an on-chain burn-address supply bar.
+- **Crematory** - centered Burned supply and a sortable Tributes ledger by grave, with whole-token GRAVE amounts.
 - **The Crypt** - a searchable ledger of graves.
 - **Necropolis Leaderboard** - top gravediggers, causes of death, and cemetery activity.
 - **Press F** - pay respects to graves, one vote per user per grave.
 - **Deep Links** - share graves through stable URLs.
 - **Open Graph Cards** - grave links render dedicated tombstone social cards.
-- **GRAVE Offerings** - existing Map v1 graves can receive fixed-token
-  offerings sent to the configured burn address. The UI is disabled by default
-  until the deployment checklist passes. Connect Wallet is scoped to the grave
+- **GRAVE Tributes** - graves on both development maps use the same verified burn flow, including recovery of lost transaction hashes. Feature flags control availability on each deployment. Connect Wallet is scoped to the grave
   modal; no new smart contract or cabinet-level wallet connection is part of
   this release. See
   [`docs/web3-grave-burn-mvp.md`](docs/web3-grave-burn-mvp.md).
@@ -103,8 +101,8 @@ Legacy Agent Layer code, API routes, SQL, and archived docs remain in the reposi
 
 - `/` - scanner landing page for connected-account GitHub scans.
 - `/cemetery` - Phaser cemetery map experience and Human Layer rituals.
-- `/cemetery/v2` - active Map 2.0 experience; v1 remains available at `/cemetery`.
-- `/grave/[id]` - redirects to `/cemetery?grave=<id>`.
+- `/cemetery/v2` - Map 2.0 in this development branch; not released on the primary domain.
+- `/grave/[id]` - opens the grave on its stored map version.
 - `/agent-instructions` - local agent burial workflow; no installation required.
 
 Legacy root query intents such as `/?grave=...` and `/?modal=bury` redirect to `/cemetery` with the relevant query preserved.
@@ -118,18 +116,16 @@ VibeCemetery is moving toward more original IP, deeper cemetery rituals, and a s
 Implemented:
 
 - **Scanner-first UX cleanup** - the front page now starts with the GitHub Scanner and the Human Layer rituals are clearer.
-- **Cemetery Map 2.0** - the 140×104 custom PixelLab map is active at `/cemetery/v2`, with fog-aware camera bounds and a circular minimap.
+- **Cemetery Map 2.0** - the 140×104 custom PixelLab map is implemented at `/cemetery/v2` in the development branch, with fog-aware camera bounds and a circular minimap.
 - **$GRAVE burn-offering MVP** - signed intents, server-side Base verification,
   atomic duplicate protection, per-grave verified totals/top mourners, and
   protected reorg checks are implemented behind release flags.
 
 Next:
 
-- **Map v1** - original 40×40 map remains view-only at `/cemetery`.
+- **Map v2 release** - finish visual work and explicitly release the second map; v1 remains the working production cemetery.
 - **Swamp of Shame** - expand the world with a new shame-themed cemetery zone.
-- **$GRAVE production activation** - apply the migration, provision the
-  production RPC/secrets, prove the scheduler, and execute one explicitly
-  approved tiny Base transaction.
+- **Burn maintenance** - preserve verified accounting, reorg checks and lost-hash recovery as the cemetery evolves.
 - **The Gravedigger Agent** - introduce the native cemetery agent for guidance, lore, grave care, and future ritual interactions.
 
 The current product remains focused on the core human cemetery: GitHub and local project burials. The Agent Layer is paused and will be revisited only after the cemetery itself is stronger and more populated.
@@ -161,7 +157,7 @@ Agent Ash / GitLawb docs are archived because the layer is not part of the activ
 | Database | Supabase Postgres |
 | Auth | NextAuth.js, GitHub OAuth |
 | Web3 | Wagmi, Viem, TanStack Query, Base Mainnet |
-| Styling | Inline component styles, stone palette, Cinzel |
+| Styling | Shared stone components and CSS modules, Cinzel |
 | Hosting | Vercel |
 
 ## Local Development
@@ -191,6 +187,8 @@ Targeted agent helper and Web3 suites:
 npm run test:bury-skill
 npm run test:web3-e2e
 ```
+
+The browser suite overrides application credentials with inert values and mocks API writes and wallet transfers. It needs the licensed v1 PNGs in `public/map/`, or `PLAYWRIGHT_TILESET_BASE_URL` pointing to a public folder containing those PNGs. This optional URL is used only for image requests; it does not configure Supabase API access.
 
 Database setup references:
 

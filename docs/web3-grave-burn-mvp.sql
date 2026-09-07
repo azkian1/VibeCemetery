@@ -23,6 +23,9 @@ create table if not exists public.grave_burn_intents (
   consumed_at timestamptz,
   created_at timestamptz not null default timezone('utc', now()),
   constraint grave_burn_intents_amount_positive check (amount_raw > 0),
+  constraint grave_burn_intents_amount_uint256 check (
+    amount_raw <= 115792089237316195423570985008687907853269984665640564039457584007913129639935
+  ),
   constraint grave_burn_intents_chain_base check (chain_id = 8453),
   constraint grave_burn_intents_wallet_format check (wallet_address ~ '^0x[0-9a-f]{40}$'),
   constraint grave_burn_intents_token_fixed check (token_address = '0xb48bc4896d18724f7bf5a3d2817fc35252cd7ba3'),
@@ -55,6 +58,9 @@ create table if not exists public.grave_burns (
   last_checked_at timestamptz not null default timezone('utc', now()),
   created_at timestamptz not null default timezone('utc', now()),
   constraint grave_burns_amount_positive check (amount_raw > 0),
+  constraint grave_burns_amount_uint256 check (
+    amount_raw <= 115792089237316195423570985008687907853269984665640564039457584007913129639935
+  ),
   constraint grave_burns_chain_base check (chain_id = 8453),
   constraint grave_burns_wallet_format check (wallet_address ~ '^0x[0-9a-f]{40}$'),
   constraint grave_burns_token_fixed check (token_address = '0xb48bc4896d18724f7bf5a3d2817fc35252cd7ba3'),
@@ -66,10 +72,46 @@ create table if not exists public.grave_burns (
   constraint grave_burns_log_index_nonnegative check (log_index is null or log_index >= 0)
 );
 
+-- CREATE TABLE IF NOT EXISTS does not add new constraints to an existing
+-- deployment. Add and validate the EVM uint256 boundary idempotently.
+do $migration$
+begin
+  if not exists (
+    select 1 from pg_catalog.pg_constraint
+     where conname = 'grave_burn_intents_amount_uint256'
+       and conrelid = 'public.grave_burn_intents'::regclass
+  ) then
+    alter table public.grave_burn_intents
+      add constraint grave_burn_intents_amount_uint256 check (
+        amount_raw <= 115792089237316195423570985008687907853269984665640564039457584007913129639935
+      ) not valid;
+  end if;
+
+  if not exists (
+    select 1 from pg_catalog.pg_constraint
+     where conname = 'grave_burns_amount_uint256'
+       and conrelid = 'public.grave_burns'::regclass
+  ) then
+    alter table public.grave_burns
+      add constraint grave_burns_amount_uint256 check (
+        amount_raw <= 115792089237316195423570985008687907853269984665640564039457584007913129639935
+      ) not valid;
+  end if;
+end;
+$migration$;
+
+alter table public.grave_burn_intents
+  validate constraint grave_burn_intents_amount_uint256;
+alter table public.grave_burns
+  validate constraint grave_burns_amount_uint256;
+
 create index if not exists grave_burn_intents_wallet_idx
   on public.grave_burn_intents (wallet_address);
 create index if not exists grave_burn_intents_grave_status_idx
   on public.grave_burn_intents (grave_id, status);
+create index if not exists grave_burn_intents_created_expiry_idx
+  on public.grave_burn_intents (expires_at)
+  where status = 'created';
 create index if not exists grave_burns_grave_status_idx
   on public.grave_burns (grave_id, status);
 create index if not exists grave_burns_grave_status_wallet_idx
@@ -95,7 +137,7 @@ begin
      set status = 'expired'
    where id = p_intent_id
      and grave_id = p_grave_id
-     and status in ('created', 'authorized')
+     and status = 'created'
      and expires_at <= p_checked_at;
 end;
 $$;
@@ -164,6 +206,7 @@ create or replace function public.bind_grave_burn(
   p_block_number numeric,
   p_block_hash text,
   p_log_index integer,
+  p_transfer_block_timestamp timestamptz,
   p_checked_at timestamptz
 )
 returns jsonb
@@ -176,6 +219,19 @@ declare
   existing_burn public.grave_burns%rowtype;
 begin
   if p_status not in ('pending', 'verified') then
+    return jsonb_build_object('outcome', 'invalid_state');
+  end if;
+
+  if num_nonnulls(
+    p_block_number,
+    p_block_hash,
+    p_log_index,
+    p_transfer_block_timestamp
+  ) not in (0, 4) then
+    return jsonb_build_object('outcome', 'invalid_state');
+  end if;
+
+  if p_status = 'verified' and p_block_number is null then
     return jsonb_build_object('outcome', 'invalid_state');
   end if;
 
@@ -203,24 +259,63 @@ begin
     return jsonb_build_object('outcome', 'conflict');
   end if;
 
-  select *
-    into existing_burn
-    from public.grave_burns
-   where tx_hash = lower(p_tx_hash);
-
-  if found then
-    return jsonb_build_object('outcome', 'conflict');
-  end if;
-
   if locked_intent.status <> 'authorized' then
     return jsonb_build_object('outcome', 'invalid_state');
   end if;
 
-  if locked_intent.expires_at <= p_checked_at then
+  if p_transfer_block_timestamp is null then
+    -- Persist a just-broadcast tx while its receipt is temporarily unavailable.
+    -- This lets the protected reverification job finish the check even if the
+    -- browser closes or the receipt appears after the wall-clock deadline.
+    -- Reverification uses the canonical block timestamp to accept only a
+    -- transfer mined inside the signed authorization window. Unverified rows
+    -- are never included in public burn stats.
+    null;
+  else
+    if p_transfer_block_timestamp < locked_intent.authorization_verified_at then
+      return jsonb_build_object('outcome', 'invalid_state');
+    end if;
+
+    if p_transfer_block_timestamp > locked_intent.expires_at then
+      update public.grave_burn_intents
+         set status = 'expired'
+       where id = p_intent_id;
+      return jsonb_build_object('outcome', 'expired');
+    end if;
+  end if;
+
+  select *
+    into existing_burn
+    from public.grave_burns
+   where tx_hash = lower(p_tx_hash)
+   for update;
+
+  if found then
+    -- A receipt-less submission is only a recovery hint, not permanent
+    -- ownership of a globally unique transaction hash. Once the server has a
+    -- fully verified receipt artifact for the correct signed intent, replace
+    -- a conflicting artifact-less claim atomically. This prevents a copied
+    -- mempool hash from denying attribution to its real sender.
+    if p_block_number is null or num_nonnulls(
+      existing_burn.block_number,
+      existing_burn.block_hash,
+      existing_burn.log_index
+    ) <> 0 then
+      return jsonb_build_object('outcome', 'conflict');
+    end if;
+
     update public.grave_burn_intents
-       set status = 'expired'
-     where id = p_intent_id;
-    return jsonb_build_object('outcome', 'expired');
+       set status = 'failed',
+           consumed_at = null
+     where id = existing_burn.intent_id
+       and status = 'consumed';
+
+    if not found then
+      return jsonb_build_object('outcome', 'conflict');
+    end if;
+
+    delete from public.grave_burns
+     where id = existing_burn.id;
   end if;
 
   insert into public.grave_burns (
@@ -272,6 +367,14 @@ exception
     return jsonb_build_object('outcome', 'conflict');
 end;
 $$;
+
+-- Remove the pre-recovery overload only after its replacement exists. The new
+-- overload receives the canonical block timestamp, so a receipt discovered
+-- after intent expiry is accepted only when the transfer itself was mined
+-- before the deadline.
+drop function if exists public.bind_grave_burn(
+  uuid, uuid, text, text, numeric, text, integer, timestamptz
+);
 
 create or replace function public.reverify_grave_burn(
   p_burn_id uuid,
@@ -397,7 +500,7 @@ revoke all on function public.authorize_grave_burn_intent(uuid, uuid, text, nume
   from public, anon, authenticated;
 revoke all on function public.expire_grave_burn_intent(uuid, uuid, timestamptz)
   from public, anon, authenticated;
-revoke all on function public.bind_grave_burn(uuid, uuid, text, text, numeric, text, integer, timestamptz)
+revoke all on function public.bind_grave_burn(uuid, uuid, text, text, numeric, text, integer, timestamptz, timestamptz)
   from public, anon, authenticated;
 revoke all on function public.reverify_grave_burn(uuid, text, numeric, text, integer, text, timestamptz)
   from public, anon, authenticated;
@@ -408,7 +511,7 @@ grant execute on function public.authorize_grave_burn_intent(uuid, uuid, text, n
   to service_role;
 grant execute on function public.expire_grave_burn_intent(uuid, uuid, timestamptz)
   to service_role;
-grant execute on function public.bind_grave_burn(uuid, uuid, text, text, numeric, text, integer, timestamptz)
+grant execute on function public.bind_grave_burn(uuid, uuid, text, text, numeric, text, integer, timestamptz, timestamptz)
   to service_role;
 grant execute on function public.reverify_grave_burn(uuid, text, numeric, text, integer, text, timestamptz)
   to service_role;

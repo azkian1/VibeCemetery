@@ -2,14 +2,14 @@ import { expect, test } from '@playwright/test'
 import { readFileSync } from 'node:fs'
 import { CHAT_STATUS_ITEMS, getChatStatusCounts } from '../src/components/hud/ChatLog'
 
-test('chat status bar includes Total, Buried, and Cremated counters', () => {
+test('chat status bar includes only total and buried counters', () => {
   expect(CHAT_STATUS_ITEMS).toEqual([
     { key: 'total', label: 'Total', emoji: '💀' },
     { key: 'buried', label: 'Buried', emoji: '🪦' },
   ])
 })
 
-test('chat status counts graves plus cremations as total records', () => {
+test('chat status counts graves as total records', () => {
   expect(getChatStatusCounts({ graveCount: 3 })).toEqual({
     total: 3,
     buried: 3,
@@ -24,11 +24,11 @@ test('chat status no longer fetches Agent Ashes', () => {
   expect(source).not.toContain("key: 'ashes'")
 })
 
-test('desktop chat is lifted above the ritual CTA column', () => {
+test('desktop chat sits at the bottom beside the burial action', () => {
   const source = readFileSync('src/components/hud/ChatLog.tsx', 'utf8')
 
   expect(source).toContain('left: 16')
-  expect(source).toContain('bottom: 126')
+  expect(source).toContain('bottom: 16')
   expect(source).toContain('width: 340')
 })
 

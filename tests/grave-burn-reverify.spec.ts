@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { NextRequest } from 'next/server'
 import {
   encodeAbiParameters,
   encodeEventTopics,
@@ -26,6 +27,8 @@ import {
   GRAVE_TOKEN_ADDRESS,
 } from '../src/web3/config'
 import { graveTokenAbi } from '../src/web3/abi'
+import { createReverifyHandler } from '../src/app/api/internal/grave-burns/reverify/reverify-handler'
+import type { BurnRecoveryClient } from '../src/lib/web3/recoverBurnTx'
 
 const graveId = '22222222-2222-4222-8222-222222222222'
 const intentId = '11111111-1111-4111-8111-111111111111'
@@ -90,6 +93,7 @@ function storeWithCandidate(updates: Array<{
       throw new Error('not used')
     },
     getIntent: async () => intent(),
+    expireStaleCreatedIntents: async () => 0,
     expireIntentAtomic: async () => undefined,
     authorizeIntentAtomic: async () => 'authorized',
     bindBurnAtomic: async () => ({ outcome: 'bound', status: 'pending' }),
@@ -100,6 +104,8 @@ function storeWithCandidate(updates: Array<{
       burnCount: 0,
       topMourners: [],
     }),
+    claimBurnRecoveryCandidates: async () => [],
+    finishBurnRecoveryClaim: async () => undefined,
     listReverifyCandidates: async () => [{ burn: burn(), intent: intent() }],
     updateReverifiedBurn: async (input) => {
       updates.push(input)
@@ -154,9 +160,11 @@ function validClient(): BurnVerificationClient {
 
 test('reverify keeps a temporarily missing receipt pending', async () => {
   const updates: Parameters<ReturnType<typeof storeWithCandidate>['updateReverifiedBurn']>[0][] = []
+  const store = storeWithCandidate(updates)
+  store.expireStaleCreatedIntents = async () => 3
   const summary = await reverifyBurnBatch({
     deps: {
-      store: storeWithCandidate(updates),
+      store,
       client: client(),
       now: () => new Date('2026-07-30T12:06:00.000Z'),
     },
@@ -170,6 +178,7 @@ test('reverify keeps a temporarily missing receipt pending', async () => {
     failed: 0,
     orphaned: 0,
     errors: 0,
+    expiredIntents: 3,
   })
   expect(updates).toHaveLength(1)
   expect(updates[0]).toMatchObject({
@@ -221,6 +230,103 @@ test('reverify orphans only a confirmed block-hash mismatch', async () => {
   })
 })
 
+test('a missing receipt is persisted before expiry for server-side recovery', async () => {
+  let boundArtifact: BurnVerificationArtifact | null | undefined
+  let expired = false
+  const store = storeWithCandidate([])
+  store.getBurnByIntent = async () => null
+  store.expireIntentAtomic = async () => {
+    expired = true
+  }
+  store.bindBurnAtomic = async (input) => {
+    boundArtifact = input.artifact
+    return { outcome: 'bound', status: 'pending' }
+  }
+
+  const result = await submitBurnTransaction({
+    deps: {
+      store,
+      client: client(),
+      now: () => new Date('2026-07-30T12:06:00.000Z'),
+    },
+    graveId,
+    intentId,
+    txHash,
+  })
+
+  expect(result).toMatchObject({
+    outcome: 'accepted',
+    status: 'pending',
+    txHash,
+    retryable: true,
+  })
+  expect(boundArtifact).toBeNull()
+  expect(expired).toBe(false)
+})
+
+test('a missing receipt after expiry remains pending for block-time recovery', async () => {
+  let boundArtifact: BurnVerificationArtifact | null | undefined
+  let expired = false
+  const store = storeWithCandidate([])
+  store.getBurnByIntent = async () => null
+  store.expireIntentAtomic = async () => {
+    expired = true
+  }
+  store.bindBurnAtomic = async (input) => {
+    boundArtifact = input.artifact
+    return { outcome: 'bound', status: 'pending' }
+  }
+
+  const result = await submitBurnTransaction({
+    deps: {
+      store,
+      client: client(),
+      now: () => new Date('2026-07-30T12:15:00.000Z'),
+    },
+    graveId,
+    intentId,
+    txHash,
+  })
+
+  expect(result).toMatchObject({
+    outcome: 'accepted',
+    status: 'pending',
+    txHash,
+    retryable: true,
+  })
+  expect(boundArtifact).toBeNull()
+  expect(expired).toBe(false)
+})
+
+test('a receipt discovered after expiry binds when its block was before expiry', async () => {
+  let boundArtifact: BurnVerificationArtifact | null | undefined
+  const store = storeWithCandidate([])
+  store.getBurnByIntent = async () => null
+  store.bindBurnAtomic = async (input) => {
+    boundArtifact = input.artifact
+    return { outcome: 'bound', status: input.status }
+  }
+
+  const result = await submitBurnTransaction({
+    deps: {
+      store,
+      client: validClient(),
+      now: () => new Date('2026-07-30T12:15:00.000Z'),
+    },
+    graveId,
+    intentId,
+    txHash,
+  })
+
+  expect(result).toMatchObject({ outcome: 'accepted', status: 'verified' })
+  expect(boundArtifact).toMatchObject({
+    blockNumber: '101',
+    blockHash,
+    logIndex: 3,
+    blockTimestamp: '2026-07-30T12:05:00.000Z',
+  })
+})
+
 test('concurrent duplicate submissions atomically create one counted burn', async () => {
   let boundBurn: GraveBurnRecord | null = null
   let waitingLookups = 0
@@ -241,6 +347,7 @@ test('concurrent duplicate submissions atomically create one counted burn', asyn
     if (boundBurn) {
       return { outcome: 'existing', status: boundBurn.status }
     }
+    if (!input.artifact) throw new Error('expected verified receipt artifact')
     boundBurn = {
       ...burn(),
       txHash: input.txHash,
@@ -277,3 +384,58 @@ test('concurrent duplicate submissions atomically create one counted burn', asyn
   expect(right).toMatchObject({ outcome: 'accepted', status: 'verified' })
   expect(boundBurn).not.toBeNull()
 })
+
+test('a recovery outage cannot disable the existing protected reverify batch', async () => {
+  let reverifyCalls = 0
+  const callOrder: string[] = []
+  const dependencies = {
+    getConfig: () => ({
+      enabled: true,
+      baseRpcUrl: 'https://mainnet.base.org',
+      reverifySecret: null,
+      cronSecret: 'cron-test-secret',
+    }),
+    isAvailable: () => true,
+    getServiceDependencies: async () => ({
+      store: storeWithCandidate([]),
+      client: client(),
+    }),
+    recover: async () => {
+      callOrder.push('recover')
+      throw new Error('migration not applied yet')
+    },
+    getRecoveryClient: async () => recoveryClientStub,
+    reverify: async () => {
+      callOrder.push('reverify')
+      reverifyCalls += 1
+      return {
+        checked: 0,
+        verified: 0,
+        pending: 0,
+        failed: 0,
+        orphaned: 0,
+        errors: 0,
+        expiredIntents: 0,
+      }
+    },
+  }
+  const handler = createReverifyHandler(dependencies)
+  const response = await handler(new NextRequest(
+    'http://localhost/api/internal/grave-burns/reverify',
+    { headers: { authorization: 'Bearer cron-test-secret' } },
+  ))
+
+  expect(response.status).toBe(200)
+  expect(reverifyCalls).toBe(1)
+  expect(callOrder).toEqual(['reverify', 'recover'])
+  await expect(response.json()).resolves.toMatchObject({
+    errors: 0,
+    recovery: { errors: 1 },
+  })
+})
+
+const recoveryClientStub = {
+  getBlockNumber: async () => 0n,
+  getBlock: async () => ({ hash: null, timestamp: 0n }),
+  getLogs: async () => [],
+} as BurnRecoveryClient

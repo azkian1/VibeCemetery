@@ -29,6 +29,7 @@ const blockHash = `0x${'56'.repeat(32)}` as Hex
 class MemoryBurnStore implements GraveBurnStore {
   graveResult: GraveLookupResult = 'found'
   intents = new Map<string, GraveBurnIntentRecord>()
+  lastExpirySweepAt: string | null = null
 
   async findBurnableGrave(): Promise<GraveLookupResult> {
     return this.graveResult
@@ -65,6 +66,18 @@ class MemoryBurnStore implements GraveBurnStore {
   async getIntent(requestedGraveId: string, requestedIntentId: string) {
     const intent = this.intents.get(requestedIntentId)
     return intent?.graveId === requestedGraveId ? intent : null
+  }
+
+  async expireStaleCreatedIntents(checkedAt: string): Promise<number> {
+    this.lastExpirySweepAt = checkedAt
+    let expired = 0
+    for (const intent of this.intents.values()) {
+      if (intent.status === 'created' && new Date(intent.expiresAt) <= new Date(checkedAt)) {
+        intent.status = 'expired'
+        expired += 1
+      }
+    }
+    return expired
   }
 
   async expireIntentAtomic(input: {
@@ -127,6 +140,10 @@ class MemoryBurnStore implements GraveBurnStore {
       topMourners: [],
     }
   }
+  async claimBurnRecoveryCandidates() {
+    return []
+  }
+  async finishBurnRecoveryClaim() {}
   async listReverifyCandidates() {
     return []
   }
@@ -198,6 +215,7 @@ test('server controls the unique nonce, fixed config and ten-minute expiry', asy
     burnAddress: GRAVE_BURN_ADDRESS,
     expiresAt: '2026-07-30T12:10:00.000Z',
   })
+  expect(store.lastExpirySweepAt).toBe('2026-07-30T12:00:00.000Z')
 
   await expect(createBurnIntent({
     deps: dependencies(store),
@@ -205,6 +223,53 @@ test('server controls the unique nonce, fixed config and ten-minute expiry', asy
     walletAddress: wallet,
     amountRaw: 100n * 10n ** 18n,
   })).rejects.toThrow('duplicate nonce')
+})
+
+test('creating a new intent expires stale unsigned intents', async () => {
+  const store = new MemoryBurnStore()
+  await createBurnIntent({
+    deps: dependencies(store),
+    graveId,
+    walletAddress: wallet,
+    amountRaw: 100n * 10n ** 18n,
+  })
+
+  const laterDependencies = dependencies(store, new Date('2026-07-30T12:11:00.000Z'))
+  laterDependencies.createId = () => '33333333-3333-4333-8333-333333333333'
+  laterDependencies.createNonce = () => `0x${'78'.repeat(32)}`
+  await createBurnIntent({
+    deps: laterDependencies,
+    graveId,
+    walletAddress: wallet,
+    amountRaw: 200n * 10n ** 18n,
+  })
+
+  expect(store.intents.get(intentId)?.status).toBe('expired')
+  expect(store.intents.get('33333333-3333-4333-8333-333333333333')?.status)
+    .toBe('created')
+})
+
+test('an expiry sweep failure does not block a new signed-intent flow', async () => {
+  const store = new MemoryBurnStore()
+  store.expireStaleCreatedIntents = async () => {
+    throw new Error('temporary cleanup failure')
+  }
+
+  const originalError = console.error
+  const logged: unknown[][] = []
+  console.error = (...args: unknown[]) => logged.push(args)
+  try {
+    const result = await createBurnIntent({
+      deps: dependencies(store),
+      graveId,
+      walletAddress: wallet,
+      amountRaw: 100n * 10n ** 18n,
+    })
+    expect(result.outcome).toBe('created')
+    expect(logged).toHaveLength(1)
+  } finally {
+    console.error = originalError
+  }
 })
 
 test('authorization verifies the signature at a block snapshot and is idempotent', async () => {

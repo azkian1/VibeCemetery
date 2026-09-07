@@ -708,7 +708,7 @@ export function buildBurialBody(payload) {
 
   if (payload?.github_url != null || payload?.github_repo_id != null) throw new Error('Use the GitHub scanner for linked repository burials')
   body.source = 'local'
-  body.map_version = payload?.map_version ?? 'v2'
+  body.map_version = payload?.map_version ?? 'v1'
   if (!['v1', 'v2'].includes(body.map_version)) throw new Error('Invalid map version')
   if (payload?.description) body.description = sanitizeDisplayText(payload.description, 500)
   if (payload?.stack) {

@@ -104,7 +104,8 @@ test.describe('bury skill helpers', () => {
   test('local burial payload excludes repository links and enforces an explicit field allowlist', async () => {
     const { buildBurialBody } = await loadHelper()
     const payload = { name: 'Local project', cause: 'Retired', project_key: 'sha256:' + 'a'.repeat(64), secret: 'not for publication', raw_path: 'C:/private' }
-    expect(buildBurialBody(payload)).toEqual({ name: payload.name, cause: payload.cause, project_key: payload.project_key, source: 'local', map_version: 'v2' })
+    expect(buildBurialBody(payload)).toEqual({ name: payload.name, cause: payload.cause, project_key: payload.project_key, source: 'local', map_version: 'v1' })
+    expect(buildBurialBody({ ...payload, map_version: 'v2' })).toMatchObject({ map_version: 'v2' })
     expect(() => buildBurialBody({ ...payload, github_url: 'https://github.com/owner/repo' })).toThrow()
   })
 
@@ -397,7 +398,7 @@ test.describe('bury skill helpers', () => {
   test('local burial payload excludes repository links and enforces explicit field allowlist', async () => {
     const { buildBurialBody } = await loadHelper()
     const payload = { name: 'Local project', cause: 'Retired', project_key: 'sha256:' + 'a'.repeat(64), secret: 'not for publication', raw_path: 'C:/private' }
-    expect(buildBurialBody(payload)).toEqual({ name: payload.name, cause: payload.cause, project_key: payload.project_key, source: 'local', map_version: 'v2' })
+    expect(buildBurialBody(payload)).toEqual({ name: payload.name, cause: payload.cause, project_key: payload.project_key, source: 'local', map_version: 'v1' })
     expect(() => buildBurialBody({ ...payload, github_url: 'https://github.com/owner/repo' })).toThrow()
   })
 

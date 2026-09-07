@@ -1,16 +1,18 @@
 import { expect, test } from '@playwright/test'
+import { formatUnits } from 'viem'
 import {
   GRAVE_BURN_ADDRESS,
   GRAVE_CHAIN_ID,
   GRAVE_TOKEN_ADDRESS,
   GRAVE_TOKEN_DECIMALS,
+  MAX_GRAVE_UINT256_RAW,
   MIN_BURN_CONFIRMATIONS,
 } from '../src/web3/config'
 import {
   buildGraveBurnTypedData,
   normalizeTransactionHash,
   normalizeWalletAddress,
-  parseWholeGraveAmount,
+  parseGraveAmount,
   type GraveBurnIntentRecord,
 } from '../src/lib/web3/burnIntent'
 
@@ -24,10 +26,28 @@ test('fixed GRAVE configuration matches the approved Base MVP', () => {
   expect(MIN_BURN_CONFIRMATIONS).toBe(2)
 })
 
-test('whole amount parsing uses bigint raw units and rejects unsafe input', () => {
-  expect(parseWholeGraveAmount('100')?.amountRaw).toBe(100n * 10n ** 18n)
-  for (const invalid of ['0', '-1', '1.5', '01', '1e3', '', ' 1', 100, '9'.repeat(61)]) {
-    expect(parseWholeGraveAmount(invalid)).toBeNull()
+test('amount parsing enforces the server minimum and preserves bigint raw units', () => {
+  expect(parseGraveAmount('1000')?.amountRaw).toBe(1_000n * 10n ** 18n)
+  expect(parseGraveAmount('7218756.791683357334207263')?.amountRaw)
+    .toBe(7_218_756_791_683_357_334_207_263n)
+  expect(parseGraveAmount(formatUnits(MAX_GRAVE_UINT256_RAW, GRAVE_TOKEN_DECIMALS))?.amountRaw)
+    .toBe(MAX_GRAVE_UINT256_RAW)
+  expect(parseGraveAmount(formatUnits(MAX_GRAVE_UINT256_RAW + 1n, GRAVE_TOKEN_DECIMALS)))
+    .toBeNull()
+  for (const invalid of [
+    '0',
+    '0.000000000000000000',
+    '999.999999999999999999',
+    '-1',
+    '1.1234567890123456789',
+    '01',
+    '1e3',
+    '',
+    ' 1',
+    100,
+    '9'.repeat(61),
+  ]) {
+    expect(parseGraveAmount(invalid)).toBeNull()
   }
 })
 

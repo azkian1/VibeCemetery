@@ -90,15 +90,6 @@ export function createSubmitBurnHandler(
           retryable: false,
         }, { status: 422 })
       }
-      if (result.outcome === 'receipt_not_found') {
-        return burnJson({
-          status: 'pending',
-          bound: false,
-          retryable: true,
-          message: 'Transaction submitted — waiting for Base',
-          explorerUrl: `${BASE_EXPLORER_TX_URL}${txHash}`,
-        }, { status: 202 })
-      }
       if (result.outcome !== 'accepted') {
         return burnJson({ error: 'The offering could not be recorded' }, { status: 409 })
       }

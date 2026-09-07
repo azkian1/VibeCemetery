@@ -37,6 +37,13 @@ function intentHasFixedConfig(intent: GraveBurnIntentRecord): boolean {
   )
 }
 
+function logExpirySweepFailure(error: unknown): void {
+  console.error(
+    '[VibeCemetery] Grave burn intent expiry sweep failed:',
+    error instanceof Error ? error.name : 'unknown_error',
+  )
+}
+
 export async function createBurnIntent({
   deps,
   graveId,
@@ -53,6 +60,13 @@ export async function createBurnIntent({
   if (grave === 'schema_unavailable') return { outcome: 'schema_unavailable' as const }
 
   const now = nowFrom(deps)
+  try {
+    await deps.store.expireStaleCreatedIntents(now.toISOString())
+  } catch (error) {
+    // Data hygiene must not make a valid new burn unavailable. The protected
+    // cron retries the same idempotent created-only sweep independently.
+    logExpirySweepFailure(error)
+  }
   const intent = await deps.store.createIntent({
     id: deps.createId?.() ?? randomUUID(),
     graveId,
@@ -209,20 +223,26 @@ export async function submitBurnTransaction({
   }
   if (intent.status !== 'authorized') return { outcome: 'invalid_state' as const }
   const now = nowFrom(deps)
-  if (new Date(intent.expiresAt).getTime() <= now.getTime()) {
-    await deps.store.expireIntentAtomic({
-      graveId,
-      intentId,
-      checkedAt: now.toISOString(),
-    })
-    return { outcome: 'expired' as const }
-  }
 
   const verification = await verifyBurnTx({ client: deps.client, intent, txHash })
   if (verification.status === 'pending' && !verification.bind) {
+    // A broadcast transaction can be mined before the signed deadline while
+    // its receipt remains temporarily unavailable until afterwards. Persist
+    // the hash now; reverification will enforce the canonical block timestamp.
+    const bound = await deps.store.bindBurnAtomic({
+      graveId,
+      intentId,
+      txHash,
+      status: 'pending',
+      artifact: null,
+      checkedAt: now.toISOString(),
+    })
+    if (bound.outcome !== 'bound' && bound.outcome !== 'existing') return bound
+
     return {
-      outcome: 'receipt_not_found' as const,
-      status: 'pending' as const,
+      outcome: 'accepted' as const,
+      status: bound.status,
+      txHash,
       retryable: true,
     }
   }
@@ -266,7 +286,18 @@ export async function reverifyBurnBatch({
   failed: number
   orphaned: number
   errors: number
+  expiredIntents: number
 }> {
+  let expiredIntents = 0
+  let expirySweepErrors = 0
+  try {
+    expiredIntents = await deps.store.expireStaleCreatedIntents(
+      nowFrom(deps).toISOString(),
+    )
+  } catch (error) {
+    expirySweepErrors = 1
+    logExpirySweepFailure(error)
+  }
   const candidates = await deps.store.listReverifyCandidates(limit)
   const summary = {
     checked: 0,
@@ -274,7 +305,8 @@ export async function reverifyBurnBatch({
     pending: 0,
     failed: 0,
     orphaned: 0,
-    errors: 0,
+    errors: expirySweepErrors,
+    expiredIntents,
   }
 
   for (const { burn, intent } of candidates) {

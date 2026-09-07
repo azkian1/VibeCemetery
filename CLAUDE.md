@@ -1,65 +1,53 @@
 # VibeCemetery
 
-Project instructions for Claude Code. Detailed reference lives in `docs/CLAUDE.md`.
+Project guidance. Detailed reference: `docs/CLAUDE.md`.
 
-## Project Focus
-- Next.js 16 App Router app with a scanner landing page and Phaser-powered cemetery map at `/cemetery`.
-- Users can scan only their connected GitHub account, bury dead GitHub repos as map graves, and cremate projects through browser/CLI flows.
-- The GitLawb / Agent Layer experiment is paused and hidden from the primary UI until the cemetery is more populated.
-- Keep the existing cemetery visual language intact: Cinzel, stone palette, inline-style-driven UI.
+## Product and release scope
+
+- Next.js 16 / React 19 app with a GitHub scanner at `/` and the released Phaser cemetery at `/cemetery`.
+- `/cemetery/v2` is implemented in the development branch; it has not been released on the primary domain. Do not describe v1 as view-only or promote v2 as part of a v1 fix.
+- GitHub-owned repositories and local projects submitted by GitHub-approved coding agents receive normal graves. Project cremation is retired; its compatibility endpoint returns 410.
+- The current account allowance is 4 graves plus one historical sharing slot, shared across sources and maps. `docs/rekt-product-spec.md` is a future specification, not implemented behavior.
+- GRAVE tributes are voluntary Base transfers to the existing burn address. Both development maps use the same verified burn/recovery flow; no payout, claim or extra slot is awarded.
+- GitLawb / Agent Ash remains paused. The current local-project flow starts from the site's agent instructions and needs no skill installation.
 
 ## Commands
-- Install: `npm install`
-- Dev: `npm run dev`
-- Build: `npm run build`
-- Start: `npm run start`
-- Lint: `npm run lint`
-- `/bury` Playwright suite: `npm run test:bury-skill`
 
-## Structure
-- `src/app/` - routes, app shell, API handlers
-- `src/app/cemetery/v2/` - Map v2 route (140×104 PixelLab cemetery)
-- `src/components/` - scanner landing page, cemetery app shell, React UI, HUD, modals, shared stone UI
-- `src/context/GameContext.tsx` - shared client state and modal orchestration
-- `src/game/` - Phaser config, scene, events, map rendering logic
-  - `src/game/scenes/CemeteryScene.ts` - v1 scene (az.tmj, 40×40, 48px tiles, asset-pack)
-  - `src/game/scenes/CemeterySceneV2.ts` - v2 scene (cemetery-v2.tmj, 140×104, 32px tiles, PixelLab)
-  - `src/game/utils/slotManager.ts` / `slotManager-v2.ts` - slot parsing per version
-  - `src/game/utils/tileRegistry.ts` / `tileRegistry-v2.ts` - tile catalog per version
-- `src/lib/` - Supabase, auth, rate limiting, site URL, map slot helpers
-- `src/proxy.ts` - API CORS and read rate limiting
-- `public/map/` - Tiled map files and tileset images
-  - `public/map/az.tmj` - v1 map (untouched)
-  - `public/map/cemetery-v2.tmj` - v2 runtime map (converted from its TMX source)
-  - `public/map/pixellab/` - v2 PixelLab production assets
-  - `public/map/tilesets/` - v2 terrain spritesheet
-- `scripts/convert-tmx-to-tmj.mjs` - TMX→TMJ converter for Cemetery Map 2.0
-- `tests/` - Playwright and unit-style coverage
-- `SKILL/` - `/bury` command and supporting workflow files
-- `SKILL/install/` - site-hosted `/bury` installer scripts and shared contract
+- Development: `npm run dev`
+- Typecheck: `npx tsc --noEmit --incremental false`
+- Unit suite: `npm run test:unit`
+- Mocked browser scenarios on both maps: `npm run test:web3-e2e`
+- Lint / build: `npm run lint` / `npm run build`
+- Do not run the broad API smoke suite against a production database. Browser burial and wallet tests must use fixtures.
 
-## Rules
-- Use inline styles for component-level UI unless an existing file already relies on `globals.css`.
-- Keep `/` as the scanner landing page, `/cemetery` as the v1 map (view-only), and `/cemetery/v2` as the active v2 map.
-- Do not add public GitHub username scanning; scans use the authenticated GitHub account only.
-- Do not hardcode grave coordinates; use parsed map slots.
-- Treat repos as dead only when inactive for 7+ days and not forks.
-- Human CLI `/bury` cremations stay in `/api/cremated`; do not route them into paused Agent Ash ingest.
-- Keep grave burial ceremony behavior intact; cremations do not use ceremony animation.
-- Preserve CLI auth flow: browser approval, `claim_token`, hashed long-lived CLI tokens.
-- Enforce `/bury` safety boundaries in code, not only in skill text or docs.
-- Keep installer quick-install sources pinned to an explicit commit or release artifact, never a floating branch.
-- Update CSP in `next.config.ts` before introducing new browser-side external origins.
-- Map v1 (`az.tmj`) is read-only and must not be modified.
-- Map v2 (`cemetery-v2.tmj`) graves use server-side random sprite selection via `grave_gid` column.
-- v1 and v2 graves share the `graves` table, partitioned by `map_version` column.
-- All v2 tileset assets live under `public/map/pixellab/` and `public/map/tilesets/`.
-- The TMX→TMJ conversion script lives at `scripts/convert-tmx-to-tmj.mjs`.
+## Implementation rules
+
+- Preserve the Cinzel/stone visual language. Reuse the existing UI components and CSS modules where present.
+- Scan only the authenticated GitHub account. Preserve repository ownership, fork, project-content and 7-day inactivity checks.
+- Use parsed map slots; never hardcode grave placement. Persist v2 `grave_gid` at creation.
+- Keep the shared `create_grave_once` account lock, quota and idempotency behavior. Placement is scoped by `map_version`.
+- Preserve browser-approved CLI auth and hashed tokens. Enforce security in code, not only in documentation.
+- Keep the burial ceremony and retained minimap state working after resize, late mounting and map switches.
+- Burn recovery never counts an unverified transfer. Candidate hashes go through the same receipt, signature, sender, amount and canonical-block checks.
+- `public/` contains served assets. Keep art experiments, manifests, prompts, reference crops and diagnostics outside it.
+- `.local-archive/` is local and ignored. Do not commit its contents or environment files.
+- V1 licensed tilesets remain excluded from Git. The two generated v2 planning/mask PNGs are explicitly included because the loader requires them.
+- Edit v2 runtime data in `public/map/cemetery-v2.tmj`; use `scripts/convert-tmx-to-tmj.mjs` if starting from TMX.
+- Update CSP when introducing a new browser-side external origin.
 
 ## References
-- `docs/CLAUDE.md`
-- `docs/agent-layer/README.md` - paused Agent Layer status
-- `README.md`
-- `docs/cli-auth-v1.sql`
-- `docs/grave-slot-rpc.sql`
-- `public/map/docs/CLAUDEMAP.md`
+
+- `docs/setup.md` — contributor setup and migrations.
+- `docs/map2.md` — current v2 rendering, assets and camera contract.
+- `docs/web3-grave-burn-mvp.md` — current burn and recovery behavior.
+- `docs/unified-burial-setup.md` — schema upgrade order.
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->

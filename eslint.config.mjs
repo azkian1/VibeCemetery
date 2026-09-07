@@ -18,6 +18,7 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "test-results/**",
+    ".local-archive/**",
     "next-env.d.ts",
     // Vendor sample assets bundled with tilesets are not part of the app code.
     "public/Tailes/**/sample maps*/**",

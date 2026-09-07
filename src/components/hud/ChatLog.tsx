@@ -180,9 +180,10 @@ export default function ChatLog() {
 
   return (
     <div
+      data-testid="cemetery-chat"
       style={{
         position: 'absolute',
-        bottom: 126,
+        bottom: 16,
         left: 16,
         width: 340,
         height: isCollapsed ? 'auto' : 220,

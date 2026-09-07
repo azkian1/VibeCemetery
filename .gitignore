@@ -105,3 +105,15 @@ postcss.config.mjs
 /.claude/
 public/Tailes/**/.claude/
 SKILL/settings.local.json
+
+# Local-only working archives and v2 art experiments
+/.local-archive/
+/public/map/pixellab/experiments/
+/public/map/pixellab/**/contact_sheets/
+/public/map/pixellab/**/manifest.json
+/public/map/pixellab/**/*manifest.json
+/public/map/pixellab/**/notes.md
+
+# Generated v2 masks required by the runtime loader
+!/public/map/planning_tiles.png
+!/public/map/blockout_tiles.png

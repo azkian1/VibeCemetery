@@ -7,7 +7,7 @@ The only project memorial is a grave. Browser GitHub scanning and GitHub-approve
 For an existing database apply, in order:
 
 1. Existing map migrations: map-v2-migration.sql, then map-v2-grave-gid.sql (if not already applied).
-2. Existing web3-grave-burn-mvp.sql and CLI auth migrations (if not already applied).
+2. Existing web3-grave-burn-mvp.sql, web3-grave-burn-v1-finish.sql, web3-grave-burn-hash-recovery.sql and CLI auth migrations (if not already applied). The burn migration order is documented in web3-grave-burn-mvp.md.
 3. unified-burials.sql — nullable GitHub identity for local projects, source and project_key columns, account-wide atomic create_grave_once RPC.
 4. offering-ledger.sql — exact verified aggregates and a recent transaction ledger.
 
@@ -29,7 +29,7 @@ The application update does not itself execute this destructive migration. Remot
 
 Only grave_burns rows with status verified count. Necropolis sums offerings received by each author's graves, including visitors without GitHub, across both maps. This is not an author spending leaderboard.
 
-The Crematory lists the latest 50 verified transactions; its total includes every verified transaction. The supply bar reads totalSupply and balanceOf(the fixed burn address) from the same Base block. It measures the share of current on-chain supply at that address, including transfers outside VibeCemetery. Dead-address transfers do not lower ERC-20 totalSupply. If RPC is unavailable, the bar is unavailable, never 0% by assumption.
+The Crematory shows a sortable Tributes table grouped by grave, including all verified amounts rather than only the latest transactions. Whole-token display does not change the exact raw accounting. The supply bar reads totalSupply and balanceOf(the fixed burn address) from the same Base block. It measures the share of current on-chain supply at that address, including transfers outside VibeCemetery. Dead-address transfers do not lower ERC-20 totalSupply. If RPC is unavailable, the bar is unavailable, never 0% by assumption.
 
 The existing WEB3_GRAVE_BURNS_ENABLED, NEXT_PUBLIC_WEB3_GRAVE_BURNS_ENABLED and BASE_RPC_URL configuration still applies. The same verified burn flow is supported on v1 and v2. All burns remain voluntary wallet-confirmed transfers; no new treasury, reward or token contract is introduced.
 

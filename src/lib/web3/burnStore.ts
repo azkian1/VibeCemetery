@@ -50,10 +50,13 @@ export type BindBurnOutcome =
   | { outcome: 'bound' | 'existing'; status: BurnStatus }
   | { outcome: 'conflict' | 'invalid_state' | 'expired' | 'not_found' }
 
+export type BurnRecoveryClaimOutcome = 'retry' | 'safe_no_match' | 'operator_required'
+
 export interface GraveBurnStore {
   findBurnableGrave(graveId: string): Promise<GraveLookupResult>
   createIntent(input: CreateIntentInput): Promise<GraveBurnIntentRecord>
   getIntent(graveId: string, intentId: string): Promise<GraveBurnIntentRecord | null>
+  expireStaleCreatedIntents(checkedAt: string): Promise<number>
   expireIntentAtomic(input: {
     graveId: string
     intentId: string
@@ -73,11 +76,23 @@ export interface GraveBurnStore {
     intentId: string
     txHash: Hex
     status: 'pending' | 'verified'
-    artifact: BurnVerificationArtifact
+    artifact: BurnVerificationArtifact | null
     checkedAt: string
   }): Promise<BindBurnOutcome>
   getBurnByIntent(intentId: string): Promise<GraveBurnRecord | null>
   getVerifiedBurnStats(graveId: string): Promise<GraveBurnStats>
+  claimBurnRecoveryCandidates(
+    limit: number,
+    claimedAt: string,
+    leaseToken: string,
+  ): Promise<GraveBurnIntentRecord[]>
+  finishBurnRecoveryClaim(input: {
+    intentId: string
+    leaseToken: string
+    outcome: BurnRecoveryClaimOutcome
+    failureCode: string | null
+    checkedAt: string
+  }): Promise<void>
   listReverifyCandidates(limit: number): Promise<Array<{
     burn: GraveBurnRecord
     intent: GraveBurnIntentRecord
@@ -92,6 +107,49 @@ export interface GraveBurnStore {
 }
 
 type DbRow = Record<string, unknown>
+
+// PostgREST otherwise serializes numeric(78, 0) as a JSON number. Once the
+// value reaches 1e21, JSON.parse turns it into an imprecise JS Number and
+// String(value) may produce scientific notation, which viem cannot encode as
+// uint256. Select uint256-sized values as text at the database edge.
+const INTENT_SELECT = [
+  'id',
+  'grave_id',
+  'wallet_address',
+  'github_username',
+  'amount_raw::text',
+  'chain_id',
+  'token_address',
+  'burn_address',
+  'nonce',
+  'status',
+  'signature',
+  'authorized_block_number::text',
+  'authorized_block_hash',
+  'authorization_verified_at',
+  'expires_at',
+  'authorized_at',
+  'consumed_at',
+  'created_at',
+].join(',')
+
+const BURN_SELECT = [
+  'id',
+  'intent_id',
+  'grave_id',
+  'wallet_address',
+  'github_username',
+  'tx_hash',
+  'amount_raw::text',
+  'status',
+  'block_number::text',
+  'block_hash',
+  'log_index',
+  'submitted_at',
+  'verified_at',
+  'last_checked_at',
+  'created_at',
+].join(',')
 
 function asNullableString(value: unknown): string | null {
   return value == null ? null : String(value)
@@ -174,7 +232,7 @@ export class SupabaseGraveBurnStore implements GraveBurnStore {
         expires_at: input.expiresAt,
         created_at: input.createdAt,
       })
-      .select('*')
+      .select<string, DbRow>(INTENT_SELECT)
       .single()
 
     if (error) throw error
@@ -184,13 +242,25 @@ export class SupabaseGraveBurnStore implements GraveBurnStore {
   async getIntent(graveId: string, intentId: string): Promise<GraveBurnIntentRecord | null> {
     const { data, error } = await supabaseAdmin
       .from('grave_burn_intents')
-      .select('*')
+      .select<string, DbRow>(INTENT_SELECT)
       .eq('id', intentId)
       .eq('grave_id', graveId)
       .maybeSingle()
 
     if (error) throw error
     return data ? mapIntent(data as DbRow) : null
+  }
+
+  async expireStaleCreatedIntents(checkedAt: string): Promise<number> {
+    const { data, error } = await supabaseAdmin
+      .from('grave_burn_intents')
+      .update({ status: 'expired' })
+      .eq('status', 'created')
+      .lte('expires_at', checkedAt)
+      .select<string, DbRow>('id')
+
+    if (error) throw error
+    return data?.length ?? 0
   }
 
   async expireIntentAtomic(input: {
@@ -233,7 +303,7 @@ export class SupabaseGraveBurnStore implements GraveBurnStore {
     intentId: string
     txHash: Hex
     status: 'pending' | 'verified'
-    artifact: BurnVerificationArtifact
+    artifact: BurnVerificationArtifact | null
     checkedAt: string
   }): Promise<BindBurnOutcome> {
     const { data, error } = await supabaseAdmin.rpc('bind_grave_burn', {
@@ -241,9 +311,10 @@ export class SupabaseGraveBurnStore implements GraveBurnStore {
       p_intent_id: input.intentId,
       p_tx_hash: input.txHash.toLowerCase(),
       p_status: input.status,
-      p_block_number: input.artifact.blockNumber,
-      p_block_hash: input.artifact.blockHash.toLowerCase(),
-      p_log_index: input.artifact.logIndex,
+      p_block_number: input.artifact?.blockNumber ?? null,
+      p_block_hash: input.artifact?.blockHash.toLowerCase() ?? null,
+      p_log_index: input.artifact?.logIndex ?? null,
+      p_transfer_block_timestamp: input.artifact?.blockTimestamp ?? null,
       p_checked_at: input.checkedAt,
     })
     if (error) throw error
@@ -262,7 +333,7 @@ export class SupabaseGraveBurnStore implements GraveBurnStore {
   async getBurnByIntent(intentId: string): Promise<GraveBurnRecord | null> {
     const { data, error } = await supabaseAdmin
       .from('grave_burns')
-      .select('*')
+      .select<string, DbRow>(BURN_SELECT)
       .eq('intent_id', intentId)
       .maybeSingle()
     if (error) throw error
@@ -293,13 +364,45 @@ export class SupabaseGraveBurnStore implements GraveBurnStore {
     })
   }
 
+  async claimBurnRecoveryCandidates(
+    limit: number,
+    claimedAt: string,
+    leaseToken: string,
+  ): Promise<GraveBurnIntentRecord[]> {
+    const { data, error } = await supabaseAdmin.rpc('claim_grave_burn_recoveries', {
+      p_limit: limit,
+      p_claimed_at: claimedAt,
+      p_lease_seconds: 300,
+      p_lease_token: leaseToken,
+    })
+    if (error) throw error
+    return (data ?? []).map((row: DbRow) => mapIntent(row))
+  }
+
+  async finishBurnRecoveryClaim(input: {
+    intentId: string
+    leaseToken: string
+    outcome: BurnRecoveryClaimOutcome
+    failureCode: string | null
+    checkedAt: string
+  }): Promise<void> {
+    const { error } = await supabaseAdmin.rpc('finish_grave_burn_recovery', {
+      p_intent_id: input.intentId,
+      p_lease_token: input.leaseToken,
+      p_outcome: input.outcome,
+      p_failure_code: input.failureCode,
+      p_checked_at: input.checkedAt,
+    })
+    if (error) throw error
+  }
+
   async listReverifyCandidates(limit: number): Promise<Array<{
     burn: GraveBurnRecord
     intent: GraveBurnIntentRecord
   }>> {
     const { data: burns, error } = await supabaseAdmin
       .from('grave_burns')
-      .select('*')
+      .select<string, DbRow>(BURN_SELECT)
       .in('status', ['pending', 'verified'])
       .order('last_checked_at', { ascending: true })
       .limit(limit)
@@ -309,7 +412,7 @@ export class SupabaseGraveBurnStore implements GraveBurnStore {
     const intentIds = burns.map((burn) => String(burn.intent_id))
     const { data: intents, error: intentsError } = await supabaseAdmin
       .from('grave_burn_intents')
-      .select('*')
+      .select<string, DbRow>(INTENT_SELECT)
       .in('id', intentIds)
     if (intentsError) throw intentsError
 

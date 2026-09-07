@@ -96,6 +96,8 @@ Then apply the CLI auth hardening migration:
 docs/cli-auth-v1.sql
 ```
 
+For burn tables and recovery RPCs, also follow [web3-grave-burn-mvp.md](web3-grave-burn-mvp.md). Apply the initial burn schema, hardening and hash-recovery migrations in that order when missing; do not reset existing verified burns.
+
 For an existing database follow [unified-burial-setup.md](unified-burial-setup.md):
 apply any missing map and Web3 prerequisites, then `unified-burials.sql` and
 `offering-ledger.sql`. The fresh schema already contains these functions.
@@ -236,3 +238,7 @@ Verify `CRON_SECRET`/`GRAVE_BURN_REVERIFY_SECRET`, the Vercel Cron deployment,
 and the protected `/api/internal/grave-burns/reverify` invocation. An RPC
 timeout is intentionally retained as retryable state; only a confirmed block
 hash mismatch marks a burn `orphaned`.
+
+## Map release scope
+
+The current primary-domain release is v1. The second route is available in this development branch, and its publication requires a separate release. Use [map2.md](map2.md) for the supported asset set and camera contract; keep local experiments outside public assets.

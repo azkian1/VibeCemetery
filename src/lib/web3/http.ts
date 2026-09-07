@@ -98,7 +98,11 @@ export function burnHttpErrorResponse(error: unknown): NextResponse {
   if (error instanceof BurnHttpError) {
     return burnJson({ error: error.publicMessage }, { status: error.status })
   }
-  console.error('[VibeCemetery] Grave offering request failed:', error)
+  const errorName = error instanceof Error
+    && /^[A-Za-z][A-Za-z0-9_$]{0,63}$/.test(error.name)
+    ? error.name
+    : 'unknown_error'
+  console.error('[VibeCemetery] Grave offering request failed:', errorName)
   return burnJson({ error: 'Ritual unavailable' }, { status: 500 })
 }
 

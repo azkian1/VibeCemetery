@@ -27,8 +27,10 @@ test('human layer modals separate graves and verified token offerings', () => {
     'src/components/modals/LeaderboardModal.tsx',
     'src/components/modals/CrematoryModal.tsx',
   ].map((path) => readFileSync(path, 'utf8')).join('\n')
-  expect(source).toContain('Offerings (GRAVE)')
-  expect(source).toContain('Recent offerings')
+  expect(source).toContain('Burned')
+  expect(source).toContain('$GRAVE')
+  expect(source).toContain('Tributes')
+  expect(source).not.toContain('Recent offerings')
   expect(source).not.toContain('Git Reaper')
 })
 
@@ -43,7 +45,7 @@ test('Agent Layer page is a paused landing page without Agent Ash entry points',
 
   expect(source).toContain('Back')
   expect(source).toContain('Agent Layer Is On Pause')
-  expect(source).toContain('Legacy Agent Ash routes, API handlers, tables, and archived docs remain')
+  expect(source).toContain('give your coding agent vibecemetery.app')
   expect(source).toContain('href="/agent-instructions"')
   expect(source).toContain('href="/cemetery"')
   expect(source).not.toContain("open('agentAshes')")

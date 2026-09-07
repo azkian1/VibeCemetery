@@ -13,9 +13,9 @@ test.describe('external window opens', () => {
     }
   })
 
-  test('offering transaction links isolate external tabs', () => {
+  test('Crematory tributes navigate to internal grave details', () => {
     const source = readFileSync('src/components/modals/CrematoryModal.tsx', 'utf8')
-    expect(source).toContain('rel="noopener noreferrer"')
-    expect(source).toContain('BASE_EXPLORER_TX_URL + burn.txHash')
+    expect(source).toContain("href={'/grave/' + grave.graveId}")
+    expect(source).not.toContain('BASE_EXPLORER_TX_URL + burn.txHash')
   })
 })

@@ -142,7 +142,7 @@ export default function Minimap({ mapVersion = 'v1' }: { mapVersion?: string }) 
     if (!td) return;
 
     drawSmoothedRaster(ctx, cfg, td.mapWidth, td.mapHeight, (rasterCtx) => {
-      rasterCtx.globalAlpha = 0.9;
+      rasterCtx.globalAlpha = mapVersion === 'v2' ? 0.9 : 1;
       for (let y = 0; y < td.mapHeight; y++) {
         for (let x = 0; x < td.mapWidth; x++) {
           const value = td.tiles[y * td.mapWidth + x];
@@ -152,7 +152,7 @@ export default function Minimap({ mapVersion = 'v1' }: { mapVersion?: string }) 
         }
       }
     });
-  }, [cfg]);
+  }, [cfg, mapVersion]);
 
   // The fog is independent from terrain and markers. It stays above both so
   // closed sections do not leak grave or building locations.

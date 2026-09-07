@@ -4,10 +4,13 @@ import {
   assertExactKeys,
   assertSameOrigin,
   BurnHttpError,
+  burnHttpErrorResponse,
   readStrictJsonObject,
 } from '../src/lib/web3/http'
 import { createAuthorizeBurnIntentHandler } from '../src/app/api/graves/[id]/burn-intents/[intentId]/authorize/authorize-handler'
+import { createPostBurnIntentHandler } from '../src/app/api/graves/[id]/burn-intents/create-handler'
 import { createSubmitBurnHandler } from '../src/app/api/graves/[id]/burns/submit-handler'
+import { createRecoverBurnHandler } from '../src/app/api/graves/[id]/burn-intents/[intentId]/recover/recover-handler'
 import type { GraveBurnIntentRecord } from '../src/lib/web3/burnIntent'
 
 function request(body: string, headers: Record<string, string> = {}) {
@@ -49,6 +52,57 @@ test('non-JSON content type is rejected', async () => {
   await expect(readStrictJsonObject(request('{}', {
     'content-type': 'text/plain',
   }))).rejects.toMatchObject({ status: 415 })
+})
+
+test('create intent rejects amounts below 1,000 GRAVE before service access', async () => {
+  const calls: string[] = []
+  const handler = createPostBurnIntentHandler({
+    isAvailable: () => true,
+    rateLimit: async () => {
+      calls.push('rate-limit')
+    },
+    getServiceDependencies: async () => {
+      calls.push('service')
+      throw new Error('service must not run')
+    },
+  })
+
+  const response = await handler(
+    request(JSON.stringify({
+      walletAddress: wallet,
+      amount: '999.999999999999999999',
+    })),
+    { params: Promise.resolve({ id: graveId }) },
+  )
+
+  expect(response.status).toBe(400)
+  await expect(response.json()).resolves.toEqual({ error: 'Minimum burn amount is 1,000 GRAVE' })
+  expect(calls).toEqual([])
+})
+
+test('unexpected errors do not leak private RPC metadata to logs', async () => {
+  const sentinel = 'sentinel-private-ankr-key'
+  const privateRpcUrl = `https://rpc.ankr.com/base/${sentinel}`
+  const rpcError = Object.assign(
+    new Error(`Request failed\nURL: ${privateRpcUrl}`),
+    { name: 'RpcRequestError', url: privateRpcUrl },
+  )
+  const originalError = console.error
+  const logged: unknown[][] = []
+  console.error = (...args: unknown[]) => logged.push(args)
+
+  try {
+    const response = burnHttpErrorResponse(rpcError)
+    expect(response.status).toBe(500)
+    await expect(response.json()).resolves.toEqual({ error: 'Ritual unavailable' })
+    expect(logged).toEqual([
+      ['[VibeCemetery] Grave offering request failed:', 'RpcRequestError'],
+    ])
+    expect(JSON.stringify(logged)).not.toContain(sentinel)
+    expect(JSON.stringify(logged)).not.toContain(privateRpcUrl)
+  } finally {
+    console.error = originalError
+  }
 })
 
 test('authorize applies the IP limit before an intent lookup', async () => {
@@ -132,6 +186,37 @@ test('submit applies the IP limit before an intent lookup', async () => {
   const response = await handler(
     request(JSON.stringify({ intentId, txHash })),
     { params: Promise.resolve({ id: graveId }) },
+  )
+  expect(response.status).toBe(429)
+  expect(calls).toEqual(['ip'])
+})
+
+test('unknown-hash recovery applies the IP limit before an intent lookup', async () => {
+  const calls: string[] = []
+  const handler = createRecoverBurnHandler({
+    isAvailable: () => true,
+    rateLimitIp: async () => {
+      calls.push('ip')
+      throw new BurnHttpError(429, 'limited')
+    },
+    getStoredIntent: async () => {
+      calls.push('lookup')
+      return null
+    },
+    rateLimitWallet: async () => {
+      calls.push('wallet')
+    },
+    getServiceDependencies: async () => {
+      throw new Error('service must not run')
+    },
+    getRecoveryClient: async () => {
+      throw new Error('RPC must not run')
+    },
+  })
+
+  const response = await handler(
+    request('{}'),
+    { params: Promise.resolve({ id: graveId, intentId }) },
   )
   expect(response.status).toBe(429)
   expect(calls).toEqual(['ip'])

@@ -40,8 +40,7 @@ function AgentsHubContent() {
           </div>
 
           <p style={{ margin: '24px auto 0', maxWidth: 560, color: '#777168', lineHeight: 1.6, fontSize: 12, fontFamily: "var(--font-geist-sans), Arial, sans-serif" }}>
-            Legacy Agent Ash routes, API handlers, tables, and archived docs remain in the repository for a future revival.<br />
-            To burn your own local projects today, install the{' '}
+            To bury a local project, give your coding agent vibecemetery.app and tell it which project to bury. It will follow the{' '}
             <Link href="/agent-instructions" style={{ color: '#bdb6a4', textDecoration: 'underline', textUnderlineOffset: 3 }}>Instructions for AI agents</Link>.
           </p>
         </section>
