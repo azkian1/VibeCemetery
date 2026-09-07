@@ -87,3 +87,16 @@ Candidate verification on 2026-09-07: full unit suite 502/502, followed by 35/35
 - A deterministic placement manifest and rollback-only SQL were generated privately. Regenerate the snapshot/manifest after closing the gate; the preliminary artifacts are not authorization to commit a production migration.
 - The Preview default pause passed 14 focused API/maintenance tests; the updated application build and its 53 client chunks passed. Migration coverage also checks a non-UTC operator session and the legacy account/recovery fields.
 - Git push for the Preview was rejected by automatic approval review pending explicit permission to publish source and documentation to the existing GitHub repository. No push, deployment, live database mutation or Storage access change has occurred. A failed attempt to add a branch-specific Preview variable was discarded; Vercel environment values remain unchanged.
+
+## Local visual review of the real manifest
+
+The operator-only browser review consumes the private rehearsal files: `inventory-snapshot.json`, `preliminary-plan-utc/manifest.json`, `rehearsal-v2-graves.json` and `read-only-export/{graves,grave_burns}.json`. It validates the manifest and complete memorial fields before running the app with inert credentials. Every API is mocked; external requests, v1 assets and HTTP writes fail the review. Private project hashes are excluded from the browser payload.
+
+```powershell
+$env:CUTOVER_REVIEW_DIR = 'C:/private/v2-cutover'
+npx playwright test -c scripts/v2-cutover/review.config.ts --max-failures=1
+```
+
+Screenshots stay in `browser-review` under the private input directory, outside Git. The canvas reports its camera position through DOM attributes so the review can click the actual slot at any zoom or terrain boundary without exposing the Phaser instance.
+
+Verified on 2026-09-07: 18/18 scenarios passed for all 9 real UUIDs at desktop (1280px) and mobile (390px) widths. Each scenario checks the canonical grave query, epitaph, F count, whole-token GRAVE display, Find on Map and a pointer click reopening the same memorial. Desktop and mobile screenshots were visually inspected. This remains a local rehearsal; it does not replace the required post-migration checks of every live `/grave/[uuid]` URL on Preview and production.

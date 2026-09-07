@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, useEffect, useCallback, useState } from 'react';
-import { cemeteryEvents, type SlotEventData, type SlotsReadyData, type RenderGraveData } from '../game/events';
+import { cemeteryEvents, type CameraMoveData, type SlotEventData, type SlotsReadyData, type RenderGraveData } from '../game/events';
 import { useGame } from '@/context/GameContext';
 import { createModalInstanceId, type ModalType } from '@/context/GameContext';
 import StoneButton from '@/components/ui/StoneButton';
@@ -36,6 +36,20 @@ export default function PhaserCanvasV2() {
   const ceremonyDoneTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const activeModalRef = useRef(state.activeModal);
   const gravesRef = useRef(state.graves);
+
+  useEffect(() => {
+    // Keep canvas geometry observable for browser verification without exposing
+    // the Phaser instance or adding state changes to the render loop.
+    const observeCamera = (camera: CameraMoveData) => {
+      const element = containerRef.current;
+      if (!element || camera.mapVersion !== 'v2') return;
+      element.dataset.cameraX = String(camera.scrollX);
+      element.dataset.cameraY = String(camera.scrollY);
+      element.dataset.cameraZoom = String(camera.zoom);
+    };
+    cemeteryEvents.on('camera_move', observeCamera);
+    return () => { cemeteryEvents.off('camera_move', observeCamera); };
+  }, []);
 
   useEffect(() => {
     activeModalRef.current = state.activeModal;
