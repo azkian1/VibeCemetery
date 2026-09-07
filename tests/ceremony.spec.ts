@@ -1,101 +1,14 @@
 import { test, expect } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 
-/**
- * Burial Ceremony Animation — Smoke Tests
- *
- * These tests verify the ceremony event wiring works correctly.
- * Full visual ceremony requires auth + real grave POST, so we test
- * the plumbing: event bus, scene readiness, and no runtime crashes.
- */
-
-async function waitForApp(page: import('@playwright/test').Page) {
-  await page.waitForSelector('canvas', { timeout: 15_000 });
-  await page.waitForTimeout(3000);
-}
-
-test.describe('Ceremony plumbing (desktop 1440×900)', () => {
-  test.use({ viewport: { width: 1440, height: 900 } });
-
-  test.beforeEach(async ({ page }) => {
-    await page.goto('/cemetery');
-    await waitForApp(page);
-  });
-
-  test('CemeteryScene loads without errors after ceremony code added', async ({ page }) => {
-    // Verify canvas renders (scene didn't crash on create())
-    await expect(page.locator('canvas').first()).toBeVisible();
-    // No JS errors
-    const errors: string[] = [];
-    page.on('pageerror', (err) => errors.push(err.message));
-    await page.waitForTimeout(2000);
-    expect(errors.length).toBe(0);
-  });
-
-  test('burial_ceremony event can be emitted without crash', async ({ page }) => {
-    // Emit a ceremony event with a fake slot_id — should not crash the scene
-    const crashed = await page.evaluate(() => {
-      try {
-        // Access the event bus from window (it's a module singleton)
-        // We test via dispatching a custom event and checking no uncaught errors
-        const event = new CustomEvent('__test_ceremony', { detail: { slot_id: 999, id: 'test', name: 'test' } });
-        window.dispatchEvent(event);
-        return false;
-      } catch {
-        return true;
-      }
-    });
-    expect(crashed).toBe(false);
-    // Scene should still be running
-    await expect(page.locator('canvas').first()).toBeVisible();
-  });
-
-  test('Phaser scene survives ceremony event bus wiring', async ({ page }) => {
-    // Navigate away and back — tests that shutdown() properly cleans up ceremony listeners
-    await page.goto('about:blank');
-    await page.goto('/cemetery');
-    await waitForApp(page);
-    await expect(page.locator('canvas').first()).toBeVisible();
-  });
-
-  test('unauthenticated CTA policy gates burial and opens the URL-intended scanner flow', async ({ page }) => {
-    const buryBtn = page.getByRole('button', { name: /Bury/ });
-    await expect(buryBtn).toBeVisible();
-    await expect(buryBtn).toBeDisabled();
-    await expect(buryBtn).toHaveAttribute('title', 'No grave slots left. Cremation is available.');
-
-    const cremateBtn = page.getByRole('button', { name: /Cremate/ });
-    await expect(cremateBtn).toBeEnabled();
-
-    // This is the callback intent used after login; it must open the scanner
-    // without relying on an authenticated test account or live slot state.
-    await page.goto('/cemetery?modal=bury');
-    await waitForApp(page);
-    await expect(page.getByRole('heading', { name: 'Scan Repositories' })).toBeVisible();
-    await expect(page.locator('canvas').first()).toBeVisible();
-  });
-
-  test('No console errors on fresh page load', async ({ page }) => {
-    const consoleErrors: string[] = [];
-    page.on('console', (msg) => {
-      if (msg.type() === 'error') consoleErrors.push(msg.text());
-    });
-    await page.goto('/cemetery');
-    await waitForApp(page);
-    // Filter out known benign errors (e.g., next-auth session, favicon)
-    const realErrors = consoleErrors.filter(
-      (e) => !e.includes('next-auth') && !e.includes('favicon') && !e.includes('404')
-        && !e.includes('Failed to fetch') && !e.includes('VibeCemetery')
-    );
-    expect(realErrors).toEqual([]);
-  });
-});
+// Source contracts complement the mocked create/ceremony/reload browser scenarios
+// in simplification.e2e.spec.ts. No live database writes or auth are used here.
 
 test('queued ceremonies keep scene input disabled until the next ceremony starts', () => {
-  const sceneSource = readFileSync('src/game/scenes/CemeteryScene.ts', 'utf8');
+  const sceneSource = readFileSync('src/game/scenes/CemeterySceneV2.ts', 'utf8');
   const finishMethod = sceneSource.slice(
     sceneSource.indexOf('private finishBurialCeremony'),
-    sceneSource.indexOf('private playBurialCeremony'),
+    sceneSource.indexOf('  shutdown()'),
   );
 
   expect(finishMethod).toContain('this.ceremonyScheduled = true');
@@ -105,10 +18,10 @@ test('queued ceremonies keep scene input disabled until the next ceremony starts
 });
 
 test('scheduled ceremonies disable scene input before delayed start', () => {
-  const sceneSource = readFileSync('src/game/scenes/CemeteryScene.ts', 'utf8');
+  const sceneSource = readFileSync('src/game/scenes/CemeterySceneV2.ts', 'utf8');
   const modalStateMethod = sceneSource.slice(
     sceneSource.indexOf('private onModalState'),
-    sceneSource.indexOf('private slotHighlightGfx'),
+    sceneSource.indexOf('private onHighlightSlot'),
   );
   const onBurialCeremonyMethod = sceneSource.slice(
     sceneSource.indexOf('private onBurialCeremony'),
@@ -123,7 +36,7 @@ test('scheduled ceremonies disable scene input before delayed start', () => {
 });
 
 test('HUD camera controls are ignored while a ceremony is scheduled or pending', () => {
-  const sceneSource = readFileSync('src/game/scenes/CemeteryScene.ts', 'utf8');
+  const sceneSource = readFileSync('src/game/scenes/CemeterySceneV2.ts', 'utf8');
   const blockingHelper = sceneSource.slice(
     sceneSource.indexOf('private isCeremonyBlockingInput'),
     sceneSource.indexOf('private onMinimapClick'),
@@ -143,28 +56,28 @@ test('HUD camera controls are ignored while a ceremony is scheduled or pending',
 });
 
 test('grave modal opens one second after burial ceremony completes', () => {
-  const canvasSource = readFileSync('src/components/PhaserCanvas.tsx', 'utf8');
+  const canvasSource = readFileSync('src/components/PhaserCanvasV2.tsx', 'utf8');
   const doneHandler = canvasSource.slice(
     canvasSource.indexOf('const handleBurialCeremonyDone'),
     canvasSource.indexOf('useEffect(() => {', canvasSource.indexOf('const handleBurialCeremonyDone')),
   );
 
-  expect(doneHandler).toContain('setTimeout(() => {');
+  expect(doneHandler).toContain('scheduleCeremonyDoneTimer(() => openWhenReady(), 1000)');
   expect(doneHandler).toContain('1000');
   expect(doneHandler).toContain("modal: 'grave'");
   expect(doneHandler).toContain('data: { slotId: data.slot_id }');
 });
 
 test('grave modal auto-open waits for final ceremony, grave data, and no active modal', () => {
-  const canvasSource = readFileSync('src/components/PhaserCanvas.tsx', 'utf8');
-  const sceneSource = readFileSync('src/game/scenes/CemeteryScene.ts', 'utf8');
+  const canvasSource = readFileSync('src/components/PhaserCanvasV2.tsx', 'utf8');
+  const sceneSource = readFileSync('src/game/scenes/CemeterySceneV2.ts', 'utf8');
   const doneHandler = canvasSource.slice(
     canvasSource.indexOf('const handleBurialCeremonyDone'),
     canvasSource.indexOf('useEffect(() => {', canvasSource.indexOf('const handleBurialCeremonyDone')),
   );
   const finishMethod = sceneSource.slice(
     sceneSource.indexOf('private finishBurialCeremony'),
-    sceneSource.indexOf('private playBurialCeremony'),
+    sceneSource.indexOf('  shutdown()'),
   );
 
   expect(finishMethod).toContain('willContinue');
@@ -174,7 +87,7 @@ test('grave modal auto-open waits for final ceremony, grave data, and no active 
 });
 
 test('missing-slot ceremony fallback uses the shared ceremony cleanup path', () => {
-  const sceneSource = readFileSync('src/game/scenes/CemeteryScene.ts', 'utf8');
+  const sceneSource = readFileSync('src/game/scenes/CemeterySceneV2.ts', 'utf8');
   const playMethodStart = sceneSource.indexOf('private playBurialCeremony');
   const fallbackBlock = sceneSource.slice(
     sceneSource.indexOf('if (!slot)', playMethodStart),
@@ -195,24 +108,4 @@ test('gate epitaph clears delayed fade timers on unmount', () => {
   expect(source).toContain('sceneReadyTimerRef');
   expect(cleanupBlock).toContain('clearTimeout(hideTimerRef.current)');
   expect(cleanupBlock).toContain('clearTimeout(sceneReadyTimerRef.current)');
-});
-
-test.describe('Ceremony plumbing (mobile 390×844)', () => {
-  test.use({ viewport: { width: 390, height: 844 } });
-
-  test('Mobile: no ceremony crash on load', async ({ page }) => {
-    await page.goto('/cemetery');
-    await waitForApp(page);
-    await expect(page.locator('canvas').first()).toBeVisible();
-  });
-
-  test('Mobile: ritual CTAs return null (no crash)', async ({ page }) => {
-    await page.goto('/cemetery');
-    await waitForApp(page);
-    // BuryFlowModal returns null on mobile — verify no stale ceremony state
-    const errors: string[] = [];
-    page.on('pageerror', (err) => errors.push(err.message));
-    await page.waitForTimeout(2000);
-    expect(errors.length).toBe(0);
-  });
 });

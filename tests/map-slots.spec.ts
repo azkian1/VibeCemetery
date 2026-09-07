@@ -1,52 +1,53 @@
 import { expect, test } from '@playwright/test'
-import { countAutoAssignableGraveUsage, filterGravesToKnownMapSlots, getAutoAssignableGraveSlots, getGraveSlots } from '../src/lib/map-slots'
+import { countAutoAssignableGraveUsage, filterGravesToKnownMapSlots, getAutoAssignableGraveSlots, getGraveSlots, pickRandomFreeSlot } from '../src/lib/map-slots'
 
 test.describe('map slot economy', () => {
-  test('keeps grave_special reserved outside the user slot economy', () => {
-    const allSlots = getGraveSlots('v1')
-    const autoSlots = getAutoAssignableGraveSlots('v1')
-
-    expect(allSlots.some((slot) => slot.type === 'grave_special')).toBe(true)
-    expect(autoSlots.some((slot) => slot.type === 'grave_special')).toBe(false)
-    expect(new Set(autoSlots.map((slot) => slot.type))).toEqual(new Set(['grave', 'grave_tall']))
+  test('retired and unknown maps expose no slots and cannot allocate burials', () => {
+    for (const version of ['v1', 'v3', '']) {
+      expect(getGraveSlots(version)).toEqual([])
+      expect(pickRandomFreeSlot(new Set(), version)).toBeNull()
+    }
   })
 
-  test('counts only graves occupying auto-assignable slots as normal user slot usage', () => {
-    const autoSlot = getAutoAssignableGraveSlots('v1')[0]
-    const reservedSlot = getGraveSlots('v1').find((slot) => !['grave', 'grave_tall'].includes(slot.type))
-
-    expect(autoSlot).toBeTruthy()
-    expect(reservedSlot).toBeTruthy()
-
+  test('counts only graves occupying approved slots as normal user slot usage', () => {
+    const autoSlot = getAutoAssignableGraveSlots()[0]
     expect(countAutoAssignableGraveUsage([
       { slot_id: autoSlot.id },
-      { slot_id: reservedSlot!.id },
+      { slot_id: 915309 },
       { slot_id: autoSlot.id },
-    ], 'v1')).toBe(2)
+    ])).toBe(2)
   })
 
   test('filters leaked smoke graves that do not belong to the current map', () => {
-    const renderableSlot = getGraveSlots('v1')[0]
-    const graves = filterGravesToKnownMapSlots([
+    const renderableSlot = getGraveSlots()[0]
+    expect(filterGravesToKnownMapSlots([
       { id: 'real-grave', slot_id: renderableSlot.id },
       { id: 'leaked-smoke-grave', slot_id: 915309 },
-    ], 'v1')
-
-    expect(graves).toEqual([{ id: 'real-grave', slot_id: renderableSlot.id }])
+    ])).toEqual([{ id: 'real-grave', slot_id: renderableSlot.id }])
   })
 
-  test('keeps existing Oroshimoro grave slot renderable', () => {
-    const slot = getGraveSlots('v1').find((item) => item.id === 289)
-
-    expect(slot).toEqual({ id: 289, type: 'grave_tall' })
+  test('keeps the migrated Oroshimoro grave slot renderable', () => {
+    expect(getGraveSlots().find((slot) => slot.id === 111)).toEqual({ id: 111, type: 'grave_wide' })
   })
 
-  test('includes every Cemetery Map 2.0 grave footprint in automatic allocation', () => {
-    const autoSlots = getAutoAssignableGraveSlots('v2')
-
+  test('includes all 144 approved v2 slots and all three footprints', () => {
+    const autoSlots = getAutoAssignableGraveSlots()
     expect(autoSlots).toHaveLength(144)
+    expect(new Set(autoSlots.map((slot) => slot.id)).size).toBe(144)
     expect(new Set(autoSlots.map((slot) => slot.type))).toEqual(
       new Set(['grave_tall', 'grave_wide', 'grave_large']),
     )
+  })
+
+  test('allocates only the remaining free slot and rejects a full map', () => {
+    const slots = getAutoAssignableGraveSlots()
+    const used = new Set(slots.map((slot) => slot.id))
+    expect(pickRandomFreeSlot(used)).toBeNull()
+    for (const type of ['grave_tall', 'grave_wide', 'grave_large']) {
+      const remaining = slots.find((slot) => slot.type === type)!
+      used.delete(remaining.id)
+      expect(pickRandomFreeSlot(used)).toEqual(remaining)
+      used.add(remaining.id)
+    }
   })
 })

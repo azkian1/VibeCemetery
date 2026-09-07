@@ -2,8 +2,8 @@ import { expect, test } from '@playwright/test'
 import { readFileSync } from 'node:fs'
 
 test('Phaser scale is driven by guarded ResizeObserver instead of automatic parent resize', () => {
-  const configSource = readFileSync('src/game/config.ts', 'utf8')
-  const canvasSource = readFileSync('src/components/PhaserCanvas.tsx', 'utf8')
+  const configSource = readFileSync('src/game/config-v2.ts', 'utf8')
+  const canvasSource = readFileSync('src/components/PhaserCanvasV2.tsx', 'utf8')
 
   expect(configSource).toContain('mode: Phaser.Scale.NONE')
   expect(configSource).not.toContain('mode: Phaser.Scale.RESIZE')
@@ -13,7 +13,7 @@ test('Phaser scale is driven by guarded ResizeObserver instead of automatic pare
 })
 
 test('Cemetery scene unregisters EventBus listeners on Phaser shutdown', () => {
-  const sceneSource = readFileSync('src/game/scenes/CemeteryScene.ts', 'utf8')
+  const sceneSource = readFileSync('src/game/scenes/CemeterySceneV2.ts', 'utf8')
 
   expect(sceneSource).toContain('Phaser.Scenes.Events.SHUTDOWN')
   expect(sceneSource).toContain('Phaser.Scenes.Events.DESTROY')
@@ -21,9 +21,8 @@ test('Cemetery scene unregisters EventBus listeners on Phaser shutdown', () => {
   expect(sceneSource).toContain("cemeteryEvents.off('render_graves', this.onRenderGraves)")
 })
 
-test('ceremony cleanup releases completed delayed calls and destroyed objects in both maps', () => {
+test('ceremony cleanup releases completed delayed calls and destroyed objects in the v2 scene', () => {
   const sceneSources = [
-    'src/game/scenes/CemeteryScene.ts',
     'src/game/scenes/CemeterySceneV2.ts',
   ].map((path) => readFileSync(path, 'utf8'))
 

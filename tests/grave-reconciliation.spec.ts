@@ -2,7 +2,6 @@ import { expect, test } from '@playwright/test'
 import { readFileSync } from 'node:fs'
 import type { RenderGraveData } from '../src/game/events'
 import { planGraveReconciliation } from '../src/game/graveReconciliation'
-import { clearRenderedGrave, pickTileVariant } from '../src/game/utils/tileRegistry'
 
 function grave(overrides: Partial<RenderGraveData> = {}): RenderGraveData {
   return {
@@ -32,7 +31,7 @@ test.describe('grave reconciliation', () => {
     })
   })
 
-  test('replaces an existing sprite or tile when its render data changes', () => {
+  test('replaces an existing sprite when its render data changes', () => {
     const oldGrave = grave({ slot_id: 8, id: 'grave-old', grave_gid: 101 })
     const replacement = grave({ slot_id: 8, id: 'grave-new', name: 'Renamed project', grave_gid: 202 })
 
@@ -71,35 +70,20 @@ test.describe('grave reconciliation', () => {
     )).toEqual({ remove: [], render: [incoming] })
   })
 
-  test('clears every dynamic tile occupied by a removed tall grave', () => {
-    const removed: Array<[number, number]> = []
-    const layer = {
-      layer: {},
-      removeTileAt: (x: number, y: number) => {
-        removed.push([x, y])
-      },
-    }
-
-    clearRenderedGrave(layer as never, 7, 9, pickTileVariant('grave_tall', 0))
-
-    expect(removed).toEqual([[7, 9], [7, 10]])
-  })
 })
 
-test('both map canvases and scenes use the full snapshot reconciliation contract', () => {
-  const v1Canvas = readFileSync('src/components/PhaserCanvas.tsx', 'utf8')
+test('the v2 canvas and scene use the full snapshot reconciliation contract', () => {
   const v2Canvas = readFileSync('src/components/PhaserCanvasV2.tsx', 'utf8')
-  const v1Scene = readFileSync('src/game/scenes/CemeteryScene.ts', 'utf8')
   const v2Scene = readFileSync('src/game/scenes/CemeterySceneV2.ts', 'utf8')
 
-  for (const canvas of [v1Canvas, v2Canvas]) {
+  for (const canvas of [v2Canvas]) {
     expect(canvas).toContain("cemeteryEvents.emit('sync_graves'")
     expect(canvas).toContain('protectedSlotIds: [...ceremonySlotIdsRef.current]')
     expect(canvas).toContain('authoritative: !state.gravesLoading && !state.gravesError')
     expect(canvas).not.toContain('sentSlotIdsRef')
   }
 
-  for (const scene of [v1Scene, v2Scene]) {
+  for (const scene of [v2Scene]) {
     expect(scene).toContain("cemeteryEvents.on('sync_graves', this.onSyncGraves)")
     expect(scene).toContain("cemeteryEvents.off('sync_graves', this.onSyncGraves)")
     expect(scene).toContain('private reconcileGraves()')

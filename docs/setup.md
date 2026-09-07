@@ -157,7 +157,7 @@ The scan endpoint only allows a signed-in user to scan their own GitHub username
 
 V2 uses the committed `public/map/cemetery-v2.tmj` and its PNG assets from the application host. No licensed v1 tilesets or Supabase Storage setup is needed. Keep licensed originals and purchase records in a private local archive outside Git and public hosting.
 
-For existing installations, follow [v2-cutover-runbook.md](v2-cutover-runbook.md) before deploying this branch. Install the additive database write gate, save a private export, create a manifest and migrate every v1 grave before release. The v1 source/TMJ remain pending verified retirement.
+For existing installations, follow [v2-cutover-runbook.md](v2-cutover-runbook.md) before deploying this branch. Install the additive database write gate, save a private export, create a manifest and migrate every v1 grave before release. The v1 runtime and TMJ have been removed after verified migration.
 
 ## 6. Run The App
 
@@ -233,4 +233,4 @@ hash mismatch marks a burn `orphaned`.
 
 ## Map release scope
 
-This branch is a v2 cutover candidate. Production migration, release and v1 Storage retirement are separate pending operations documented in [v2-cutover-runbook.md](v2-cutover-runbook.md). Use [map2.md](map2.md) for the supported asset set and camera contract; keep local experiments outside public assets.
+V2 is deployed and the original production graves have been migrated. Storage v1 is private. Follow [v2-cutover-runbook.md](v2-cutover-runbook.md) for the retirement deployment, recovery window and observation status. Use [map2.md](map2.md) for the supported asset set and camera contract; keep local experiments outside public assets.

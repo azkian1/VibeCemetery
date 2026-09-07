@@ -123,7 +123,7 @@ Implemented:
 
 Next:
 
-- **Map v2 cutover** - migrate every existing grave with UUID/history preserved, release v2 and then retire v1 Storage/runtime. Follow [`docs/v2-cutover-runbook.md`](docs/v2-cutover-runbook.md); production migration has not been executed by this code change.
+- **Map v2 cutover** - migrate every existing grave with UUID/history preserved, release v2 and then retire v1 Storage/runtime. The production migration is complete; see [`docs/v2-cutover-runbook.md`](docs/v2-cutover-runbook.md) for verification, retirement and observation status.
 - **Swamp of Shame** - expand the world with a new shame-themed cemetery zone.
 - **Burn maintenance** - preserve verified accounting, reorg checks and lost-hash recovery as the cemetery evolves.
 - **The Gravedigger Agent** - introduce the native cemetery agent for guidance, lore, grave care, and future ritual interactions.

@@ -1,6 +1,6 @@
 # v2 cutover release candidate
 
-Status: v2 is live in production with 144 approved active slots. All nine old graves are migrated and verified on Preview and production. Burial writes are open for v2 and rejected for v1. A controlled new burial, Storage privatization, source/asset retirement and the observation window remain pending.
+Status: v2 is live with 144 approved active slots. All nine old graves and a new synthetic production burial are verified. Storage v1 is private; its ten objects have verified private backups. Runtime/public-asset removal is prepared locally; the retirement deployment and 72-hour observation remain pending.
 Baseline: `af1eab7` (`codex/map2-unification`). Work branch: `codex/v2-cutover`.
 The pre-existing `docs/rekt-product-spec.md` draft is outside this change.
 
@@ -15,7 +15,7 @@ The pre-existing `docs/rekt-product-spec.md` draft is outside this change.
 - Offline manifest tooling generates deterministic placements, a review table, rollback-only SQL and restoration SQL.
 - SQL asserts complete memorial/UUID identity, unchanged existing v2 graves, related records, account counters, share unlocks and exact numeric offering totals.
 
-The v1 shell, scene, utilities and `public/map/az.tmj` remain in the checkout for the pre-migration preservation requirement. They are not imported by the public page tree. Do not mistake local code readiness for a completed production retirement.
+The v1 shell, scene, utilities and `public/map/az.tmj` are removed in the retirement follow-up after the original graves and backups were verified. Offline migration metadata and old route/API compatibility remain. The bundle audit also rejects restored v1 runtime or publicly deployable licensed files.
 
 ## Before production writes
 
@@ -152,10 +152,14 @@ Installed the additive database gate on the verified production project after th
 - Performed one controlled F on the owner's `myvibe` grave: 0 → 1, persisted after reload, with the second vote disabled. This intentional post-migration check adds one F vote (7 → 8); it is not migration drift. No GRAVE transfer occurred. HTTP reconciliation at `2026-09-07T14:30:03Z` confirmed all nine UUIDs and the unchanged exact GRAVE total after that vote.
 - A fresh production page inventory contained the v2 TMJ, 76 images, 28 scripts and no v1 map or Storage URLs. Inspected browser logs contained no errors or warnings. The initial production deployment still retains the old public files on disk until the retirement follow-up; absence of requests is not deletion.
 
-### Remaining release gate
+### Controlled production burial and Storage retirement — 2026-09-07
 
-The signed-in profile shows one existing grave and four available account slots. The owner still needs to name the actual project for the controlled create → ceremony → reload → share-link check. Do not bury an arbitrary repository or send a real token transfer to complete this checklist.
+- Created the explicitly discussed synthetic local project `v2-cutover-test` using the production-published agent helper and the owner's existing CLI authorization. The helper checksum matched its published checksum and reviewed source. The test repository contains only synthetic files and was not published to GitHub.
+- Production returned 201 with UUID `faaace97-5fc6-4d91-ab0b-2381270f05a0`, v2 slot 52 (wide), GID 80. Repeating the same project key returned the same UUID with `replayed=true` and consumed no extra slot. The account now uses 2 of 5 slots. [Test memorial](https://vibecemetery.app/grave/faaace97-5fc6-4d91-ab0b-2381270f05a0).
+- Verified all ten graves, unique compatible placements, unchanged original nine public records, test F=0 and GRAVE=0. Manually opened the share link, reloaded at 1280px/390px, used Find on Map and clicked its actual sprite to reopen the same memorial. Browser logs were empty. This live test covers agent burial; browser ceremony was verified locally using isolated mocked writes, not by an additional live GitHub burial.
+- Verified byte counts and SHA-256 hashes of all ten private Storage copies, then changed only the inventoried `tilesets` bucket's public flag to false. Its object IDs/names remain unchanged. All ten unauthenticated cache-busted public URLs returned 400; signed-in production v2 still loaded its map and test grave without Storage/v1 requests or console errors. Evidence is private under `storage-retirement/verified.json` (2026-09-07T17:12:38.184Z).
+- Preserved and verified exact private copies of 223 remaining legacy public files (108,496,951 bytes), including licensed source packages, local PNGs and obsolete authoring/reference files, before removing them from `public/`. Checksums are in the private `public-v1-retired/inventory-checksums.json`. V2 masks and generated art remain in place.
+- Removed unused v1 scene/canvas/app/config/slot/tile utilities and map reader. Retired or unknown map versions cannot allocate slots. Minimap now uses only v2 geometry; the 144-place allocation remains uniform per free slot. Historical offering lookup and old UUID/route behavior remain compatible.
+- Updated useful reconciliation, resize, allocation and ceremony checks to target v2. Obsolete browser tests that emitted an unhandled custom event were removed; the actual mocked create/ceremony/reload scenarios remain in `simplification.e2e.spec.ts`. All 516 unit tests, 18 isolated browser scenarios, TypeScript, lint and the production build passed. The strengthened audit passed all 54 client chunks, remaining public files and runtime retirement checks.
 
-After that check, privatize the inventoried `tilesets` bucket, verify cold-cache production again, and prepare the retirement commit. The specific legacy dependencies are `CemeteryApp.tsx`, `PhaserCanvas.tsx`, `game/config.ts`, `CemeteryScene.ts`, the v1 slot/tile utilities, and the v1 reader in `lib/map-slots.ts`. Update the mixed v1/v2 assertions in `phaser-resize`, `ceremony`, `grave-reconciliation` and `grave-burn-map-boundary` tests rather than deleting the v2 coverage. Remove `public/map/az.tmj` and only inventoried licensed public PNGs after checking their private copies. Rebuild, run the required tests and bundle audit, then publish the retirement commit.
-
-Storage is still public and its ten objects are intact. No Storage deletion, source retirement or 72-hour monitoring automation has been performed as part of this cutover. Those remain required work; the original goal is not complete.
+The ten private Storage objects remain during the recovery window. No Storage object deletion has occurred. The retirement deployment and 72-hour observation are still pending; the original goal is not complete.

@@ -4,16 +4,14 @@ import path from 'node:path'
 
 const root = path.resolve(__dirname, '..')
 
-test('wallet provider is scoped to both cemetery apps and absent from global providers', () => {
-  const v1 = fs.readFileSync(path.join(root, 'src/components/CemeteryApp.tsx'), 'utf8')
+test('wallet provider is scoped to the cemetery app and absent from global providers', () => {
   const v2 = fs.readFileSync(path.join(root, 'src/components/CemeteryAppV2.tsx'), 'utf8')
   const globalProviders = fs.readFileSync(path.join(root, 'src/components/AppProviders.tsx'), 'utf8')
-  expect(v1).toContain('<Web3Provider>')
   expect(v2).toContain('<Web3Provider>')
   expect(globalProviders).not.toContain('Web3Provider')
 })
 
-test('shared grave modal renders the burn panel for real graves on both maps', () => {
+test('shared grave modal renders the burn panel for real graves while preserving historical map records', () => {
   const modal = fs.readFileSync(path.join(root, 'src/components/modals/GraveModal.tsx'), 'utf8')
   const store = fs.readFileSync(path.join(root, 'src/lib/web3/burnStore.ts'), 'utf8')
   expect(modal).toContain('slotId != null')

@@ -12,8 +12,6 @@ import {
   unprojectMinimapPoint,
 } from '@/game/utils/minimapProjection';
 
-const V1_WORLD = 1920;
-
 const V2_WORLD_W = 4480;
 const V2_WORLD_H = 3328;
 
@@ -80,13 +78,7 @@ function drawSmoothedRaster(
   ctx.restore();
 }
 
-function getMapConfig(v: string) {
-  return v === 'v2'
-    ? createMinimapProjection(V2_WORLD_W, V2_WORLD_H, SIZE)
-    : createMinimapProjection(V1_WORLD, V1_WORLD, SIZE);
-}
-
-export default function Minimap({ mapVersion = 'v1' }: { mapVersion?: string }) {
+export default function Minimap({ mapVersion = 'v2' }: { mapVersion?: 'v2' }) {
   const terrainCanvasRef = useRef<HTMLCanvasElement>(null);
   const markersCanvasRef = useRef<HTMLCanvasElement>(null);
   const fogCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -96,7 +88,7 @@ export default function Minimap({ mapVersion = 'v1' }: { mapVersion?: string }) 
   const { state } = useGame();
   const isMobile = useIsMobile();
 
-  const cfg = useMemo(() => getMapConfig(mapVersion), [mapVersion]);
+  const cfg = useMemo(() => createMinimapProjection(V2_WORLD_W, V2_WORLD_H, SIZE), []);
 
   const gravesRef = useRef(state.graves);
 
@@ -142,7 +134,7 @@ export default function Minimap({ mapVersion = 'v1' }: { mapVersion?: string }) 
     if (!td) return;
 
     drawSmoothedRaster(ctx, cfg, td.mapWidth, td.mapHeight, (rasterCtx) => {
-      rasterCtx.globalAlpha = mapVersion === 'v2' ? 0.9 : 1;
+      rasterCtx.globalAlpha = 0.9;
       for (let y = 0; y < td.mapHeight; y++) {
         for (let x = 0; x < td.mapWidth; x++) {
           const value = td.tiles[y * td.mapWidth + x];
@@ -152,7 +144,7 @@ export default function Minimap({ mapVersion = 'v1' }: { mapVersion?: string }) 
         }
       }
     });
-  }, [cfg, mapVersion]);
+  }, [cfg]);
 
   // The fog is independent from terrain and markers. It stays above both so
   // closed sections do not leak grave or building locations.
@@ -313,7 +305,7 @@ export default function Minimap({ mapVersion = 'v1' }: { mapVersion?: string }) 
     if (!isInsideMinimapLens(canvasX, canvasY, SIZE)) return;
     const { worldX, worldY } = unprojectMinimapPoint(cfg, canvasX, canvasY);
     const tileData = tileDataRef.current;
-    if (mapVersion === 'v2' && tileData) {
+    if (tileData) {
       const tileX = Math.floor(worldX / cfg.worldW * tileData.mapWidth);
       const tileY = Math.floor(worldY / cfg.worldH * tileData.mapHeight);
       if (tileX < 0 || tileX >= tileData.mapWidth || tileY < 0 || tileY >= tileData.mapHeight) return;
@@ -321,7 +313,7 @@ export default function Minimap({ mapVersion = 'v1' }: { mapVersion?: string }) 
       if (tileData.tiles[index] === 0 || tileData.fog?.[index] === 3) return;
     }
     cemeteryEvents.emit('minimap_click', { worldX, worldY });
-  }, [cfg, mapVersion]);
+  }, [cfg]);
 
   if (isMobile) return null;
 

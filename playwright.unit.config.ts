@@ -25,7 +25,6 @@ export default defineConfig({
   // Run them with playwright.config.ts, which provides the integration webServer and env.
   testIgnore: [
     '**/api-smoke.spec.ts',
-    '**/ceremony.spec.ts',
     '**/cli-connect.spec.ts',
     '**/mobile.spec.ts',
     '**/web3-burn.e2e.spec.ts',
