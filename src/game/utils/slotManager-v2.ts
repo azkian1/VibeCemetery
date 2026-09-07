@@ -22,37 +22,19 @@ const BUILDING_SOURCES = [
     id: 5000,
     name: 'Chapel',
     layerName: 'ChapelPreview_8d_lowdetail_palette_copy',
-    objectName: 'chapel_8d_160x256_lowdetail_palette_copy',
+    objectNames: ['chapel_8d_160x256_lowdetail_palette_copy'],
   },
   {
     id: 5001,
     name: 'Gravedigger Lodge',
     layerName: 'GravediggerLodgePreview_map4',
-    objectName: 'gravedigger_lodge_sysadmin_complete_map4',
-  },
-  {
-    id: 5002,
-    name: 'Service Garage',
-    layerName: 'ServiceBuildingsPreview_map4',
-    objectName: 'service_garage_2x3_map4',
+    objectNames: ['gravedigger_lodge_sysadmin_complete_map4'],
   },
   {
     id: 5003,
     name: 'Crematory',
     layerName: 'ServiceBuildingsPreview_map4',
-    objectName: 'service_technical_building_4x5_map4',
-  },
-  {
-    id: 5004,
-    name: 'Main Gate',
-    layerName: 'MainGate1dsQ4Preview_map4',
-    objectName: 'main_gate_1ds_q4_full_320x160_map4_compare',
-  },
-  {
-    id: 5005,
-    name: 'Side Wicket',
-    layerName: 'Side_map4',
-    objectName: 'side_wicket_chek_q1_extensions_512x96_map4_compare',
+    objectNames: ['service_garage_2x3_map4', 'service_technical_building_4x5_map4'],
   },
 ] as const;
 
@@ -78,17 +60,23 @@ export function parseSlotsV2(map: Phaser.Tilemaps.Tilemap): Map<number, SlotData
 
   for (const source of BUILDING_SOURCES) {
     const layer = map.getObjectLayer(source.layerName);
-    const object = layer?.objects.find((candidate) => candidate.name === source.objectName);
-    if (!object?.gid) continue;
+    const objects = source.objectNames.map((name) => layer?.objects.find((candidate) => candidate.name === name));
+    if (objects.some((object) => !object?.gid)) continue;
 
     // Tile objects use Tiled's bottom-left origin. Phaser has already applied
-    // the object-layer offsets, so only the origin needs conversion.
-    const bounds = getTiledObjectBounds(object);
+    // the layer offsets. Both crematory sprites form one interactive building;
+    // gates and fences stay decorative and never enter the slot collection.
+    const bounds = objects.map((object) => getTiledObjectBounds(object!));
+    const x = Math.min(...bounds.map((part) => part.x));
+    const y = Math.min(...bounds.map((part) => part.y));
     slots.set(source.id, {
       id: source.id,
       name: source.name,
       type: 'Building',
-      ...bounds,
+      x,
+      y,
+      width: Math.max(...bounds.map((part) => part.x + part.width)) - x,
+      height: Math.max(...bounds.map((part) => part.y + part.height)) - y,
     });
   }
 

@@ -100,3 +100,24 @@ npx playwright test -c scripts/v2-cutover/review.config.ts --max-failures=1
 Screenshots stay in `browser-review` under the private input directory, outside Git. The canvas reports its camera position through DOM attributes so the review can click the actual slot at any zoom or terrain boundary without exposing the Phaser instance.
 
 Verified on 2026-09-07: 18/18 scenarios passed for all 9 real UUIDs at desktop (1280px) and mobile (390px) widths. Each scenario checks the canonical grave query, epitaph, F count, whole-token GRAVE display, Find on Map and a pointer click reopening the same memorial. Desktop and mobile screenshots were visually inspected. This remains a local rehearsal; it does not replace the required post-migration checks of every live `/grave/[uuid]` URL on Preview and production.
+
+## Manual local review before considering a push — 2026-09-07
+
+The user requested manual local review and another verification pass before considering a push. Publication remains deferred.
+
+The local browser review used the actual Next.js application with inert credentials, a loopback PostgREST fixture containing the nine migrated public memorials, and in-memory API fixtures for account, GitHub scan, F and burial writes. The real graves GET route and server-side UUID share lookup ran against that fixture. No production database, OAuth session, wallet transaction or external share publication was used.
+
+Manually verified in the browser:
+
+- The canonical map loads all nine memorials; FAQ, Necropolis, author filtering, epitaph and Find on Map work. Clicking the relocated gravestone reopens the same memorial.
+- An F vote updates the local copy once, disables a second vote, and remains visible after navigation. Existing whole-token GRAVE totals remain visible.
+- Both legacy cemetery aliases redirect to the canonical route; the v1 grave link preserves its UUID and repeated query parameters. A real memorial's `/grave/[uuid]` link opens the correct v2 epitaph.
+- At 390px width, the long memorial title and controls fit; Find on Map and zoom work. The separate meta memorial opens without occupying a normal grave slot.
+- Home scanner → selected test repository → cause of death → burial → ceremony → epitaph completes. Exactly one local POST creates a compatible v2 grave. Its UUID link and page reload reopen it; the total changes from 9 to 10.
+- The real GET endpoint returns only v2 public fields. Explicit v1 reads return 410; malformed and missing UUID links return 404. The local request log contains no legacy map or Storage asset requests, and the inspected browser console contains no errors or warnings.
+
+The temporary harness stays in ignored `.local-archive`; its request evidence stays in the private cutover directory. These fixtures verify local application behavior, not live authentication, production writes, external sharing or production cutover readiness.
+
+After the manual review, the full unit suite passed 507/507 and the mocked browser suite passed 18/18. TypeScript, lint and the production build passed again; all 53 client chunks passed the v1-asset audit. No runtime code changes were needed as a result of this review. The loopback review server was reset to the nine original migrated fixtures for the user's own inspection.
+
+Follow-up building corrections: the lodge opens a caretaker notice, the two eastern sprites share one Crematory hitbox, and the main gate and adjacent fence have no interactive slots. The chapel still opens The Crypt. Manual clicks verified the lodge, both crematory wings, chapel, gate and both fence sides; the notice fits at 390px. All 10 focused map tests, TypeScript, lint, build and the updated 54-chunk asset audit passed. Publication remains deferred.

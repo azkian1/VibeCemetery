@@ -28,6 +28,7 @@ import {
 export type ModalType =
   | 'grave'
   | 'crematory'
+  | 'caretaker'
   | 'mausoleum'
   | 'leaderboard'
   | 'agentAshes'

@@ -6,6 +6,7 @@ import { ModalOverlayTopContext } from './modals/ModalOverlay';
 
 const GraveModal = dynamic(() => import('./modals/GraveModal'), { ssr: false });
 const CrematoryModal = dynamic(() => import('./modals/CrematoryModal'), { ssr: false });
+const CaretakerModal = dynamic(() => import('./modals/CaretakerModal'), { ssr: false });
 const MausoleumModal = dynamic(() => import('./modals/MausoleumModal'), { ssr: false });
 const BuryFlowModal = dynamic(() => import('./modals/BuryFlowModal'), { ssr: false });
 const BurgerMenu = dynamic(() => import('./hud/BurgerMenu'), { ssr: false });
@@ -18,6 +19,7 @@ const ProfileModal = dynamic(() => import('./modals/ProfileModal'), { ssr: false
 const MODAL_MAP: Record<ModalType, React.ComponentType> = {
   grave: GraveModal,
   crematory: CrematoryModal,
+  caretaker: CaretakerModal,
   mausoleum: MausoleumModal,
   burger: BurgerMenu,
   leaderboard: LeaderboardModal,

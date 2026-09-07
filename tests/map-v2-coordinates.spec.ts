@@ -200,16 +200,12 @@ test.describe('map v2 coordinates', () => {
     })
   })
 
-  test('derives all v2 building hitboxes from parsed preview objects', () => {
+  test('keeps only three interactive v2 buildings and groups the crematory wings', () => {
     const mapV2 = loadCemeteryMapV2()
     const slots = parseSlotsV2(createPhaserParsedMap(mapV2))
     const sources = [
       [5000, 'Chapel', 'ChapelPreview_8d_lowdetail_palette_copy', 'chapel_8d_160x256_lowdetail_palette_copy'],
       [5001, 'Gravedigger Lodge', 'GravediggerLodgePreview_map4', 'gravedigger_lodge_sysadmin_complete_map4'],
-      [5002, 'Service Garage', 'ServiceBuildingsPreview_map4', 'service_garage_2x3_map4'],
-      [5003, 'Crematory', 'ServiceBuildingsPreview_map4', 'service_technical_building_4x5_map4'],
-      [5004, 'Main Gate', 'MainGate1dsQ4Preview_map4', 'main_gate_1ds_q4_full_320x160_map4_compare'],
-      [5005, 'Side Wicket', 'Side_map4', 'side_wicket_chek_q1_extensions_512x96_map4_compare'],
     ] as const
 
     for (const [id, name, layerName, objectName] of sources) {
@@ -230,6 +226,12 @@ test.describe('map v2 coordinates', () => {
       })
     }
 
-    expect(Array.from(slots.values()).filter((slot) => slot.type === 'Building')).toHaveLength(6)
+    expect(slots.get(5003)).toMatchObject({
+      name: 'Crematory', type: 'Building', x: 2880, y: 2720, width: 192, height: 160,
+    })
+    expect(slots.has(5002)).toBe(false) // The garage is part of the crematory.
+    expect(slots.has(5004)).toBe(false) // Main gate is decorative.
+    expect(slots.has(5005)).toBe(false) // Adjacent fence is decorative.
+    expect(Array.from(slots.values()).filter((slot) => slot.type === 'Building')).toHaveLength(3)
   })
 })
