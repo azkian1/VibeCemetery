@@ -8,6 +8,7 @@ import { getClientIp, type checkRateLimit as RateLimit } from '@/lib/rate-limit'
 import { getAutoAssignableGraveSlots, pickRandomFreeSlot } from '@/lib/map-slots'
 import { sanitizePublicText } from '@/lib/sanitize-public-text'
 import { parseMapVersion, CEMETERY_VERSION_RETIRED, CEMETERY_BURIALS_PAUSED } from '@/lib/map-version'
+import { areBurialsPaused } from '@/lib/burial-maintenance'
 import { generateEpitaph } from '@/gravedigger/epitaphs'
 import { insertGraveAtomicallyWithSlotRetry, type AtomicInsertRpcResult } from './atomicInsertWithSlotRetry'
 import { insertOutcomeResponse } from './insertOutcomeResponse'
@@ -26,7 +27,7 @@ const GITHUB_REPO_VERIFY_WINDOW_MS = 60_000
 export function createGravePostHandler({
   resolveCliActor, supabaseAdmin, checkRateLimit,
   fetchGitHubRepo = defaultFetchRepo, fetchGitHubRepoRootContents = defaultFetchContents,
-  burialsPaused = () => process.env.CEMETERY_BURIALS_PAUSED === 'true',
+  burialsPaused = () => areBurialsPaused(process.env),
 }: {
   resolveCliActor: typeof ResolveActor
   supabaseAdmin: Pick<SupabaseClient, 'from' | 'rpc'>

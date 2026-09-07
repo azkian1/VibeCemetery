@@ -19,7 +19,7 @@ The v1 shell, scene, utilities and `public/map/az.tmj` remain in the checkout fo
 
 ## Before production writes
 
-1. Deploy this branch only to an isolated Preview. Use the mocked browser suite or staging data; do not point a persistent test burial at production.
+1. Deploy this branch only to an isolated Preview. Use the mocked browser suite or staging data; do not point a persistent test burial at production. Vercel Preview burials are paused by default even when it inherits production credentials. Only set `CEMETERY_BURIALS_PAUSED=false` on a Preview after isolating its database. This gate covers burial creation; other UI writes must still be mocked.
 2. Verify the target Supabase project against `docs/supabase-simplification-rollout.md`. Verify required schema/RPCs again; that document's counts are historical.
 3. Inventory the actual v1 Storage objects and ownership. Save licensed originals and purchase records to a private directory outside Git/public hosting.
 4. Apply `docs/v2-cutover-write-gate.sql`. It is additive and leaves existing behavior unchanged. Confirm only the operator can modify the gate.
