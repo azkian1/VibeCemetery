@@ -140,6 +140,7 @@ export function migrationSql(manifest: Manifest, snapshot: Snapshot, mapText: st
   return `-- Generated from reviewed manifest. Map SHA-256: ${manifest.map_sha256}
 -- ${commit ? 'COMMIT ENABLED: requires private export, closed DB gate and operator approval.' : 'DRY RUN: all updates are rolled back.'}
 begin;
+set local time zone 'UTC';
 set local lock_timeout = '5s';
 set local statement_timeout = '30s';
 lock table public.graves, public.users, public.f_votes, public.grave_burn_intents, public.grave_burns in share row exclusive mode;

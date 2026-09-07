@@ -27,9 +27,25 @@ test.beforeAll(async () => {
   db = new PGlite()
   await db.exec('create role anon; create role authenticated; create role service_role;')
   await db.exec(readFileSync('docs/supabase-schema.sql', 'utf8').replace(/create extension if not exists pgcrypto;/gi, ''))
+  await db.exec('begin;\n' + readFileSync('docs/web3-grave-burn-hash-recovery.sql', 'utf8') + '\ncommit;')
+  // Historical production fields are not part of the fresh-install users schema.
+  await db.exec(`alter table public.users add column id uuid not null default gen_random_uuid();
+    alter table public.users add column cremated_count integer default 8;`)
   await db.exec(gateSql)
 })
 test.afterAll(async () => { await db?.close() })
+
+test('snapshot fingerprints and migration are independent of the operator session timezone', async () => {
+  await db.exec("set time zone 'Pacific/Honolulu'")
+  try {
+    expect(await inventory()).toEqual(snapshot)
+    await execute(migrationSql(createManifest(snapshot, mapText), snapshot, mapText))
+    expect(await inventory()).toEqual(snapshot)
+    expect((await db.query<{ TimeZone: string }>('show timezone')).rows[0].TimeZone).toBe('Pacific/Honolulu')
+  } finally {
+    await db.exec("set time zone 'UTC'")
+  }
+})
 test.beforeEach(async () => {
   await db.exec(`update public.cemetery_write_control set burials_paused=false, v1_retired=false;
     truncate public.graves cascade; truncate public.users;
@@ -50,7 +66,9 @@ test.beforeEach(async () => {
     await db.query(`insert into public.grave_burns(intent_id,grave_id,wallet_address,mourner_source,tx_hash,token_address,burn_address,amount_raw,status)
       values($1,$2,$3,'wallet',$4,$5,$6,$7,$8)`, [id(n + 10), id(n), wallet, tx, token, burn, amount, n === 1 ? 'verified' : 'pending'])
   }
-  await db.exec('update public.cemetery_write_control set burials_paused=true')
+  await db.exec(`update public.grave_burn_intents set recovery_last_checked_at='2026-01-01',
+    recovery_lease_until='2026-01-02', recovery_lease_token='${id(900)}', recovery_failure_code='rpc_unavailable';
+    update public.cemetery_write_control set burials_paused=true`)
   snapshot = await inventory()
 })
 

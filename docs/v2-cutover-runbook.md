@@ -1,6 +1,6 @@
 # v2 cutover release candidate
 
-Status: local implementation; production migration and deployment are pending.
+Status: local implementation and read-only live preflight complete; Preview publication, production migration and deployment are pending.
 Baseline: `af1eab7` (`codex/map2-unification`). Work branch: `codex/v2-cutover`.
 The pre-existing `docs/rekt-product-spec.md` draft is outside this change.
 
@@ -25,7 +25,7 @@ The v1 shell, scene, utilities and `public/map/az.tmj` remain in the checkout fo
 4. Apply `docs/v2-cutover-write-gate.sql`. It is additive and leaves existing behavior unchanged. Confirm only the operator can modify the gate.
 5. Close the gate with `UPDATE public.cemetery_write_control SET burials_paused=true WHERE singleton;`. Its lock waits for in-flight inserts. Optionally also set the API environment flag on the deployment.
 6. Save a full private database export (including graves, users, votes, intents and burns), plus SHA-256 checksums of the export files. No backup belongs in Git or `public/`.
-7. Run `scripts/v2-cutover/snapshot.sql` and save its single JSON value outside the repository as `snapshot.json`. It uses a read-only, repeatable-read transaction and PostgreSQL fingerprints; large token amounts are decimal strings.
+7. Run `scripts/v2-cutover/snapshot.sql` and save its single JSON value outside the repository as `snapshot.json`. It uses a read-only, repeatable-read transaction and PostgreSQL fingerprints; large token amounts are decimal strings. Snapshot and migration transactions set their local timezone to UTC so the operator's session cannot change timestamp fingerprints.
 
 ## Build and review a manifest
 
@@ -76,3 +76,14 @@ git diff --check
 Baseline passed before runtime edits: 489 unit tests, 19 mocked browser tests, TypeScript, lint and production build.
 
 Candidate verification on 2026-09-07: full unit suite 502/502, followed by 35/35 focused tests including two additional collision/gate cases; mocked browser suite 18/18 (OAuth callback, F/profile, ceremony/reload, redirects, mobile, ledger and wallet recovery). TypeScript, lint and production build pass. All 53 production client chunks pass the v1-asset audit. No production data or Storage changes, deployment, or real token transfer was performed.
+
+## Read-only live preflight — 2026-09-07
+
+- The authenticated dashboard confirms the existing Vercel production deployment uses `master` commit `9010b01`. The Supabase target is `lnyfogihvackjwhdvgzo`, `main`.
+- Fresh inventory: 9 graves, all v1; no occupied v2 slots; 9 users, 7 F votes, 7 burn intents and 4 burns. The verified offering total remains `25263442113724649798733865` raw units. The new database gate is not installed.
+- All 11 public application tables were exported as raw JSON outside Git. A local PostgreSQL check reproduced the live fingerprints of all five protected tables and verified the exact token total. This is a preflight data export, not a schema backup or the required fresh export after gate closure.
+- A local PostgreSQL rehearsal imported the real records, including historical `users.id`, `cremated_count` and the existing burn-recovery fields. The migration passed for all 9 UUIDs with unchanged memorial fields, F, burn history, account counters and token totals. This did not execute migration SQL on the live database.
+- The private archive contains 196 original package/map files verified against their source SHA-256 values, plus copies of all 10 inventoried `tilesets` Storage objects (8,231,789 bytes) with separate checksums. The two original ZIPs and terms-of-use documents are included; a separate purchase receipt has not been located.
+- A deterministic placement manifest and rollback-only SQL were generated privately. Regenerate the snapshot/manifest after closing the gate; the preliminary artifacts are not authorization to commit a production migration.
+- The Preview default pause passed 14 focused API/maintenance tests; the updated application build and its 53 client chunks passed. Migration coverage also checks a non-UTC operator session and the legacy account/recovery fields.
+- Git push for the Preview was rejected by automatic approval review pending explicit permission to publish source and documentation to the existing GitHub repository. No push, deployment, live database mutation or Storage access change has occurred. A failed attempt to add a branch-specific Preview variable was discarded; Vercel environment values remain unchanged.

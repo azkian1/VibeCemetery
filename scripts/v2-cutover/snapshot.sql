@@ -2,6 +2,7 @@
 -- A full private database export is ALSO required before migration.
 -- Fingerprints are calculated in PostgreSQL; uint256 values never pass through JS numbers.
 begin transaction isolation level repeatable read read only;
+set local time zone 'UTC';
 select jsonb_build_object(
   'schema_version', 1,
   'graves', (select coalesce(jsonb_agg(jsonb_build_object(
