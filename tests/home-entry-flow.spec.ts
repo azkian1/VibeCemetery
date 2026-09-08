@@ -77,14 +77,14 @@ test.describe('home scanner entry flow', () => {
   test('defers the cemetery ledger and slot map until a user starts a scan', () => {
     const source = readFileSync('src/components/HomeScannerLanding.tsx', 'utf8')
     const runScanStart = source.indexOf('const runScan = async () =>')
-    const mapFetch = source.indexOf("fetch(CEMETERY_MAP_V2_URL)")
+    const mapFetch = source.indexOf('fetch(CEMETERY_MAP_V2_URL')
 
     expect(source).not.toContain('GameDataLoaders')
     expect(runScanStart).toBeGreaterThan(-1)
     expect(mapFetch).toBeGreaterThan(runScanStart)
-    expect(source.slice(0, runScanStart)).not.toContain("fetch(CEMETERY_MAP_V2_URL)")
+    expect(source.slice(0, runScanStart)).not.toContain('fetch(CEMETERY_MAP_V2_URL')
     expect(source).toContain('Promise.all([')
-    expect(source).toContain("fetch('/api/graves/account')")
+    expect(source).toContain("fetch('/api/graves/account'")
     expect(source).not.toContain('/api/cremated')
   })
 

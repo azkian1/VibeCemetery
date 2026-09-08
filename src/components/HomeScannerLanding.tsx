@@ -3,14 +3,15 @@
 import Link from 'next/link';
 import { AGENT_INSTRUCTIONS_PATH, AGENT_INSTRUCTIONS_TITLE, AGENT_INSTRUCTIONS_SUBTITLE } from '@/lib/agent-instructions';
 import { useAccountGraves } from '@/hooks/useAccountGraves';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
+import { scanAllGitHubRepos } from '@/lib/github-scan-client';
 import { signIn, useSession } from 'next-auth/react';
 import { GameProvider, useModal } from '@/context/GameContext';
 import { useGame } from '@/context/GameContext';
 import { ModalLayer } from '@/components/ModalLayer';
 import { calculateUserSlotEconomy, isAutoAssignableGraveSlotTypeV2 } from '@/lib/slot-economy';
 import type { BuryFlowMode } from '@/components/modals/BuryFlowModal';
-import type { DeadRepo, GitHubScanResult, GraveData } from '@/types/game';
+import type { DeadRepo, GraveData } from '@/types/game';
 import type { SlotPositionData } from '@/game/events';
 import { CEMETERY_MAP_V2_URL } from '@/lib/map-version';
 import { inferGraveSlotTypeV2, isActiveGraveSlotV2 } from '@/lib/map-layout-v2';
@@ -126,6 +127,9 @@ function ScannerShell() {
   const [totalRepos, setTotalRepos] = useState(0);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [scanProgress, setScanProgress] = useState('');
+  const scanController = useRef<AbortController | null>(null);
+  useEffect(() => () => { scanController.current?.abort(); }, [authenticatedUsername]);
   const showScannerChrome = shouldShowHomeScannerChrome(repos);
 
   useEffect(() => {
@@ -147,18 +151,18 @@ function ScannerShell() {
     setMessage(null);
     setRepos(null);
 
+    scanController.current?.abort();
+    const controller = new AbortController();
+    scanController.current = controller;
+    setScanProgress('Connecting to GitHub...');
     try {
-      const username = encodeURIComponent(authenticatedUsername);
-      const [scanRes, gravesRes, mapRes] = await Promise.all([
-        fetch(`/api/github/scan?username=${username}`),
-        fetch('/api/graves/account'),
-        fetch(CEMETERY_MAP_V2_URL),
+      const [scan, gravesRes, mapRes] = await Promise.all([
+        scanAllGitHubRepos(authenticatedUsername, { signal: controller.signal,
+          onProgress: progress => { if (!controller.signal.aborted) setScanProgress(progress.message); } }),
+        fetch('/api/graves/account', { signal: controller.signal }),
+        fetch(CEMETERY_MAP_V2_URL, { signal: controller.signal }),
       ]);
-      const data = await scanRes.json().catch(() => null) as GitHubScanResult | { error?: string } | null;
-      if (!scanRes.ok) {
-        setMessage(data && 'error' in data && data.error ? data.error : `Scan failed (${scanRes.status})`);
-        return;
-      }
+      if (controller.signal.aborted) return;
       if (!gravesRes.ok || !mapRes.ok) {
         setMessage('The cemetery ledger could not be loaded. Please try again.');
         return;
@@ -168,6 +172,7 @@ function ScannerShell() {
         gravesRes.json() as Promise<{ graves: GraveData[] }>,
         mapRes.json() as Promise<HomeMapData>,
       ]);
+      if (controller.signal.aborted) return;
       const slotPositions = extractHomeSlotPositions(map);
       if (slotPositions.length === 0) {
         setMessage('The cemetery slot map could not be loaded. Please try again.');
@@ -178,17 +183,16 @@ function ScannerShell() {
       dispatch({ type: 'SET_GRAVES', graves });
       dispatch({ type: 'SET_SLOT_POSITIONS', slots: slotPositions });
 
-      const scan = data as GitHubScanResult;
       setRepos(filterFreshDeadRepos({
         repos: scan.dead_repos,
         graves: new Map(accountRows.graves.map((grave, index) => [index, grave])),
         username: authenticatedUsername,
       }));
       setTotalRepos(scan.total_repos);
-    } catch {
-      setMessage('Network error. The cemetery gates could not reach GitHub.');
+    } catch (error) {
+      if (!controller.signal.aborted) setMessage((error as Error).message || 'The cemetery gates could not reach GitHub.');
     } finally {
-      setLoading(false);
+      if (scanController.current === controller) setLoading(false);
     }
   };
 
@@ -255,6 +259,7 @@ function ScannerShell() {
             </a>
             <p style={{ margin: '7px 0 0', color: '#9a9386', fontSize: 12, fontFamily: "var(--font-geist-sans), Arial, sans-serif" }}>{AGENT_INSTRUCTIONS_SUBTITLE}</p>
           </div>
+          {loading && <p role="status" style={{ color: '#aaa9a0', fontSize: 13 }}>{scanProgress}</p>}
           {message && <p style={{ margin: '14px 0 0', color: '#c78373', fontSize: 13, fontFamily: "var(--font-geist-sans), Arial, sans-serif" }}>{message}</p>}
 
           {repos && (

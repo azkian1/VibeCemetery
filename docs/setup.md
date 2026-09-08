@@ -235,3 +235,9 @@ hash mismatch marks a burn `orphaned`.
 ## Map release scope
 
 V2 is deployed at `/cemetery` with 144 approved slots. Follow [v2-cutover-runbook.md](v2-cutover-runbook.md) for release verification and observation. Use [map2.md](map2.md) for the supported asset set and camera contract; keep local experiments outside public assets.
+
+## GitHub scanning
+
+The browser scans the signed-in account's public repositories page by page, with progress and automatic short Retry-After pauses. Each API response contains page-local counts and `next_page`; clients must continue until it is null. Failed pages produce an error rather than a successful partial result. Both scanner entry points share the same pagination client. There is no fixed 300-repository or 75-candidate cutoff.
+
+Repository order uses full names for stable pagination. Project detection checks manifests and source files in the root, then files one level inside up to two conventional source directories (`src`, `source`, `sources`, `lib`, `app`, `cmd`) when needed. This is a bounded heuristic, not an exhaustive language or repository-layout parser. The burial endpoint repeats the same content checks and still requires ownership, a non-fork repository and seven days without pushes.

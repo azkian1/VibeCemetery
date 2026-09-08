@@ -34,6 +34,9 @@ const STRONG_MARKER_FILES = [
   'pyproject.toml',
   'pom.xml',
   'build.gradle',
+  'build.gradle.kts', 'CMakeLists.txt', 'Makefile', 'meson.build',
+  'Gemfile', 'composer.json', 'Package.swift', 'pubspec.yaml',
+  'build.sbt', 'mix.exs', 'deno.json', 'deno.jsonc',
 ]
 
 const CONFIDENCE_BOOSTER_FILES = [
@@ -60,6 +63,9 @@ const CODE_LIKE_EXTENSIONS = [
   '.rs',
   '.sh',
   '.ps1',
+  '.c', '.h', '.cc', '.cpp', '.cxx', '.hpp', '.cs', '.rb', '.swift',
+  '.kt', '.kts', '.php', '.dart', '.lua', '.scala', '.ex', '.exs',
+  '.vue', '.svelte', '.mjs', '.cjs', '.ipynb', '.r', '.jl', '.zig',
 ]
 
 function extname(value: string): string {
@@ -122,7 +128,7 @@ export function validateGitHubRootContentsEligibility(entries: GitHubRootEntry[]
     return {
       ok: false,
       status: 400,
-      error: 'Empty or non-project repositories cannot be buried',
+      error: 'No supported project files found. Check the repository layout.',
     }
   }
 
@@ -198,9 +204,36 @@ export async function fetchGitHubRepo(owner: string, repo: string): Promise<Resp
   })
 }
 
-export async function fetchGitHubRepoRootContents(owner: string, repo: string): Promise<Response> {
-  return fetch(`https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/contents`, {
+export async function fetchGitHubRepoRootContents(
+  owner: string, repo: string,
+  options: { fetchImpl?: typeof fetch; signal?: AbortSignal } = {},
+): Promise<Response> {
+  const fetchImpl = options.fetchImpl ?? fetch
+  const url = `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/contents`
+  const read = (suffix = '') => fetchImpl(url + suffix, {
     headers: githubHeaders(),
-    signal: AbortSignal.timeout(10_000),
+    signal: options.signal
+      ? AbortSignal.any([options.signal, AbortSignal.timeout(8_000)])
+      : AbortSignal.timeout(8_000),
   })
+  const root = await read()
+  if (!root.ok) return root
+  const entries = await root.clone().json() as GitHubRootEntry[]
+  if (!Array.isArray(entries)) return root
+  if (classifyGitHubRootEntries(entries).isCandidate) return root
+
+  // Inspect actual files, not just a directory name. Bound extra API work and
+  // share this logic between scanning and the authoritative burial check.
+  const sourceDirectories = new Set(['src', 'source', 'sources', 'lib', 'app', 'cmd'])
+  const directories = entries.filter(entry => entry.type === 'dir'
+    && typeof entry.name === 'string' && sourceDirectories.has(entry.name.toLowerCase())).slice(0, 2)
+  const nested = await Promise.all(directories.map(entry => read('/' + encodeURIComponent(entry.name as string))))
+  const combined = [...entries]
+  for (const response of nested) {
+    if (response.status === 404 || response.status === 409) continue
+    if (!response.ok) return response
+    const children = await response.json() as GitHubRootEntry[]
+    if (Array.isArray(children)) combined.push(...children.filter(entry => entry.type === 'file'))
+  }
+  return Response.json(combined)
 }

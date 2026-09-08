@@ -2,7 +2,8 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useSession, signIn } from 'next-auth/react';
-import type { DeadRepo, GitHubScanResult } from '@/types/game';
+import type { DeadRepo } from '@/types/game';
+import { scanAllGitHubRepos } from '@/lib/github-scan-client';
 import { getBuryLoginCallbackUrl } from '@/lib/bury-intent';
 import {
   abortLatestRequest,
@@ -62,26 +63,19 @@ export default function StepScan({
     setLoading(true);
     onError('');
 
-    const params = new URLSearchParams({ username: defaultUsername });
-    if (forceRefresh) params.set('refresh', '1');
-
     try {
-      const res = await fetch(`/api/github/scan?${params.toString()}`, { signal: request.controller.signal });
-      if (!isLatestRequest(scanRequestStateRef.current, request)) return;
-      if (!res.ok) {
-        if (res.status === 429) {
-          onError('Rate limited by GitHub. Try again in a minute.');
-        } else {
-          onError(`Scan failed (${res.status})`);
-        }
-        return;
-      }
-      const data: GitHubScanResult = await res.json();
+      setScanPhase('Connecting to GitHub...');
+      const data = await scanAllGitHubRepos(defaultUsername, {
+        signal: request.controller.signal, refresh: forceRefresh,
+        onProgress: progress => {
+          if (isLatestRequest(scanRequestStateRef.current, request)) setScanPhase(progress.message);
+        },
+      });
       if (!isLatestRequest(scanRequestStateRef.current, request)) return;
       onScanned(data.dead_repos, data.total_repos);
     } catch (error) {
       if (!isLatestRequest(scanRequestStateRef.current, request)) return;
-      if ((error as Error).name !== 'AbortError') onError('Network error — check your connection.');
+      if ((error as Error).name !== 'AbortError') onError((error as Error).message || 'Network error — check your connection.');
     } finally {
       if (isLatestRequest(scanRequestStateRef.current, request)) {
         setLoading(false);
@@ -100,18 +94,6 @@ export default function StepScan({
     if (!loading) return;
     const id = setInterval(() => setDots(d => d.length >= 3 ? '' : d + '.'), 400);
     return () => clearInterval(id);
-  }, [loading]);
-
-  // Progress messages
-  useEffect(() => {
-    if (!loading) return;
-    const phases = [
-      { delay: 1500, msg: 'Fetching repositories...' },
-      { delay: 4000, msg: 'Checking last commit dates...' },
-      { delay: 7000, msg: 'Filtering dead repos...' },
-    ];
-    const timers = phases.map(p => setTimeout(() => setScanPhase(p.msg), p.delay));
-    return () => timers.forEach(clearTimeout);
   }, [loading]);
 
   // Auto-scan own repos on mount (only own GitHub)

@@ -127,7 +127,7 @@ test.describe('validateGitHubRootContentsEligibility', () => {
     expect(validateGitHubRootContentsEligibility([])).toEqual({
       ok: false,
       status: 400,
-      error: 'Empty or non-project repositories cannot be buried',
+      error: 'No supported project files found. Check the repository layout.',
     })
 
     expect(validateGitHubRootContentsEligibility([
@@ -135,7 +135,7 @@ test.describe('validateGitHubRootContentsEligibility', () => {
     ])).toEqual({
       ok: false,
       status: 400,
-      error: 'Empty or non-project repositories cannot be buried',
+      error: 'No supported project files found. Check the repository layout.',
     })
   })
 

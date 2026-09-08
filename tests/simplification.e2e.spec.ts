@@ -334,3 +334,44 @@ test('GitHub login requests canonical callback and returns to the Bury modal', a
 test('invalid UUID share links return 404 before querying memorial storage', async ({ request }) => {
   expect((await request.get('/grave/not-a-uuid')).status()).toBe(404)
 })
+
+for (const entry of ['home', 'modal'] as const) {
+  test(`${entry} scanner includes later pages and survives a temporary limit`, async ({ page }) => {
+    const { writes } = await fixtures(page, 'v2', { authenticated: true })
+    const pages: number[] = []
+    let limited = true
+    await page.route('**/api/github/scan?**', async route => {
+      const n = Number(new URL(route.request().url()).searchParams.get('page'))
+      pages.push(n)
+      if (n === 2 && limited) {
+        limited = false
+        return route.fulfill({ status: 429, headers: { 'Retry-After': '1' }, contentType: 'application/json', body: JSON.stringify({ error: 'Temporary limit' }) })
+      }
+      return route.fulfill({ contentType: 'application/json', body: JSON.stringify({ total_repos: 1, scanned_repos: 1, next_page: n === 1 ? 2 : null,
+        dead_repos: [{ id: 50 + n, name: n === 1 ? 'First page project' : 'Older page project', html_url: `https://github.com/Tester/project-${n}`, created_at: '2020-01-01', pushed_at: '2024-01-01', language: 'C++' }] }) })
+    })
+    await page.goto(entry === 'home' ? '/' : '/cemetery')
+    if (entry === 'home') await page.getByRole('button', { name: 'Scan @Tester' }).click()
+    else await page.getByRole('button', { name: 'Bury a project', exact: true }).click()
+    await expect(page.getByText(/GitHub requests paused/)).toBeVisible()
+    if (entry === 'modal') await page.getByRole('button', { name: 'Next', exact: true }).click()
+    await expect(page.getByText('First page project', { exact: true })).toBeVisible()
+    await expect(page.getByText('Older page project', { exact: true })).toBeVisible()
+    expect(pages).toEqual([1, 2, 2])
+    expect(writes).toHaveLength(0)
+  })
+}
+
+test('a failed later scan page cannot display a partial successful result', async ({ page }) => {
+  await fixtures(page, 'v2', { authenticated: true })
+  await page.route('**/api/github/scan?**', route => {
+    const n = Number(new URL(route.request().url()).searchParams.get('page'))
+    return route.fulfill({ status: n === 1 ? 200 : 502, contentType: 'application/json', body: JSON.stringify(n === 1
+      ? { total_repos: 1, next_page: 2, dead_repos: [{ id: 77, name: 'Must not be shown as complete', html_url: 'https://github.com/Tester/hidden', pushed_at: '2020-01-01', created_at: '2019-01-01' }] }
+      : { error: 'GitHub could not finish this page. Please retry.' }) })
+  })
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Scan @Tester' }).click()
+  await expect(page.getByText('GitHub could not finish this page. Please retry.')).toBeVisible()
+  await expect(page.getByText('Must not be shown as complete')).toHaveCount(0)
+})

@@ -29,11 +29,13 @@ GitHub repos must belong to you, contain a project, not be forks and have no pus
 
 ## $GRAVE tributes
 
-**Burn $GRAVE in memory of someone else's buried project.**
+**Voluntarily burn $GRAVE as a tribute to someone else's original, memorable project.**
 
 Open their grave, connect a wallet on Base and choose an amount. The tokens go to the burn address; the tribute is attached to that project's memorial after verification. **The Crematory** keeps the ledger.
 
 A permanent gesture for a project that almost made it.
+
+Tributes are optional: exploring the cemetery and burying a project require no tokens. Burns give no rewards or extra grave slots, and no tokens go to the project owner. [GRAVE contract on Base](https://basescan.org/token/0xb48bc4896d18724f7bf5a3d2817fc35252cd7ba3).
 
 ## A cemetery that grows
 
@@ -76,6 +78,8 @@ npm run dev
 Configure your own development database and GitHub OAuth app using the [setup guide](docs/setup.md). Start with [Contributing](CONTRIBUTING.md) and the [map reference](docs/map2.md).
 
 The v2 map, tiles and runtime images are committed here and served by the application CDN. Map loading does not use Supabase Storage.
+
+You can reuse, modify and redistribute our map artwork, including in commercial projects, under the MIT license. Keep the license notice; see [asset licensing](ASSETS.md).
 
 [Security](SECURITY.md) · [MIT code license](LICENSE)
 

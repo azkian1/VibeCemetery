@@ -41,4 +41,7 @@ export interface GitHubScanResult {
   dead_repos: DeadRepo[];
   total_repos: number;
   dead_count: number;
+  /** Page-local counts; clients aggregate pages until next_page is null. */
+  next_page?: number | null;
+  scanned_repos?: number;
 }
