@@ -78,7 +78,7 @@ test.describe('rate limiter', () => {
     }) as typeof fetch
 
     // Colons, slashes and Unicode must remain one key, not REST path segments.
-    const key = 'read:2001:db8::1/тест'
+    const key = 'read:2001:db8::1/\u0442\u0435\u0441\u0442'
     expect(await checkRateLimit(key, 2, 60_000)).toEqual({ allowed: true })
     expect(await checkRateLimit(key, 2, 60_000)).toEqual({ allowed: true })
     expect(await checkRateLimit(key, 2, 60_000)).toEqual({ allowed: false, retryAfterMs: 42000 })

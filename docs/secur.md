@@ -19,10 +19,10 @@ This document tracks future security work for public user text, prompt-injection
 
 ## Future Work
 
-1. Add route-level security tests.
-   - Cover `/api/graves` persistence of sanitized `name`, `cause`, `description`, `stack`, and `last_commit_message`.
-   - Keep `/api/cremated` retired with 410; it must never write records.
-   - Cover empty-after-sanitize `name` and `cause` rejection.
+1. Maintain public-text and HTTP security coverage.
+   - Sanitizer, untrusted-text quoting, burial write-path and CLI authentication tests run in the hermetic unit suite.
+   - Public HTTP smoke checks cover authentication, current-map reads, redirects and the retired `/api/cremated` response (410).
+   - Extend handler tests for every new public field and empty-after-sanitization case; unit coverage does not replace an end-to-end review of new data paths.
 
 2. Add LLM prompt construction tests when the first LLM flow is introduced.
    - Assert every public text field is wrapped with `quoteUntrustedForPrompt()`.

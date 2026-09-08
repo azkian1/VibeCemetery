@@ -22,8 +22,8 @@ function loadEnvLocal() {
 
 loadEnvLocal();
 
-// API smoke still receives its Supabase/auth settings, but browser and direct
-// route tests must never inherit a developer's shared rate-limit backend.
+// Browser and direct route tests must never inherit a developer's shared
+// rate-limit backend. API smoke uses HTTP only, without admin fixtures.
 delete process.env.UPSTASH_REDIS_REST_URL;
 delete process.env.UPSTASH_REDIS_REST_TOKEN;
 

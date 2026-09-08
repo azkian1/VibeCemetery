@@ -77,7 +77,7 @@ try {
     originalError(...args);
   };
 
-  const key = 'test:read:2001:db8::1/тест';
+  const key = 'test:read:2001:db8::1/\u0442\u0435\u0441\u0442';
   assert.deepEqual(await checkRateLimit(key, 2, 4000), { allowed: true });
   const firstTTL = await redis('PTTL', key);
   assert(firstTTL > 0 && firstTTL <= 4000);

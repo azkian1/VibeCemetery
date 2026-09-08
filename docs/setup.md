@@ -6,7 +6,7 @@ with `.env.example`, `docs/supabase-schema.sql`, and
 
 ## What You Need
 
-- Node.js 20+
+- Node.js 22.18+ (map tooling uses built-in TypeScript support)
 - npm
 - A Supabase project
 - A GitHub OAuth App
@@ -17,7 +17,7 @@ with `.env.example`, `docs/supabase-schema.sql`, and
 ```bash
 git clone https://github.com/azkian1/vibecemetery.git
 cd vibecemetery
-npm install
+npm ci
 ```
 
 ## 2. Configure Environment Variables
@@ -101,8 +101,8 @@ For burn tables and recovery RPCs, also follow [web3-grave-burn-mvp.md](web3-gra
 For an existing database follow [unified-burial-setup.md](unified-burial-setup.md):
 apply any missing map and Web3 prerequisites, then `unified-burials.sql` and
 `offering-ledger.sql`. The fresh schema already contains these functions.
-Do not apply historical `grave-slot-rpc.sql` or old map RPCs afterward: they
-were superseded by the account-wide `create_grave_once` function.
+Keep this migration order so the account-wide `create_grave_once` function
+retains the current burial contract.
 
 After application cutover, export legacy project records and follow the separate
 `retire-project-cremations.sql` cleanup step. It preserves graves and token offerings.
@@ -155,9 +155,9 @@ The scan endpoint only allows a signed-in user to scan their own GitHub username
 
 ## 5. Understand Asset Requirements
 
-V2 uses the committed `public/map/cemetery-v2.tmj` and its PNG assets from the application host. No licensed v1 tilesets or Supabase Storage setup is needed. Keep licensed originals and purchase records in a private local archive outside Git and public hosting.
+V2 uses the committed `public/map/cemetery-v2.tmj` and its PNG assets from the application host. No Supabase Storage setup is needed for the map. Keep source packages, experiments and private records outside public hosting.
 
-For existing installations, follow [v2-cutover-runbook.md](v2-cutover-runbook.md) before deploying this branch. Install the additive database write gate, save a private export, create a manifest and migrate every v1 grave before release. The v1 runtime and TMJ have been removed after verified migration.
+For existing installations, inspect installed schema and follow [unified-burial-setup.md](unified-burial-setup.md). Preserve a private database export before any schema or placement change. Current release checks are in [v2-cutover-runbook.md](v2-cutover-runbook.md).
 
 ## 6. Run The App
 
@@ -184,6 +184,7 @@ Additional targeted suites:
 
 ```bash
 npm run test:bury-skill
+npm run test:v2-runtime
 npm run test:web3-e2e
 ```
 
@@ -196,7 +197,7 @@ Notes:
   excludes the special Web3 fixture.
 - Additional Playwright specs exist in `tests/`; some require valid Supabase
   credentials, seeded data, or authenticated flows.
-- `tests/api-smoke.spec.ts` writes to Supabase and should be treated as integration coverage, not a safe offline smoke test.
+- `tests/api-smoke.spec.ts` checks public HTTP contracts and authentication boundaries against a running app. It creates no database fixtures or tokens; use an isolated development database for the server.
 
 ## Troubleshooting
 
@@ -233,4 +234,4 @@ hash mismatch marks a burn `orphaned`.
 
 ## Map release scope
 
-V2 is deployed and the original production graves have been migrated. Storage v1 is private. Follow [v2-cutover-runbook.md](v2-cutover-runbook.md) for the retirement deployment, recovery window and observation status. Use [map2.md](map2.md) for the supported asset set and camera contract; keep local experiments outside public assets.
+V2 is deployed at `/cemetery` with 144 approved slots. Follow [v2-cutover-runbook.md](v2-cutover-runbook.md) for release verification and observation. Use [map2.md](map2.md) for the supported asset set and camera contract; keep local experiments outside public assets.

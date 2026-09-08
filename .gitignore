@@ -41,7 +41,7 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# Paid tilesets — KR Peaceful Rest Graveyard + KR Burial Grounds (itch.io)
+# External source packages (never publish)
 /public/Tailes/
 /public/map/*.png
 
@@ -78,6 +78,7 @@ tome.md
 # Local product-strategy drafts superseded by committed specifications
 /FlyweelPlanforToken.md
 /web3/web3burnplan.md
+/docs/rekt-product-spec.md
 
 # Internal docs (strategy, agent prompts, archives, map design)
 /docs/SAVEBACKUPS.md

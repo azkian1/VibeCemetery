@@ -6,7 +6,7 @@ Thanks for your interest in contributing! This project is built by one vibe code
 
 ### Prerequisites
 
-- Node.js 20+
+- Node.js 22.18+ (including the map tooling's TypeScript support)
 - A [Supabase](https://supabase.com) project
 - A [GitHub OAuth App](https://github.com/settings/developers)
 - A [GitHub Personal Access Token](https://github.com/settings/tokens) (no special permissions needed)
@@ -16,7 +16,7 @@ Thanks for your interest in contributing! This project is built by one vibe code
 ```bash
 git clone https://github.com/azkian1/vibecemetery.git
 cd vibecemetery
-npm install
+npm ci
 cp .env.example .env.local
 # Fill in your keys in .env.local, then apply docs/supabase-schema.sql
 # and docs/cli-auth-v1.sql in Supabase.
@@ -29,7 +29,7 @@ Canonical setup reference: [docs/setup.md](docs/setup.md)
 
 ### Assets
 
-The map uses paid tilesets not included in the repo. The Tiled map JSON is included, but the PNG tileset images are expected from Supabase Storage. See [Assets](README.md#assets) in the README for runtime details.
+The map uses the committed `public/map/cemetery-v2.tmj` and PNG assets served by the application. No Storage setup is required for map images. See [Published assets](docs/map2.md#published-assets) for runtime details.
 
 ## Development Standards
 
@@ -45,7 +45,7 @@ The map uses paid tilesets not included in the repo. The Tiled map JSON is inclu
 ### Do NOT modify
 
 - `src/game/**` — Phaser scenes, camera, tiles (unless that's your PR's purpose)
-- `public/map/az.tmj` — the Tiled map file
+- `public/map/cemetery-v2.tmj` — the Tiled map file
 - `src/lib/supabase.ts` — Supabase client setup
 
 ## Contributing Workflow
@@ -56,7 +56,7 @@ The map uses paid tilesets not included in the repo. The Tiled map JSON is inclu
 4. **Read** `docs/setup.md` for database, asset, and test expectations
 5. **Make your changes** — keep PRs focused and small
 6. **Test** `npm run lint` and `npm run build`
-7. **Run** `npm run test:bury-skill` when your changes touch `/bury`, installer code, or CLI auth
+7. **Run** `npm run test:bury-skill` when your changes touch `/agent-instructions`, the burial helper or CLI auth; use `test:v2-runtime` and `test:web3-e2e` for map/UI changes
 8. **Avoid** integration specs that write to Supabase unless you intentionally configured a safe test project
 9. **Commit** with a clear message (see convention below)
 10. **Push** and open a Pull Request
@@ -93,7 +93,7 @@ src/
 │   ├── modals/       — all modal dialogs (GraveModal, BuryFlowModal, etc.)
 │   └── ui/           — shared stone-styled components (StoneFrame, StoneButton)
 ├── context/          — GameContext (global state)
-├── game/             — Phaser 3 (CemeteryScene, config, events)
+├── game/             — Phaser 3 (CemeterySceneV2, config-v2, events)
 ├── gravedigger/      — NPC character (phrases, templates)
 ├── lib/              — Supabase, rate limiter, utilities
 └── types/            — TypeScript types

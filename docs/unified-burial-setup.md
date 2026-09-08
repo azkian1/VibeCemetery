@@ -1,6 +1,6 @@
 # Unified burial release
 
-The only project memorial is a grave. Browser GitHub scanning and GitHub-approved local agents share 4 account slots plus 1 earned by sharing a grave, across map versions. Existing graves are preserved. The server owns epitaph generation and slot assignment; local requests use a private stable project_key for retries. This hash is never returned by public grave APIs.
+The only project memorial is a grave. Browser GitHub scanning and GitHub-approved local agents share 4 account slots plus 1 earned by sharing a grave, across project sources. Existing graves are preserved. The server owns epitaph generation and slot assignment; local requests use a private stable project_key for retries. This hash is never returned by public grave APIs.
 
 ## Additive migrations before deployment
 
@@ -27,16 +27,16 @@ The application update does not itself execute this destructive migration. Remot
 
 ## Offering accounting
 
-Only grave_burns rows with status verified count. Necropolis sums offerings received by each author's graves, including visitors without GitHub, across both maps. This is not an author spending leaderboard.
+Only grave_burns rows with status verified count. Necropolis sums offerings received by each author's graves, including visitors without GitHub, across the cemetery. This is not an author spending leaderboard.
 
 The Crematory shows a sortable Tributes table grouped by grave, including all verified amounts rather than only the latest transactions. Whole-token display does not change the exact raw accounting. The supply bar reads totalSupply and balanceOf(the fixed burn address) from the same Base block. It measures the share of current on-chain supply at that address, including transfers outside VibeCemetery. Dead-address transfers do not lower ERC-20 totalSupply. If RPC is unavailable, the bar is unavailable, never 0% by assumption.
 
-The existing WEB3_GRAVE_BURNS_ENABLED, NEXT_PUBLIC_WEB3_GRAVE_BURNS_ENABLED and BASE_RPC_URL configuration still applies. The same verified burn flow is supported on v1 and v2. All burns remain voluntary wallet-confirmed transfers; no new treasury, reward or token contract is introduced.
+The existing WEB3_GRAVE_BURNS_ENABLED, NEXT_PUBLIC_WEB3_GRAVE_BURNS_ENABLED and BASE_RPC_URL configuration still applies. The v2 map supports the verified burn flow. All burns remain voluntary wallet-confirmed transfers; no new treasury, reward or token contract is introduced.
 
 ## Checks
 
 - npm run test:unit
 - npx tsc --noEmit
 - npm run lint
-- Browser: home, both maps, agent instructions, profile, Necropolis, Crematory, grave links and no-slot state.
+- Browser: home, cemetery, agent instructions, profile, Necropolis, Crematory, grave links and no-slot state.
 - SQL: mixed-source account quota, retries at quota, collision rollback, restricted RPC permissions, exact token amounts and cleanup preserving burn records.

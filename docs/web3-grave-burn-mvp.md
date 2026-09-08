@@ -1,12 +1,12 @@
 # GRAVE tributes and transaction recovery
 
-Current implementation reference, updated 2026-09-07. The released v1 fixes have been brought into the two-map development branch. This does not publish v2 or execute database migrations.
+Current implementation reference, updated 2026-09-07, for the deployed v2 cemetery.
 
 ## Product behavior
 
 A visitor can voluntarily send GRAVE to the configured burn address in memory of a grave. All tokens go directly to that address on Base mainnet (chain ID 8453). No new payout contract, grave-owner reward, claim, payment for burial or extra slot is involved. Transfers to the burn address do not reduce the ERC-20 contract's `totalSupply`.
 
-Both development map shells support the flow. Production remains v1 until v2 is separately released. Wallet controls stay inside the grave modal and behind the server/client feature flags. Connecting a wallet does not create a GitHub account.
+The production cemetery supports this flow. Wallet controls stay inside the grave modal and behind the server/client feature flags. Connecting a wallet does not create a GitHub account.
 
 ## User flow
 
@@ -58,12 +58,12 @@ The Crematory uses centered **Burned** and supply amount, plus a sortable **Trib
 
 ## Database installation and upgrades
 
-For a database that does not yet have burn tables, apply `web3-grave-burn-mvp.sql`, then `web3-grave-burn-v1-finish.sql`, then `web3-grave-burn-hash-recovery.sql`. The filename `v1-finish` records the original burn rollout, not a restriction to one map.
+For a database that does not yet have burn tables, apply `web3-grave-burn-mvp.sql`, then `web3-grave-burn-v1-finish.sql`, then `web3-grave-burn-hash-recovery.sql`. Historical migration filenames remain stable for database upgrade tooling.
 
 For an existing database, first inspect which tables, columns and RPCs are already installed. Follow the preflight in `web3-grave-burn-v1-finish-runbook.md`; apply only missing prerequisites and retain existing burns. The hash-recovery migration is additive and repeatable. Finish with the applicable RLS hardening checks.
 
-The burial schema and allowance use `unified-burial-setup.md`. Do not overwrite the current burial RPC with an old map-only migration. Do not run cleanup SQL automatically as part of a source sync.
+The burial schema and allowance use `unified-burial-setup.md`. Preserve its migration order and the current burial RPC. Do not run cleanup SQL automatically as part of a source sync.
 
 ## Verification
 
-`npm run test:unit` covers amount bounds/precision, API validation, signature/receipt checks, concurrent binding, expiry, recovery, reorgs, aggregation and SQL behavior. `npm run test:web3-e2e` uses simulated wallets and mocked application APIs on both maps, including rejection, reload and lost-broadcast recovery. No real tokens are required by these tests.
+`npm run test:unit` covers amount bounds/precision, API validation, signature/receipt checks, concurrent binding, expiry, recovery, reorgs, aggregation and SQL behavior. `npm run test:web3-e2e` uses simulated wallets and mocked application APIs on the cemetery, including rejection, reload and lost-broadcast recovery. No real tokens are required by these tests.

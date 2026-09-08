@@ -219,8 +219,8 @@ export default function ChatLog() {
           data-testid="chat-collapse-toggle"
           onClick={() => setIsCollapsed((collapsed) => !collapsed)}
           aria-expanded={!isCollapsed}
-          aria-label={isCollapsed ? 'Развернуть чат' : 'Свернуть чат'}
-          title={isCollapsed ? 'Развернуть чат' : 'Свернуть чат'}
+          aria-label={isCollapsed ? 'Expand chat' : 'Collapse chat'}
+          title={isCollapsed ? 'Expand chat' : 'Collapse chat'}
           style={{
             position: 'absolute',
             top: '50%',

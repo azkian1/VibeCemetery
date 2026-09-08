@@ -1,80 +1,57 @@
 # Cemetery Map 2.0 — runtime reference
 
-Updated 2026-09-07. V2 is implemented in the development branch and Preview; the primary site still serves v1 at `/cemetery`. V1 supports burial and GRAVE tributes. It is not view-only.
+Updated 2026-09-07. Production serves the v2 cemetery at `/cemetery`.
 
-## Routes and shared behavior
-
-- `/cemetery` — released map, `public/map/az.tmj`.
-- `/cemetery/v2` — development map, `public/map/cemetery-v2.tmj`.
-- Both development maps share burial/agent APIs, the 4 + 1 account allowance, modals, F and verified GRAVE tributes with hash recovery.
-- `map_version` scopes grave placement; quotas span both maps. V2 sprite selection is persisted in `grave_gid`.
-- REKT and its proposed quotas are not part of this implementation.
+Two of nine planned zones are open. Future zones will be released around announced GRAVE burn checkpoints. The runtime does not yet assign stable zone IDs or automatically unlock terrain from a burn threshold. The [master-plan illustration](images/cemetery-master-plan.png) is concept art; its illustrated allocations are provisional.
 
 ## Map contract
 
 | Item | Value |
 | --- | --- |
+| TMJ | `public/map/cemetery-v2.tmj` |
 | Grid | 140 × 104 tiles, 32 px |
 | World | 4480 × 3328 px |
 | Terrain footprint | x: 800..3328, y: 1312..3328 |
 | Open-space authority | Empty cells in `fog_locked_blockout` |
 | Scene | `src/game/scenes/CemeterySceneV2.ts` |
-| Camera helper | `src/game/utils/fogCameraBounds.ts` |
 | Placement / variants | `slotManager-v2.ts`, `tileRegistry-v2.ts`, `src/lib/map-slots.ts` |
+| Approved slots | 144; see `v2-slot-audit.md` |
+| Master-plan capacity | 666; 522 slots remain for future zones |
 
-The served TMJ is authoritative. Phaser already applies its object and terrain offsets: do not add them again. Terrain `pixellab_dualgrid_reconstructed` has offset 768, 1312; parsed `GraveObj` and `TreeObj` coordinates are already world coordinates. Fog has its authored world placement.
+The served TMJ is authoritative. Phaser applies its object and terrain offsets: do not add them again. Terrain has offset (768, 1312); parsed GraveObj and TreeObj coordinates are world coordinates.
 
-## Fog and presentation
+New graves receive a uniformly random free approved slot and a compatible persisted `grave_gid`. Placement stays fixed after creation. Account quotas span GitHub and local project sources; the allowance is 4 + 1 sharing slot.
 
-Permanent building labels are hidden; interactions remain. The three authored masks are composited into a quarter-resolution canvas, blurred by 48 world pixels and drawn above the map. A distance mask fades to opaque darkness at the actual terrain edge, concealing texture cutoffs. Original fog tile layers remain available to camera constraints and minimap data but are hidden in the main scene.
+## Buildings and interactions
 
-Fog depth is above buildings, trees and graves; the overscroll safety layer is above fog. Day/night treatment, ambient particles and ground shadows remain. Additional lamps and decorative work can be added separately.
+The chapel opens The Crypt. The two service buildings on the right form one Crematory. The lodge by the entrance identifies the cemetery caretaker. Gates and adjacent fences are decoration and do not open a modal.
 
-## Camera
+Graves open their memorials and retain stable `/grave/[uuid]` links. The shared modal layer restores map input after closing, including nested grave and ledger views.
 
-- Start near the gate at 1760, 3100.
-- Strict terrain bounds: minimum 800, 1312; maximum 3328 minus viewport world width/height. Oversized viewports are centered safely inside the tilemap.
-- Dragging has 32 world pixels of free fog buffer, resisted movement up to 64 px, and a 220 ms Sine.easeOut return.
-- The safety skirt extends 64 px around the map.
-- Minimap travel, zoom and resize use strict bounds. Zoom floor is `max(fitZoom, 0.9)`; ceiling is 2.0.
-- Resize cancels active camera tweens and reclamps the viewport. Camera constraints follow clear fog cells, not only a rectangular map envelope.
+## Fog, camera and HUD
 
-## Minimap and HUD
+The authored fog masks are composited into a blurred quarter-resolution canvas above the map. A distance mask conceals terrain edges. The masks also constrain navigation.
 
-The shared minimap projects the two different map sizes separately. V2 uses a circular cover projection. Terrain, grave/building markers, fog and viewport are independent canvas layers; camera movement does not redraw the terrain raster.
+The camera starts near the gate at (1760, 3100). Navigation respects terrain and clear fog cells; dragging has a small resisted buffer followed by a snap back. Zoom is bounded and resize cancels active movement before applying constraints.
 
-Retained raster/viewport events restore a late-mounted minimap. Map-version checks prevent stale data from the other map. V2 clicks outside the lens, over empty terrain or locked fog are ignored.
+Phaser raw scroll coordinates differ from the visible world's top-left when zoom differs from one. Camera navigation, viewport events, tooltip positions and constraints must use a consistent conversion. Validate normal and close zoom on interior and edge graves.
 
-Both shells use the v1 UI corrections: bottom chat, red Bury to its right, common ledger styling, integer GRAVE amounts, centered Burned supply and sortable Tributes.
+The circular minimap projects terrain, grave/building markers, fog and the viewport in separate layers. Retained raster and viewport events restore it after responsive remounting. Clicks outside the lens, on empty terrain or in locked fog are ignored.
+
+Desktop HUD includes the bottom chat and red Bury button, plus the minimap and day/night display. Mobile preserves map navigation and grave modals. Ledger amounts display whole tokens while accounting preserves exact raw values.
 
 ## Published assets
 
-The runtime loader uses 74 PNGs:
+The map references 74 PNGs: 71 selected PixelLab images, `tilesets/grass_flagstone_spritesheet.png`, and the generated `planning_tiles.png` and `blockout_tiles.png`.
 
-- 71 selected PixelLab images under `public/map/pixellab/`.
-- `public/map/tilesets/grass_flagstone_spritesheet.png`.
-- `public/map/planning_tiles.png` and `public/map/blockout_tiles.png`.
+The last two are generated by `node scripts/generate-blockout-pngs.mjs`; their SVG sources support Tiled authoring. All required images are committed and served by the application host. Keep prompts, contact sheets, diagnostics and private archives outside `public/`.
 
-The last two are generated by `node scripts/generate-blockout-pngs.mjs` and are explicitly included in Git. Their SVG sources remain available for Tiled. Licensed v1 tilesets stay excluded from Git; do not remove the broad exclusion to include these two generated files.
+Some accepted images have generation IDs or `compare` in their names. Determine whether an image is used from the TMJ and loader, not its filename alone.
 
-Only runtime art belongs in the published PixelLab directory. Rejected variants, contact sheets, reference crops, generation prompts and manifests were removed from it. Local copies are retained in the ignored `.local-archive/v2-cleanup-2026-09-07/` directory of the working machine. Existing remote Git history is not rewritten by this cleanup.
+## Editing and verification
 
-Do not delete files based on their names alone: several accepted sprites still have generation IDs or `compare` in their names, and the loader references them directly.
+Edit the TMJ in Tiled. Use `scripts/convert-tmx-to-tmj.mjs` when exporting from TMX, preserving numeric coordinates and offsets. Never compensate for an incorrect export by changing scene placement.
 
-## Editing and checks
+Run TypeScript, unit tests, the mocked browser suite, lint, the production build and `npm run check:v2-bundle`. Check desktop/mobile, zoom, edge dragging, Find on Map, actual sprite clicks and modal dismissal. Browser writes and wallet transfers use fixtures.
 
-Edit the TMJ in Tiled. When starting from TMX, use `scripts/convert-tmx-to-tmj.mjs` and preserve numeric layer coordinates and object offsets. Do not change scene placement to compensate for a bad export.
-
-```sh
-npx tsc --noEmit --incremental false
-npm run test:unit
-npm run test:web3-e2e
-npm run lint
-npm run build
-```
-
-The unit suite covers camera/fog bounds, coordinates, shadows, tile variants, asset presence and minimap retention. The asset check also verifies TMJ/loader agreement, PNG dimensions and Git eligibility, so ignored local files cannot conceal a missing deployment asset. Browser coverage exercises burial, ledgers, responsive UI and stubbed burn/recovery on both maps. V1 browser tests require licensed local PNGs or the public image-only `PLAYWRIGHT_TILESET_BASE_URL` fallback described in the README. Inspect edge dragging and normal/close zoom after map geometry or fog edits. Do not replace fixture wallet transfers with real token transfers during these checks.
-
-## Database compatibility
-
-For a new installation, follow `setup.md` and `unified-burial-setup.md`. Historical map migrations are prerequisites for older databases, not scripts to rerun after the current `create_grave_once` RPC. Burn recovery requires its additive migration; the current schema files and runbook describe that order. This source cleanup does not execute SQL or change production deployment.
+For database installation follow `setup.md` and `unified-burial-setup.md`. Preserve existing UUIDs, F and exact GRAVE history during upgrades.

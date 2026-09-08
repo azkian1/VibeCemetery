@@ -21,7 +21,7 @@ export default defineConfig({
   testDir: './tests',
   outputDir: './test-results/unit',
   // Keep this target hermetic: do not load .env.local, start a web server, or run a browser.
-  // These specs require a running Next server; api-smoke also writes to Supabase.
+  // These specs require a running Next server or a browser.
   // Run them with playwright.config.ts, which provides the integration webServer and env.
   testIgnore: [
     '**/api-smoke.spec.ts',
