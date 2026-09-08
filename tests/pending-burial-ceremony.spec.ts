@@ -44,6 +44,24 @@ test('pending burial ceremony can be saved, read, and consumed once', () => {
   expect(readPendingBurialCeremony({ now: 1_002 })).toBeNull()
 })
 
+test('the server-picked GID survives navigation and a single consume', () => {
+  const withGid = { ...ceremony, grave_gid: 51 }
+  expect(savePendingBurialCeremony(withGid, { now: 1_000, ttlMs: 10_000 })).toBe(true)
+  expect(readPendingBurialCeremony({ now: 1_001 })).toEqual(withGid)
+  expect(consumePendingBurialCeremony({ now: 1_002 })).toEqual(withGid)
+  expect(readPendingBurialCeremony({ now: 1_003 })).toBeNull()
+})
+
+test('malformed stored GIDs are rejected instead of reaching the renderer', () => {
+  for (const grave_gid of ['51', 0, -1, 51.5]) {
+    sessionStorage.setItem(PENDING_BURIAL_CEREMONY_KEY, JSON.stringify({
+      ...ceremony, grave_gid, version: 1, createdAt: 1_000, expiresAt: 10_000,
+    }))
+    expect(readPendingBurialCeremony({ now: 1_001 })).toBeNull()
+    expect(sessionStorage.getItem(PENDING_BURIAL_CEREMONY_KEY)).toBeNull()
+  }
+})
+
 test('expired or malformed pending burial ceremony is cleared and never returned', () => {
   expect(savePendingBurialCeremony(ceremony, { now: 1_000, ttlMs: 100 })).toBe(true)
   expect(readPendingBurialCeremony({ now: 1_100 })).toBeNull()

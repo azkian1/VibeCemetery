@@ -29,6 +29,7 @@ export default defineConfig({
     '**/mobile.spec.ts',
     '**/web3-burn.e2e.spec.ts',
     '**/simplification.e2e.spec.ts',
+    '**/v2-runtime.e2e.spec.ts',
   ],
   timeout: 30_000,
   expect: { timeout: 10_000 },

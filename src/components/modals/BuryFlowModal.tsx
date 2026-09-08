@@ -61,7 +61,7 @@ export default function BuryFlowModal() {
       const body = await response.json()
       if (!response.ok) throw new Error(body.error || 'Burial failed. Please try again.')
       const grave = body as GraveData
-      const ceremony = { slot_id: grave.slot_id, id: grave.id, name: grave.name,
+      const ceremony = { slot_id: grave.slot_id, id: grave.id, name: grave.name, grave_gid: grave.grave_gid,
         chatText: 'A project has been buried. Rest in peace.',
         gravediggerPhrase: GRAVEDIGGER_BURIAL[Math.floor(Math.random() * GRAVEDIGGER_BURIAL.length)] }
       const mapPath = '/cemetery'

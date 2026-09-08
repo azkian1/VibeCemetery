@@ -42,7 +42,7 @@ test('failed later page never returns a misleading partial total', async () => {
 test('late minimap subscribers can recover raster and viewport but never replay actions', () => {
   cemeteryEvents.clear()
   const raster = { tiles: new Uint8Array([1, 2, 3, 1]), mapWidth: 2, mapHeight: 2 }
-  const viewport = { scrollX: 1, scrollY: 2, viewWidth: 100, viewHeight: 50, zoom: 1 }
+  const viewport = { scrollX: 1, scrollY: 2, viewX: 1, viewY: 2, viewWidth: 100, viewHeight: 50, zoom: 1 }
   cemeteryEvents.emit('minimap_tiles', raster)
   cemeteryEvents.emit('camera_move', viewport)
   cemeteryEvents.emit('minimap_click', { worldX: 10, worldY: 20 })

@@ -221,11 +221,11 @@ export default function Minimap({ mapVersion = 'v2' }: { mapVersion?: 'v2' }) {
     const vp = viewportRef.current;
     if (!vp) return;
 
-    const topLeft = projectWorldPoint(cfg, vp.scrollX, vp.scrollY);
+    const topLeft = projectWorldPoint(cfg, vp.viewX, vp.viewY);
     const bottomRight = projectWorldPoint(
       cfg,
-      vp.scrollX + vp.viewWidth,
-      vp.scrollY + vp.viewHeight,
+      vp.viewX + vp.viewWidth,
+      vp.viewY + vp.viewHeight,
     );
     const x = topLeft.x;
     const y = topLeft.y;

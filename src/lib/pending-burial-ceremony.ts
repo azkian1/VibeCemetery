@@ -5,6 +5,7 @@ export interface PendingBurialCeremony {
   slot_id: number;
   id: string;
   name: string;
+  grave_gid?: number | null;
   chatText: string;
   gravediggerPhrase: string;
 }
@@ -22,6 +23,7 @@ function isPendingBurialCeremony(value: unknown): value is StoredPendingBurialCe
     && typeof item.slot_id === 'number'
     && typeof item.id === 'string'
     && typeof item.name === 'string'
+    && (item.grave_gid == null || (Number.isSafeInteger(item.grave_gid) && item.grave_gid > 0))
     && typeof item.chatText === 'string'
     && typeof item.gravediggerPhrase === 'string'
     && typeof item.createdAt === 'number'
@@ -78,8 +80,8 @@ export function readPendingBurialCeremony(options: { now?: number } = {}): Pendi
       storage.removeItem(PENDING_BURIAL_CEREMONY_KEY);
       return null;
     }
-    const { slot_id, id, name, chatText, gravediggerPhrase } = parsed;
-    return { slot_id, id, name, chatText, gravediggerPhrase };
+    const { slot_id, id, name, grave_gid, chatText, gravediggerPhrase } = parsed;
+    return { slot_id, id, name, ...(grave_gid === undefined ? {} : { grave_gid }), chatText, gravediggerPhrase };
   } catch {
     clearPendingBurialCeremony();
     return null;

@@ -9,8 +9,10 @@ import {
   constrainCameraScrollToFog,
   getPlayableCameraScrollBounds,
   type CameraScrollBounds,
+  type FogCameraConstraintOptions,
   type FogClearAnchor,
 } from '../utils/fogCameraBounds';
+import { cameraScrollForCenter, cameraScrollFromWorldView, cameraWorldView, worldPointToCamera } from '../utils/cameraProjection';
 import { cemeteryEvents, SlotEventData, RenderGraveData, MinimapClickData, SyncGravesData } from '../events';
 import { isSameRenderedGrave, planGraveReconciliation } from '../graveReconciliation';
 import { CEMETERY_MAP_V2_URL } from '../../lib/map-version';
@@ -179,10 +181,12 @@ export class CemeterySceneV2 extends Phaser.Scene {
   private lastCamX = -1;
   private lastCamY = -1;
   private lastCamZoom = -1;
+  private lastCamWidth = -1;
+  private lastCamHeight = -1;
   private lastCamEmit = 0;
   private modalOpen = false;
-  private pendingCeremony: { slot_id: number; id: string; name: string } | null = null;
-  private ceremonyQueue: Array<{ slot_id: number; id: string; name: string }> = [];
+  private pendingCeremony: RenderGraveData | null = null;
+  private ceremonyQueue: RenderGraveData[] = [];
   private ceremonyScheduled = false;
   private ceremonyInProgress = false;
   private ceremonyObjects: Phaser.GameObjects.GameObject[] = [];
@@ -245,16 +249,18 @@ export class CemeterySceneV2 extends Phaser.Scene {
     return object;
   }
 
+  private onAssetLoadError = (file: Phaser.Loader.File) => {
+    // A failed optional PNG must not consume the listener for the required TMJ.
+    if (file.key !== 'cemetery-map-v2' || this.assetLoadError) return;
+    const assetUrl = typeof file.src === 'string' ? file.src : 'unknown asset URL';
+    this.assetLoadError = { assetKey: file.key, assetUrl };
+    cemeteryEvents.emit('load_error', this.assetLoadError);
+  };
+
   preload() {
     this.assetLoadError = null;
-    this.load.once('loaderror', (file: Phaser.Loader.File) => {
-      // Only bail on TMJ load failure; individual tileset errors are non-fatal
-      if (file.key === 'cemetery-map-v2') {
-        const assetUrl = typeof file.src === 'string' ? file.src : 'unknown asset URL';
-        this.assetLoadError = { assetKey: file.key, assetUrl };
-        cemeteryEvents.emit('load_error', this.assetLoadError);
-      }
-    });
+    this.load.on('loaderror', this.onAssetLoadError);
+    this.load.once('complete', () => this.load.off('loaderror', this.onAssetLoadError));
 
     this.load.tilemapTiledJSON('cemetery-map-v2', CEMETERY_MAP_V2_URL);
 
@@ -531,7 +537,8 @@ export class CemeterySceneV2 extends Phaser.Scene {
     if (
       Math.abs(sx - this.lastCamX) > 5 ||
       Math.abs(sy - this.lastCamY) > 5 ||
-      Math.abs(z - this.lastCamZoom) > 0.01
+      Math.abs(z - this.lastCamZoom) > 0.01 ||
+      cam.width !== this.lastCamWidth || cam.height !== this.lastCamHeight
     ) {
       const now = this.time.now;
       if (now - this.lastCamEmit < 50) return;
@@ -539,11 +546,16 @@ export class CemeterySceneV2 extends Phaser.Scene {
       this.lastCamX = sx;
       this.lastCamY = sy;
       this.lastCamZoom = z;
+      this.lastCamWidth = cam.width;
+      this.lastCamHeight = cam.height;
+      const view = cameraWorldView(cam);
       cemeteryEvents.emit('camera_move', {
         scrollX: sx,
         scrollY: sy,
-        viewWidth: cam.width / z,
-        viewHeight: cam.height / z,
+        viewX: view.x,
+        viewY: view.y,
+        viewWidth: view.width,
+        viewHeight: view.height,
         zoom: z,
         mapVersion: 'v2',
       });
@@ -721,9 +733,9 @@ export class CemeterySceneV2 extends Phaser.Scene {
       delay: leafDelay,
       loop: true,
       callback: () => {
-        const vw = cam.width / cam.zoom;
-        const x = cam.scrollX + Math.random() * vw;
-        const y = cam.scrollY - 10;
+        const view = cameraWorldView(cam);
+        const x = view.x + Math.random() * view.width;
+        const y = view.y - 10;
         leaves.emitParticleAt(x, y);
       },
     }));
@@ -732,10 +744,9 @@ export class CemeterySceneV2 extends Phaser.Scene {
       delay: dustDelay,
       loop: true,
       callback: () => {
-        const vw = cam.width / cam.zoom;
-        const vh = cam.height / cam.zoom;
-        const x = cam.scrollX + Math.random() * vw;
-        const y = cam.scrollY + Math.random() * vh;
+        const view = cameraWorldView(cam);
+        const x = view.x + Math.random() * view.width;
+        const y = view.y + Math.random() * view.height;
         dust.emitParticleAt(x, y);
       },
     }));
@@ -976,6 +987,7 @@ export class CemeterySceneV2 extends Phaser.Scene {
         const cam = this.cameras.main;
         const centerX = slot.x + slot.width / 2;
         const topY = slot.y;
+        const screen = worldPointToCamera(cam, centerX, topY);
         return {
           slotId: slot.id,
           type: slot.type,
@@ -984,8 +996,8 @@ export class CemeterySceneV2 extends Phaser.Scene {
           y: slot.y,
           width: slot.width,
           height: slot.height,
-          screenX: (centerX - cam.scrollX) * cam.zoom,
-          screenY: (topY - cam.scrollY) * cam.zoom,
+          screenX: screen.x,
+          screenY: screen.y,
         };
       };
 
@@ -1117,11 +1129,10 @@ export class CemeterySceneV2 extends Phaser.Scene {
     if (this.isCeremonyBlockingInput()) return;
     const cam = this.cameras?.main;
     if (!cam) return;
-    const vw = cam.width / cam.zoom;
-    const vh = cam.height / cam.zoom;
     const bounds = this.getCameraScrollBounds(cam);
-    const targetX = Phaser.Math.Clamp(data.worldX - vw / 2, bounds.minX, bounds.maxX);
-    const targetY = Phaser.Math.Clamp(data.worldY - vh / 2, bounds.minY, bounds.maxY);
+    const target = cameraScrollForCenter(cam, data.worldX, data.worldY);
+    const targetX = Phaser.Math.Clamp(target.x, bounds.minX, bounds.maxX);
+    const targetY = Phaser.Math.Clamp(target.y, bounds.minY, bounds.maxY);
     this.stopCameraMotion(cam);
     this.tweens.add({
       targets: cam,
@@ -1235,30 +1246,30 @@ export class CemeterySceneV2 extends Phaser.Scene {
     scrollY: number,
     cam: Phaser.Cameras.Scene2D.Camera,
     strictBounds: CameraScrollBounds,
+    options: FogCameraConstraintOptions = {},
   ) {
-    return constrainCameraScrollToFog({
-      scrollX,
-      scrollY,
-      viewWidth: cam.width / cam.zoom,
-      viewHeight: cam.height / cam.zoom,
-      strictBounds,
+    // Fog geometry uses the visible world rectangle; Phaser scroll is unscaled.
+    const view = cameraWorldView(cam, scrollX, scrollY);
+    const min = cameraWorldView(cam, strictBounds.minX, strictBounds.minY);
+    const max = cameraWorldView(cam, strictBounds.maxX, strictBounds.maxY);
+    const constrained = constrainCameraScrollToFog({
+      scrollX: view.x,
+      scrollY: view.y,
+      viewWidth: view.width,
+      viewHeight: view.height,
+      strictBounds: { minX: min.x, minY: min.y, maxX: max.x, maxY: max.y },
       cameraSafeWorldBounds: CAMERA_FOG_SAFETY_WORLD_BOUNDS_V2,
       fogClearAnchors: this.fogClearAnchors,
+      ...options,
     });
+    return cameraScrollFromWorldView(cam, constrained.x, constrained.y);
   }
 
   private getCameraFogSnapTarget(
     cam: Phaser.Cameras.Scene2D.Camera,
     strictBounds: CameraScrollBounds,
   ) {
-    return constrainCameraScrollToFog({
-      scrollX: cam.scrollX,
-      scrollY: cam.scrollY,
-      viewWidth: cam.width / cam.zoom,
-      viewHeight: cam.height / cam.zoom,
-      strictBounds,
-      cameraSafeWorldBounds: CAMERA_FOG_SAFETY_WORLD_BOUNDS_V2,
-      fogClearAnchors: this.fogClearAnchors,
+    return this.constrainCameraDrag(cam.scrollX, cam.scrollY, cam, strictBounds, {
       maxFogDistance: CAMERA_FOG_REST_BUFFER_V2,
       freeFogDistance: CAMERA_FOG_REST_BUFFER_V2,
       resistance: 0,
@@ -1266,13 +1277,16 @@ export class CemeterySceneV2 extends Phaser.Scene {
   }
 
   private getCameraScrollBounds(cam: Phaser.Cameras.Scene2D.Camera) {
-    return getPlayableCameraScrollBounds(
+    const bounds = getPlayableCameraScrollBounds(
       this.worldBounds,
       cam.width / cam.zoom,
       cam.height / cam.zoom,
       WORLD_W,
       WORLD_H,
     );
+    const min = cameraScrollFromWorldView(cam, bounds.minX, bounds.minY);
+    const max = cameraScrollFromWorldView(cam, bounds.maxX, bounds.maxY);
+    return { minX: min.x, minY: min.y, maxX: max.x, maxY: max.y };
   }
 
   private clampCameraToPlayableBounds(cam: Phaser.Cameras.Scene2D.Camera) {
@@ -1281,7 +1295,7 @@ export class CemeterySceneV2 extends Phaser.Scene {
     cam.scrollY = Phaser.Math.Clamp(cam.scrollY, bounds.minY, bounds.maxY);
   }
 
-  private onBurialCeremony = (data: { slot_id: number; id: string; name: string }) => {
+  private onBurialCeremony = (data: RenderGraveData) => {
     this.ceremonySlotIds.add(data.slot_id);
     if (this.ceremonyInProgress || this.ceremonyScheduled || this.pendingCeremony) {
       this.ceremonyQueue.push(data);
@@ -1311,7 +1325,7 @@ export class CemeterySceneV2 extends Phaser.Scene {
     cameraEffects.zoomEffect?.reset();
   }
 
-  private playBurialCeremony(data: { slot_id: number; id: string; name: string }) {
+  private playBurialCeremony(data: RenderGraveData) {
     this.ceremonyScheduled = false;
     const slot = this.slots.get(data.slot_id);
     if (!slot) {
@@ -1548,6 +1562,8 @@ export class CemeterySceneV2 extends Phaser.Scene {
   shutdown() {
     if (this.cleanedUp) return;
     this.cleanedUp = true;
+
+    this.load.off('loaderror', this.onAssetLoadError);
 
     this.scale.off(Phaser.Scale.Events.RESIZE, this.handleCameraResize);
 

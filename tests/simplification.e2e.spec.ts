@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
+import { readFileSync } from 'node:fs'
 import { getAutoAssignableGraveSlots } from '../src/lib/map-slots'
 import { rejectLegacyCemeteryAssets } from './fixtures/cemetery-assets'
 import { createMinimapProjection, projectWorldPoint } from '../src/game/utils/minimapProjection'
@@ -125,16 +126,40 @@ test('Crematory building opens supply ledger and remains readable on mobile', as
   await page.goto(mapPath)
   await expect(page.getByTestId('phaser-stage-v2')).toHaveAttribute('data-scene-ready', 'true')
   await page.waitForTimeout(2100) // Initial camera zoom lasts 2000 ms.
-  const point = projectWorldPoint(createMinimapProjection(4480, 3328, 140), 3008, 2800)
+  const map = JSON.parse(readFileSync('public/map/cemetery-v2.tmj', 'utf8')) as {
+    layers: Array<{ name: string; offsetx?: number; offsety?: number;
+      objects?: Array<{ name: string; gid?: number; x: number; y: number; width: number; height: number }> }>
+  }
+  const layer = map.layers.find(item => item.name === 'ServiceBuildingsPreview_map4')!
+  const building = layer.objects!.find(item => item.name === 'service_technical_building_4x5_map4')!
+  expect(building.gid).toBeTruthy()
+  // Tiled tile objects have a bottom-left origin. Aim inside the actual wing,
+  // so both minimap navigation and the subsequent click follow the authored map.
+  const world = {
+    x: building.x + (layer.offsetx ?? 0) + building.width / 2,
+    y: building.y + (layer.offsety ?? 0) - building.height / 2,
+  }
+  const point = projectWorldPoint(createMinimapProjection(4480, 3328, 140), world.x, world.y)
   await page.getByRole('img', { name: 'Cemetery minimap' }).click({ position: point })
   await page.waitForTimeout(400) // Pointer-down otherwise cancels the 300 ms minimap pan.
-  // The camera clamps at the playable map edge. At this viewport the service
-  // building stays at this screen position after minimap navigation settles.
-  // Building labels are deliberately hidden, so interact with the canvas.
-  await expect(async () => {
-    await page.mouse.click(1130, 480)
-    await expect(page.getByRole('heading', { name: 'Crematory', exact: true })).toBeVisible({ timeout: 1000 })
-  }).toPass({ timeout: 12_000 })
+  const stage = page.getByTestId('phaser-stage-v2')
+  const camera = await stage.evaluate(el => ({
+    x: Number(el.dataset.cameraX), y: Number(el.dataset.cameraY), zoom: Number(el.dataset.cameraZoom),
+  }))
+  const canvas = stage.locator('canvas')
+  const size = await canvas.evaluate(el => ({ width: el.clientWidth, height: el.clientHeight }))
+  expect(camera.zoom).toBeGreaterThan(0)
+  // Independent projection: Phaser scales around the viewport centre, while
+  // its raw scroll remains unscaled even when bounds prevent centering a target.
+  const click = {
+    x: size.width / 2 + (world.x - camera.x - size.width / 2) * camera.zoom,
+    y: size.height / 2 + (world.y - camera.y - size.height / 2) * camera.zoom,
+  }
+  expect(click.x).toBeGreaterThan(0)
+  expect(click.x).toBeLessThan(size.width)
+  expect(click.y).toBeGreaterThan(0)
+  expect(click.y).toBeLessThan(size.height)
+  await canvas.click({ position: click })
   await expect(page.getByRole('heading', { name: 'Crematory', exact: true })).toBeVisible()
   await expect(page.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '10')
   await expect(page.getByRole('link', { name: 'Local project', exact: true })).toHaveAttribute('href', '/grave/' + id)

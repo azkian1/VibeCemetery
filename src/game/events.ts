@@ -11,8 +11,12 @@ export interface SlotEventData {
 }
 
 export interface CameraMoveData {
+  /** Phaser scroll stays unscaled; it is not the visible top-left when zoomed. */
   scrollX: number;
   scrollY: number;
+  /** Actual world-space top-left of the visible viewport. */
+  viewX: number;
+  viewY: number;
   /** World-space viewport width (screen width / zoom) */
   viewWidth: number;
   /** World-space viewport height (screen height / zoom) */
@@ -102,7 +106,7 @@ export interface CemeteryEventMap {
   // Phaser → React: critical asset failed to load
   load_error: { assetKey: string; assetUrl: string };
   // React → Phaser: trigger burial ceremony animation
-  burial_ceremony: { slot_id: number; id: string; name: string; chatText: string; gravediggerPhrase: string };
+  burial_ceremony: RenderGraveData & { chatText: string; gravediggerPhrase: string };
   // Phaser → React: ceremony finished
   burial_ceremony_done: { slot_id: number; willContinue?: boolean };
   // React → Phaser: zoom buttons

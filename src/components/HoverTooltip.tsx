@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { cemeteryEvents, type SlotEventData } from '@/game/events';
+import { cemeteryEvents, type SlotEventData, type CameraMoveData } from '@/game/events';
 import { useGame } from '@/context/GameContext';
 import { useIsMobile } from '@/hooks/useIsMobile';
 
@@ -13,11 +13,18 @@ export default function HoverTooltip() {
   useEffect(() => {
     const onHover = (data: SlotEventData) => setHovered(data);
     const onHoverEnd = () => setHovered(null);
+    const onCameraMove = (camera: CameraMoveData) => setHovered(current => current ? {
+      ...current,
+      screenX: (current.x + current.width / 2 - camera.viewX) * camera.zoom,
+      screenY: (current.y - camera.viewY) * camera.zoom,
+    } : null);
     cemeteryEvents.on('grave_hover', onHover);
     cemeteryEvents.on('grave_hover_end', onHoverEnd);
+    cemeteryEvents.on('camera_move', onCameraMove);
     return () => {
       cemeteryEvents.off('grave_hover', onHover);
       cemeteryEvents.off('grave_hover_end', onHoverEnd);
+      cemeteryEvents.off('camera_move', onCameraMove);
     };
   }, []);
 

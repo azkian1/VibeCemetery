@@ -8,6 +8,8 @@ test('retains the latest minimap and viewport snapshots for late subscribers', (
   const viewport = {
     scrollX: 100,
     scrollY: 200,
+    viewX: 100,
+    viewY: 200,
     viewWidth: 300,
     viewHeight: 400,
     zoom: 1,
