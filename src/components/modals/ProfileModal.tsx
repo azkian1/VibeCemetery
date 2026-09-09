@@ -11,6 +11,7 @@ import InsetBlock from '@/components/ui/InsetBlock'
 import StoneButton from '@/components/ui/StoneButton'
 import LoadErrorState from '@/components/ui/LoadErrorState'
 import { getSlotUnlockProgress } from '@/lib/slot-economy'
+import RektAccountPanel from '@/components/rekt/RektAccountPanel'
 export function getSlotsAvailableLabel(n: number) { return n + ' slot' + (n === 1 ? '' : 's') + ' available' }
 export default function ProfileModal() {
   const { close, open } = useModal()
@@ -32,6 +33,7 @@ export default function ProfileModal() {
         </div></InsetBlock>
         <StoneButton onClick={() => open('bury', { flowMode: 'cemetery-shovel' })} disabled={!account.data.canCreateGrave}>Bury a project</StoneButton>
       </>}
+      <RektAccountPanel onScan={() => open('rekt')} />
       <div style={{ textAlign: 'center', marginTop: 20 }}><button onClick={() => signOut()} style={{ background: 'none', border: 0, color: '#8a8980', cursor: 'pointer' }}>Sign out</button></div>
     </div>
   </StoneFrame></ModalOverlay>

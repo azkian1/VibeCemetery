@@ -15,6 +15,7 @@ import type { DeadRepo, GraveData } from '@/types/game';
 import type { SlotPositionData } from '@/game/events';
 import { CEMETERY_MAP_V2_URL } from '@/lib/map-version';
 import { inferGraveSlotTypeV2, isActiveGraveSlotV2 } from '@/lib/map-layout-v2';
+import styles from './HomeScannerLanding.module.css';
 
 const AUTH_GATE_COPY = 'Connect GitHub to scan and bury your own repos.';
 
@@ -226,39 +227,42 @@ function ScannerShell() {
       </nav>
 
       <section style={{ position: 'relative', zIndex: 1, minHeight: isCompactViewport ? 'calc(100dvh - 115px)' : 'calc(100dvh - 73px)', display: 'grid', placeItems: isCompactViewport ? 'start center' : 'center', padding: isCompactViewport ? '42px 16px 40px' : '18px 16px 40px' }}>
-        <div style={{ width: repos ? 'min(100%, 1040px)' : 'min(100%, 430px)', border: '1px solid rgba(232,213,163,0.16)', borderRadius: 18, background: 'linear-gradient(180deg, rgba(42,40,37,0.96), rgba(20,18,16,0.98))', boxShadow: '0 18px 44px rgba(0,0,0,0.42), inset 0 1px 0 rgba(255,255,255,0.04)', padding: 'clamp(20px, 4vw, 28px)', textAlign: 'center' }}>
+        <div style={{ width: repos ? 'min(100%, 1040px)' : 'min(100%, 740px)', border: '1px solid rgba(232,213,163,0.16)', borderRadius: 4, background: 'linear-gradient(180deg, rgba(42,40,37,0.96), rgba(20,18,16,0.98))', boxShadow: '0 18px 44px rgba(0,0,0,0.42), inset 0 1px 0 rgba(255,255,255,0.04)', padding: 'clamp(20px, 4vw, 28px)', textAlign: 'center' }}>
           {showScannerChrome && (
             <>
-              <p style={{ margin: '0 0 10px', color: '#9a7562', fontSize: 11, letterSpacing: 2, textTransform: 'uppercase' }}>GitHub scanner</p>
-              <h1 style={{ margin: '0 auto 12px', maxWidth: 360, fontSize: 'clamp(24px, 3.2vw, 27px)', lineHeight: 1.16, letterSpacing: -0.1 }}>Bury your abandoned GitHub repos</h1>
-              <div style={{ display: 'grid', gap: 10, marginTop: 22 }}>
+              <p style={{ margin: '0 0 10px', color: '#c6a568', fontSize: 11, letterSpacing: 2, textTransform: 'uppercase' }}>Code & REKT</p>
+              <h1 style={{ margin: '0 auto 12px', maxWidth: 540, fontSize: 'clamp(26px, 3.2vw, 36px)', lineHeight: 1.2 }}>Every ending deserves a place.</h1>
+              <p style={{ color: '#b6ac9a', fontSize: 13 }}>Some buried their weekends. Some buried their trades.</p>
+              <div className={styles.paths}>
+                <section className={styles.path} aria-label="Code burial"><span className={styles.tag}>CODE</span><p>Bury your abandoned projects</p>
                 <button
                   type="button"
                   onClick={() => { void runScan(); }}
                   disabled={loading || status === 'loading'}
-                  style={{ border: '1px solid #6a3020', borderRadius: 12, background: loading ? '#3a2520' : 'linear-gradient(180deg, #7a2a24 0%, #421512 100%)', color: '#f4dfaa', padding: '16px 18px', fontWeight: 700, letterSpacing: 1, cursor: loading ? 'wait' : 'pointer', fontFamily: 'inherit', fontSize: 15, boxShadow: '0 0 28px rgba(122,42,36,0.25)' }}
+                  className={styles.scan}
                 >
                   {loading ? 'Scanning GitHub...' : authenticatedUsername ? `Scan @${authenticatedUsername}` : 'Scan GitHub'}
                 </button>
+                <small>Non-forks inactive for 7+ days. Scan your connected GitHub account.</small>
+                <div className={styles.agent}><a href={AGENT_INSTRUCTIONS_PATH}>{AGENT_INSTRUCTIONS_TITLE} ↗</a><p>{AGENT_INSTRUCTIONS_SUBTITLE}</p></div>
+                </section>
+                <section className={styles.path} aria-label="REKT burial"><span className={styles.tag}>REKT</span><p>Bury your trading losses</p><button type="button" className={styles.scan} onClick={() => open('rekt')}>Scan Wallet</button><small>Find confirmed trading losses. Nothing moves from your wallet.</small><div className={styles.networks}><small>Base · Robinhood Chain<br />Wallet scanning is not available yet.</small></div></section>
               </div>
             </>
           )}
 
           {showScannerChrome && (
             <div style={{ display: 'grid', gap: 10, marginTop: 14 }}>
-              <Link href="/cemetery" style={enterCemeteryLinkStyle}>Explore the cemetery</Link>
+              <Link href="/cemetery" style={enterCemeteryLinkStyle}>Enter Cemetery</Link>
             </div>
           )}
 
-          {showScannerChrome && (
-            <p style={{ margin: '16px 0 0', color: '#777168', fontSize: 12, fontFamily: "var(--font-geist-sans), Arial, sans-serif" }}>Dead repos = non-forks inactive for 7+ days. Only your connected GitHub can be scanned.</p>
-          )}
-          <div style={{ marginTop: 22, paddingTop: 18, borderTop: '1px solid rgba(232,213,163,0.12)' }}>
+          {!showScannerChrome && <div style={{ marginTop: 22, paddingTop: 18, borderTop: '1px solid rgba(232,213,163,0.12)' }}>
             <a href={AGENT_INSTRUCTIONS_PATH} style={{ color: '#b7c4cf', fontSize: 14, textUnderlineOffset: 4 }}>
               {AGENT_INSTRUCTIONS_TITLE} ↗
             </a>
             <p style={{ margin: '7px 0 0', color: '#9a9386', fontSize: 12, fontFamily: "var(--font-geist-sans), Arial, sans-serif" }}>{AGENT_INSTRUCTIONS_SUBTITLE}</p>
-          </div>
+          </div>}
           {loading && <p role="status" style={{ color: '#aaa9a0', fontSize: 13 }}>{scanProgress}</p>}
           {message && <p style={{ margin: '14px 0 0', color: '#c78373', fontSize: 13, fontFamily: "var(--font-geist-sans), Arial, sans-serif" }}>{message}</p>}
 

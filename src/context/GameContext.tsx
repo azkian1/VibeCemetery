@@ -34,6 +34,7 @@ export type ModalType =
   | 'agentAshes'
   | 'agentSkill'
   | 'bury'
+  | 'rekt'
   | 'skill'
   | 'burger'
   | 'profile';

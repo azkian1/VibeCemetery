@@ -9,6 +9,7 @@ const CrematoryModal = dynamic(() => import('./modals/CrematoryModal'), { ssr: f
 const CaretakerModal = dynamic(() => import('./modals/CaretakerModal'), { ssr: false });
 const MausoleumModal = dynamic(() => import('./modals/MausoleumModal'), { ssr: false });
 const BuryFlowModal = dynamic(() => import('./modals/BuryFlowModal'), { ssr: false });
+const RektFlowModal = dynamic(() => import('./modals/RektFlowModal'), { ssr: false });
 const BurgerMenu = dynamic(() => import('./hud/BurgerMenu'), { ssr: false });
 const LeaderboardModal = dynamic(() => import('./modals/LeaderboardModal'), { ssr: false });
 const AgentAshesModal = dynamic(() => import('./modals/AgentAshesModal'), { ssr: false });
@@ -26,6 +27,7 @@ const MODAL_MAP: Record<ModalType, React.ComponentType> = {
   agentAshes: AgentAshesModal,
   agentSkill: AgentSkillModal,
   bury: BuryFlowModal,
+  rekt: RektFlowModal,
   skill: SkillModal,
   profile: ProfileModal,
 };

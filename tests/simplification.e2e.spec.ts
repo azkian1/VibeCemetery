@@ -4,6 +4,7 @@ import { getAutoAssignableGraveSlots } from '../src/lib/map-slots'
 import { rejectLegacyCemeteryAssets } from './fixtures/cemetery-assets'
 import { createMinimapProjection, projectWorldPoint } from '../src/game/utils/minimapProjection'
 import { pickGraveGidV2 } from '../src/game/utils/tileRegistry-v2'
+import { UNAVAILABLE_REKT } from '../src/components/rekt/contracts'
 
 const id = '22222222-2222-4222-8222-222222222222'
 type MapVersion = 'v2'
@@ -374,4 +375,171 @@ test('a failed later scan page cannot display a partial successful result', asyn
   await page.getByRole('button', { name: 'Scan @Tester' }).click()
   await expect(page.getByText('GitHub could not finish this page. Please retry.')).toBeVisible()
   await expect(page.getByText('Must not be shown as complete')).toHaveCount(0)
+})
+
+test('REKT entry is honest, accessible and restores its draft and focus', async ({ page }, testInfo) => {
+  await fixtures(page, 'v2')
+  await page.route('**/api/rekt/capabilities', route => route.fulfill({ json: UNAVAILABLE_REKT }))
+  await page.goto('/')
+  await expect(page.getByRole('button', { name: 'Scan GitHub', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Scan Wallet', exact: true })).toBeVisible()
+  await page.screenshot({ path: testInfo.outputPath('rekt-home-desktop.png') })
+  await page.setViewportSize({ width: 375, height: 812 })
+  await page.screenshot({ path: testInfo.outputPath('rekt-home-mobile.png'), fullPage: true })
+  await page.getByRole('button', { name: 'Scan Wallet', exact: true }).click()
+  const dialog = page.getByRole('dialog', { name: 'Bury REKT' })
+  await expect(dialog.getByText('Wallet scanning is not available yet.')).toBeVisible()
+  await dialog.getByLabel('Wallet address', { exact: true }).fill('0x123')
+  await expect(dialog.getByText('Enter 0x followed by 40 hexadecimal characters.')).toBeVisible()
+  await expect(dialog.getByRole('button', { name: 'Scan wallet', exact: true })).toBeDisabled()
+  for (let i = 0; i < 12; i++) {
+    await page.keyboard.press('Tab')
+    expect(await dialog.evaluate(el => el.contains(document.activeElement))).toBe(true)
+  }
+  expect(await dialog.evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true)
+  await page.screenshot({ path: testInfo.outputPath('rekt-scan-mobile.png') })
+  await page.keyboard.press('Escape')
+  await expect(dialog).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Scan Wallet', exact: true })).toBeFocused()
+  await page.getByRole('button', { name: 'Scan Wallet', exact: true }).click()
+  await expect(page.getByLabel('Wallet address', { exact: true })).toHaveValue('0x123')
+  await page.keyboard.press('Escape')
+  let scannedNetworks: string[] = []
+  await page.route('**/api/rekt/capabilities', route => route.fulfill({ json: { ...UNAVAILABLE_REKT, networks: UNAVAILABLE_REKT.networks.map(network => ({ ...network, available: network.id === 'base' })) } }))
+  await page.route('**/api/rekt/scans', route => {
+    scannedNetworks = route.request().postDataJSON().networks
+    return route.fulfill({ json: { id: 'auto-networks', status: 'partial', candidates: [], coverage: 'Base checked. Robinhood Chain unavailable.', expiresAt: new Date(Date.now() + 60_000).toISOString() } })
+  })
+  await page.getByRole('button', { name: 'Scan Wallet', exact: true }).click()
+  await page.getByLabel('Wallet address', { exact: true }).fill('0x' + '1'.repeat(40))
+  await expect(dialog.getByRole('checkbox')).toHaveCount(0)
+  await expect(dialog.getByRole('button', { name: 'Connect Wallet', exact: true })).toHaveCount(0)
+  await dialog.getByRole('button', { name: 'Scan wallet', exact: true }).click()
+  await expect.poll(() => scannedNetworks).toEqual(['base', 'robinhood'])
+  await expect(dialog.getByText('Base checked. Robinhood Chain unavailable.')).toBeVisible()
+})
+
+async function openRektPreview(page: Page, scenario = 'complete') {
+  await fixtures(page, 'v2')
+  await page.goto('/dev/rekt?scenario=' + encodeURIComponent(scenario))
+  await page.getByLabel('Wallet address', { exact: true }).fill('0x' + '1'.repeat(40))
+  await expect(page.getByRole('button', { name: 'Connect Wallet', exact: true })).toHaveCount(0)
+  await expect(page.getByRole('checkbox')).toHaveCount(0)
+  await page.getByRole('button', { name: 'Scan wallet', exact: true }).click()
+}
+
+test('REKT preview reviews before verification, retains selection and explains publication', async ({ page }, testInfo) => {
+  await openRektPreview(page)
+  await expect(page.getByText('−$8,000.00', { exact: true })).toBeVisible()
+  await expect(page.getByRole('radio', { name: 'Bury this loss' })).toHaveCount(0)
+  await page.getByRole('button', { name: 'Next', exact: true }).click()
+  await page.getByRole('button', { name: 'Sign message', exact: true }).click()
+  await page.getByRole('radio', { name: 'Bury this loss' }).first().check()
+  await expect(page.getByText('View proof', { exact: true })).toHaveCount(0)
+  await expect(page.getByRole('radio', { name: 'Bury this loss' }).first()).toBeChecked()
+  await page.getByRole('button', { name: 'Back', exact: true }).click()
+  await page.getByRole('button', { name: 'Next', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Select a loss' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Sign message', exact: true })).toHaveCount(0)
+  await expect(page.getByRole('radio', { name: 'Bury this loss' }).first()).toBeChecked()
+  await page.getByRole('button', { name: 'Next', exact: true }).click()
+  await expect(page.getByRole('radio')).toHaveCount(3)
+  await page.getByLabel('Or write your own').fill('The position closed. The memory stayed.')
+  await page.getByRole('button', { name: 'Back', exact: true }).click()
+  await page.getByRole('button', { name: 'Next', exact: true }).click()
+  await expect(page.getByLabel('Or write your own')).toHaveValue('The position closed. The memory stayed.')
+  await expect(page.getByText('Add a reason (optional)', { exact: true })).toHaveCount(0)
+  await expect(page.getByRole('combobox')).toHaveCount(0)
+  const longEpitaph = 'Bought the dream, watched it fade. Left my loss here and carried my lesson home.'
+  expect(longEpitaph.length).toBe(80)
+  await page.getByLabel('Or write your own').fill(longEpitaph + ' More')
+  await expect(page.getByLabel('Or write your own')).toHaveValue(longEpitaph)
+  await expect(page.getByText('80/80', { exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Next', exact: true }).click()
+  await expect(page.getByRole('article', { name: 'REKT memorial' }).getByRole('heading', { name: '$EXAMPLE', exact: true })).toBeVisible()
+  await expect(page.getByRole('article', { name: 'REKT memorial' }).getByText('−$8,000.00', { exact: true })).toBeVisible()
+  await expect(page.getByText('2 REKT slots available', { exact: true })).toBeVisible()
+  await expect(page.getByText('This memorial will be public.', { exact: true })).toBeVisible()
+  await expect(page.getByRole('checkbox')).toHaveCount(0)
+  const memorial = page.getByRole('article', { name: 'REKT memorial' })
+  await expect(memorial.getByText('0x1111…1111', { exact: true })).toBeVisible()
+  expect(await memorial.innerHTML()).not.toContain('0x' + '1'.repeat(40))
+  await page.screenshot({ path: testInfo.outputPath('rekt-memorial-desktop.png'), fullPage: true })
+  await page.setViewportSize({ width: 375, height: 812 })
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+  await page.screenshot({ path: testInfo.outputPath('rekt-memorial-mobile.png'), fullPage: true })
+  await expect(page.getByRole('button', { name: 'Bury REKT', exact: true })).toBeEnabled()
+  await page.getByRole('button', { name: 'Bury REKT', exact: true }).click()
+  await expect(page.getByText('Preview complete. No grave was created.')).toBeVisible()
+  await expect(page.getByRole('article', { name: 'REKT memorial' }).getByText('−$8,000.00', { exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Start again' }).click()
+  await expect(page.getByLabel('Wallet address', { exact: true })).toHaveValue('')
+})
+
+for (const scenario of ['partial', 'failed', 'empty', 'signature', 'wrong-wallet']) {
+  test(`REKT preview explains ${scenario} without claiming success`, async ({ page }) => {
+    await openRektPreview(page, scenario)
+    if (scenario === 'partial') {
+      await expect(page.getByText('Partial results', { exact: true })).toBeVisible()
+      await expect(page.getByText(/Robinhood Chain: not checked/)).toBeVisible()
+      await expect(page.getByText('−$8,000.00', { exact: true })).toBeVisible()
+    } else if (scenario === 'failed') {
+      await expect(page.getByText(/This does not mean the wallet has no losses/)).toBeVisible()
+    } else if (scenario === 'empty') {
+      await expect(page.getByText(/No eligible closed losses were found/)).toBeVisible()
+    } else {
+      await page.getByRole('button', { name: 'Next', exact: true }).click()
+      await page.getByRole('button', { name: 'Sign message', exact: true }).click()
+      await expect(page.getByRole('main').getByRole('alert')).toContainText(scenario === 'signature' ? 'Signature cancelled' : 'does not match')
+      await page.getByRole('button', { name: 'Back', exact: true }).click()
+      await expect(page.getByText('−$8,000.00', { exact: true })).toBeVisible()
+    }
+  })
+}
+
+test('REKT HUD sits beside Bury and does not overlap mobile zoom controls', async ({ page }, testInfo) => {
+  await fixtures(page, 'v2')
+  await page.route('**/api/rekt/capabilities', route => route.fulfill({ json: UNAVAILABLE_REKT }))
+  await page.goto('/cemetery')
+  await expect(page.getByRole('button', { name: 'Bury REKT', exact: true })).toBeVisible()
+  await page.screenshot({ path: testInfo.outputPath('rekt-hud-desktop.png') })
+  await page.setViewportSize({ width: 375, height: 812 })
+  const code = await page.getByRole('button', { name: 'Bury a project', exact: true }).boundingBox()
+  const rekt = await page.getByRole('button', { name: 'Bury REKT', exact: true }).boundingBox()
+  const zoom = await page.getByRole('button', { name: 'Zoom out' }).boundingBox()
+  expect(code!.x + code!.width).toBeLessThan(rekt!.x)
+  expect(rekt!.x + rekt!.width).toBeLessThan(zoom!.x)
+  await page.getByRole('button', { name: 'Bury REKT', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Bury REKT' })).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(page.getByRole('dialog')).toHaveCount(0)
+  await page.getByRole('button', { name: 'Zoom in' }).click()
+  await page.screenshot({ path: testInfo.outputPath('rekt-hud-mobile.png') })
+})
+
+
+test('REKT retry preserves the burial request and completed memorial', async ({ page }) => {
+  await openRektPreview(page, 'write-error')
+  await page.getByRole('button', { name: 'Next', exact: true }).click()
+  await page.getByRole('button', { name: 'Sign message', exact: true }).click()
+  await page.getByRole('radio', { name: 'Bury this loss' }).first().check()
+  await page.getByRole('button', { name: 'Next', exact: true }).click()
+  await page.getByRole('radio').first().check()
+  await page.getByRole('button', { name: 'Next', exact: true }).click()
+  await page.getByRole('button', { name: 'Bury REKT', exact: true }).click()
+  await expect(page.getByRole('main').getByRole('alert')).toContainText('The write could not be confirmed')
+  await expect(page.getByRole('article', { name: 'REKT memorial' })).toBeVisible()
+  await page.getByRole('button', { name: 'Bury REKT', exact: true }).click()
+  await expect(page.getByText('Preview complete. No grave was created.')).toBeVisible()
+})
+
+test('REKT exhausted slots explain why selection is unavailable', async ({ page }) => {
+  await openRektPreview(page, 'no-slots')
+  await page.getByRole('button', { name: 'Next', exact: true }).click()
+  await page.getByRole('button', { name: 'Sign message', exact: true }).click()
+  await expect(page.getByText('No REKT slots left. Your existing graves stay.')).toBeVisible()
+  await expect(page.getByRole('radio', { name: 'Bury this loss' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Next', exact: true })).toBeDisabled()
+  await page.getByRole('button', { name: 'Back', exact: true }).click()
+  await expect(page.getByText('−$8,000.00', { exact: true })).toBeVisible()
 })

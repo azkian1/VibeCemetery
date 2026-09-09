@@ -1,15 +1,12 @@
 'use client'
 import { useModal } from '@/context/GameContext'
 import { useSession } from 'next-auth/react'
-import { useIsMobile } from '@/hooks/useIsMobile'
 import { useAccountGraves } from '@/hooks/useAccountGraves'
 import styles from './CTAButtons.module.css'
 export default function CTAButtons() {
   const { open } = useModal()
   const { data: session } = useSession()
   const account = useAccountGraves()
-  const isMobile = useIsMobile()
-  if (isMobile) return null
   const disabled = Boolean(session?.user && (!account.data?.canCreateGrave || account.loading))
   const status = session?.user
     ? account.error || (account.loading ? 'Checking grave slots...' : disabled ? 'No grave slots left.' : '')
@@ -21,5 +18,7 @@ export default function CTAButtons() {
       className={styles.button}
       onClick={() => open('bury', { flowMode: 'cemetery-shovel' })}
       disabled={disabled}>BURY</button>
+    <button type="button" aria-label="Bury REKT" className={styles.button}
+      onClick={() => open('rekt')}>BURY REKT</button>
   </div>
 }

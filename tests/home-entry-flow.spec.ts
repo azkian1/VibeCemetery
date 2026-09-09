@@ -125,7 +125,7 @@ test.describe('home scanner entry flow', () => {
     const source = readFileSync('src/components/HomeScannerLanding.tsx', 'utf8')
 
     expect(source).toContain("gridTemplateColumns: isCompactViewport ? '1fr' : 'repeat(3, minmax(0, 1fr))'")
-    expect(source).toContain("width: repos ? 'min(100%, 1040px)' : 'min(100%, 430px)'")
+    expect(source).toContain("width: repos ? 'min(100%, 1040px)' : 'min(100%, 740px)'")
   })
 })
 
