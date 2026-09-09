@@ -42,6 +42,16 @@ const GRAVE_SHADOW_X_OFFSET_V2 = 3;
 const GRAVE_SHADOW_Y_OFFSET_V2 = 1;
 const GRAVE_SHADOW_TINT_V2 = 0x0b100c;
 const GRAVE_SHADOW_ALPHA_V2 = 0.3;
+// Transparent rows below the last visible pixel in each grave PNG (GIDs 51–97).
+// Both the full sprite and its flattened shadow retain this padding.
+const GRAVE_SHADOW_BASE_INSET_V2: Record<number, number> = {
+  51: 4, 52: 11, 53: 5, 54: 10, 55: 4, 56: 21, 57: 7, 58: 7,
+  59: 10, 60: 10, 61: 5, 62: 10, 63: 10, 64: 9, 65: 6, 66: 5,
+  67: 3, 68: 10, 69: 5, 70: 6, 71: 6, 72: 4, 73: 10, 74: 5,
+  75: 10, 76: 11, 77: 5, 78: 4, 79: 5, 80: 3, 81: 6, 82: 4,
+  83: 3, 84: 5, 85: 7, 86: 6, 87: 13, 88: 9, 89: 9, 90: 12,
+  91: 10, 92: 9, 93: 8, 94: 9, 95: 7, 96: 10, 97: 6,
+};
 // The source PNGs have different transparent padding below their visible base.
 // Keep each flattened silhouette grounded on the opaque pixels, not its frame edge.
 const BUILDING_SHADOW_BASE_INSET_V2: Record<string, number> = {
@@ -1067,10 +1077,13 @@ export class CemeterySceneV2 extends Phaser.Scene {
     if (current || this.renderedSlots.has(grave.slot_id)) {
       this.removeGraveFromMap(grave.slot_id);
     }
+    const baseInset = GRAVE_SHADOW_BASE_INSET_V2[gid] ?? 0;
+    const visualBaseY = slot.y + slot.height / 2 + tileset.tileHeight / 2 - baseInset;
     const shadowHeight = Phaser.Math.Clamp(slot.height * 0.16, 7, 14);
+    const shadowBaseInset = baseInset * shadowHeight / tileset.tileHeight;
     const shadow = this.add.sprite(
       slot.x + slot.width / 2 + GRAVE_SHADOW_X_OFFSET_V2,
-      slot.y + slot.height - shadowHeight / 2 + GRAVE_SHADOW_Y_OFFSET_V2,
+      visualBaseY - shadowHeight / 2 + shadowBaseInset + GRAVE_SHADOW_Y_OFFSET_V2,
       tileset.name,
       gid - tileset.firstgid,
     );

@@ -231,3 +231,67 @@ test('a failed PNG cannot swallow a later critical TMJ failure', async ({ page }
   expect(result.criticalError).toEqual(result.errors[0])
   expect(result.remainingListeners).toBe(0)
 })
+
+test('all grave shadows touch the visible PNG base, including small padded stones', async ({ page }, testInfo) => {
+  const assets = map.tilesets.filter((tile: { firstgid: number }) => tile.firstgid >= 51 && tile.firstgid <= 97)
+    .map((tile: { name: string; image: string }) => ({
+      name: tile.name,
+      url: 'data:image/png;base64,' + readFileSync(resolve('public/map', tile.image)).toString('base64'),
+    }))
+  await page.setViewportSize({ width: 1008, height: 750 })
+  const results = await page.evaluate(async assets => {
+    const root = globalThis as unknown as Record<string, any> // eslint-disable-line @typescript-eslint/no-explicit-any
+    const { CemeterySceneV2, map } = root.v2Test
+    const scene = new CemeterySceneV2()
+    return await new Promise<{ gid: number; gap: number }[]>(resolve => {
+      scene.preload = function () {
+        for (const asset of assets) this.load.image(asset.name, asset.url)
+      }
+      scene.create = function () {
+        this.map = { tilesets: map.tilesets.map((tile: Record<string, unknown>) => ({
+          ...tile, tileHeight: tile.tileheight, tileWidth: tile.tilewidth,
+        })) }
+        const results: { gid: number; gap: number }[] = []
+        for (let index = 0; index < assets.length; index++) {
+          const gid = 51 + index
+          const tile = this.map.tilesets.find((tile: { firstgid: number }) => tile.firstgid === gid)
+          const x = (index % 8) * 126 + 63
+          const y = Math.floor(index / 8) * 125 + 65
+          this.slots.set(gid, { id: gid, x: x - tile.tileWidth / 2, y: y - tile.tileHeight / 2,
+            width: tile.tileWidth, height: tile.tileHeight, type: 'fixture' })
+          this.renderGraveOnMap({ id: String(gid), slot_id: gid, grave_gid: gid, name: 'fixture' })
+          const sprite = this.graveSprites.get(gid)
+          const shadow = this.graveShadows.get(gid)
+          const image = sprite.texture.getSourceImage()
+          const canvas = document.createElement('canvas')
+          canvas.width = image.width
+          canvas.height = image.height
+          const context = canvas.getContext('2d')!
+          context.drawImage(image, 0, 0)
+          const pixels = context.getImageData(0, 0, image.width, image.height).data
+          let bottom = -1
+          for (let py = 0; py < image.height; py++) {
+            for (let px = 0; px < image.width; px++) {
+              if (pixels[(py * image.width + px) * 4 + 3] > 0) bottom = py + 1
+            }
+          }
+          const spriteBase = sprite.y - sprite.displayHeight / 2 + bottom * sprite.scaleY
+          const shadowBase = shadow.y - shadow.displayHeight / 2 + bottom * shadow.scaleY
+          results.push({ gid, gap: shadowBase - spriteBase })
+          this.add.text(x - 24, y + 42, String(gid), { fontSize: '12px', color: '#ddddcc' })
+        }
+        this.game.events.once('postrender', () => resolve(results))
+      }
+      scene.update = () => {}
+      root.shadowGallery = new root.Phaser.Game({
+        type: root.Phaser.CANVAS, width: 1008, height: 750, backgroundColor: '#71835b',
+        pixelArt: true, banner: false, scene,
+      })
+    })
+  }, assets)
+  expect(results).toHaveLength(47)
+  for (const result of results) {
+    expect(result.gap, `GID ${result.gid}: shadow must meet the visible base`).toBeCloseTo(1)
+  }
+  await page.screenshot({ path: testInfo.outputPath('grave-shadow-gallery.png') })
+})
