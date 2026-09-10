@@ -20,6 +20,8 @@ The memorial displays the verified remaining balance as “N REKT slots availabl
 
 ## Included
 
+On 2026-09-10, added the finished grave presentation at `/dev/rekt?view=grave` and after a preview burial. It shares the memorial inscription and uses the project grave's StoneFrame, OrnamentDivider and StoneButton components. The card shows Respects, Burn GRAVE, Press F, Share Grave and Find on Map. Demo F changes only local state; the other demo actions explain that no transaction, public link or map plot exists. The reusable card accepts callbacks for future integration, with unbound actions disabled. Its presentation data contains only selected public fields and a shortened wallet label, without the private scan, full wallet or proof data. Real REKT grave routes, map integration, action handlers and OG still require the backend work below.
+
 - Equal Code / REKT entry cards, the cemetery link and local-project agent instructions.
 - Shared REKT modal entry from the landing page, desktop/mobile HUD and profile.
 - Address validation and automatic Base / Robinhood scan scope; no manual network selection.

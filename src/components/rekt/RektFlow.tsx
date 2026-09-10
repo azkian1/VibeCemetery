@@ -6,7 +6,8 @@ import { REKT_EPITAPHS, REKT_EPITAPH_MAX_LENGTH } from '@/gravedigger/rekt';
 import { compareDecimal, isWalletAddress, UNAVAILABLE_REKT, usd, type RektAdapter, type RektCapabilities, type RektScan, type RektStep, type RektVerification } from './contracts';
 import { rektClient } from './client';
 import RektCandidateCard from './RektCandidateCard';
-import RektMemorial, { type RektMemorialView } from './RektMemorial';
+import RektMemorial, { memorialData, type RektMemorialView } from './RektMemorial';
+import RektGravePreview from './RektGravePreview';
 import type { GraveData } from '@/types/game';
 import styles from './RektFlow.module.css';
 
@@ -157,7 +158,7 @@ export default function RektFlow({ adapter = rektClient, preview = false, previe
       }, true)}>Bury REKT</button></div>
     </>}
     {step === 'done' && <>
-      {completed && <RektMemorial {...completed} />}
+      {completed && (preview ? <RektGravePreview data={memorialData(completed)} /> : <RektMemorial {...completed} />)}
       <p className={styles.quotaNote} role="status">{preview ? 'Preview complete. No grave was created.' : 'Your memorial has been saved.'}</p>
       {preview && <div className={styles.actions}><StoneButton type="button" onClick={() => { setCompleted(null); setVerification(null); go('scan'); }}>Start again</StoneButton></div>}
     </>}

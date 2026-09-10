@@ -6,6 +6,8 @@ import { type RektAdapter, type RektCandidate, type RektScan } from './contracts
 import StoneFrame from '@/components/ui/StoneFrame';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import RektAccountPanel from './RektAccountPanel';
+import RektGravePreview from './RektGravePreview';
+import { memorialData } from './RektMemorial';
 
 const sampleWallet = `0x${'1'.repeat(40)}`;
 const sample: RektCandidate = {
@@ -48,10 +50,10 @@ const adapters = Object.fromEntries(scenarios.map(scenario => [scenario, preview
 
 export default function RektPreview({ scenario: requestedScenario = 'complete', initialView = 'flow' }: { scenario?: string; initialView?: string }) {
   const scenario = scenarios.includes(requestedScenario) ? requestedScenario : 'complete';
-  const [view, setView] = useState(initialView === 'account' ? 'account' : 'flow');
+  const [view, setView] = useState(initialView === 'account' ? 'account' : initialView === 'grave' ? 'grave' : 'flow');
   const mobile = useIsMobile();
   return <main style={{ minHeight: '100dvh', background: '#0f0e0c', padding: '24px 0', display: 'grid', justifyItems: 'center', alignContent: 'center', gap: 14 }}>
-    <StoneFrame isMobile={mobile} maxWidth={520}>{view === 'flow' ? <RektFlow key={scenario} adapter={adapters[scenario]} preview previewScenario={scenario} /> : <div style={{ padding: 24 }}><p style={{ color: '#e8d5a3' }}>UI preview · Fictional account. No live records.</p><RektAccountPanel data={{ displayName: '0x1111…1111', code: { used: 0, limit: 2 }, rekt: { used: 0, limit: 2 }, bonus: null, wallets: [{ address: sampleWallet, network: 'Base', verified: true }], graves: [] }} onScan={() => setView('flow')} /></div>}</StoneFrame>
+    <StoneFrame isMobile={mobile} maxWidth={520}>{view === 'grave' ? <RektGravePreview data={memorialData({ candidate: sample, epitaph: 'Bought with hope. Buried with receipts.' })} initialRespects={12} /> : view === 'flow' ? <RektFlow key={scenario} adapter={adapters[scenario]} preview previewScenario={scenario} /> : <div style={{ padding: 24 }}><p style={{ color: '#e8d5a3' }}>UI preview · Fictional account. No live records.</p><RektAccountPanel data={{ displayName: '0x1111…1111', code: { used: 0, limit: 2 }, rekt: { used: 0, limit: 2 }, bonus: null, wallets: [{ address: sampleWallet, network: 'Base', verified: true }], graves: [] }} onScan={() => setView('flow')} /></div>}</StoneFrame>
     <p role="note" style={{ color: '#a59b8d', font: '12px Arial, sans-serif', margin: 0 }}>UI preview · Sample data only. No real scan or burial.</p>
   </main>;
 }
