@@ -562,6 +562,25 @@ test('REKT grave preview shows public content and keeps actions local', async ({
   expect(writes).toEqual([])
 })
 
+test('REKT grave hydrates on a narrow viewport and responds to resize', async ({ page }) => {
+  const errors: string[] = []
+  page.on('console', message => { if (message.type() === 'error') errors.push(message.text()) })
+  page.on('pageerror', error => errors.push(error.message))
+  await fixtures(page, 'v2')
+  await page.setViewportSize({ width: 375, height: 812 })
+  await page.goto('/dev/rekt?view=grave')
+  await page.getByRole('button', { name: 'Press F', exact: true }).click()
+  const frame = page.locator('main > div').first()
+  await expect(frame).toHaveCSS('width', '375px')
+  await expect(frame).toHaveCSS('border-top-width', '0px')
+  await page.setViewportSize({ width: 1000, height: 900 })
+  await expect(frame).toHaveCSS('max-width', '520px')
+  await expect(frame).toHaveCSS('border-top-width', '2px')
+  await page.setViewportSize({ width: 375, height: 812 })
+  await expect(frame).toHaveCSS('width', '375px')
+  expect(errors.filter(text => /hydrat|server rendered|server-rendered/i.test(text))).toEqual([])
+})
+
 test('REKT exhausted slots explain why selection is unavailable', async ({ page }) => {
   await openRektPreview(page, 'no-slots')
   await page.getByRole('button', { name: 'Next', exact: true }).click()
