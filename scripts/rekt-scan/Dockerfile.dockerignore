@@ -1,0 +1,13 @@
+**
+!src/
+!src/lib/
+!src/lib/rekt/
+!src/lib/rekt/**
+!scripts/
+!scripts/rekt-scan/
+!scripts/rekt-scan/*.mts
+!scripts/rekt-scan/runtime/
+!scripts/rekt-scan/runtime/package.json
+!scripts/rekt-scan/runtime/package-lock.json
+!scripts/rekt-scan/Dockerfile
+!scripts/rekt-scan/Dockerfile.dockerignore
