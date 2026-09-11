@@ -1,6 +1,6 @@
 # REKT scanner: live-wallet audit findings
 
-Fast-scanner follow-up (2026-09-11): [Alchemy, concurrency and evidence-cache implementation](rekt-scanner-fast-plan.md). Cached live runs took 14.643 and 10.311 seconds with unchanged candidate IDs and exact losses. Cold Alchemy performance remains unmeasured until credentials are configured. This remains an implementation-author audit; no independent review is claimed.
+Fast-scanner follow-up (2026-09-11): [Alchemy, concurrency and evidence-cache implementation](rekt-scanner-fast-plan.md). Cached live runs took 14.643 and 10.311 seconds. The existing Robinhood Alchemy endpoint was subsequently recovered; cold runs took 21.762 and 21.697 seconds after explicitly deferring one slow V4 metadata lookup. All 18 cycle amounts/IDs match the original evidence. Coverage differs for that pool; no publication authorization is granted. Pre-commit review fixed failure-report transaction counts for discovery/Relay and nonexistent resume links after rejected seeds. 147 tests, typecheck and scoped lint pass. This remains an implementation-author audit; no independent review is claimed.
 
 Latest follow-up (2026-09-11): [combined Uni V2/V3/V4 + Relay patch and verification results](rekt-scanner-patch-2026-09.md). It includes a fresh wallet run and 129 passing tests. The dated findings below retain the original investigation history; the new discovery path does not remove the remaining publication-verification limits.
 

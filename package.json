@@ -12,7 +12,7 @@
     "cutover": "node --experimental-strip-types scripts/v2-cutover/cli.mts",
     "rekt:scan": "node --experimental-strip-types scripts/rekt-scan/cli.mts",
     "rekt:discover": "node --experimental-strip-types scripts/rekt-scan/cli.mts --source auto",
-    "rekt:fast": "node --experimental-strip-types scripts/rekt-scan/cli.mts --source auto --history-provider alchemy --concurrency 5 --request-interval-ms 25 --deadline-ms 28000 --cache-dir .local-archive/rekt/cache",
+    "rekt:fast": "node --experimental-strip-types scripts/rekt-scan/cli.mts --source auto --history-provider alchemy --concurrency 10 --request-interval-ms 25 --deadline-ms 28000 --pool-history defer --cache-dir .local-archive/rekt/cache",
     "rekt:funding": "node --experimental-strip-types scripts/rekt-scan/funding.mts",
     "test:rekt": "node --experimental-strip-types --test scripts/rekt-scan/*.test.mts",
     "check:v2-bundle": "node scripts/check-v2-bundle.mjs",

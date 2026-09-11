@@ -1,7 +1,7 @@
 import { collectRelayHistory } from '../../src/lib/rekt/providers/relay.ts';
 import type { RelayHistory } from '../../src/lib/rekt/providers/relay.ts';
 import { DexDecoder, matchesWalletRoute } from '../../src/lib/rekt/providers/dex.ts';
-import type { DexCache, DexProtocol } from '../../src/lib/rekt/providers/dex.ts';
+import type { DexCache, DexProtocol, PoolHistoryMode } from '../../src/lib/rekt/providers/dex.ts';
 import { quoteAssets, ZERO_ADDRESS } from '../../src/lib/rekt/providers/deployments.ts';
 import { HistoricalPrices } from '../../src/lib/rekt/providers/prices.ts';
 import { transfer } from '../../src/lib/rekt/providers/uniswap-v3.ts';
@@ -19,6 +19,7 @@ export interface DiscoveryCheckpoint {
   receipts: Record<string, RpcReceipt>; blocks: Record<string, RpcBlock>; transactions: Record<string, RpcTransaction>;
   dex: DexCache; flows: Record<string, RelayFlow[]>; prices: Record<string, Price>;
   balances: Record<string, string>; balanceErrors: Record<string, string>;
+  poolHistory?: PoolHistoryMode;
 }
 export function newDiscoveryCheckpoint(): DiscoveryCheckpoint {
   return { version: DISCOVERY_VERSION, relay: { apiVersion: process.env.REKT_RELAY_API_KEY ? 'v3' : 'v2', requests: [], seenContinuations: [], complete: false },
@@ -41,11 +42,11 @@ export function reuseDiscoveryEvidence(old: DiscoveryCheckpoint, snapshot: RpcBl
 }
 
 export async function discoverReceipt(rpc: Rpc, chainId: number, wallet: string, receipt: RpcReceipt, block: RpcBlock,
-  expected: RpcLog[], state: DiscoveryCheckpoint, save: () => Promise<void>, only?: DexProtocol): Promise<RelayFlow[]> {
+  expected: RpcLog[], state: DiscoveryCheckpoint, save: () => Promise<void>, only?: DexProtocol, poolHistory: PoolHistoryMode = 'full'): Promise<RelayFlow[]> {
   const all = decodeRelayReceipt(chainId, wallet, receipt, block, expected, only ? [] : state.relay.requests);
   const quotes = quoteAssets(chainId), flows = all.filter(f => !quotes[f.token]);
   if (!flows.length) return [];
-  const route = await new DexDecoder(rpc, chainId, state.dex, save).observe(receipt, only);
+  const route = await new DexDecoder(rpc, chainId, state.dex, save, poolHistory).observe(receipt, only);
   const walletDeltas = new Map<string, bigint>();
   for (const log of receipt.logs) {
     const t = transfer(log); if (!t || (t.to !== wallet && t.from !== wallet)) continue;
@@ -57,6 +58,7 @@ export async function discoverReceipt(rpc: Rpc, chainId: number, wallet: string,
   if (!tx) { tx = await rpc.call<RpcTransaction>('eth_getTransactionByHash', [txHash]); state.transactions[txHash] = tx; await save(); }
   if (tx.hash.toLowerCase() !== txHash || tx.blockHash !== receipt.blockHash) throw new ProviderError('transaction_receipt_mismatch');
   const warnings = ['discovery_only_no_burial_authorization', 'token_behavior_and_liquidity_unverified'];
+  if (route.issues.includes('v4_pool_metadata_deferred')) warnings.push('v4_pool_metadata_deferred');
   if (tx.from.toLowerCase() !== wallet) warnings.push('smart_account_or_relayer_operation_unverified');
   if (route.swaps.some(s => s.hooks && s.hooks !== ZERO_ADDRESS)) warnings.push('v4_hook_accounting_unverified');
   for (const f of flows) {
@@ -86,7 +88,10 @@ export async function discoverReceipt(rpc: Rpc, chainId: number, wallet: string,
 }
 
 export async function scanDiscovery(rpc: Rpc, chainId: number, wallet: string, fromBlock: string, snapshot: RpcBlock,
-  logs: RpcLog[], state: DiscoveryCheckpoint, days: number, save: () => Promise<void>, options: { only?: DexProtocol; retryEvidence?: boolean; concurrency?: number } = {}) {
+  logs: RpcLog[], state: DiscoveryCheckpoint, days: number, save: () => Promise<void>, options: { only?: DexProtocol; retryEvidence?: boolean; concurrency?: number; poolHistory?: PoolHistoryMode } = {}) {
+  const poolHistory = options.poolHistory ?? 'full';
+  if ((state.poolHistory ?? 'full') !== poolHistory) { state.flows = {}; state.dex.v4Search = {}; }
+  state.poolHistory = poolHistory;
   if (state.version !== DISCOVERY_VERSION) {
     // Receipts remain immutable evidence; derived metadata/results must be recomputed after decoder changes.
     state.version = DISCOVERY_VERSION; state.flows = {}; state.dex = { pools: {}, v4Search: {} };
@@ -108,7 +113,7 @@ export async function scanDiscovery(rpc: Rpc, chainId: number, wallet: string, f
     if (receipt.transactionHash.toLowerCase() !== hash) throw new ProviderError('invalid_receipt');
     let block = state.blocks[receipt.blockNumber];
     if (!block) { block = await rpc.call<RpcBlock>('eth_getBlockByNumber', [receipt.blockNumber, false]); state.blocks[receipt.blockNumber] = block; }
-    state.flows[hash] = await discoverReceipt(rpc, chainId, wallet, receipt, block, expected, state, async () => {}, options.only);
+    state.flows[hash] = await discoverReceipt(rpc, chainId, wallet, receipt, block, expected, state, async () => {}, options.only, poolHistory);
     await save();
   });
   const flows = Object.values(state.flows).flat(), reads = new Set<string>();
@@ -144,6 +149,7 @@ export async function scanDiscovery(rpc: Rpc, chainId: number, wallet: string, f
   const counts: Record<string, number> = {};
   for (const receiptFlows of Object.values(state.flows)) for (const p of new Set(receiptFlows.flatMap(f => f.route?.swaps.map(s => s.protocol) ?? []))) counts[p] = (counts[p] ?? 0) + 1;
   return { ...analyzeRelay(evidence, days), evidence, discovery: { version: DISCOVERY_VERSION, protocolsByTransaction: counts,
+    poolHistory, deferredPoolTransactions: Object.entries(state.flows).filter(([, fs]) => fs.some(f => f.route?.issues.includes('v4_pool_metadata_deferred'))).map(([hash]) => hash),
     relayComplete: state.relay.complete, relayError: state.relayError, quoteAssetsExcludedFromPositions: Object.keys(quoteAssets(chainId)),
     scope: 'erc20_positions_uniswap_v2_v3_v4_and_relay', authorization: false } };
 }

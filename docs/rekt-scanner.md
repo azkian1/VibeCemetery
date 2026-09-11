@@ -4,7 +4,7 @@ Standalone, read-only CLI. It does not sign transactions, create graves, or enab
 
 ## Fast scanner: Alchemy and finalized evidence cache
 
-The new `npm run rekt:fast` command uses indexed ERC-20 history, five workers, a private per-wallet cache and a 28-second cooperative deadline. Configure Alchemy first. Repeated real-wallet scans with cached raw evidence completed in 14.643 and 10.311 seconds on public RPC; cold Alchemy latency still needs a key and live measurement. Full setup, cache/coverage semantics, remaining limitations and results: [fast scanner plan](rekt-scanner-fast-plan.md).
+The new `npm run rekt:fast` command uses indexed ERC-20 history, ten workers, a private per-wallet cache and a 28-second cooperative deadline. It explicitly defers historical V4 pool-metadata searches that cannot be resolved immediately, preserving coverage warnings. Two cold Robinhood Alchemy runs completed in 21.762 and 21.697 seconds with no local cache; cached public-RPC runs earlier took 14.643 and 10.311 seconds. Base and broader wallet latency still need measurement. Full setup, cache/coverage semantics, remaining limitations and results: [fast scanner plan](rekt-scanner-fast-plan.md).
 
 ## September 11 patch: combined discovery
 

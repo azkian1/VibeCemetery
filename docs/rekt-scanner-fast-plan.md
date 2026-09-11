@@ -2,6 +2,16 @@
 
 Implemented locally 2026-09-11. Target: show preliminary closed-loss candidates in 30 seconds. This is a latency objective, not an established SLA. Existing measured baseline: 355.961 seconds for a 50-transaction repeat scan through public Robinhood RPC; a cold scan hit HTTP 429.
 
+Latest live result (2026-09-11): the existing Robinhood Alchemy endpoint was found in the separate WalletWatcher project and configured locally. Two scans with no local history/evidence cache completed in **21.762 s and 21.697 s**. All 18 cycles' IDs, boundaries, costs, proceeds and losses match the earlier report. One V4 pool's metadata lookup is explicitly deferred in fast mode; see the acceptance details below.
+
+## Accepted method (2026-09-11)
+
+Accepted for the preliminary REKT list: Alchemy indexed ERC-20 history, RPC receipt validation, our exact cycle/PnL calculation, bounded concurrency and a private finalized-evidence cache. The fast preset uses 10 workers, 25 ms request pacing, a 28 s work deadline and `--pool-history defer`. Missing V4 PoolKeys are explicit evidence gaps; a separate `--pool-history full` run recomputes the deferred flows. That follow-up is not scheduled automatically.
+
+The 30 s objective covers discovery only. Ownership/funding linkage, final burial verification, epitaph generation and website integration remain separate work. The two cold runs establish performance on the supplied Robinhood wallet, not a guarantee for every wallet or host.
+
+Pre-commit review also corrected failure-report progress for discovery/Relay and removed nonexistent resume links when seed validation fails before checkpoint creation. Regression tests cover both cases.
+
 ## Implementation plan
 
 1. Add an explicit Alchemy ERC-20 transfer-history adapter for Base and Robinhood. Read incoming and outgoing transfers, exhaust pagination over a fixed finalized block range, reject looping/malformed pages, and preserve raw integer amounts. Keep RPC history available for compatibility. Do not silently substitute an incomplete indexer result for full history.
@@ -14,7 +24,7 @@ Implemented locally 2026-09-11. Target: show preliminary closed-loss candidates 
 
 ## Provider setup
 
-The user selected Alchemy and does not yet have an account/key. No subscription or paid resource is created. Configure secrets locally or in hosting environment variables, never in source control or report output.
+The user selected Alchemy. An existing Robinhood endpoint is now configured in the ignored `.env.scanner` as `REKT_ROBINHOOD_RPC_URL` and `REKT_ROBINHOOD_INDEXER_URL`; RPC chain ID and Transfers API access were checked. A Base endpoint has not been configured or live-tested here. No new subscription or paid resource was created. Configure secrets locally or in hosting environment variables, never in source control or report output.
 
 Official sources:
 
@@ -22,7 +32,7 @@ Official sources:
 - https://www.alchemy.com/docs/robinhood-chain/robinhood-chain-api-overview
 - https://www.alchemy.com/docs/data/transfers-api/transfers-endpoints/alchemy-get-asset-transfers
 
-Live cold-scan performance with Alchemy cannot be established until a working key with access to both selected networks is configured. Public RPC/cache experiments must be labelled separately from this benchmark.
+Robinhood cold-scan results are recorded below; Base and multi-wallet latency remain unmeasured. Public RPC/cache experiments are recorded separately.
 
 ## How to run
 
@@ -37,7 +47,7 @@ npm run rekt:fast -- --wallet 0xYOUR_ADDRESS --chain robinhood --output .local-a
 With a local environment file (Node 22.18+):
 
 ```sh
-node --env-file=.env.scanner --experimental-strip-types scripts/rekt-scan/cli.mts --source auto --history-provider alchemy --concurrency 5 --request-interval-ms 25 --deadline-ms 28000 --cache-dir .local-archive/rekt/cache --wallet 0xYOUR_ADDRESS --chain robinhood --output .local-archive/rekt/fast-001.json
+node --env-file=.env.scanner --experimental-strip-types scripts/rekt-scan/cli.mts --source auto --history-provider alchemy --concurrency 10 --request-interval-ms 25 --deadline-ms 28000 --pool-history defer --cache-dir .local-archive/rekt/cache --wallet 0xYOUR_ADDRESS --chain robinhood --output .local-archive/rekt/fast-001.json
 ```
 
 Use `--chain base` for Base. Choose a new output path for a new snapshot. For an unfinished job, repeat its command with `--resume`; the existing 24-hour checkpoint TTL applies. Alchemy page cursors expire sooner and are restarted with deduplication when stale. A manual background continuation can raise `--deadline-ms` and `--max-requests`.
@@ -49,7 +59,8 @@ The 28-second deadline is cooperative: network calls are aborted, workers drain,
 - `--history-provider alchemy` is explicit, requires configuration and never silently falls back to a slow public history scan. Both the indexer endpoint and RPC are checked for the selected chain ID.
 - Both ERC-20 transfer directions are paginated over fixed block bounds, including zero-valued events. API display values are ignored; raw hex quantities remain exact. Receipt checks reject wrong amounts, blocks, duplicate claims and missing wallet events within returned transactions.
 - Exhausting pages is an indexer coverage assertion, not proof of completeness. Reports expose `coverage.historyCompleteness = indexer_asserted_receipt_checked`. A missing entire transaction cannot be disproved by checking only the returned receipts. After an indexed cached scan, the most recent 10,000 blocks are re-queried and unioned with known events to mitigate indexing lag; this is not an unlimited-lag guarantee.
-- Parallel workers are bounded at 1–16 (fast command: 5). Request spacing is shared per origin; retry attempts share the total budget. Workers drain before error reporting, pool lookups are deduplicated while in flight, and checkpoint writes are coalesced and serialized.
+- Parallel workers are bounded at 1–16 (fast command: 10). Request spacing is shared per origin; retry attempts share the total budget. Workers drain before error reporting, pool lookups are deduplicated while in flight, and checkpoint writes are coalesced and serialized.
+- Fast command uses `--pool-history defer`. V4 identity is still checked from cached PoolKeys, the official PositionManager, or Initialize events in the receipt. If unavailable, the historical log search is deferred and `v4_pool_metadata_deferred` is reported on the affected flow and transaction. Missing identity cannot produce a direct DEX settlement. A separately matched Relay settlement may remain preliminary. `--pool-history full` retains the complete historical lookup; switching modes invalidates derived flows so a resumed full job reprocesses deferred transactions. No background full job is scheduled automatically.
 - Cached raw evidence is bound to chain, wallet, start block and a revalidated finalized snapshot. Derived flows and mutable Relay history are recomputed. Historical exact prices and immutable pool identities are reused; failed reads are retried. Indexer-derived seeds cannot become RPC-only completeness claims.
 - Cache files and output files use separate exclusive locks. A completed scan writes a private per-wallet cache. Interrupted jobs retain their output-adjacent checkpoint for `--resume`. Locks are local-filesystem coordination only.
 - No UI, signature validation, funding-link verifier, LLM, website API or cloud deployment is changed. Existing preliminary/eligibility boundaries remain in place.
@@ -69,8 +80,21 @@ The original 355.961-second baseline used a 1000 ms request interval and reused 
 
 Exact candidates remained CATSTRO $511.717792 and TOPBLAST $278.931757 in all three reports. Private timings, checkpoints and comparison evidence are under `.local-archive/rekt/benchmark-fast-2026-09-11/`.
 
-### Remaining acceptance gate
+### Cold Alchemy acceptance measurements
 
-Validation: all 144 scanner tests passed, including a cold indexed buy/sell cycle through our decoder and exact PnL calculation, precision, pagination, receipt reconciliation, concurrency, cache/reorg, deadline/resume and lock-isolation cases. TypeScript and scoped ESLint checks pass. Tests use synthetic provider responses; they do not establish Alchemy availability, billing or latency. The Docker image has not been built on this workstation.
+The first cold run (5 workers, full pool-history lookup) stopped at its 28-second work deadline after 29.973 seconds including process overhead. A second cold run with 10 workers still stopped at its 60-second work deadline after 61.380 seconds. Both had indexed all wallet transfers but were delayed by historical Initialize search for a V4 PoolKey absent from the PositionManager. Neither is a successful latency measurement.
 
-Configure Alchemy, run an uncached scan, compare every closed cycle with the existing evidence, and measure several wallets (including a larger history). Until then, the first-scan 30-second target and production RPC capacity remain unverified. Funders across four networks are a separate job and are not included in these timings.
+With explicit deferral of that metadata lookup:
+
+| Cold run | Wall time | Internal time | Requests | Reused cached receipts | Finalized block |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 3 | 21.762 s | 21.097 s | 343 | 0 | 60439802 |
+| 4 | 21.697 s | 21.075 s | 343 | 0 | 60443403 |
+
+Each used a new output file, no `--cache-dir`, no `--seed-checkpoint` and no `--resume`: 10 workers, 25 ms per-origin pacing, 28-second work deadline. Both collected 50 transactions, reconstructed 18 cycles and returned the same 2 preliminary candidates. Historical balance reads: 116 values and zero read errors. All 18 cycles' IDs, dates, costs, proceeds and losses match the older report, not only the two selected candidates. Candidate amounts remain CATSTRO $511.717792 and TOPBLAST $278.931757.
+
+One transaction has deferred V4 metadata. Known route counts therefore include V4 in 33 transactions instead of the deep run's 34; V3 remains 10. These counts overlap. This is an explicit coverage difference, not a claim that all pool checks completed faster.
+
+Private raw reports are under `.local-archive/rekt/benchmark-alchemy-2026-09-12/` (directory label; actual executions were September 11 Moscow time). They are local CLI timings, exclude GitHub/website startup and independent four-chain funding-link verification, and cannot disable or measure provider-side caches. Two scans of one wallet do not establish average/p95 latency or production capacity for arbitrary histories.
+
+Validation: all 147 scanner tests passed, including full/deferred mode transitions, rejection of invented settlement without pool evidence or a valid Relay match, and failure-report/resume regressions. TypeScript and scoped ESLint checks pass. Docker and cloud deployment remain untested. Next acceptance work is a larger set of wallets and Base endpoint configuration; the 30-second preliminary-list goal is demonstrated for this Robinhood test wallet only.

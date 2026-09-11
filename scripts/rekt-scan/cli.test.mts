@@ -79,6 +79,8 @@ test('new snapshot reuses validated old complete history and only requests the t
     data.wallet = `0x${'9'.repeat(40)}`; await writeFile(seed, JSON.stringify(data));
     assert.equal(await main([...args.slice(0, -4), '--output', join(directory, 'bad.json'), '--seed-checkpoint', seed]), 2);
     assert.equal(JSON.parse(await readFile(join(directory, 'bad.json'), 'utf8')).error, 'invalid_seed_checkpoint');
+    assert.equal(JSON.parse(await readFile(join(directory, 'bad.json'), 'utf8')).resume, null);
+    await assert.rejects(access(join(directory, 'bad.json.checkpoint.json')));
     assert.equal(ranges.length, 2);
   } finally {
     globalThis.fetch = previousFetch;
@@ -86,6 +88,35 @@ test('new snapshot reuses validated old complete history and only requests the t
     await cleanup(directory);
   }
 });
+test('failed discovery and Relay resumes report retained transaction progress', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'rekt-cli-'));
+  const oldRpc = process.env.REKT_ROBINHOOD_RPC_URL, originalFetch = globalThis.fetch;
+  try {
+    process.env.REKT_ROBINHOOD_RPC_URL = 'https://progress-fixture.invalid';
+    globalThis.fetch = async () => Response.json({ result: '0x1237' });
+    for (const source of ['auto', 'relay']) {
+      const output = join(directory, `${source}.json`);
+      const checkpoint = { version: 1, createdAt: Date.now(), wallet: `0x${'1'.repeat(40)}`, chainId: 4663,
+        source, fromBlock: '1', snapshot: { number: '0xa', hash: `0x${'a'.repeat(64)}`, timestamp: '0x6553f100' },
+        history: { complete: true, logs: [], nextToBlock: '0', chunkSize: '10' }, decoded: {}, prices: {},
+        [source === 'auto' ? 'discovery' : 'relay']: { flows: { [`0x${'b'.repeat(64)}`]: [] } } };
+      await writeFile(`${output}.checkpoint.json`, JSON.stringify(checkpoint));
+      assert.equal(await main(['--wallet', checkpoint.wallet, '--chain', 'robinhood', '--source', source,
+        '--output', output, '--resume', '--max-requests', '1', '--request-interval-ms', '1']), 2);
+      const report = JSON.parse(await readFile(output, 'utf8'));
+      assert.equal(report.error, 'request_budget_exhausted');
+      assert.equal(report.coverage.decodedTransactions, 1);
+      assert.equal(report.resume.checkpoint, `${output}.checkpoint.json`);
+      assert.deepEqual(JSON.parse(await readFile(`${output}.checkpoint.json`, 'utf8')), checkpoint);
+      await assert.rejects(access(`${output}.lock`));
+    }
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (oldRpc === undefined) delete process.env.REKT_ROBINHOOD_RPC_URL; else process.env.REKT_ROBINHOOD_RPC_URL = oldRpc;
+    await cleanup(directory);
+  }
+});
+
 test('concurrent run is rejected by exclusive lock', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'rekt-cli-'));
   try {

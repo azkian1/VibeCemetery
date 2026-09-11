@@ -5,6 +5,7 @@ import { canonicalLogs, hex, ProviderError } from './rpc.ts';
 import type { Rpc, RpcLog, RpcReceipt } from './rpc.ts';
 
 export type DexProtocol = 'uniswap-v2' | 'uniswap-v3' | 'uniswap-v4';
+export type PoolHistoryMode = 'full' | 'defer';
 export const V2_SWAP = parseAbiItem('event Swap(address indexed sender,uint256 amount0In,uint256 amount1In,uint256 amount0Out,uint256 amount1Out,address indexed to)');
 export const V3_SWAP = parseAbiItem('event Swap(address indexed sender,address indexed recipient,int256 amount0,int256 amount1,uint160 sqrtPriceX96,uint128 liquidity,int24 tick)');
 export const V4_SWAP = parseAbiItem('event Swap(bytes32 indexed id,address indexed sender,int128 amount0,int128 amount1,uint160 sqrtPriceX96,uint128 liquidity,int24 tick,uint24 fee)');
@@ -29,7 +30,10 @@ export function poolId(info: PoolInfo): string {
 
 export class DexDecoder {
   private rpc: Rpc; private chainId: number; private cache: DexCache; private save: () => Promise<void>;
-  constructor(rpc: Rpc, chainId: number, cache: DexCache, save: () => Promise<void>) { this.rpc = rpc; this.chainId = chainId; this.cache = cache; this.save = save; }
+  private poolHistory: PoolHistoryMode;
+  constructor(rpc: Rpc, chainId: number, cache: DexCache, save: () => Promise<void>, poolHistory: PoolHistoryMode = 'full') {
+    this.rpc = rpc; this.chainId = chainId; this.cache = cache; this.save = save; this.poolHistory = poolHistory;
+  }
   private async once(key: string, load: () => Promise<PoolInfo>): Promise<PoolInfo> {
     let pending = pendingPools.get(this.cache);
     if (!pending) { pending = new Map(); pendingPools.set(this.cache, pending); }
@@ -88,6 +92,9 @@ export class DexDecoder {
       if (!(error instanceof ProviderError) && !(error instanceof BaseError)) throw error;
     }
     let found = receipt.logs.filter(l => l.address.toLowerCase() === manager && l.topics[0] === toEventSelector(V4_INITIALIZE) && l.topics[1]?.toLowerCase() === id);
+    // A preliminary list must not silently turn a missing PoolKey into verified
+    // route evidence. Keep the gap explicit and let a later full job resolve it.
+    if (!found.length && this.poolHistory === 'defer') throw new ProviderError('v4_pool_metadata_deferred');
     // Search backwards with durable progress; provider range limits and budgets are respected.
     const search = this.cache.v4Search[cacheKey] ??= { next: BigInt(receipt.blockNumber).toString(), chunk: '100000000' };
     while (!found.length && BigInt(search.next) >= 0n) {
@@ -127,7 +134,7 @@ export class DexDecoder {
         if (protocol === 'uniswap-v4') {
           if (pool !== DEX_DEPLOYMENTS[this.chainId].v4Manager) throw new ProviderError('unverified_v4_manager');
           const a = decodeEventLog({ abi: [V4_SWAP], data: log.data as Hex, topics: log.topics as [Hex, ...Hex[]] }).args;
-          id = a.id.toLowerCase(); info = await this.once(`${this.chainId}:v4:${id}`, () => this.v4Pool(id!, receipt)); delta0 = a.amount0; delta1 = a.amount1;
+          id = a.id.toLowerCase(); info = await this.once(`${this.chainId}:v4:${id}:${this.poolHistory}`, () => this.v4Pool(id!, receipt)); delta0 = a.amount0; delta1 = a.amount1;
         } else {
           info = await this.once(`${this.chainId}:${protocol}:${pool}`, () => this.pool(protocol, pool, receipt.blockNumber));
           if (protocol === 'uniswap-v2') {
@@ -145,7 +152,7 @@ export class DexDecoder {
         // Only known evidence gaps are local exclusions. Transient transport errors pause the job.
         if (error instanceof ProviderError) {
           if (!['unsupported_dex_factory', 'unverified_pool', 'invalid_pool_tokens', 'unverified_v4_manager', 'v4_pool_key_mismatch',
-            'v4_pool_initialization_missing_or_ambiguous', 'invalid_swap_direction', 'flash_or_mixed_swap', 'contract_reverted',
+            'v4_pool_initialization_missing_or_ambiguous', 'v4_pool_metadata_deferred', 'invalid_swap_direction', 'flash_or_mixed_swap', 'contract_reverted',
             'invalid_contract_response', 'rpc_error_-32000', 'rpc_error_-32601'].includes(error.code)) throw error;
           issues.push(error.code);
         } else if (error instanceof BaseError) issues.push('invalid_swap_event');

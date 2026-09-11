@@ -113,6 +113,44 @@ test('parallel decoders share one in-flight immutable V4 pool lookup', async () 
   assert.equal(f.methods.filter(m => m === 'eth_call').length, 1);
 });
 
+test('fast discovery defers missing V4 metadata without inventing a route; full mode reprocesses it', async () => {
+  const f = fixture('uniswap-v4');
+  const quick = await scanDiscovery(f.rpc, 4663, wallet, '1', f.block, f.transfers, f.state, 90, async () => {},
+    { only: 'uniswap-v4', poolHistory: 'defer', concurrency: 5 });
+  assert.equal(f.methods.includes('eth_getLogs'), false);
+  assert.equal(quick.evidence.flows[0].settlement, undefined);
+  assert.deepEqual(quick.evidence.flows[0].route?.swaps, []);
+  assert.ok(quick.evidence.flows[0].warnings?.includes('v4_pool_metadata_deferred'));
+  assert.deepEqual(quick.discovery.deferredPoolTransactions, [f.receipt.transactionHash]);
+  assert.deepEqual(quick.candidates, []); assert.deepEqual(quick.preliminaryCandidates, []);
+  const full = await scanDiscovery(f.rpc, 4663, wallet, '1', f.block, f.transfers, f.state, 90, async () => {},
+    { only: 'uniswap-v4', poolHistory: 'full', concurrency: 5 });
+  assert.equal(f.methods.includes('eth_getLogs'), true);
+  assert.equal(full.evidence.flows[0].settlement?.amountUsd, '600');
+  assert.equal(full.evidence.flows[0].route?.swaps.length, 1);
+  assert.deepEqual(full.discovery.deferredPoolTransactions, []);
+});
+
+test('deferred pool identity preserves an independently matched Relay amount with an explicit warning', async () => {
+  const f = fixture('uniswap-v4');
+  f.state.relay.requests = [{ id: 'fixture-relay-buy', status: 'success', user: wallet, recipient: wallet, data: {
+    inTxs: [{ chainId: 4663, hash: hash(999), status: 'success', stateChanges: [
+      { address: wallet, change: { kind: 'token', data: { tokenAddress: f.quote }, balanceDiff: '-600000000' } },
+    ] }],
+    outTxs: [{ chainId: 4663, hash: f.receipt.transactionHash, status: 'success', stateChanges: [
+      { address: wallet, change: { kind: 'token', data: { tokenAddress: token }, balanceDiff: '100' } },
+    ] }],
+    metadata: { currencyIn: { currency: { chainId: 4663, address: f.quote, decimals: 6 }, amount: '600000000', amountUsd: '600' },
+      currencyOut: { currency: { chainId: 4663, address: token, decimals: 18 }, amount: '100', amountUsd: '600' } },
+  } }];
+  const [flow] = await discoverReceipt(f.rpc, 4663, wallet, f.receipt, f.block, f.transfers, f.state, async () => {}, undefined, 'defer');
+  assert.equal(flow.settlement?.source, 'relay_historical_amount_usd'); assert.equal(flow.settlement?.amountUsd, '600');
+  assert.ok(flow.warnings?.includes('v4_pool_metadata_deferred')); assert.deepEqual(flow.route?.swaps, []);
+  f.state.relay.requests[0].data.metadata.currencyOut.amount = '101';
+  const [wrong] = await discoverReceipt(f.rpc, 4663, wallet, f.receipt, f.block, f.transfers, f.state, async () => {}, undefined, 'defer');
+  assert.equal(wrong.settlement, undefined);
+});
+
 test('cold indexed buy/sell history feeds our concurrent decoder and exact closed-loss calculation', async () => {
   const buy = fixture('uniswap-v4'), sell = fixture('uniswap-v4', 4663, true);
   buy.mutate({ posm: true }); sell.mutate({ posm: true });

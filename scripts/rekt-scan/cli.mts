@@ -14,7 +14,7 @@ import { scanRelay } from './relay.mts';
 import type { RelayCheckpoint } from './relay.mts';
 import { newDiscoveryCheckpoint, reuseDiscoveryEvidence, scanDiscovery } from './discovery.mts';
 import type { DiscoveryCheckpoint } from './discovery.mts';
-import type { DexProtocol } from '../../src/lib/rekt/providers/dex.ts';
+import type { DexProtocol, PoolHistoryMode } from '../../src/lib/rekt/providers/dex.ts';
 import { collectIndexedHistory, hydrateIndexedHistory, newIndexedHistory } from '../../src/lib/rekt/providers/alchemy.ts';
 import type { IndexedHistory } from '../../src/lib/rekt/providers/alchemy.ts';
 import { atomicJson, checkpointWriter } from './checkpoint.mts';
@@ -43,6 +43,7 @@ export async function main(args = process.argv.slice(2)): Promise<number> {
     days: { type: 'string' }, 'max-requests': { type: 'string' }, 'timeout-ms': { type: 'string' }, 'request-interval-ms': { type: 'string' },
     resume: { type: 'boolean' }, 'retry-evidence': { type: 'boolean' }, input: { type: 'string' }, help: { type: 'boolean' },
     'history-provider': { type: 'string' }, concurrency: { type: 'string' }, 'cache-dir': { type: 'string' }, 'deadline-ms': { type: 'string' },
+    'pool-history': { type: 'string' },
   } });
   if (values.help) {
     console.log(`REKT read-only closed-loss scanner (Node >=22.18)
@@ -69,6 +70,7 @@ Options:
   --concurrency 1       Discovery transaction workers, 1..16; start with 5 on a dedicated RPC
   --cache-dir DIR       Private per-wallet finalized evidence cache (discovery only)
   --deadline-ms NUMBER  Gracefully checkpoint an unfinished job when its time budget expires
+  --pool-history full|defer  V4 Initialize history lookup (default full); defer leaves explicit metadata gaps
   --input evidence.json Recalculate local normalized evidence offline (not authorization)
 
 RPC: REKT_BASE_RPC_URL, then BASE_RPC_URL, then https://mainnet.base.org.
@@ -94,6 +96,8 @@ Exit codes: 0 complete, 2 partial, 1 failed, 130 cancelled.`);
   if (concurrency > 16) throw new Error('invalid_concurrency');
   const deadlineMs = values['deadline-ms'] === undefined ? undefined : positive(values['deadline-ms'], 28000, 'deadline_ms');
   const historyProvider = values['history-provider'] ?? 'rpc';
+  const poolHistory = values['pool-history'] ?? 'full';
+  if (!['full', 'defer'].includes(poolHistory)) throw new Error('invalid_pool_history');
   if (!['rpc', 'alchemy'].includes(historyProvider)) throw new Error('invalid_history_provider');
   const fromBlock = BigInt(positive(values['from-block'], 1, 'from_block'));
   const toBlock = values['to-block'] === undefined ? undefined : BigInt(positive(values['to-block'], 1, 'to_block'));
@@ -102,7 +106,7 @@ Exit codes: 0 complete, 2 partial, 1 failed, 130 cancelled.`);
   const chain = scanChain(values.chain!);
   const source = values.source ?? chain?.defaultSource;
   const isDiscovery = source === 'auto' || source === 'uniswap-v2' || source === 'uniswap-v4' || (source === 'uniswap-v3' && chain?.id === 4663);
-  if ((historyProvider === 'alchemy' || values['cache-dir'] || concurrency > 1) && (!isDiscovery || values.input)) throw new Error('fast_options_require_discovery');
+  if ((historyProvider === 'alchemy' || values['cache-dir'] || concurrency > 1 || values['pool-history']) && (!isDiscovery || values.input)) throw new Error('fast_options_require_discovery');
   const indexerUrl = historyProvider === 'alchemy' ? alchemyUrl(values.chain!) : undefined;
   if (historyProvider === 'alchemy' && !indexerUrl) throw new Error('alchemy_configuration_required');
   const cachePath = values['cache-dir'] && chain ? resolve(values['cache-dir'], `${chain.id}-${wallet}-${fromBlock}.json`) : undefined;
@@ -236,7 +240,7 @@ Exit codes: 0 complete, 2 partial, 1 failed, 130 cancelled.`);
       checkpoint.discovery ??= newDiscoveryCheckpoint();
       await save();
       const result = await scanDiscovery(rpc, chain.id, wallet, checkpoint.fromBlock, checkpoint.snapshot, checkpoint.history.logs,
-        checkpoint.discovery, days, async () => { await save(); progress(); }, { only: source === 'auto' ? undefined : source as DexProtocol, retryEvidence: values['retry-evidence'], concurrency });
+        checkpoint.discovery, days, async () => { await save(); progress(); }, { only: source === 'auto' ? undefined : source as DexProtocol, retryEvidence: values['retry-evidence'], concurrency, poolHistory: poolHistory as PoolHistoryMode });
       if ((await rpc.call<RpcBlock>('eth_getBlockByNumber', [checkpoint.snapshot.number, false])).hash !== checkpoint.snapshot.hash) throw new ProviderError('reorg_detected');
       await atomicJson(output, { schemaVersion: 2, status: 'partial', collectionComplete: true, mode: 'live_evm_discovery',
         generatedAt: new Date().toISOString(), coverage: { chainId: chain.id, fromBlock: checkpoint.fromBlock,
@@ -320,9 +324,9 @@ Exit codes: 0 complete, 2 partial, 1 failed, 130 cancelled.`);
     let failureOutput = output;
     try { const previous = JSON.parse(await readFile(output, 'utf8')); if (previous.status === 'complete' || previous.collectionComplete === true) failureOutput = `${output}.error.json`; } catch { /* No previous valid report. */ }
     await atomicJson(failureOutput, { schemaVersion: 1, status, error: code, candidates: [],
-      coverage: state ? { fromBlock: state.fromBlock, toBlock: BigInt(state.snapshot.number).toString(), nextToBlock: state.history.nextToBlock, historyComplete: state.history.complete, decodedTransactions: Object.keys(state.decoded).length } : null,
+      coverage: state ? { fromBlock: state.fromBlock, toBlock: BigInt(state.snapshot.number).toString(), nextToBlock: state.history.nextToBlock, historyComplete: state.history.complete, decodedTransactions: Object.keys(state.discovery?.flows ?? state.relay?.flows ?? state.decoded).length } : null,
       metrics: { requests: transport.requests, elapsedMs: Date.now() - startedAt },
-      resume: state ? { checkpoint: checkpointPath, expiresAt: new Date(state.createdAt + TTL_MS).toISOString() } : null });
+      resume: state && (values.resume || saveCheckpoint) ? { checkpoint: checkpointPath, expiresAt: new Date(state.createdAt + TTL_MS).toISOString() } : null });
     console.error(JSON.stringify({ status, error: code, output: failureOutput }));
     return cancelled ? 130 : state ? 2 : 1;
   } finally {
