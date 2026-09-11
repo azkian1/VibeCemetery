@@ -227,14 +227,12 @@ function ScannerShell() {
       </nav>
 
       <section style={{ position: 'relative', zIndex: 1, minHeight: isCompactViewport ? 'calc(100dvh - 115px)' : 'calc(100dvh - 73px)', display: 'grid', placeItems: isCompactViewport ? 'start center' : 'center', padding: isCompactViewport ? '42px 16px 40px' : '18px 16px 40px' }}>
-        <div style={{ width: repos ? 'min(100%, 1040px)' : 'min(100%, 740px)', border: '1px solid rgba(232,213,163,0.16)', borderRadius: 4, background: 'linear-gradient(180deg, rgba(42,40,37,0.96), rgba(20,18,16,0.98))', boxShadow: '0 18px 44px rgba(0,0,0,0.42), inset 0 1px 0 rgba(255,255,255,0.04)', padding: 'clamp(20px, 4vw, 28px)', textAlign: 'center' }}>
+        <div style={{ width: repos ? 'min(100%, 1040px)' : 'min(100%, 740px)', border: showScannerChrome ? '1px solid transparent' : '1px solid rgba(232,213,163,0.16)', borderRadius: 4, background: showScannerChrome ? 'transparent' : 'linear-gradient(180deg, rgba(42,40,37,0.96), rgba(20,18,16,0.98))', boxShadow: showScannerChrome ? 'none' : '0 18px 44px rgba(0,0,0,0.42), inset 0 1px 0 rgba(255,255,255,0.04)', padding: 'clamp(20px, 4vw, 28px)', textAlign: 'center' }}>
           {showScannerChrome && (
             <>
-              <p style={{ margin: '0 0 10px', color: '#c6a568', fontSize: 11, letterSpacing: 2, textTransform: 'uppercase' }}>Code & REKT</p>
-              <h1 style={{ margin: '0 auto 12px', maxWidth: 540, fontSize: 'clamp(26px, 3.2vw, 36px)', lineHeight: 1.2 }}>Every ending deserves a place.</h1>
-              <p style={{ color: '#b6ac9a', fontSize: 13 }}>Some buried their weekends. Some buried their trades.</p>
+              <h1 className={styles.title}>Give it a resting place.</h1>
               <div className={styles.paths}>
-                <section className={styles.path} aria-label="Code burial"><span className={styles.tag}>CODE</span><p>Bury your abandoned projects</p>
+                <section className={styles.path} aria-label="Code burial"><span className={styles.tag}>CODE</span><p>Bury abandoned projects</p>
                 <button
                   type="button"
                   onClick={() => { void runScan(); }}
@@ -243,10 +241,9 @@ function ScannerShell() {
                 >
                   {loading ? 'Scanning GitHub...' : authenticatedUsername ? `Scan @${authenticatedUsername}` : 'Scan GitHub'}
                 </button>
-                <small>Non-forks inactive for 7+ days. Scan your connected GitHub account.</small>
                 <div className={styles.agent}><a href={AGENT_INSTRUCTIONS_PATH}>{AGENT_INSTRUCTIONS_TITLE} ↗</a><p>{AGENT_INSTRUCTIONS_SUBTITLE}</p></div>
                 </section>
-                <section className={styles.path} aria-label="REKT burial"><span className={styles.tag}>REKT</span><p>Bury your trading losses</p><button type="button" className={styles.scan} onClick={() => open('rekt')}>Scan Wallet</button><small>Find confirmed trading losses. Nothing moves from your wallet.</small><div className={styles.networks}><small>Base · Robinhood Chain<br />Wallet scanning is not available yet.</small></div></section>
+                <section className={styles.path} aria-label="REKT burial"><span className={styles.tag}>REKT</span><p>Bury trading losses</p><button type="button" className={styles.scan} onClick={() => open('rekt')}>Scan Wallet</button><small>Wallet scanning is not available yet.</small></section>
               </div>
             </>
           )}
