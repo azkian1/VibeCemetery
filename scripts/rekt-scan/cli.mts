@@ -44,6 +44,7 @@ export async function main(args = process.argv.slice(2)): Promise<number> {
     resume: { type: 'boolean' }, 'retry-evidence': { type: 'boolean' }, input: { type: 'string' }, help: { type: 'boolean' },
     'history-provider': { type: 'string' }, concurrency: { type: 'string' }, 'cache-dir': { type: 'string' }, 'deadline-ms': { type: 'string' },
     'pool-history': { type: 'string' },
+    'cu-per-second': { type: 'string' }, 'max-cu': { type: 'string' },
   } });
   if (values.help) {
     console.log(`REKT read-only closed-loss scanner (Node >=22.18)
@@ -71,6 +72,8 @@ Options:
   --cache-dir DIR       Private per-wallet finalized evidence cache (discovery only)
   --deadline-ms NUMBER  Gracefully checkpoint an unfinished job when its time budget expires
   --pool-history full|defer  V4 Initialize history lookup (default full); defer leaves explicit metadata gaps
+  --cu-per-second 450    Shared weighted RPC pacing per scan (REKT_CU_PER_SECOND)
+  --max-cu 50000         Estimated RPC CU budget per invocation, including retries (REKT_MAX_CU)
   --input evidence.json Recalculate local normalized evidence offline (not authorization)
 
 RPC: REKT_BASE_RPC_URL, then BASE_RPC_URL, then https://mainnet.base.org.
@@ -91,6 +94,8 @@ Exit codes: 0 complete, 2 partial, 1 failed, 130 cancelled.`);
   const maxRequests = positive(values['max-requests'], 2000, 'max_requests');
   const timeoutMs = positive(values['timeout-ms'], 15000, 'timeout_ms');
   const intervalMs = positive(values['request-interval-ms'], 250, 'request_interval_ms');
+  const cuPerSecond = positive(values['cu-per-second'] ?? process.env.REKT_CU_PER_SECOND, 450, 'cu_per_second');
+  const maxCu = positive(values['max-cu'] ?? process.env.REKT_MAX_CU, 50000, 'max_cu');
   const chunkSize = positive(values['chunk-size'], 1000000, 'chunk_size');
   const concurrency = positive(values.concurrency, 1, 'concurrency');
   if (concurrency > 16) throw new Error('invalid_concurrency');
@@ -136,7 +141,7 @@ Exit codes: 0 complete, 2 partial, 1 failed, 130 cancelled.`);
   let saveCheckpoint: (() => Promise<void>) | undefined;
   let cacheReceiptsReused = 0;
   let evidence: Evidence | undefined;
-  const transport = new Transport({ maxRequests, timeoutMs, intervalMs, signal: controller.signal });
+  const transport = new Transport({ maxRequests, timeoutMs, intervalMs, cuPerSecond, maxCu, signal: controller.signal });
   const startedAt = Date.now();
   try {
     if (cachePath) {
@@ -223,7 +228,8 @@ Exit codes: 0 complete, 2 partial, 1 failed, 130 cancelled.`);
     const progress = () => {
       if (Date.now() - lastProgress > 5000) {
         console.error(JSON.stringify({ phase: checkpoint.history.complete ? 'decoding' : 'history', nextToBlock: checkpoint.history.nextToBlock,
-          logs: checkpoint.history.logs.length, decodedTransactions: Object.keys(checkpoint.discovery?.flows ?? checkpoint.relay?.flows ?? checkpoint.decoded).length, requests: transport.requests }));
+          logs: checkpoint.history.logs.length, decodedTransactions: Object.keys(checkpoint.discovery?.flows ?? checkpoint.relay?.flows ?? checkpoint.decoded).length,
+          requests: transport.requests, estimatedRpcCu: transport.usage.estimatedRpcCu, estimatedAlchemyCu: transport.usage.estimatedAlchemyCu }));
         lastProgress = Date.now();
       }
     };
@@ -248,11 +254,11 @@ Exit codes: 0 complete, 2 partial, 1 failed, 130 cancelled.`);
           logs: checkpoint.history.logs.length, relayApiVersion: checkpoint.discovery.relay.apiVersion, historyProvider,
           fetchedFromBlock: checkpoint.historyFromBlock ?? checkpoint.fromBlock,
           historyCompleteness: historyProvider === 'alchemy' ? 'indexer_asserted_receipt_checked' : 'rpc_log_ranges' },
-        metrics: { requests: transport.requests, elapsedMs: Date.now() - startedAt, concurrency, cacheReceiptsReused }, ...result });
+        metrics: { ...transport.metrics(), elapsedMs: Date.now() - startedAt, concurrency, cacheReceiptsReused }, ...result });
       if (cachePath) await atomicJson(cachePath, checkpoint);
       console.log(JSON.stringify({ status: 'partial', collectionComplete: true, candidates: 0,
         preliminaryCandidates: result.preliminaryCandidates.length, closedCycles: result.cycles.length,
-        protocols: result.discovery.protocolsByTransaction, requests: transport.requests, output }));
+        protocols: result.discovery.protocolsByTransaction, ...transport.metrics(), output }));
       return 2;
     }
     if (source === 'relay') {
@@ -268,10 +274,10 @@ Exit codes: 0 complete, 2 partial, 1 failed, 130 cancelled.`);
           scope: 'erc20_wallet_flows_matched_to_relay', logs: checkpoint.history.logs.length,
           relayApiVersion: checkpoint.relay.history.apiVersion, relayDeprecation: checkpoint.relay.history.deprecation,
           relayRequests: checkpoint.relay.history.requests.length },
-        metrics: { requests: transport.requests, elapsedMs: Date.now() - startedAt }, ...result });
+        metrics: { ...transport.metrics(), elapsedMs: Date.now() - startedAt }, ...result });
       console.log(JSON.stringify({ status: 'partial', collectionComplete: true, candidates: 0,
         preliminaryCandidates: result.preliminaryCandidates.length, closedCycles: result.cycles.length,
-        requests: transport.requests, output }));
+        ...transport.metrics(), output }));
       return 2;
     }
     const grouped = new Map<string, typeof checkpoint.history.logs>();
@@ -311,8 +317,8 @@ Exit codes: 0 complete, 2 partial, 1 failed, 130 cancelled.`);
     const analysis = analyze(evidence, { days });
     await atomicJson(output, { schemaVersion: 1, status: 'complete', mode: 'live_rpc', generatedAt: new Date().toISOString(),
       coverage: { fromBlock: evidence.fromBlock, toBlock: evidence.toBlock, fromGenesis: evidence.fromBlock === '1', days, scope: 'base_uniswap_v3_single_pool_erc20' },
-      metrics: { requests: transport.requests, elapsedMs: Date.now() - startedAt }, ...analysis, evidence });
-    console.log(JSON.stringify({ status: 'complete', candidates: analysis.candidates.length, exclusions: analysis.exclusions.length, requests: transport.requests, output }));
+      metrics: { ...transport.metrics(), elapsedMs: Date.now() - startedAt }, ...analysis, evidence });
+    console.log(JSON.stringify({ status: 'complete', candidates: analysis.candidates.length, exclusions: analysis.exclusions.length, ...transport.metrics(), output }));
     return 0;
   } catch (error) {
     // Workers are drained before this catch; preserve successfully fetched evidence too.
@@ -325,9 +331,9 @@ Exit codes: 0 complete, 2 partial, 1 failed, 130 cancelled.`);
     try { const previous = JSON.parse(await readFile(output, 'utf8')); if (previous.status === 'complete' || previous.collectionComplete === true) failureOutput = `${output}.error.json`; } catch { /* No previous valid report. */ }
     await atomicJson(failureOutput, { schemaVersion: 1, status, error: code, candidates: [],
       coverage: state ? { fromBlock: state.fromBlock, toBlock: BigInt(state.snapshot.number).toString(), nextToBlock: state.history.nextToBlock, historyComplete: state.history.complete, decodedTransactions: Object.keys(state.discovery?.flows ?? state.relay?.flows ?? state.decoded).length } : null,
-      metrics: { requests: transport.requests, elapsedMs: Date.now() - startedAt },
+      metrics: { ...transport.metrics(), elapsedMs: Date.now() - startedAt },
       resume: state && (values.resume || saveCheckpoint) ? { checkpoint: checkpointPath, expiresAt: new Date(state.createdAt + TTL_MS).toISOString() } : null });
-    console.error(JSON.stringify({ status, error: code, output: failureOutput }));
+    console.error(JSON.stringify({ status, error: code, ...transport.metrics(), output: failureOutput }));
     return cancelled ? 130 : state ? 2 : 1;
   } finally {
     if (timer !== undefined) clearTimeout(timer);

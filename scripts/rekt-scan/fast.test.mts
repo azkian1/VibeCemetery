@@ -120,7 +120,7 @@ test('raw cache reuse drops derived flows, provider history, failures and future
   assert.deepEqual(fresh.balances, { [`${token}:2`]: '1' });
 });
 
-const envNames = ['REKT_BASE_RPC_URL', 'BASE_RPC_URL', 'REKT_BASE_INDEXER_URL', 'REKT_ALCHEMY_API_KEY'] as const;
+const envNames = ['REKT_BASE_RPC_URL', 'BASE_RPC_URL', 'REKT_BASE_INDEXER_URL', 'REKT_ALCHEMY_API_KEY', 'REKT_CU_PER_SECOND', 'REKT_MAX_CU'] as const;
 async function cliFixture(run: (directory: string) => Promise<void>) {
   const directory = await mkdtemp(join(tmpdir(), 'rekt-fast-'));
   const prior = Object.fromEntries(envNames.map(k => [k, process.env[k]])); const fetcher = globalThis.fetch;
@@ -182,6 +182,44 @@ test('CLI deadline aborts in-flight work, saves partial state and allows resume'
   await assert.rejects(access(`${output}.lock`)); block = false;
   assert.equal(await main([...args, '--resume']), 2);
   assert.equal(JSON.parse(await readFile(output, 'utf8')).collectionComplete, true);
+}));
+
+test('CLI CU budget persists usage on failure and resumes with a fresh invocation budget', async () => cliFixture(async directory => {
+  process.env.REKT_BASE_RPC_URL = 'https://base-mainnet.g.alchemy.com/v2/private-key';
+  process.env.REKT_BASE_INDEXER_URL = process.env.REKT_BASE_RPC_URL;
+  globalThis.fetch = async (_url, init) => {
+    const body = JSON.parse(String(init?.body));
+    const result = body.method === 'eth_chainId' ? '0x2105' : body.method === 'eth_getBlockByNumber'
+      ? { number: '0x5', hash: hash(5), timestamp: '0x6553f100' } : { transfers: [] };
+    return Response.json({ result });
+  };
+  const output = join(directory, 'cu.json');
+  const args = ['--wallet', wallet, '--source', 'uniswap-v4', '--history-provider', 'alchemy', '--request-interval-ms', '1', '--output', output];
+  assert.equal(await main([...args, '--max-cu', '20']), 2);
+  const partial = JSON.parse(await readFile(output, 'utf8'));
+  assert.equal(partial.error, 'cu_budget_exhausted');
+  assert.equal(partial.metrics.usage.estimatedAlchemyCu, 20);
+  assert.equal(partial.metrics.limits.cuPerSecond, 450);
+  assert.equal(partial.metrics.limits.maxCu, 20);
+  await access(partial.resume.checkpoint); await assert.rejects(access(`${output}.lock`));
+  process.env.REKT_CU_PER_SECOND = '300'; process.env.REKT_MAX_CU = '1000';
+  assert.equal(await main([...args, '--resume', '--cu-per-second', '600']), 2);
+  const report = JSON.parse(await readFile(output, 'utf8'));
+  assert.equal(report.collectionComplete, true);
+  assert.equal(report.metrics.limits.cuPerSecond, 600); assert.equal(report.metrics.limits.maxCu, 1000);
+  assert.equal(report.metrics.usage.estimatedAlchemyCu, 280);
+  assert.equal(report.metrics.usage.estimatedRpcCu, 280);
+  assert.equal(report.metrics.usage.byMethod.reduce((sum: number, row: { requests: number }) => sum + row.requests, 0), report.metrics.requests);
+  assert.doesNotMatch(JSON.stringify(report.metrics), /private-key|https:/);
+}));
+
+test('CLI rejects invalid CU settings before network access', async () => cliFixture(async directory => {
+  const args = ['--wallet', wallet, '--source', 'auto', '--output', join(directory, 'invalid.json')];
+  globalThis.fetch = async () => { assert.fail('must not reach network'); };
+  for (const option of ['--max-cu', '--cu-per-second']) for (const value of ['0', '-1', 'NaN', '1.5']) {
+    await assert.rejects(main([...args, `${option}=${value}`]), /invalid_(max_cu|cu_per_second)/);
+  }
+  process.env.REKT_MAX_CU = 'bad'; await assert.rejects(main(args), /invalid_max_cu/);
 }));
 
 test('per-wallet cache lock rejects duplicate jobs without removing the other lock', async () => cliFixture(async directory => {

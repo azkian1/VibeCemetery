@@ -1,4 +1,5 @@
 import { setTimeout as sleep } from 'node:timers/promises';
+import { requestCost, Usage } from './usage.ts';
 
 export class ProviderError extends Error {
   code: string;
@@ -19,24 +20,52 @@ export interface RpcTransaction { from: string; to: string | null; value: string
 
 export class Transport {
   requests = 0;
+  usage = new Usage();
   private gates = new Map<string, Promise<void>>();
   options: {
     maxRequests?: number; timeoutMs?: number; retries?: number; intervalMs?: number;
     signal?: AbortSignal; fetch?: typeof fetch; wait?: (ms: number) => Promise<void>;
+    cuPerSecond?: number; maxCu?: number;
   };
-  constructor(options: Transport['options'] = {}) { this.options = options; }
+  constructor(options: Transport['options'] = {}) {
+    for (const value of [options.cuPerSecond, options.maxCu]) {
+      if (value !== undefined && (!Number.isSafeInteger(value) || value < 1)) throw new ProviderError('invalid_cu_limit');
+    }
+    this.options = options;
+  }
 
-  async json(url: string, body?: unknown, headers: Record<string, string> = {}): Promise<unknown> {
-    for (let attempt = 0; ; attempt++) {
+  metrics() {
+    return { requests: this.requests, usage: this.usage.snapshot(), limits: {
+      cuPerSecond: this.options.cuPerSecond ?? null, maxCu: this.options.maxCu ?? null,
+      scope: 'single_transport_all_rpc_origins', pacing: 'weighted_no_burst',
+    } };
+  }
+
+  async json(url: string, body?: unknown, headers: Record<string, string> = {}, rpcRetry = false): Promise<unknown> {
+    const cost = requestCost(url, body);
+    if (!cost.known && (this.options.cuPerSecond || this.options.maxCu)) throw new ProviderError('unknown_rpc_cu_cost');
+    const checkBudget = () => {
       this.options.signal?.throwIfAborted();
       if (this.requests >= (this.options.maxRequests ?? 2000)) throw new ProviderError('request_budget_exhausted');
-      const origin = new URL(url).origin;
-      const gate = (this.gates.get(origin) ?? Promise.resolve()).then(() => this.wait(this.options.intervalMs ?? 250));
+      if (this.options.maxCu !== undefined && this.usage.estimatedRpcCu + cost.cu > this.options.maxCu) throw new ProviderError('cu_budget_exhausted');
+    };
+    for (let attempt = 0; ; attempt++) {
+      checkBudget();
+      const origin = cost.rpc && this.options.cuPerSecond ? 'all_rpc' : new URL(url).origin;
+      const gate = (this.gates.get(origin) ?? Promise.resolve()).then(async () => {
+        checkBudget();
+        const ms = Math.max(this.options.intervalMs ?? 250,
+          cost.rpc && this.options.cuPerSecond ? Math.ceil(cost.throughputCu * 1000 / this.options.cuPerSecond) : 0);
+        await this.wait(ms);
+        this.usage.pacingWaitMs += ms;
+        checkBudget();
+        // Reserve synchronously inside the gate, before another worker can enter.
+        this.requests++;
+        this.usage.record(cost, rpcRetry || attempt > 0);
+      });
       this.gates.set(origin, gate.catch(() => {}));
       await gate;
       this.options.signal?.throwIfAborted();
-      if (this.requests >= (this.options.maxRequests ?? 2000)) throw new ProviderError('request_budget_exhausted');
-      this.requests++;
       try {
         const timeout = AbortSignal.timeout(this.options.timeoutMs ?? 15000);
         const signal = this.options.signal ? AbortSignal.any([timeout, this.options.signal]) : timeout;
@@ -46,6 +75,7 @@ export class Transport {
           body: body === undefined ? undefined : JSON.stringify(body), signal,
         });
         if (!response.ok) {
+          if (response.status === 429) this.usage.http429Responses++;
           // Some RPC gateways (including dRPC's public tier) encode an
           // oversized eth_getLogs range as HTTP 400 instead of JSON-RPC 200.
           // Only this specific error may shrink a range; auth/configuration
@@ -101,13 +131,14 @@ export class Rpc {
   }
   async call<T>(method: string, params: unknown[]): Promise<T> {
     for (let attempt = 0; ; attempt++) {
-    const payload = await this.transport.json(this.url, { jsonrpc: '2.0', id: 1, method, params }) as { result?: T; error?: { code?: string; message?: string } };
+    const payload = await this.transport.json(this.url, { jsonrpc: '2.0', id: 1, method, params }, {}, attempt > 0) as { result?: T; error?: { code?: string; message?: string } };
     if (payload.error) {
       // Do not expose provider text; it may echo an endpoint credential.
       const message = payload.error.message ?? '';
       if (method === 'eth_getLogs' && /(?:log )?query timed out|query timeout/i.test(message)) throw new ProviderError('rpc_range_limit');
       if (/execution reverted|revert(?:ed)?\b/i.test(message)) throw new ProviderError('contract_reverted');
       if (/rate.?limit|too many requests|requests per|compute units/i.test(message)) {
+        this.transport.usage.rpcRateLimitResponses++;
         if (attempt >= (this.transport.options.retries ?? 3)) throw new ProviderError('rpc_rate_limited', true);
         await this.transport.wait(Math.min(10000, 500 * 2 ** attempt));
         continue;

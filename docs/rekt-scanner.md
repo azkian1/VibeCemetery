@@ -4,6 +4,8 @@ Standalone, read-only CLI. It does not sign transactions, create graves, or enab
 
 ## Fast scanner: Alchemy and finalized evidence cache
 
+2026-09-12: the PnL CLI now records estimated CU by method/provider and defaults to 450 throughput CU/s across all RPC hosts in a scan, with a 50,000 estimated CU per-invocation budget. Override using `--cu-per-second` / `--max-cu` or `REKT_CU_PER_SECOND` / `REKT_MAX_CU`. Reports include retry/throttle counts and pacing waits; exhausted budgets retain resumable progress. Limits do not coordinate separate processes or other projects. Earlier timings below predate this weighted limiter; see [accounting details](rekt-scanner-fast-plan.md#cu-accounting-and-load-limits-2026-09-12).
+
 The new `npm run rekt:fast` command uses indexed ERC-20 history, ten workers, a private per-wallet cache and a 28-second cooperative deadline. It explicitly defers historical V4 pool-metadata searches that cannot be resolved immediately, preserving coverage warnings. Two cold Robinhood Alchemy runs completed in 21.762 and 21.697 seconds with no local cache; cached public-RPC runs earlier took 14.643 and 10.311 seconds. Base and broader wallet latency still need measurement. Full setup, cache/coverage semantics, remaining limitations and results: [fast scanner plan](rekt-scanner-fast-plan.md).
 
 ## September 11 patch: combined discovery
