@@ -39,9 +39,12 @@ const BUILDING_SHADOW_ALPHA_V2 = 0.3;
 // silhouette treatment as buildings, so a freshly placed grave does not float.
 const GRAVE_SHADOW_DEPTH_V2 = 799;
 const GRAVE_SHADOW_X_OFFSET_V2 = 3;
-const GRAVE_SHADOW_Y_OFFSET_V2 = 1;
+const GRAVE_SHADOW_BASE_OVERLAP_V2 = 1;
 const GRAVE_SHADOW_TINT_V2 = 0x0b100c;
 const GRAVE_SHADOW_ALPHA_V2 = 0.3;
+// The small CRT occupies only 26 of its 64 source rows. Keep its contact
+// shadow tucked under the casing instead of using the standard slot footprint.
+const COMPACT_GRAVE_SHADOW_V2 = { gid: 56, width: 30, height: 8, offsetX: 1 };
 // Transparent rows below the last visible pixel in each grave PNG (GIDs 51–97).
 // Both the full sprite and its flattened shadow retain this padding.
 const GRAVE_SHADOW_BASE_INSET_V2: Record<number, number> = {
@@ -51,6 +54,16 @@ const GRAVE_SHADOW_BASE_INSET_V2: Record<number, number> = {
   75: 10, 76: 11, 77: 5, 78: 4, 79: 5, 80: 3, 81: 6, 82: 4,
   83: 3, 84: 5, 85: 7, 86: 6, 87: 13, 88: 9, 89: 9, 90: 12,
   91: 10, 92: 9, 93: 8, 94: 9, 95: 7, 96: 10, 97: 6,
+};
+// Transparent rows above the silhouette. Ground the TOP of the projected
+// shadow at the visible base, leaving its body exposed on the ground.
+const GRAVE_SHADOW_TOP_INSET_V2: Record<number, number> = {
+  51: 2, 52: 9, 53: 5, 54: 10, 55: 5, 56: 17, 57: 7, 58: 7,
+  59: 9, 60: 8, 61: 5, 62: 11, 63: 9, 64: 8, 65: 5, 66: 5,
+  67: 3, 68: 9, 69: 4, 70: 4, 71: 6, 72: 4, 73: 10, 74: 4,
+  75: 12, 76: 10, 77: 5, 78: 4, 79: 5, 80: 3, 81: 6, 82: 3,
+  83: 3, 84: 4, 85: 4, 86: 8, 87: 8, 88: 9, 89: 8, 90: 11,
+  91: 7, 92: 8, 93: 8, 94: 9, 95: 6, 96: 8, 97: 6,
 };
 // The source PNGs have different transparent padding below their visible base.
 // Keep each flattened silhouette grounded on the opaque pixels, not its frame edge.
@@ -904,10 +917,15 @@ export class CemeterySceneV2 extends Phaser.Scene {
         }
         for (let i = 0; i < distance.length; i++) {
           const t = Phaser.Math.Clamp((distance[i] - 4) / 36, 0, 1);
+          const coreAlpha = 1 - t * t * (3 - 2 * t);
+          // A faint, wider penumbra follows the same terrain contour. Combine
+          // coverage so it joins the opaque fog without a ring or a hard seam.
+          const softT = Phaser.Math.Clamp((distance[i] - 12) / 72, 0, 1);
+          const penumbraAlpha = 0.28 * (1 - softT * softT * (3 - 2 * softT));
           pixels.data[i * 4] = 10;
           pixels.data[i * 4 + 1] = 11;
           pixels.data[i * 4 + 2] = 16;
-          pixels.data[i * 4 + 3] = Math.round(255 * (1 - t * t * (3 - 2 * t)));
+          pixels.data[i * 4 + 3] = Math.round(255 * (coreAlpha + (1 - coreAlpha) * penumbraAlpha));
         }
         edgeContext.putImageData(pixels, 0, 0);
         softContext.filter = 'none';
@@ -1079,15 +1097,16 @@ export class CemeterySceneV2 extends Phaser.Scene {
     }
     const baseInset = GRAVE_SHADOW_BASE_INSET_V2[gid] ?? 0;
     const visualBaseY = slot.y + slot.height / 2 + tileset.tileHeight / 2 - baseInset;
-    const shadowHeight = Phaser.Math.Clamp(slot.height * 0.16, 7, 14);
-    const shadowBaseInset = baseInset * shadowHeight / tileset.tileHeight;
+    const compactShadow = gid === COMPACT_GRAVE_SHADOW_V2.gid ? COMPACT_GRAVE_SHADOW_V2 : null;
+    const shadowHeight = compactShadow?.height ?? Phaser.Math.Clamp(slot.height * 0.16, 7, 14);
+    const shadowTopInset = (GRAVE_SHADOW_TOP_INSET_V2[gid] ?? 0) * shadowHeight / tileset.tileHeight;
     const shadow = this.add.sprite(
-      slot.x + slot.width / 2 + GRAVE_SHADOW_X_OFFSET_V2,
-      visualBaseY - shadowHeight / 2 + shadowBaseInset + GRAVE_SHADOW_Y_OFFSET_V2,
+      slot.x + slot.width / 2 + (compactShadow?.offsetX ?? GRAVE_SHADOW_X_OFFSET_V2),
+      visualBaseY + shadowHeight / 2 - shadowTopInset - GRAVE_SHADOW_BASE_OVERLAP_V2,
       tileset.name,
       gid - tileset.firstgid,
     );
-    shadow.setDisplaySize(Phaser.Math.Clamp(slot.width * 0.9, 18, 64), shadowHeight);
+    shadow.setDisplaySize(compactShadow?.width ?? Phaser.Math.Clamp(slot.width * 0.9, 18, 64), shadowHeight);
     shadow.setTintFill(GRAVE_SHADOW_TINT_V2);
     shadow.setAlpha(GRAVE_SHADOW_ALPHA_V2);
     shadow.setDepth(GRAVE_SHADOW_DEPTH_V2);

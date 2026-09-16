@@ -243,7 +243,7 @@ test('all grave shadows touch the visible PNG base, including small padded stone
     const root = globalThis as unknown as Record<string, any> // eslint-disable-line @typescript-eslint/no-explicit-any
     const { CemeterySceneV2, map } = root.v2Test
     const scene = new CemeterySceneV2()
-    return await new Promise<{ gid: number; gap: number }[]>(resolve => {
+    return await new Promise<{ gid: number; gap: number; exposed: number }[]>(resolve => {
       scene.preload = function () {
         for (const asset of assets) this.load.image(asset.name, asset.url)
       }
@@ -251,7 +251,7 @@ test('all grave shadows touch the visible PNG base, including small padded stone
         this.map = { tilesets: map.tilesets.map((tile: Record<string, unknown>) => ({
           ...tile, tileHeight: tile.tileheight, tileWidth: tile.tilewidth,
         })) }
-        const results: { gid: number; gap: number }[] = []
+        const results: { gid: number; gap: number; exposed: number }[] = []
         for (let index = 0; index < assets.length; index++) {
           const gid = 51 + index
           const tile = this.map.tilesets.find((tile: { firstgid: number }) => tile.firstgid === gid)
@@ -269,29 +269,35 @@ test('all grave shadows touch the visible PNG base, including small padded stone
           const context = canvas.getContext('2d')!
           context.drawImage(image, 0, 0)
           const pixels = context.getImageData(0, 0, image.width, image.height).data
+          let top = image.height
           let bottom = -1
           for (let py = 0; py < image.height; py++) {
             for (let px = 0; px < image.width; px++) {
-              if (pixels[(py * image.width + px) * 4 + 3] > 0) bottom = py + 1
+              if (pixels[(py * image.width + px) * 4 + 3] > 0) {
+                top = Math.min(top, py)
+                bottom = py + 1
+              }
             }
           }
           const spriteBase = sprite.y - sprite.displayHeight / 2 + bottom * sprite.scaleY
           const shadowBase = shadow.y - shadow.displayHeight / 2 + bottom * shadow.scaleY
-          results.push({ gid, gap: shadowBase - spriteBase })
+          const shadowTop = shadow.y - shadow.displayHeight / 2 + top * shadow.scaleY
+          results.push({ gid, gap: shadowTop - spriteBase, exposed: shadowBase - spriteBase })
           this.add.text(x - 24, y + 42, String(gid), { fontSize: '12px', color: '#ddddcc' })
         }
         this.game.events.once('postrender', () => resolve(results))
       }
       scene.update = () => {}
       root.shadowGallery = new root.Phaser.Game({
-        type: root.Phaser.CANVAS, width: 1008, height: 750, backgroundColor: '#71835b',
+        type: root.Phaser.WEBGL, width: 1008, height: 750, backgroundColor: '#71835b',
         pixelArt: true, banner: false, scene,
       })
     })
   }, assets)
   expect(results).toHaveLength(47)
   for (const result of results) {
-    expect(result.gap, `GID ${result.gid}: shadow must meet the visible base`).toBeCloseTo(1)
+    expect(result.gap, `GID ${result.gid}: shadow must overlap the visible base`).toBeCloseTo(-1)
+    expect(result.exposed, `GID ${result.gid}: shadow must remain visible below the sprite`).toBeGreaterThanOrEqual(2)
   }
   await page.screenshot({ path: testInfo.outputPath('grave-shadow-gallery.png') })
 })
