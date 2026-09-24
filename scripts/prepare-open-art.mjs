@@ -153,4 +153,9 @@ await sharp(raw, { raw: { width, height, channels: 4 } })
   .webp({ quality: 88, alphaQuality: 100, effort: 6 })
   .toFile(path.join(out, 'terrain-v3.webp'));
 
-console.log(`Prepared ${terrainOnly ? 3 : 28} art assets and ${width}×${height} terrain.`);
+if (!terrainOnly) {
+  await import('./build-cybergothic-tree-atlases.mjs');
+  await import('./build-high-cyber-tree-variants.mjs');
+}
+
+console.log(`Prepared optimized art assets and ${width}×${height} terrain.`);

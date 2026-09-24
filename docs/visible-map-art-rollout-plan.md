@@ -76,8 +76,15 @@
   sampled directly from the first gate prototype and built into one terrain
   image, including the entrance. The TMJ road geometry stays fixed. There is
   no second runtime ground layer or independently generated texture set.
+- Tree revision: all 16 tree frames keep their natural aspect ratio at runtime.
+  Six existing dry and leafy models now carry visible cable, forged-metal
+  and cold-light details. Three roots touching paving moved onto nearby grass;
+  the tree audit checks the final map against the active terrain image.
+- High-cyber alternatives for the dry diagonal and compact leafy models are
+  mixed into one third of distinct visible positions per type; the remaining
+  trees keep their current painted sprites.
 - Verified with TypeScript, ESLint, the 539-test unit suite, nine v2 runtime
   browser tests, mobile and desktop canvas smoke tests, production build and
   bundle audit. The production build is available locally at `/cemetery` and
   `/cemetery?previewGraves=all` for user review.
-- Awaiting user visual feedback before any further art adjustments.
+- The updated trees are ready for local visual review.

@@ -23,7 +23,9 @@ import {
   PAINTED_TREE_ATLAS_COUNT_V2,
   paintedGraveFrameV2,
   paintedGraveSizeV2,
+  paintedHighCyberTreeFrameV2,
   paintedTreeFrameV2,
+  selectHighCyberTreeIdsV2,
 } from '../utils/paintedArtV2';
 
 const MAP_TILES_X = 140;
@@ -294,10 +296,15 @@ export class CemeterySceneV2 extends Phaser.Scene {
     }
     for (let i = 1; i <= PAINTED_TREE_ATLAS_COUNT_V2; i++) {
       const number = String(i).padStart(2, '0');
-      this.load.spritesheet(`painted-trees-${number}`, `${PAINTED_ART_BASE_URL_V2}/tree-atlas-${number}.webp`, {
+      this.load.spritesheet(`painted-trees-${number}`, `${PAINTED_ART_BASE_URL_V2}/tree-atlas-cybergothic-v2-${number}.webp`, {
         frameWidth: 627, frameHeight: 627,
       });
     }
+    this.load.spritesheet(
+      'painted-trees-high-cyber',
+      `${PAINTED_ART_BASE_URL_V2}/tree-atlas-high-cyber-80.webp`,
+      { frameWidth: 627, frameHeight: 627 },
+    );
     for (const name of ['chapel', 'lodge', 'garage', 'technical', 'side-fence']) {
       this.load.image(`painted-${name}`, `${PAINTED_ART_BASE_URL_V2}/${name}.webp`);
     }
@@ -764,26 +771,39 @@ export class CemeterySceneV2 extends Phaser.Scene {
     treeShadows.fillStyle(0x0b100c, 0.15);
     const graveSlots = [...this.slots.values()].filter(slot => isActiveGraveSlotV2(slot.id));
 
-    for (const obj of treeLayer.objects) {
-      if (!obj.gid) continue;
-      const ts = this.map.tilesets.find(t => t.firstgid === obj.gid);
-      if (!ts) continue;
+    const renderableTrees = treeLayer.objects.flatMap(obj => {
+      if (!obj.gid) return [];
       const position = getTiledObjectCenter(obj);
       const bounds = getTiledObjectBounds(obj);
       const rootY = bounds.y + bounds.height - (TREE_SHADOW_ROOT_INSET_V2[obj.gid] ?? 0);
       // Old decorative trees sometimes placed their trunks directly on a
       // future plot. Keep the crown overlap, but never block a grave footprint.
       if (graveSlots.some(slot => position.x >= slot.x - 6 && position.x <= slot.x + slot.width + 6
-        && rootY >= slot.y - 6 && rootY <= slot.y + slot.height + 6)) continue;
-      this.drawTreeGroundShadow(treeShadows, bounds, obj.gid);
-      const art = paintedTreeFrameV2(obj.gid);
+        && rootY >= slot.y - 6 && rootY <= slot.y + slot.height + 6)) return [];
+      return [{ obj, position, bounds, rootY }];
+    });
+    const highCyberIds = selectHighCyberTreeIdsV2(renderableTrees.map(({ obj, position, rootY }) => ({
+      id: obj.id, gid: obj.gid!, x: position.x, y: rootY,
+    })));
+
+    for (const { obj, position, bounds, rootY } of renderableTrees) {
+      const gid = obj.gid!;
+      const ts = this.map.tilesets.find(t => t.firstgid === gid);
+      if (!ts) continue;
+      this.drawTreeGroundShadow(treeShadows, bounds, gid);
+      const art = (highCyberIds.has(obj.id) ? paintedHighCyberTreeFrameV2(gid) : null)
+        ?? paintedTreeFrameV2(gid);
       if (art && this.textures.exists(art.key)) {
+        // Atlas frames are square; their transparent silhouettes already have
+        // natural wide, narrow, and tall proportions. Uniform display scaling
+        // prevents Tiled object rectangles from squeezing the crowns.
+        const displaySize = bounds.height * 1.8;
         this.add.sprite(position.x, rootY, art.key, art.frame)
           .setOrigin(0.5, 1)
-          .setDisplaySize(bounds.width * 1.8, bounds.height * 1.8)
+          .setDisplaySize(displaySize, displaySize)
           .setDepth(800 + rootY / 10000);
       } else {
-        this.add.sprite(position.x, position.y, ts.name, obj.gid - ts.firstgid)
+        this.add.sprite(position.x, position.y, ts.name, gid - ts.firstgid)
           .setDepth(600);
       }
     }
