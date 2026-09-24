@@ -99,3 +99,31 @@ test('high-cyber trees occupy one third of distinct positions for both approved 
     expect(stats.channels[3].max).toBeGreaterThan(200)
   }
 })
+
+test('Crypt and both Crematory wings retain their authored dimensions', async () => {
+  const crypt = map.layers.find((layer: { name: string }) =>
+    layer.name === 'ChapelPreview_8d_lowdetail_palette_copy').objects[0]
+  const lodge = map.layers.find((layer: { name: string }) =>
+    layer.name === 'GravediggerLodgePreview_map4').objects[0]
+  const service = map.layers.find((layer: { name: string }) =>
+    layer.name === 'ServiceBuildingsPreview_map4').objects as Array<{
+      name: string; x: number; y: number; width: number; height: number
+    }>
+  expect([crypt.width, crypt.height]).toEqual([160, 256])
+  expect([lodge.width, lodge.height]).toEqual([160, 160])
+  expect(service.map(part => [part.name, part.width, part.height])).toEqual([
+    ['service_garage_2x3_map4', 64, 96],
+    ['service_technical_building_4x5_map4', 128, 160],
+  ])
+
+  for (const name of [
+    'crypt-template-aligned',
+    'crematory-garage-template-aligned',
+    'crematory-technical-template-aligned',
+  ]) {
+    const metadata = await sharp(join(artDir, `${name}.webp`)).metadata()
+    expect(metadata.hasAlpha).toBe(true)
+    expect(metadata.width).toBeGreaterThan(640)
+    expect(metadata.height).toBeGreaterThan(640)
+  }
+})

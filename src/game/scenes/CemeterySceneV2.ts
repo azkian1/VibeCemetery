@@ -305,7 +305,13 @@ export class CemeterySceneV2 extends Phaser.Scene {
       `${PAINTED_ART_BASE_URL_V2}/tree-atlas-high-cyber-80.webp`,
       { frameWidth: 627, frameHeight: 627 },
     );
-    for (const name of ['chapel', 'lodge', 'garage', 'technical', 'side-fence']) {
+    for (const name of [
+      'crypt-template-aligned',
+      'crematory-garage-template-aligned',
+      'crematory-technical-template-aligned',
+      'lodge',
+      'side-fence',
+    ]) {
       this.load.image(`painted-${name}`, `${PAINTED_ART_BASE_URL_V2}/${name}.webp`);
     }
 
@@ -718,9 +724,10 @@ export class CemeterySceneV2 extends Phaser.Scene {
             .setDepth(depth);
           continue;
         }
-        const paintedName = layerName === 'ChapelPreview_8d_lowdetail_palette_copy' ? 'chapel'
+        const paintedName = layerName === 'ChapelPreview_8d_lowdetail_palette_copy' ? 'crypt-template-aligned'
           : layerName === 'GravediggerLodgePreview_map4' ? 'lodge'
-          : layerName === 'ServiceBuildingsPreview_map4' ? (obj.gid === 31 ? 'garage' : 'technical')
+          : layerName === 'ServiceBuildingsPreview_map4'
+            ? (obj.gid === 31 ? 'crematory-garage-template-aligned' : 'crematory-technical-template-aligned')
           : layerName === 'Side_map4' ? 'side-fence' : null;
         const paintedKey = paintedName ? `painted-${paintedName}` : null;
         if (paintedKey && this.textures.exists(paintedKey)) {

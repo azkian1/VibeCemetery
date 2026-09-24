@@ -83,6 +83,10 @@
 - High-cyber alternatives for the dry diagonal and compact leafy models are
   mixed into one third of distinct visible positions per type; the remaining
   trees keep their current painted sprites.
+- The Crypt keeps its tall chapel, spire and cross at the original 160×256
+  size. Crematory keeps its distinct garage (64×96) and technical hall
+  (128×160) as separate sprites. Their new art follows the Lodge's near-frontal
+  camera angle and muted slate/stone palette without borrowing its architecture.
 - Verified with TypeScript, ESLint, the 539-test unit suite, nine v2 runtime
   browser tests, mobile and desktop canvas smoke tests, production build and
   bundle audit. The production build is available locally at `/cemetery` and

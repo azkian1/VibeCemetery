@@ -156,6 +156,7 @@ await sharp(raw, { raw: { width, height, channels: 4 } })
 if (!terrainOnly) {
   await import('./build-cybergothic-tree-atlases.mjs');
   await import('./build-high-cyber-tree-variants.mjs');
+  await import('./build-lodge-angle-buildings.mjs');
 }
 
 console.log(`Prepared optimized art assets and ${width}×${height} terrain.`);
