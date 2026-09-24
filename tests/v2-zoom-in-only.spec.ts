@@ -14,9 +14,10 @@ function section(source: string, from: string, to: string) {
   return source.slice(start, end)
 }
 
-test('v2 keeps the normal gameplay zoom as its zoom-out floor', () => {
+test('v2 opens on the detailed gate view and keeps the normal zoom-out floor', () => {
   expect(sceneSource).toContain('this.minZoom = Math.max(fitZoom, 0.9);')
-  expect(sceneSource).toContain('cam.zoomTo(this.minZoom, 2000, \'Sine.easeInOut\');')
+  expect(sceneSource).toContain('const entranceZoom = isMobile ? this.minZoom : Math.max(this.minZoom, 1.45);')
+  expect(sceneSource).toContain('cam.setZoom(entranceZoom);')
 })
 
 test('v2 allows zoom-out input only down to the standard gameplay floor', () => {

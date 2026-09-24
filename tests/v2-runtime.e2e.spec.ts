@@ -215,6 +215,7 @@ test('a failed PNG cannot swallow a later critical TMJ failure', async ({ page }
     scene.load = new root.Phaser.Events.EventEmitter()
     scene.load.tilemapTiledJSON = () => {}
     scene.load.image = () => {}
+    scene.load.spritesheet = () => {}
     const errors: unknown[] = []
     cemeteryEvents.on('load_error', (data: unknown) => errors.push(data))
     scene.preload()

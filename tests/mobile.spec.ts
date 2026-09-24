@@ -7,7 +7,7 @@ import { test, expect } from '@playwright/test';
  */
 
 async function waitForApp(page: import('@playwright/test').Page) {
-  await page.getByTestId('phaser-stage').waitFor({ state: 'visible', timeout: 15_000 });
+  await page.getByTestId('phaser-stage-v2').waitFor({ state: 'visible', timeout: 15_000 });
   await expect(page.locator('canvas').first()).toBeVisible();
   await expect(page.getByRole('button', { name: 'FAQ' })).toBeVisible();
 }

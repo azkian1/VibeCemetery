@@ -1,6 +1,6 @@
 import * as Phaser from 'phaser';
 import { parseSlotsV2, SlotData } from '../utils/slotManager-v2';
-import { pickGraveGidV2 } from '../utils/tileRegistry-v2';
+import { GRAVE_GIDS_V2, pickGraveGidV2 } from '../utils/tileRegistry-v2';
 import { getTiledObjectBounds, getTiledObjectCenter } from '../utils/tiledObject';
 import { paintMinimapLayer } from '../utils/minimapRaster';
 import {
@@ -16,6 +16,15 @@ import { cameraScrollForCenter, cameraScrollFromWorldView, cameraWorldView, worl
 import { cemeteryEvents, SlotEventData, RenderGraveData, MinimapClickData, SyncGravesData } from '../events';
 import { isSameRenderedGrave, planGraveReconciliation } from '../graveReconciliation';
 import { CEMETERY_MAP_V2_URL } from '../../lib/map-version';
+import { isActiveGraveSlotV2 } from '../../lib/map-layout-v2';
+import {
+  PAINTED_ART_BASE_URL_V2,
+  PAINTED_GRAVE_ATLAS_COUNT_V2,
+  PAINTED_TREE_ATLAS_COUNT_V2,
+  paintedGraveFrameV2,
+  paintedGraveSizeV2,
+  paintedTreeFrameV2,
+} from '../utils/paintedArtV2';
 
 const MAP_TILES_X = 140;
 const MAP_TILES_Y = 104;
@@ -79,6 +88,14 @@ const TREE_SHADOW_ROOT_INSET_V2: Record<number, number> = {
 };
 
 const TILESET_BASE_URL = '/map';
+const ENTRANCE_ART_BASE_URL = `${TILESET_BASE_URL}/entrance-art`;
+const ENTRANCE_GATE_WIDTH = 470;
+const ENTRANCE_GATE_HEIGHT = 235;
+const ENTRANCE_ART_KEYS = [
+  'entrance-main-gate-v1',
+  'entrance-stone-cross-v1',
+  'entrance-stone-slab-v1',
+] as const;
 
 const TILESET_NAMES_V2 = [
   'red_road_line',
@@ -209,6 +226,8 @@ export class CemeterySceneV2 extends Phaser.Scene {
   private desiredGraves = new Map<number, RenderGraveData>();
   private graveSprites = new Map<number, Phaser.GameObjects.Sprite>();
   private graveShadows = new Map<number, Phaser.GameObjects.Sprite>();
+  private previewGraveSprites = new Map<number, Phaser.GameObjects.Sprite>();
+  private previewGraveShadows = new Map<number, Phaser.GameObjects.Ellipse>();
   private ceremonySlotIds = new Set<number>();
   private snapshotProtectedSlotIds = new Set<number>();
   private graveSnapshotAuthoritative = false;
@@ -263,6 +282,25 @@ export class CemeterySceneV2 extends Phaser.Scene {
     this.load.once('complete', () => this.load.off('loaderror', this.onAssetLoadError));
 
     this.load.tilemapTiledJSON('cemetery-map-v2', CEMETERY_MAP_V2_URL);
+    this.load.image('entrance-main-gate-v1', `${ENTRANCE_ART_BASE_URL}/main-gate-v1.png`);
+    this.load.image('entrance-stone-cross-v1', `${ENTRANCE_ART_BASE_URL}/stone-cross-v1.png`);
+    this.load.image('entrance-stone-slab-v1', `${ENTRANCE_ART_BASE_URL}/stone-slab-v1.png`);
+    this.load.image('painted-terrain-v5', `${PAINTED_ART_BASE_URL_V2}/terrain-v5.webp`);
+    for (let i = 1; i <= PAINTED_GRAVE_ATLAS_COUNT_V2; i++) {
+      const number = String(i).padStart(2, '0');
+      this.load.spritesheet(`painted-graves-${number}`, `${PAINTED_ART_BASE_URL_V2}/grave-atlas-${number}.webp`, {
+        frameWidth: 627, frameHeight: 627,
+      });
+    }
+    for (let i = 1; i <= PAINTED_TREE_ATLAS_COUNT_V2; i++) {
+      const number = String(i).padStart(2, '0');
+      this.load.spritesheet(`painted-trees-${number}`, `${PAINTED_ART_BASE_URL_V2}/tree-atlas-${number}.webp`, {
+        frameWidth: 627, frameHeight: 627,
+      });
+    }
+    for (const name of ['chapel', 'lodge', 'garage', 'technical', 'side-fence']) {
+      this.load.image(`painted-${name}`, `${PAINTED_ART_BASE_URL_V2}/${name}.webp`);
+    }
 
     // Load tilesets using actual image paths from TMJ (not just name + '.png')
     // Skip SVG files (red_road_line, blockout_tiles) — planning layers are hidden
@@ -358,6 +396,8 @@ export class CemeterySceneV2 extends Phaser.Scene {
     this.desiredGraves.clear();
     this.graveSprites.clear();
     this.graveShadows.clear();
+    this.previewGraveSprites.clear();
+    this.previewGraveShadows.clear();
     this.ceremonySlotIds.clear();
     this.snapshotProtectedSlotIds.clear();
     this.graveSnapshotAuthoritative = false;
@@ -366,6 +406,16 @@ export class CemeterySceneV2 extends Phaser.Scene {
     this.events.once(Phaser.Scenes.Events.DESTROY, this.shutdown, this);
 
     this.map = this.make.tilemap({ key: 'cemetery-map-v2' });
+    for (const key of ENTRANCE_ART_KEYS) {
+      if (this.textures.exists(key)) {
+        this.textures.get(key).setFilter(Phaser.Textures.FilterMode.LINEAR);
+      }
+    }
+    for (const key of this.textures.getTextureKeys()) {
+      if (key.startsWith('painted-')) {
+        this.textures.get(key).setFilter(Phaser.Textures.FilterMode.LINEAR);
+      }
+    }
 
     const tilesets: Phaser.Tilemaps.Tileset[] = [];
     for (const name of TILESET_NAMES_V2) {
@@ -379,6 +429,7 @@ export class CemeterySceneV2 extends Phaser.Scene {
       const fogDepth = FOG_LAYER_DEPTHS_V2[layerName];
       if (fogDepth !== undefined) layer.setDepth(fogDepth);
     }
+    this.renderPaintedTerrain();
     this.createSoftFog();
     this.buildFogCameraAnchors();
 
@@ -386,12 +437,14 @@ export class CemeterySceneV2 extends Phaser.Scene {
     this.renderBuildingPreviews();
 
     // Render tree sprites from TreeObj layer
+    this.slots = parseSlotsV2(this.map);
     this.renderTreeSprites();
+    this.renderEntranceMemorials();
 
     // Emit minimap tile raster for v2 (140x104)
     this.emitMinimapTiles();
 
-    this.slots = parseSlotsV2(this.map);
+    this.renderAllGraveSlotsPreview();
 
     const slotArr = Array.from(this.slots.values()).map(s => ({
       id: s.id, x: s.x, y: s.y, width: s.width, height: s.height, type: s.type, name: s.name,
@@ -407,13 +460,13 @@ export class CemeterySceneV2 extends Phaser.Scene {
     // grid behind the fog outside the camera view.
     this.worldBounds = { ...PLAYABLE_WORLD_BOUNDS_V2 };
 
-    // Start camera on main gate with tighter zoom
-    cam.centerOn(1760, 3100);
+    // Show the new entrance art at a readable scale on first arrival.
+    cam.centerOn(1760, 2990);
     const fitZoom = Math.max(this.scale.width / WORLD_W, this.scale.height / WORLD_H);
     this.minZoom = Math.max(fitZoom, 0.9);
-    cam.setZoom(Math.max(fitZoom, 0.8));
+    const entranceZoom = isMobile ? this.minZoom : Math.max(this.minZoom, 1.45);
+    cam.setZoom(entranceZoom);
     this.clampCameraToPlayableBounds(cam);
-    cam.zoomTo(this.minZoom, 2000, 'Sine.easeInOut');
 
     const getBounds = () => this.getCameraScrollBounds(cam);
 
@@ -562,6 +615,69 @@ export class CemeterySceneV2 extends Phaser.Scene {
     }
   }
 
+  private renderAllGraveSlotsPreview() {
+    if (typeof window === 'undefined'
+      || !['localhost', '127.0.0.1'].includes(window.location.hostname)
+      || new URLSearchParams(window.location.search).get('previewGraves') !== 'all') return;
+
+    const byType = new Map<string, number>();
+    for (const slot of [...this.slots.values()].sort((a, b) => a.id - b.id)) {
+      if (!isActiveGraveSlotV2(slot.id)) continue;
+      const variants = GRAVE_GIDS_V2[slot.type];
+      if (!variants?.length) continue;
+      const ordinal = byType.get(slot.type) ?? 0;
+      byType.set(slot.type, ordinal + 1);
+      const gid = variants[ordinal % variants.length];
+      const tileset = this.map.tilesets.find(candidate => candidate.firstgid === gid);
+      if (!tileset) continue;
+      const sprite = this.createGraveVisual(slot, gid, tileset.name, 800 + (slot.y + slot.height) / 10000)
+        .setAlpha(0.82);
+      this.previewGraveSprites.set(slot.id, sprite);
+      const shadow = this.add.ellipse(
+        slot.x + slot.width / 2 + 3,
+        slot.y + slot.height - 3,
+        slot.width * 0.82,
+        9,
+        0x10120e,
+        0.25,
+      ).setDepth(799 + (slot.y + slot.height) / 10000);
+      this.previewGraveShadows.set(slot.id, shadow);
+    }
+  }
+
+  private createGraveVisual(slot: SlotData, gid: number, fallbackKey: string, depth: number) {
+    const x = slot.x + slot.width / 2;
+    const y = slot.y + slot.height / 2;
+    const art = paintedGraveFrameV2(gid);
+    if (art && this.textures?.exists(art.key)) {
+      const size = paintedGraveSizeV2(slot.type);
+      return this.add.sprite(x, y, art.key, art.frame)
+        .setDisplaySize(size.width, size.height)
+        .setDepth(depth);
+    }
+    return this.add.sprite(x, y, fallbackKey, 0)
+      .setDepth(depth);
+  }
+
+  private renderPaintedTerrain() {
+    if (!this.textures.exists('painted-terrain-v5')) return;
+    this.map.getLayer('pixellab_dualgrid_reconstructed')?.tilemapLayer?.setVisible(false);
+    this.add.image(768, 1312, 'painted-terrain-v5')
+      .setOrigin(0)
+      .setDisplaySize(2560, 2016)
+      .setDepth(10);
+  }
+
+  private renderEntranceMemorials() {
+    if (!this.textures.exists('entrance-stone-cross-v1')
+      || !this.textures.exists('entrance-stone-slab-v1')) return;
+    // These older, unclaimed memorials sit outside approved grave slots.
+    this.add.image(1460, 2970, 'entrance-stone-cross-v1')
+      .setDisplaySize(72, 108).setDepth(800);
+    this.add.image(2060, 2945, 'entrance-stone-slab-v1')
+      .setDisplaySize(126, 84).setDepth(800);
+  }
+
   private renderBuildingPreviews() {
     const previewLayers = [
       { name: 'ChapelPreview_8d_lowdetail_palette_copy', depth: BUILDING_PREVIEW_DEPTH_V2 },
@@ -581,6 +697,32 @@ export class CemeterySceneV2 extends Phaser.Scene {
         if (!ts) continue;
         const bounds = getTiledObjectBounds(obj);
         const position = getTiledObjectCenter(obj);
+        if (layerName === 'MainGate1dsQ4Preview_map4'
+          && this.textures.exists('entrance-main-gate-v1')) {
+          const gateBounds = {
+            x: position.x - ENTRANCE_GATE_WIDTH / 2,
+            y: position.y - ENTRANCE_GATE_HEIGHT / 2,
+            width: ENTRANCE_GATE_WIDTH,
+            height: ENTRANCE_GATE_HEIGHT,
+          };
+          this.renderBuildingGroundShadow(gateBounds, 'entrance-main-gate-v1', 0);
+          this.add.image(position.x, position.y, 'entrance-main-gate-v1')
+            .setDisplaySize(ENTRANCE_GATE_WIDTH, ENTRANCE_GATE_HEIGHT)
+            .setDepth(depth);
+          continue;
+        }
+        const paintedName = layerName === 'ChapelPreview_8d_lowdetail_palette_copy' ? 'chapel'
+          : layerName === 'GravediggerLodgePreview_map4' ? 'lodge'
+          : layerName === 'ServiceBuildingsPreview_map4' ? (obj.gid === 31 ? 'garage' : 'technical')
+          : layerName === 'Side_map4' ? 'side-fence' : null;
+        const paintedKey = paintedName ? `painted-${paintedName}` : null;
+        if (paintedKey && this.textures.exists(paintedKey)) {
+          this.renderBuildingGroundShadow(bounds, paintedKey, 0);
+          this.add.image(position.x, position.y, paintedKey)
+            .setDisplaySize(bounds.width, bounds.height)
+            .setDepth(depth);
+          continue;
+        }
         this.renderBuildingGroundShadow(bounds, ts.name, obj.gid - ts.firstgid);
         this.add.sprite(
           position.x,
@@ -620,19 +762,30 @@ export class CemeterySceneV2 extends Phaser.Scene {
     if (!treeLayer) return;
     const treeShadows = this.add.graphics().setDepth(TREE_SHADOW_DEPTH_V2);
     treeShadows.fillStyle(0x0b100c, 0.15);
+    const graveSlots = [...this.slots.values()].filter(slot => isActiveGraveSlotV2(slot.id));
 
     for (const obj of treeLayer.objects) {
       if (!obj.gid) continue;
       const ts = this.map.tilesets.find(t => t.firstgid === obj.gid);
       if (!ts) continue;
       const position = getTiledObjectCenter(obj);
-      this.drawTreeGroundShadow(treeShadows, getTiledObjectBounds(obj), obj.gid);
-      this.add.sprite(
-        position.x,
-        position.y,
-        ts.name,
-        obj.gid - ts.firstgid,
-      ).setDepth(600);
+      const bounds = getTiledObjectBounds(obj);
+      const rootY = bounds.y + bounds.height - (TREE_SHADOW_ROOT_INSET_V2[obj.gid] ?? 0);
+      // Old decorative trees sometimes placed their trunks directly on a
+      // future plot. Keep the crown overlap, but never block a grave footprint.
+      if (graveSlots.some(slot => position.x >= slot.x - 6 && position.x <= slot.x + slot.width + 6
+        && rootY >= slot.y - 6 && rootY <= slot.y + slot.height + 6)) continue;
+      this.drawTreeGroundShadow(treeShadows, bounds, obj.gid);
+      const art = paintedTreeFrameV2(obj.gid);
+      if (art && this.textures.exists(art.key)) {
+        this.add.sprite(position.x, rootY, art.key, art.frame)
+          .setOrigin(0.5, 1)
+          .setDisplaySize(bounds.width * 1.8, bounds.height * 1.8)
+          .setDepth(800 + rootY / 10000);
+      } else {
+        this.add.sprite(position.x, position.y, ts.name, obj.gid - ts.firstgid)
+          .setDepth(600);
+      }
     }
   }
 
@@ -905,6 +1058,26 @@ export class CemeterySceneV2 extends Phaser.Scene {
       }
     }
 
+    // The entry path stays faintly visible in front of the gate. This only
+    // changes fog presentation; TMJ fog cells still govern camera movement.
+    if (this.textures.exists('painted-terrain-v5')) {
+      const centerX = (padding + 1760) * scale;
+      const centerY = (padding + 3160) * scale;
+      const radiusX = 220 * scale;
+      const radiusY = 120 * scale;
+      softContext.save();
+      softContext.globalCompositeOperation = 'destination-out';
+      softContext.translate(centerX, centerY);
+      softContext.scale(1, radiusY / radiusX);
+      const opening = softContext.createRadialGradient(0, 0, 0, 0, 0, radiusX);
+      opening.addColorStop(0, 'rgba(0, 0, 0, 0.82)');
+      opening.addColorStop(0.55, 'rgba(0, 0, 0, 0.5)');
+      opening.addColorStop(1, 'rgba(0, 0, 0, 0)');
+      softContext.fillStyle = opening;
+      softContext.fillRect(-radiusX, -radiusX, radiusX * 2, radiusX * 2);
+      softContext.restore();
+    }
+
     const key = 'cemetery-v2-soft-fog';
     if (this.textures.exists(key)) this.textures.remove(key);
     const texture = this.textures.addCanvas(key, softened);
@@ -1047,6 +1220,8 @@ export class CemeterySceneV2 extends Phaser.Scene {
     this.graveSprites.delete(slotId);
     this.renderedSlots.delete(slotId);
     this.renderedGraves.delete(slotId);
+    this.previewGraveSprites.get(slotId)?.setVisible(true);
+    this.previewGraveShadows.get(slotId)?.setVisible(true);
   }
 
   private renderGraveOnMap(grave: RenderGraveData) {
@@ -1067,6 +1242,8 @@ export class CemeterySceneV2 extends Phaser.Scene {
     if (current || this.renderedSlots.has(grave.slot_id)) {
       this.removeGraveFromMap(grave.slot_id);
     }
+    this.previewGraveSprites.get(grave.slot_id)?.setVisible(false);
+    this.previewGraveShadows.get(grave.slot_id)?.setVisible(false);
     const shadowHeight = Phaser.Math.Clamp(slot.height * 0.16, 7, 14);
     const shadow = this.add.sprite(
       slot.x + slot.width / 2 + GRAVE_SHADOW_X_OFFSET_V2,
@@ -1079,13 +1256,9 @@ export class CemeterySceneV2 extends Phaser.Scene {
     shadow.setAlpha(GRAVE_SHADOW_ALPHA_V2);
     shadow.setDepth(GRAVE_SHADOW_DEPTH_V2);
 
-    const sprite = this.add.sprite(
-      slot.x + slot.width / 2,
-      slot.y + slot.height / 2,
-      tileset.name,
-      gid - tileset.firstgid,
+    const sprite = this.createGraveVisual(
+      slot, gid, tileset.name, 800 + (slot.y + slot.height) / 10000,
     );
-    sprite.setDepth(800);
     this.graveShadows.set(grave.slot_id, shadow);
     this.graveSprites.set(grave.slot_id, sprite);
     this.renderedSlots.add(grave.slot_id);
@@ -1610,6 +1783,14 @@ export class CemeterySceneV2 extends Phaser.Scene {
     this.renderedGraves.clear();
     this.desiredGraves.clear();
     this.graveSprites.clear();
+    for (const sprite of this.previewGraveSprites.values()) {
+      if (sprite.active) sprite.destroy();
+    }
+    this.previewGraveSprites.clear();
+    for (const shadow of this.previewGraveShadows.values()) {
+      if (shadow.active) shadow.destroy();
+    }
+    this.previewGraveShadows.clear();
     this.ceremonySlotIds.clear();
     this.snapshotProtectedSlotIds.clear();
     this.graveSnapshotAuthoritative = false;
