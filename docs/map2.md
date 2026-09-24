@@ -26,6 +26,13 @@ New graves receive a uniformly random free approved slot and a compatible persis
 
 The tall chapel opens The Crypt. The two distinct service objects on the right form one interactive Crematory: a garage and a technical hall, each with its own painted sprite and authored size. The lodge by the entrance identifies the cemetery caretaker. Gates and adjacent fences are decoration and do not open a modal.
 
+### Building repaint rules
+
+1. The existing building PNG defines the building's identity and silhouette. Keep the Crypt's chapel, tower and cross; keep the Crematory garage's shutter and controls; keep the technical hall's raised central roof, vents and pointed windows. The Gravedigger's Lodge supplies only the visual reference for camera, materials and lighting. Do not copy its facade or roof design into another building.
+2. Match the Lodge's nearly frontal, slightly elevated view: the front facade dominates, some roof is visible, vertical walls remain upright and side walls are minimal. Match its subdued gray-blue slate, aged stone, moss, contrast and brightness at the final map zoom.
+3. Preserve each Tiled object's authored world footprint and bottom anchor. The Crypt is 160×256, the Lodge 160×160, the garage 64×96 and the technical hall 128×160. `getTiledObjectBounds` applies the Tiled bottom-left tile-object origin after Phaser has applied the layer offset; `renderBuildingPreviews` fits each painted sprite to those bounds. Do not make buildings equal in width or height merely to match the Lodge. Prepare the source silhouette for its own footprint and check the rendered proportions at 1.45 zoom so it does not look compressed or elongated.
+4. The garage and technical hall remain separate visible sprites in their separate footprints. Their shared interactive Crematory slot is the union of those footprints. Keep shadows and click areas aligned with the visible base of each building; verify the full silhouette and nearby paths, graves and trees in the running map.
+
 Graves open their memorials and retain stable `/grave/[uuid]` links. The shared modal layer restores map input after closing, including nested grave and ledger views.
 
 ## Fog, camera and HUD
