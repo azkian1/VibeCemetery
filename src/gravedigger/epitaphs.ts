@@ -26,7 +26,7 @@ const GENERIC: EpitaphTemplate[] = [
   { text: 'The CI never turned green.', requires: [] },
   { text: 'Dead on arrival. No rollback.', requires: [] },
   { text: 'Merged to the great beyond.', requires: [] },
-  { text: 'No tests. No regrets. No future.', requires: [] },
+  { text: 'No tests. Still, someone gave it a chance.', requires: [] },
   { text: 'README was the only thing that worked.', requires: [] },
   { text: 'Died in development.', requires: [] },
   { text: 'It worked on my machine.', requires: [] },
@@ -36,7 +36,7 @@ const GENERIC: EpitaphTemplate[] = [
   { text: 'Built different. Broke the same.', requires: [] },
   { text: 'Too many dependencies. Too few users.', requires: [] },
   { text: 'The backlog outlived the project.', requires: [] },
-  { text: 'Left on read by every recruiter.', requires: [] },
+  { text: 'The last commit still has a timestamp.', requires: [] },
   { text: 'The sprint that never ended.', requires: [] },
   { text: 'Abandoned mid-refactor.', requires: [] },
 ];
@@ -47,14 +47,14 @@ const BY_NAME: EpitaphTemplate[] = [
   { text: '{name}. Born in hype. Buried in silence.', requires: ['name'] },
   { text: 'Here lies {name}. It tried.', requires: ['name'] },
   { text: '{name} — forever in alpha.', requires: ['name'] },
-  { text: 'R.I.P. {name}. You were almost something.', requires: ['name'] },
+  { text: 'R.I.P. {name}. Someone believed in you.', requires: ['name'] },
   { text: '{name}. One star. Zero users.', requires: ['name'] },
 ];
 
 // ── By cause ──
 
 const BY_CAUSE: EpitaphTemplate[] = [
-  { text: 'Cause of death: {cause}. As expected.', requires: ['cause'] },
+  { text: 'Cause of death: {cause}. Case closed.', requires: ['cause'] },
   { text: '{cause}. A classic way to go.', requires: ['cause'] },
   { text: 'Killed by {cause}. No survivors.', requires: ['cause'] },
   { text: '{cause}. The autopsy was brief.', requires: ['cause'] },
@@ -71,8 +71,8 @@ const BY_STACK: EpitaphTemplate[] = [
 // ── By lifespan ──
 
 const BY_DAYS: EpitaphTemplate[] = [
-  { text: '{days} days. Not even a proper sprint.', requires: ['days'] },
-  { text: 'Lived {days} days. Most mayflies do better.', requires: ['days'] },
+  { text: '{days} days. Every project gets its own clock.', requires: ['days'] },
+  { text: 'Lived {days} days. There was time to try.', requires: ['days'] },
   { text: '{name}: {days} days from init to grave.', requires: ['name', 'days'] },
 ];
 

@@ -13,6 +13,7 @@
     "check:v2-bundle": "node scripts/check-v2-bundle.mjs",
     "test:e2e": "playwright test -c playwright.config.ts",
     "test:web3-e2e": "playwright test -c playwright.web3.config.ts",
+    "check:grave-nft": "node scripts/check-grave-nft.mjs",
     "test:bury-skill": "playwright test -c tests/bury-skill-config.ts"
   },
   "dependencies": {
@@ -32,6 +33,7 @@
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.8",
+    "@openzeppelin/contracts": "^5.6.1",
     "@playwright/test": "^1.58.2",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
@@ -39,6 +41,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "^16.2.4",
+    "solc": "^0.8.37",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

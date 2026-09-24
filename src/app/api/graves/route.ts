@@ -24,8 +24,10 @@ export async function GET(req: NextRequest) {
     return NextResponse.json(CEMETERY_VERSION_RETIRED, { status: 410 })
   }
 
-  const limitParam = parseInt(searchParams.get('limit') ?? '500', 10)
-  const limit = Math.min(Math.max(1, limitParam || 500), 500)
+  // The client loads the whole current map in one request. The planned world has
+  // 666 plots, so the default and cap must cover every approved plot.
+  const limitParam = parseInt(searchParams.get('limit') ?? '666', 10)
+  const limit = Math.min(Math.max(1, limitParam || 666), 666)
   const offset = Math.max(0, parseInt(searchParams.get('offset') ?? '0', 10) || 0)
   const knownSlotIds = getGraveSlots(mapVersion).map((slot) => slot.id)
 

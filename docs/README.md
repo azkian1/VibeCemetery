@@ -12,6 +12,8 @@ The live product is the v2 cemetery at [/cemetery](https://vibecemetery.app/ceme
 | [Burn release checks](web3-grave-burn-v1-finish-runbook.md) | Safe configuration, preflight and acceptance |
 | [Release operations](v2-cutover-runbook.md) | Deployment verification, observation and recovery |
 | [Slot audit](v2-slot-audit.md) | The approved 144-slot map contract |
+| [NFT launch readiness](grave-nft-launch-readiness.md) | Prelaunch checks for traffic, map, sharing and burial ritual |
+| [Grave NFT contract draft](grave-nft-contract-spec.md) | Claim, transfer, exhumation and reserved-plot design |
 | [Security](../SECURITY.md) | Reporting issues and handling private data |
 
 ## Current and planned

@@ -14,7 +14,7 @@ export const GRAVEDIGGER_IDLE: string[] = [
   'Another TodoApp every evening. Classic.',
   'localhost — the most popular last known address.',
   'All projects die. Good ones and bad ones. The difference is whether there was a README.',
-  'Seen projects that lived three days. And projects that lived three hours. No difference.',
+  'Seen projects that lived three days. And projects that lived three hours. I remember both.',
   'Projects used to die from lack of money. Now — from too many prompts.',
   'People create projects knowing they\'ll abandon them. I don\'t understand. But I respect it.',
   'Every dead project is an attempt. And an attempt is more than nothing.',
@@ -28,7 +28,7 @@ export const GRAVEDIGGER_IDLE: string[] = [
   'Cause of death: localhost. Classic.',
   'Buried an AI pizza-ordering agent today. Lived 2 days.',
   'He tried. Didn\'t work out, but he tried. That\'s something.',
-  'Rest in peace. README empty. As usual.',
+  'Rest in peace. The README can wait.',
   'Another TodoApp. Third one today.',
   'Here lies a project with zero commits. Didn\'t even survive init.',
   'Someone pushed .env to a public repo. A moment of silence.',
@@ -36,14 +36,14 @@ export const GRAVEDIGGER_IDLE: string[] = [
 
 export const GRAVEDIGGER_BURIAL: string[] = [
   'Another one. Rest in peace.',
-  'Rest in peace... or don\'t. I don\'t care.',
+  'Rest in peace. I\'ll keep the path clear.',
   'Dust to dust, code to archive.',
   'Ambitious project. Too ambitious for a Tuesday evening.',
-  'He tried. Didn\'t work out, but he tried.',
+  'Someone gave this an honest try. That counts.',
   'Time of death confirmed. My condolences.',
   'Another one gone. The spot won\'t stay empty for long.',
   'The earth accepts all. Even without tests.',
-  'Buried with dignity. Well, as much dignity as possible.',
+  'Buried with care. The path will stay clear.',
 ];
 
 export const GRAVEDIGGER_MASS_BURIAL: string[] = [
@@ -55,7 +55,7 @@ export const GRAVEDIGGER_MASS_BURIAL: string[] = [
 
 export const GRAVEDIGGER_PROFILE: string[] = [
   'Back again? The dead don\'t visit this often.',
-  'Checking your stats? The graves don\'t care about numbers.',
+  'Checking your stats? I keep good records.',
   'You\'ve been busy. The cemetery appreciates it.',
   'A regular. I remember the first time you came. Innocent.',
   'Your shovel work is... acceptable.',
