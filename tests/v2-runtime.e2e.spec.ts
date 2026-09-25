@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 import { readFileSync } from 'node:fs'
-import { dirname, posix, resolve, relative } from 'node:path'
+import { dirname, extname, posix, resolve, relative } from 'node:path'
 import ts from 'typescript'
 
 // TypeScript strips types only. Relative imports use the actual source modules;
@@ -10,6 +10,10 @@ function collect(file: string): string {
   const id = '/' + relative(process.cwd(), file).replaceAll('\\', '/')
   if (modules[id]) return id
   const source = readFileSync(file, 'utf8')
+  if (extname(file) === '.json') {
+    modules[id] = `module.exports = { default: ${source} };`
+    return id
+  }
   const output = ts.transpileModule(source, {
     compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS },
   }).outputText
@@ -17,7 +21,7 @@ function collect(file: string): string {
   for (const match of output.matchAll(/require\("([^"]+)"\)/g)) {
     if (match[1] === 'phaser') continue
     if (!match[1].startsWith('.')) throw new Error('Unexpected runtime dependency: ' + match[1])
-    collect(resolve(dirname(file), match[1] + '.ts'))
+    collect(resolve(dirname(file), extname(match[1]) ? match[1] : match[1] + '.ts'))
   }
   return id
 }
@@ -41,7 +45,9 @@ test.beforeEach(async ({ page }) => {
   // Resolve import paths in Node so the browser loader needs no filesystem.
   const imports = Object.fromEntries(Object.entries(modules).map(([id, source]) => [id,
     Object.fromEntries([...source.matchAll(/require\("([^"]+)"\)/g)].map(match => [match[1],
-      match[1] === 'phaser' ? 'phaser' : posix.normalize(posix.join(posix.dirname(id), match[1] + '.ts')),
+      match[1] === 'phaser' ? 'phaser' : posix.normalize(posix.join(
+        posix.dirname(id), posix.extname(match[1]) ? match[1] : match[1] + '.ts',
+      )),
     ])),
   ]))
   await page.evaluate(({ modules, imports, sceneId, pendingId, projectionId, eventsId, tileRegistryId, map }) => {
@@ -186,7 +192,7 @@ test('a server-picked gravestone keeps its texture through a carried ceremony an
     const data = consumePendingBurialCeremony()
     const scene = new CemeterySceneV2()
     scene.map = map
-    scene.slots.set(10, { id: 10, x: 1568, y: 2656, width: 32, height: 64, type: 'grave_tall' })
+    scene.slots.set(10, { id: 10, x: 1488, y: 2608, width: 32, height: 64, type: 'grave_tall' })
     scene.input = { enabled: true }
     const textures: string[] = []
     scene.add = { sprite(_x: number, _y: number, key: string) {
@@ -205,6 +211,28 @@ test('a server-picked gravestone keeps its texture through a carried ceremony an
   expect(result.during).toBe('grave_1x2_batch08_del_key_cross_style_v2_586efee3')
   expect(result.after).toBe(result.during)
   expect(result.spriteCount).toBe(2) // Shadow and sprite, without a replacement at the end.
+})
+
+test('a saved grave with retired GID 76 renders the approved replacement', async ({ page }) => {
+  const result = await page.evaluate(() => {
+    const root = globalThis as unknown as Record<string, any> // eslint-disable-line @typescript-eslint/no-explicit-any
+    const { CemeterySceneV2, map } = root.v2Test
+    const scene = new CemeterySceneV2()
+    scene.map = map
+    scene.slots.set(10, { id: 10, x: 1488, y: 2608, width: 32, height: 64, type: 'grave_tall' })
+    const textures: string[] = []
+    scene.add = { sprite(_x: number, _y: number, key: string) {
+      textures.push(key)
+      return { active: true, setDisplaySize() {}, setTintFill() {}, setAlpha() {}, setDepth() {}, destroy() {} }
+    } }
+    const grave = { slot_id: 10, id: 'retired-art', name: 'retired-art', grave_gid: 76 }
+    scene.renderGraveOnMap(grave)
+    return { storedGid: grave.grave_gid, texture: textures.at(-1), replacement: map.tilesets.find(
+      (tileset: { firstgid: number }) => tileset.firstgid === 75,
+    )?.name }
+  })
+  expect(result.storedGid).toBe(76)
+  expect(result.texture).toBe(result.replacement)
 })
 
 test('a failed PNG cannot swallow a later critical TMJ failure', async ({ page }) => {

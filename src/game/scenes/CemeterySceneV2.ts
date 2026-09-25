@@ -1,6 +1,6 @@
 import * as Phaser from 'phaser';
 import { parseSlotsV2, SlotData } from '../utils/slotManager-v2';
-import { GRAVE_GIDS_V2, pickGraveGidV2 } from '../utils/tileRegistry-v2';
+import { displayGraveGidV2, GRAVE_GIDS_V2, pickGraveGidV2 } from '../utils/tileRegistry-v2';
 import { getTiledObjectBounds, getTiledObjectCenter } from '../utils/tiledObject';
 import { paintMinimapLayer } from '../utils/minimapRaster';
 import {
@@ -43,6 +43,7 @@ const CAMERA_FOG_SAFETY_WORLD_BOUNDS_V2 = {
 const BUILDING_SHADOW_DEPTH_V2 = 699;
 const BUILDING_PREVIEW_DEPTH_V2 = 700;
 const MAIN_GATE_PREVIEW_DEPTH_V2 = 701;
+const RIGHT_GATE_BUSH_ID_V2 = 404;
 const BUILDING_SHADOW_X_OFFSET_V2 = 5;
 const BUILDING_SHADOW_Y_OFFSET_V2 = 2;
 const BUILDING_SHADOW_TINT_V2 = 0x0b100c;
@@ -672,7 +673,7 @@ export class CemeterySceneV2 extends Phaser.Scene {
     if (art && this.textures?.exists(art.key)) {
       const placement = paintedGravePlacementV2(gid, slot.type, slot);
       if (placement) return this.add.sprite(placement.x, placement.y, art.key, art.frame)
-        .setDisplaySize(placement.displaySize, placement.displaySize)
+        .setDisplaySize(placement.displaySize, placement.displayHeight)
         .setDepth(depth);
     }
     return this.add.sprite(x, y, fallbackKey, 0)
@@ -694,7 +695,7 @@ export class CemeterySceneV2 extends Phaser.Scene {
     // These older, unclaimed memorials sit outside approved grave slots.
     this.add.image(1460, 2970, 'entrance-stone-cross-v1')
       .setDisplaySize(72, 108).setDepth(800);
-    this.add.image(2060, 2945, 'entrance-stone-slab-v1')
+    this.add.image(2238, 2860, 'entrance-stone-slab-v1')
       .setDisplaySize(126, 84).setDepth(800);
   }
 
@@ -815,7 +816,9 @@ export class CemeterySceneV2 extends Phaser.Scene {
         this.add.sprite(position.x, rootY, art.key, art.frame)
           .setOrigin(0.5, 1)
           .setDisplaySize(displaySize, displaySize)
-          .setDepth(800 + rootY / 10000);
+          .setDepth(obj.id === RIGHT_GATE_BUSH_ID_V2
+            ? MAIN_GATE_PREVIEW_DEPTH_V2 - 1
+            : 800 + rootY / 10000);
       } else {
         this.add.sprite(position.x, position.y, ts.name, gid - ts.firstgid)
           .setDepth(600);
@@ -1080,7 +1083,16 @@ export class CemeterySceneV2 extends Phaser.Scene {
           }
         }
         for (let i = 0; i < distance.length; i++) {
-          const t = Phaser.Math.Clamp((distance[i] - 4) / 36, 0, 1);
+          const worldX = (i % width) / scale - padding;
+          const worldY = Math.floor(i / width) / scale - padding;
+          // The first grave row sits close to the north edge of the painted terrain.
+          // Keep the edge hidden, but let that fog fade before it reaches the stones.
+          const northRelief = Phaser.Math.Clamp((worldX - 1200) / 160, 0, 1)
+            * Phaser.Math.Clamp((2520 - worldX) / 160, 0, 1)
+            * Phaser.Math.Clamp((1800 - worldY) / 160, 0, 1);
+          const fadeStart = Phaser.Math.Linear(4, 0, northRelief);
+          const fadeWidth = Phaser.Math.Linear(36, 5, northRelief);
+          const t = Phaser.Math.Clamp((distance[i] - fadeStart) / fadeWidth, 0, 1);
           pixels.data[i * 4] = 10;
           pixels.data[i * 4 + 1] = 11;
           pixels.data[i * 4 + 2] = 16;
@@ -1266,7 +1278,8 @@ export class CemeterySceneV2 extends Phaser.Scene {
     if (!slot) return;
 
     // Use server-picked GID if available, otherwise fall back to deterministic pick
-    const gid = grave.grave_gid ?? pickGraveGidV2(slot.type, grave.slot_id);
+    const storedGid = grave.grave_gid ?? pickGraveGidV2(slot.type, grave.slot_id);
+    const gid = storedGid == null ? null : displayGraveGidV2(storedGid);
     const tileset = gid ? this.map.tilesets.find(ts => ts.firstgid === gid) : null;
     if (!gid || !tileset) {
       this.removeGraveFromMap(grave.slot_id);

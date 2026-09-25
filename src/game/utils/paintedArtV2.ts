@@ -74,21 +74,28 @@ export function paintedGraveSizeV2(type: string): { width: number; height: numbe
   return { width: 76, height: 76 };
 }
 
+export function paintedGraveHeightScaleV2(gid: number): number {
+  // The two monitor memorials read too tall alongside the other stones.
+  return gid === 56 || gid === 87 ? 0.85 : 1;
+}
+
 interface GraveSlotGeometryV2 { x: number; y: number; width: number; height: number }
 
 export function paintedGravePlacementV2(gid: number, type: string, slot: GraveSlotGeometryV2) {
   const bounds = graveBounds[gid - 51];
   if (!bounds) return null;
   const limits = paintedGraveSizeV2(type);
-  // A single uniform scale keeps each stone's geometry and perspective intact.
+  // Fit the stone without stretching its width; the monitor pair gets a separate height trim.
   const scale = Math.min(limits.width / bounds.width, limits.height / bounds.height);
   const centerX = bounds.x + bounds.width / 2;
   const baseY = bounds.y + bounds.height;
+  const heightScale = paintedGraveHeightScaleV2(gid);
   return {
     x: slot.x + slot.width / 2 + (627 / 2 - centerX) * scale,
-    y: slot.y + slot.height + 2 + (627 / 2 - baseY) * scale,
+    y: slot.y + slot.height + 2 + (627 / 2 - baseY) * scale * heightScale,
     displaySize: 627 * scale,
+    displayHeight: 627 * scale * heightScale,
     visibleWidth: bounds.width * scale,
-    visibleHeight: bounds.height * scale,
+    visibleHeight: bounds.height * scale * heightScale,
   };
 }

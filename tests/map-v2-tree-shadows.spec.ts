@@ -24,7 +24,7 @@ test('v2 trees receive compact ground shadows below their sprites', () => {
   expect(source).toContain('43: 15,')
   expect(treeRenderer).toContain('const treeShadows = this.add.graphics().setDepth(TREE_SHADOW_DEPTH_V2);')
   expect(treeRenderer).toContain('getTiledObjectBounds(obj)')
-  expect(treeRenderer).toContain('this.drawTreeGroundShadow(treeShadows, bounds, obj.gid);')
+  expect(treeRenderer).toContain('this.drawTreeGroundShadow(treeShadows, bounds, gid);')
   expect(treeRenderer.indexOf('this.drawTreeGroundShadow('))
     .toBeLessThan(treeRenderer.indexOf('this.add.sprite('))
   expect(treeRenderer).toContain('treeShadows.fillStyle(0x0b100c, 0.15);')

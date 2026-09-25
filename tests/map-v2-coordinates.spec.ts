@@ -81,8 +81,8 @@ test.describe('map v2 coordinates', () => {
     expect(slots.get(10)).toMatchObject({
       id: 10,
       type: 'grave_tall',
-      x: 1568,
-      y: 2656,
+      x: 1488,
+      y: 2608,
       width: 32,
       height: 64,
     })
@@ -193,8 +193,8 @@ test.describe('map v2 coordinates', () => {
       y: grave!.y + (graveLayer.offsety ?? 0),
     }
     expect(getTiledObjectBounds(parsedGrave)).toEqual({
-      x: 1568,
-      y: 2656,
+      x: 1488,
+      y: 2608,
       width: 32,
       height: 64,
     })

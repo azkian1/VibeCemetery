@@ -5,9 +5,10 @@ import sharp from 'sharp'
 import graveBounds from '../src/game/utils/paintedGraveBoundsV2.json'
 import graveRedrawIds from '../src/game/utils/paintedGraveRedrawIdsV2.json'
 import { ACTIVE_GRAVE_SLOT_IDS_V2 } from '../src/lib/map-layout-v2'
-import { GRAVE_GIDS_V2 } from '../src/game/utils/tileRegistry-v2'
+import { displayGraveGidV2, GRAVE_GIDS_V2 } from '../src/game/utils/tileRegistry-v2'
 import {
   paintedGraveFrameV2,
+  paintedGraveHeightScaleV2,
   paintedGravePlacementV2,
   paintedGraveSizeV2,
   paintedHighCyberTreeFrameV2,
@@ -18,6 +19,7 @@ import {
 const root = process.cwd()
 const map = JSON.parse(readFileSync(join(root, 'public/map/cemetery-v2.tmj'), 'utf8'))
 const graveLayer = map.layers.find((layer: { name: string }) => layer.name === 'GraveObj')
+const innerLayer = map.layers.find((layer: { name: string }) => layer.name === 'Inner')
 const artDir = join(root, 'public/map/open-art')
 
 function slotType(width: number, height: number) {
@@ -56,15 +58,20 @@ test('local all-graves preview covers every approved slot and every grave GID', 
     expect(placement!.displaySize).toBeGreaterThan(0)
     const bounds = graveBounds[gid - 51]
     const scale = placement!.displaySize / 627
-    expect(placement!.visibleWidth / placement!.visibleHeight).toBeCloseTo(bounds.width / bounds.height, 5)
+    const heightScale = paintedGraveHeightScaleV2(gid)
+    expect(placement!.displayHeight / placement!.displaySize).toBeCloseTo(heightScale, 5)
+    expect(placement!.visibleWidth / placement!.visibleHeight)
+      .toBeCloseTo(bounds.width / (bounds.height * heightScale), 5)
     expect(placement!.x + (bounds.x + bounds.width / 2 - 627 / 2) * scale)
       .toBeCloseTo(slot.x + slot.width / 2, 5)
-    expect(placement!.y + (bounds.y + bounds.height - 627 / 2) * scale)
+    expect(placement!.y + (bounds.y + bounds.height - 627 / 2) * scale * heightScale)
       .toBeCloseTo(slot.y + slot.height + 2, 5)
   }
   expect([...used].sort((a, b) => a - b)).toEqual(
-    Object.values(GRAVE_GIDS_V2).flat().sort((a, b) => a - b),
+    [...new Set(Object.values(GRAVE_GIDS_V2).flat())].sort((a, b) => a - b),
   )
+  expect(used.has(76)).toBe(false)
+  expect(displayGraveGidV2(76)).toBe(75)
   for (let number = 1; number <= 12; number++) {
     const name = `grave-atlas-${String(number).padStart(2, '0')}.webp`
     const metadata = await sharp(join(artDir, name)).metadata()
@@ -75,6 +82,51 @@ test('local all-graves preview covers every approved slot and every grave GID', 
     const name = `grave-redraw-atlas-${String(number).padStart(2, '0')}.webp`
     const metadata = await sharp(join(artDir, name)).metadata()
     expect([metadata.width, metadata.height, metadata.hasAlpha]).toEqual([1254, 1254, true])
+  }
+})
+
+test('grave art has clear space around every plot and leaves the entrance path open', () => {
+  const slots = graveLayer.objects as Array<{ id: number; x: number; y: number; width: number; height: number }>
+  const envelopes = slots.map(slot => {
+    const type = slotType(slot.width, slot.height)
+    const sizes = GRAVE_GIDS_V2[type].map(gid => paintedGravePlacementV2(gid, type, slot)!)
+    const width = Math.max(...sizes.map(size => size.visibleWidth))
+    const height = Math.max(...sizes.map(size => size.visibleHeight))
+    const centerX = slot.x + graveLayer.offsetx + slot.width / 2
+    const bottom = slot.y + graveLayer.offsety + slot.height + 2
+    expect(
+      centerX >= 1664 && centerX <= 1808 && bottom >= 2384 && bottom <= 3010,
+      `Slot ${slot.id} is on the main path`,
+    ).toBe(false)
+    return { id: slot.id, left: centerX - width / 2, right: centerX + width / 2,
+      top: bottom - height, bottom }
+  })
+  for (let i = 0; i < envelopes.length; i++) {
+    for (let j = i + 1; j < envelopes.length; j++) {
+      const a = envelopes[i], b = envelopes[j]
+      const width = Math.min(a.right, b.right) - Math.max(a.left, b.left)
+      const height = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top)
+      expect(width <= 0 || height <= 0, `Grave slots ${a.id} and ${b.id} overlap`).toBe(true)
+    }
+  }
+})
+
+test('grave slots and editor objects share the coordinates used by modal focus', () => {
+  const innerById = new Map((innerLayer.objects as Array<{
+    id: number; x: number; y: number; width: number; height: number
+  }>).map(object => [object.id, object]))
+  expect(innerById.size).toBe(graveLayer.objects.length)
+  for (const slot of graveLayer.objects as Array<{
+    id: number; x: number; y: number; width: number; height: number
+  }>) {
+    const inner = innerById.get(slot.id)
+    expect(inner, `Missing editor object for grave slot ${slot.id}`).toBeDefined()
+    expect([inner!.x, inner!.y, inner!.width, inner!.height]).toEqual([
+      slot.x + graveLayer.offsetx,
+      slot.y + graveLayer.offsety,
+      slot.width,
+      slot.height,
+    ])
   }
 })
 

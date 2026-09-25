@@ -2,7 +2,7 @@ export const GRAVE_GIDS_V2: Record<string, number[]> = {
   grave_tall: [
     51, 52, 53, 54, 55, 56, 57, 58, 59, 60,
     61, 62, 63, 64, 65, 66, 67, 68, 69, 70,
-    71, 72, 73, 74, 75, 76,
+    71, 72, 73, 74, 75, 75,
   ],
   grave_wide: [
     77, 78, 79, 80, 81, 82, 83, 84, 85,
@@ -12,6 +12,11 @@ export const GRAVE_GIDS_V2: Record<string, number[]> = {
     96, 97,
   ],
 };
+
+// Existing burials may still carry the retired flat cross slab GID.
+export function displayGraveGidV2(gid: number): number {
+  return gid === 76 ? 75 : gid;
+}
 
 export function pickGraveGidV2(slotType: string, graveId: number): number | null {
   const gids = GRAVE_GIDS_V2[slotType];
