@@ -1,8 +1,12 @@
 import { ImageResponse } from 'next/og'
 import { notFound } from 'next/navigation'
+import { readFile } from 'node:fs/promises'
+import { join } from 'node:path'
 import { buildGraveShareCard, type GraveShareCard } from '@/lib/grave-share'
 import { getGraveShareData } from '@/lib/grave-share-server'
 import { getSiteUrl } from '@/lib/site'
+import { loadGraveOgArt, resolveGraveOgArtGid } from '@/lib/grave-og-art'
+import { renderGraveArtImage } from './grave-art-image'
 
 export const runtime = 'nodejs'
 export const size = { width: 1200, height: 630 }
@@ -16,7 +20,6 @@ type OgCardViewModel = {
   author: string
   cause: string
   nameLayout: ReturnType<typeof getNameLayout>
-  socialNameLayout: ReturnType<typeof getSocialNameLayout>
   lifeDates: string | null
 }
 
@@ -50,71 +53,6 @@ function getNameLayout(name: string) {
   }
 }
 
-function splitNameBySeparator(name: string): string[] | null {
-  const parts = name.split(/[._-]+/).filter(Boolean)
-  if (parts.length < 2) return null
-
-  const midpoint = Math.ceil(parts.length / 2)
-  return [parts.slice(0, midpoint).join(' '), parts.slice(midpoint).join(' ')]
-}
-
-function truncateNameLine(line: string, maxLength: number): string {
-  return line.length > maxLength ? `${line.slice(0, maxLength - 3).trimEnd()}...` : line
-}
-
-function getEstimatedNameLineWidth(line: string, fontSize: number): number {
-  const units = line.toUpperCase().split('').reduce((total, char) => {
-    if (char === ' ') return total + 0.32
-    if ('I1JL'.includes(char)) return total + 0.38
-    if ('MW'.includes(char)) return total + 0.98
-    if ('OQCG'.includes(char)) return total + 0.76
-    if ('-_.'.includes(char)) return total + 0.36
-    return total + 0.66
-  }, 0)
-
-  return units * fontSize
-}
-
-function fitNameFontSize(lines: string[], maxFontSize: number, minFontSize: number): number {
-  const maxLineWidth = 218
-
-  for (let fontSize = maxFontSize; fontSize >= minFontSize; fontSize -= 2) {
-    if (lines.every((line) => getEstimatedNameLineWidth(line, fontSize) <= maxLineWidth)) {
-      return fontSize
-    }
-  }
-
-  return minFontSize
-}
-
-export function getSocialNameLayout(name: string) {
-  const compactName = name.trim()
-  const separatedLines = splitNameBySeparator(compactName)
-
-  if (separatedLines && compactName.length > 8) {
-    if (compactName.length > 22 || separatedLines.some((line) => line.length > 10)) {
-      const lines = separatedLines.map((line) => truncateNameLine(line, 9))
-      return { lines, fontSize: fitNameFontSize(lines, 58, 38), lineHeight: 0.98 }
-    }
-
-    return { lines: separatedLines, fontSize: fitNameFontSize(separatedLines, 72, 44), lineHeight: 0.96 }
-  }
-
-  if (compactName.length <= 12) {
-    return { lines: [compactName], fontSize: 86, lineHeight: 0.95 }
-  }
-
-  if (compactName.length <= 22) {
-    return { lines: splitName(compactName), fontSize: 72, lineHeight: 0.96 }
-  }
-
-  return {
-    lines: splitName(compactName.length > 32 ? `${compactName.slice(0, 29).trimEnd()}...` : compactName),
-    fontSize: 58,
-    lineHeight: 0.98,
-  }
-}
-
 function formatLifeDates(bornAt: string | null, diedAt: string | null): string | null {
   const format = (value: string | null) => {
     if (!value) return null
@@ -130,142 +68,6 @@ function formatLifeDates(bornAt: string | null, diedAt: string | null): string |
   if (born) return `${born} - ?`
   if (died) return `? - ${died}`
   return null
-}
-
-function renderSocialGraveShareImage({ card, author, cause, socialNameLayout, lifeDates }: OgCardViewModel) {
-  return (
-    <div style={{
-      width: '100%',
-      height: '100%',
-      display: 'flex',
-      background: 'radial-gradient(circle at 18% 22%, rgba(200,160,80,0.18), transparent 28%), linear-gradient(135deg, #050504 0%, #12100d 54%, #060504 100%)',
-      color: '#fff4d4',
-      padding: '34px',
-      fontFamily: 'Georgia, serif',
-    }}>
-      <div style={{
-        width: '100%',
-        height: '100%',
-        display: 'flex',
-        gap: '44px',
-        border: '2px solid rgba(200,160,80,0.34)',
-        background: 'linear-gradient(180deg, rgba(18,16,13,0.94) 0%, rgba(5,5,4,0.98) 100%)',
-        padding: '42px 50px',
-        position: 'relative',
-        overflow: 'hidden',
-      }}>
-        <div style={{ position: 'absolute', inset: '16px', border: '1px solid rgba(255,226,163,0.14)' }} />
-        <div style={{
-          position: 'absolute',
-          top: '28px',
-          right: '34px',
-          border: '1px solid rgba(216,109,95,0.42)',
-          color: '#d86d5f',
-          padding: '9px 18px',
-          fontSize: 22,
-          letterSpacing: '2px',
-          transform: 'rotate(-8deg)',
-          background: 'rgba(10,8,7,0.88)',
-          opacity: 0.78,
-        }}>
-          DEAD PROJECT
-        </div>
-
-        <div style={{
-          width: '360px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}>
-          <div style={{
-            width: '320px',
-            height: '470px',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '38px 24px 30px',
-            borderTopLeftRadius: '160px',
-            borderTopRightRadius: '160px',
-            borderBottomLeftRadius: '28px',
-            borderBottomRightRadius: '28px',
-            background: 'linear-gradient(180deg, #c5bba6 0%, #8f8575 45%, #4a4239 100%)',
-            border: '4px solid #d8ccb4',
-            boxShadow: 'inset 0 -32px 54px rgba(0,0,0,0.28), 0 18px 36px rgba(0,0,0,0.3)',
-            color: '#11100e',
-            position: 'relative',
-            overflow: 'hidden',
-          }}>
-            <div style={{ position: 'absolute', inset: 0, backgroundImage: stoneNoise, opacity: 0.026 }} />
-            <div style={{ fontSize: 28, letterSpacing: '12px', color: '#171511', marginBottom: '28px' }}>R I P</div>
-            <div style={{ width: '230px', height: '3px', background: 'rgba(20,18,15,0.5)', marginBottom: '32px' }} />
-            <div style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              textAlign: 'center',
-              textTransform: 'uppercase',
-              fontSize: socialNameLayout.fontSize,
-              lineHeight: socialNameLayout.lineHeight,
-              fontWeight: 700,
-              color: '#11100e',
-              letterSpacing: '-2px',
-              width: '260px',
-              overflow: 'hidden',
-            }}>
-              {socialNameLayout.lines.map((line, index) => (
-                <span key={`${line}-${index}`} style={{ display: 'flex', width: '100%', justifyContent: 'center', textAlign: 'center', whiteSpace: 'nowrap' }}>{line}</span>
-              ))}
-            </div>
-            {lifeDates ? (
-              <div style={{ marginTop: '28px', fontSize: 24, fontWeight: 700, color: '#181512' }}>{lifeDates}</div>
-            ) : null}
-          </div>
-        </div>
-
-        <div style={{
-          flex: 1,
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'center',
-          paddingRight: '26px',
-        }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '18px', marginBottom: '42px' }}>
-            <div style={{ fontSize: 28, color: '#d0b36f', letterSpacing: '5px', fontWeight: 700 }}>CAUSE OF DEATH</div>
-            <div style={{
-              fontSize: 86,
-              lineHeight: 0.9,
-              color: '#ffe2a3',
-              fontWeight: 700,
-              maxWidth: '640px',
-              textShadow: '0 2px 0 rgba(0,0,0,0.4)',
-            }}>
-              {cause}
-            </div>
-          </div>
-
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            borderTop: '2px solid rgba(200,160,80,0.22)',
-            paddingTop: '24px',
-          }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <span style={{ fontSize: 22, color: '#b6a179', letterSpacing: '3px', fontWeight: 700 }}>BURIED BY</span>
-              <span style={{ fontSize: 40, color: '#fff4d4', fontWeight: 700 }}>{author}</span>
-            </div>
-            <div style={{ fontSize: 24, color: '#d0b36f', fontWeight: 700 }}>VibeCemetery.app</div>
-          </div>
-
-          <div style={{ marginTop: '26px', fontSize: 24, lineHeight: 1.25, color: '#d8cfbb', maxWidth: '660px' }}>
-            {card.description}
-          </div>
-        </div>
-      </div>
-    </div>
-  )
 }
 
 function renderClassicGraveShareImage({ card, author, cause, nameLayout, lifeDates }: OgCardViewModel) {
@@ -399,15 +201,27 @@ async function buildGraveOpenGraphResponse(id: string, variant: 'social' | 'clas
     author: card.authorGithub ? `@${card.authorGithub}` : 'Unknown necromancer',
     cause: card.cause ?? 'Terminal vibe collapse',
     nameLayout: getNameLayout(result.grave.name),
-    socialNameLayout: getSocialNameLayout(result.grave.name),
     lifeDates: formatLifeDates(result.grave.born_at, result.grave.died_at),
   }
+
+  const artSrc = variant === 'social'
+    ? await loadGraveOgArt(resolveGraveOgArtGid(result.grave))
+    : null
+  const cinzel = variant === 'social'
+    ? await readFile(join(process.cwd(), 'src', 'assets', 'og-fonts', 'Cinzel-Bold.ttf'))
+    : null
 
   return new ImageResponse(
     variant === 'classic'
       ? renderClassicGraveShareImage(viewModel)
-      : renderSocialGraveShareImage(viewModel),
-    size,
+      : renderGraveArtImage({
+          name: result.grave.name,
+          cause: viewModel.cause,
+          author: viewModel.author,
+          lifeDates: viewModel.lifeDates,
+          artSrc: artSrc!,
+        }),
+    cinzel ? { ...size, fonts: [{ name: 'Cinzel', data: cinzel, weight: 700, style: 'normal' }] } : size,
   )
 }
 
@@ -421,4 +235,4 @@ export default async function OpenGraphImage({
   return buildGraveOpenGraphResponse(id)
 }
 
-export { buildGraveOpenGraphResponse, renderClassicGraveShareImage, renderSocialGraveShareImage }
+export { buildGraveOpenGraphResponse, renderClassicGraveShareImage }
