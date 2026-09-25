@@ -9,7 +9,7 @@ import { signIn, useSession } from 'next-auth/react';
 import { GameProvider, useModal } from '@/context/GameContext';
 import { useGame } from '@/context/GameContext';
 import { ModalLayer } from '@/components/ModalLayer';
-import { calculateUserSlotEconomy, isAutoAssignableGraveSlotTypeV2 } from '@/lib/slot-economy';
+import { calculateUserSlotEconomy } from '@/lib/slot-economy';
 import type { BuryFlowMode } from '@/components/modals/BuryFlowModal';
 import type { DeadRepo, GraveData } from '@/types/game';
 import type { SlotPositionData } from '@/game/events';
@@ -83,27 +83,19 @@ export function filterFreshDeadRepos({
 export function calculateAvailableGraveSlotsForHome({
   graves,
   username,
-  hasSharedFirstGrave,
-  slotPositions = [],
 }: {
   graves: Map<number, GraveData>;
   username: string | null;
-  hasSharedFirstGrave: boolean;
-  slotPositions?: SlotPositionData[];
 }): number {
   if (!username) return 0;
 
-  const autoSlotIds = slotPositions.length > 0
-    ? new Set(slotPositions.filter((slot) => isAutoAssignableGraveSlotTypeV2(slot.type)).map((slot) => slot.id))
-    : null;
-  let slotsUsed = 0;
+  let githubSlotsUsed = 0;
   graves.forEach((grave) => {
     if (grave.author_github?.toLowerCase() !== username.toLowerCase()) return;
-    if (autoSlotIds && !autoSlotIds.has(grave.slot_id)) return;
-    slotsUsed++;
+    if (grave.source !== 'local') githubSlotsUsed++;
   });
 
-  return calculateUserSlotEconomy({ slotsUsed, hasSharedFirstGrave }).availableSlots;
+  return calculateUserSlotEconomy({ githubSlotsUsed, localSlotsUsed: 0 }).githubAvailableSlots;
 }
 
 export function decideHomeRepoAction(availableSlots: number): { label: string; flowMode: BuryFlowMode; disabled: boolean } {
@@ -120,7 +112,7 @@ function ScannerShell() {
   const { dispatch } = useGame();
   const authenticatedUsername = session?.user?.github_username ?? null;
   const account = useAccountGraves();
-  const availableGraveSlots = account.data?.availableSlots ?? 0;
+  const availableGraveSlots = account.data?.githubAvailableSlots ?? 0;
   const repoAction = decideHomeRepoAction(availableGraveSlots);
   const [isCompactViewport, setIsCompactViewport] = useState(false);
   const [repos, setRepos] = useState<DeadRepo[] | null>(null);

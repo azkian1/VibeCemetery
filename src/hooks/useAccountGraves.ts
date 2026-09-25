@@ -24,7 +24,7 @@ export function useAccountGraves() {
         if (!controller.signal.aborted) setResult({ username, data: null, error: 'Account graves could not be loaded.' })
       })
     return () => controller.abort()
-  }, [username, state.graves.size, session?.user?.x_first_grave_shared_at, revision])
+  }, [username, state.graves.size, revision])
   const current = result?.username === username ? result : null
   return { data: current?.data ?? null, error: current?.error ?? null, loading: Boolean(username && !current), refetch }
 }

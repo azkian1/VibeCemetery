@@ -34,14 +34,13 @@ test.describe('home scanner entry flow', () => {
     const availableSlots = calculateAvailableGraveSlotsForHome({
       graves,
       username: 'octocat',
-      hasSharedFirstGrave: false,
     })
 
-    expect(availableSlots).toBe(4)
+    expect(availableSlots).toBe(1)
     expect(decideHomeRepoAction(availableSlots)).toEqual({ label: 'Bury', flowMode: 'home-preselected-burial', disabled: false })
   })
 
-  test('routes first-page repo action to cremation when no grave slots remain', () => {
+  test('disables first-page repo action when the GitHub slot is used', () => {
     const graves = new Map<number, GraveData>()
     for (let i = 0; i < 4; i++) {
       graves.set(i + 1, grave({ slot_id: i + 1, author_github: 'octocat' }))
@@ -50,22 +49,19 @@ test.describe('home scanner entry flow', () => {
     const availableSlots = calculateAvailableGraveSlotsForHome({
       graves,
       username: 'octocat',
-      hasSharedFirstGrave: false,
     })
 
     expect(availableSlots).toBe(0)
     expect(decideHomeRepoAction(availableSlots)).toEqual({ label: 'No grave slots left', flowMode: 'home-preselected-burial', disabled: true })
   })
 
-  test('ignores non-auto graves when map slot positions are known', () => {
+  test('counts a historical GitHub grave regardless of map slot type', () => {
     const graves = new Map<number, GraveData>([[99, grave({ slot_id: 99, author_github: 'octocat' })]])
 
     expect(calculateAvailableGraveSlotsForHome({
       graves,
       username: 'octocat',
-      hasSharedFirstGrave: false,
-      slotPositions: [{ id: 99, type: 'grave_special', name: 'Special', x: 0, y: 0, width: 1, height: 1 }],
-    })).toBe(4)
+    })).toBe(0)
   })
 
   test('hides scanner chrome after scan results exist', () => {
@@ -88,7 +84,7 @@ test.describe('home scanner entry flow', () => {
     expect(source).not.toContain('/api/cremated')
   })
 
-  test('keeps non-auto slots out of home slot economy after the scan loads map classifications', () => {
+  test('uses authored map classifications for placement while quota includes historical graves', () => {
     const slotPositions = extractHomeSlotPositions({
       layers: [{
         name: 'GraveObj',
@@ -100,12 +96,12 @@ test.describe('home scanner entry flow', () => {
     })
     const graves = new Map<number, GraveData>([[99, grave({ slot_id: 99, author_github: 'octocat' })]])
 
+    expect(slotPositions.map(slot => slot.id)).toEqual([100])
+
     expect(calculateAvailableGraveSlotsForHome({
       graves,
       username: 'octocat',
-      hasSharedFirstGrave: false,
-      slotPositions,
-    })).toBe(4)
+    })).toBe(0)
   })
 
   test('home keeps wallet hidden and does not surface the paused Agent Layer', () => {

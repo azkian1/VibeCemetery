@@ -9,7 +9,7 @@ test('uses action-oriented GitHub connect copy in BURY flow', () => {
 test('explains the grave limit without alternative project records', async () => {
   const source = await readFile('src/components/modals/bury/StepSelect.tsx', 'utf8')
 
-  expect(source).toContain('No grave slots left.')
+  expect(source).toContain('GitHub grave slot used.')
   expect(source).not.toMatch(/cremat/i)
   expect(source).not.toContain(['Cremation is available from ', ['FI', 'RE'].join('')].join(''))
   expect(source).not.toContain([['SHO', 'VEL'].join(''), ' creates graves only'].join(''))

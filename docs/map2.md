@@ -20,7 +20,7 @@ Two of nine planned zones are open. Future zones will be released around announc
 
 The served TMJ is authoritative. Phaser applies its object and terrain offsets: do not add them again. Terrain has offset (768, 1312); parsed GraveObj and TreeObj coordinates are world coordinates.
 
-New graves receive a uniformly random free approved slot and a compatible persisted `grave_gid`. Placement stays fixed after creation. Account quotas span GitHub and local project sources; the allowance is 4 + 1 sharing slot.
+New graves receive a uniformly random free approved slot and a compatible persisted `grave_gid`. Placement stays fixed after creation. Accounts have one GitHub grave slot and one local-agent grave slot; sharing does not unlock another slot.
 
 ## Buildings and interactions
 

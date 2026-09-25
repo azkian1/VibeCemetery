@@ -53,7 +53,7 @@ Do not put secrets into shell arguments, agent-visible tool output, logs or proj
   },
   {
     title: '6. Submit, recover and return the result',
-    text: `After browser approval, GET https://vibecemetery.app/api/graves/account with Bearer auth from the local process. It returns the user's graves and slotsUsed, slotsUnlocked, availableSlots and canCreateGrave. Match existing local graves only using your local burial registry; do not expose private data from the account response. The account has 4 grave slots, plus 1 for sharing a grave, shared across GitHub/local projects and maps. If no slot remains, explain the limit; do not submit new projects or create another kind of record. Existing-request recovery with the same project_key remains allowed even at the limit.
+    text: `After browser approval, GET https://vibecemetery.app/api/graves/account with Bearer auth from the local process. It returns the user's graves and per-source fields including localSlotsUsed, localAvailableSlots and canCreateLocalGrave. Match existing local graves only using your local burial registry; do not expose private data from the account response. The account has 1 GitHub burial slot and 1 independent local AI-agent burial slot across maps. Sharing does not add slots. If the local slot is used, explain the limit; do not submit a new local project or create another kind of record. Existing-request recovery with the same project_key remains allowed even at the limit.
 
 After human confirmation and authorization, call await helper.sendBurial(payload, cli_token) from a local process. The helper POSTs to https://vibecemetery.app/api/graves using Bearer auth, a 45-second timeout and redirect rejection. For a process reading stored credentials itself, the helper's post-burial command also accepts the payload via stdin JSON.
 
@@ -61,7 +61,7 @@ Parse only the helper's JSON summary. Require ok: true and a UUID record_id: 201
 
 For a confirmed success, reload the registry, merge an entry by path_fingerprint / git_remote, and save with helper.saveRegistry(entries). Store sanitized name, path_fingerprint, git_remote, first_commit, buried_at (YYYY-MM-DD), and cause. Avoid overwriting an existing cause on replay. If saving fails, report the server success and local receipt failure separately; retrying with the same project_key recovers the record.
 
-On submission 401, clear only the saved cli_token, re-link once and retry with the same project_key. On 403, preserve it; code USER_GRAVE_SLOTS_EXHAUSTED means the shared account allowance is used. Explain other permission or eligibility rejections. On 507 the map is full; stop. On 400, 404 or 409, report the sanitized error and correct the input before retrying. On 429, honor retry_after_seconds and stop repeated submissions until the limit resets.
+On submission 401, clear only the saved cli_token, re-link once and retry with the same project_key. On 403, preserve it; code USER_GRAVE_SLOTS_EXHAUSTED means the local agent slot is used. Explain other permission or eligibility rejections. On 507 the map is full; stop. On 400, 404 or 409, report the sanitized error and correct the input before retrying. On 429, honor retry_after_seconds and stop repeated submissions until the limit resets.
 
 On a network error (status 0), 5xx, or a malformed success, the outcome is uncertain. Keep the same project_key on retry. If repeated attempts fail, stop and report the problem; do not alter identity, switch endpoints or bypass checks.`,
   },

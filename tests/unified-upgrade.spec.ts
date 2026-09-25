@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test'
 import { PGlite } from '@electric-sql/pglite'
 import { readFileSync } from 'node:fs'
 
-test('upgrade from the actual previous schema preserves graves and quota before retiring legacy data', async () => {
+test('upgrade from the actual previous schema preserves graves and applies source quotas before retiring legacy data', async () => {
   const db = new PGlite()
   const sql = (file: string) => readFileSync(file, 'utf8').replace(/create extension if not exists pgcrypto;/gi, '')
   try {
@@ -22,12 +22,18 @@ test('upgrade from the actual previous schema preserves graves and quota before 
       await db.exec(sql('docs/unified-burials.sql'))
       await db.exec(sql('docs/offering-ledger.sql'))
     }
+    for (let i = 0; i < 2; i++) {
+      await db.exec(sql('docs/source-specific-grave-slots.sql'))
+    }
     const payload = JSON.stringify({ name: 'Local project', cause: 'Abandoned', source: 'local', project_key: 'sha256:' + 'a'.repeat(64), epitaph: 'Rest in peace' })
     const write = async () => (await db.query<{ value: { status: string; grave?: { id: string } } }>("select public.create_grave_once('Tester',$1::jsonb,array[5],5,'v2',51) as value", [payload])).rows[0].value
-    expect(await write()).toMatchObject({ status: 'user_slots_exhausted' })
-    await db.exec("update public.users set x_first_grave_shared_at=now() where github_id=1")
     const created = await write()
     expect(created.status).toBe('created')
+    const secondPayload = JSON.stringify({ name: 'Second local project', cause: 'Abandoned', source: 'local', project_key: 'sha256:' + 'b'.repeat(64), epitaph: 'Rest in peace' })
+    const secondWrite = async () => (await db.query<{ value: { status: string } }>("select public.create_grave_once('Tester',$1::jsonb,array[6],6,'v2',51) as value", [secondPayload])).rows[0].value
+    expect(await secondWrite()).toMatchObject({ status: 'user_slots_exhausted' })
+    await db.exec("update public.users set x_first_grave_shared_at=now() where github_id=1")
+    expect(await secondWrite()).toMatchObject({ status: 'user_slots_exhausted' })
     expect((await db.query('select id,name,slot_id,map_version from public.graves where github_repo_id is not null order by id')).rows).toEqual(oldGraves.rows)
     // The additive phase must leave the currently deployed app's legacy storage in place.
     expect((await db.query('select name from public.cremated')).rows).toEqual([{ name: 'Old ashes' }])

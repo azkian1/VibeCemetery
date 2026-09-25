@@ -25,7 +25,7 @@ You spent time, tokens and a little hope on it. Give it a grave, an epitaph and 
 - **Visit it.** Walk the cemetery, read epitaphs and press **F** to pay respects.
 - **Remember it.** Share a grave. Find projects in **The Crypt** and their gravediggers in **Necropolis**.
 
-GitHub repos must belong to you, contain a project, not be forks and have no pushes for at least seven days. Each account starts with four graves; sharing your first grave unlocks one more. GitHub and local projects use the same allowance. Burial never deletes your source code.
+GitHub repos must belong to you, contain a project, not be forks and have no pushes for at least seven days. Each account has one GitHub grave slot and one local-agent grave slot. Sharing does not unlock another slot. Burial never deletes your source code.
 
 ## $GRAVE tributes
 

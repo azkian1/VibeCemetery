@@ -17,32 +17,15 @@ import dynamic from 'next/dynamic';
 
 const GraveBurnPanel = dynamic(() => import('./grave/GraveBurnPanel'), { ssr: false });
 
-export function shouldHighlightShareGrave({
-  isOwnGrave,
-  firstGraveSharedAt,
-  shareUnlockStatus = 'idle',
-}: {
-  isOwnGrave: boolean;
-  firstGraveSharedAt: string | null | undefined;
-  shareUnlockStatus?: 'idle' | 'unlocking' | 'unlocked' | 'error';
-}): boolean {
-  return isOwnGrave && !firstGraveSharedAt && shareUnlockStatus !== 'unlocked';
-}
-
 export default function GraveModal() {
   const { modalData, close, closeAll } = useModal();
   const { state, dispatch } = useGame();
-  const { data: session, update: updateSession } = useSession();
+  const { data: session } = useSession();
   const isMobile = useIsMobile();
   const isLoggedIn = !!session?.user;
   const slotId = modalData?.slotId;
   const slotType = modalData?.slotType;
   const grave = slotId != null ? state.graves.get(slotId) : undefined;
-  const isOwnGrave = Boolean(
-    session?.user?.github_username &&
-      grave?.author_github &&
-      session.user.github_username.toLowerCase() === grave.author_github.toLowerCase(),
-  );
 
   const voted = grave ? state.fVotes.has(grave.id) : false;
   const fCount = grave?.f_count ?? 0;
@@ -52,15 +35,10 @@ export default function GraveModal() {
     message: null,
   });
   const fError = grave && fErrorState.graveId === grave.id ? fErrorState.message : null;
-  const [shareUnlockState, setShareUnlockState] = useState<{
-    graveId: string | null;
-    status: 'idle' | 'unlocking' | 'unlocked' | 'error';
-  }>({ graveId: null, status: 'idle' });
 
   const handleClose = useCallback(() => {
     setCopied(false);
     setFErrorState({ graveId: null, message: null });
-    setShareUnlockState({ graveId: null, status: 'idle' });
     close();
   }, [close]);
 
@@ -86,24 +64,6 @@ export default function GraveModal() {
     }
   };
 
-  const confirmShareUnlock = async () => {
-    if (!grave || !isOwnGrave || session?.user?.x_first_grave_shared_at) return;
-
-    setShareUnlockState({ graveId: grave.id, status: 'unlocking' });
-    try {
-      const res = await fetch(`/api/graves/${grave.id}/share-confirm`, { method: 'POST' });
-      if (!res.ok) {
-        setShareUnlockState({ graveId: grave.id, status: 'error' });
-        return;
-      }
-
-      await updateSession();
-      setShareUnlockState({ graveId: grave.id, status: 'unlocked' });
-    } catch {
-      setShareUnlockState({ graveId: grave.id, status: 'error' });
-    }
-  };
-
   const handleShare = async () => {
     if (!grave) return;
     const url = `${window.location.origin}/grave/${grave.id}`;
@@ -111,7 +71,7 @@ export default function GraveModal() {
       graveUrl: url,
       name: grave.name,
       cause: grave.cause,
-      perspective: isOwnGrave ? 'owner' : 'visitor',
+      perspective: session?.user?.github_username?.toLowerCase() === grave.author_github?.toLowerCase() ? 'owner' : 'visitor',
     });
 
     try {
@@ -125,7 +85,6 @@ export default function GraveModal() {
 
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-      await confirmShareUnlock();
     } catch {
       window.prompt('Copy this:', url);
       setCopied(true);
@@ -139,7 +98,6 @@ export default function GraveModal() {
     if (!slot) return;
     setCopied(false);
     setFErrorState({ graveId: null, message: null });
-    setShareUnlockState({ graveId: null, status: 'idle' });
     closeAll();
     setTimeout(() => {
       cemeteryEvents.emit('minimap_click', {
@@ -277,13 +235,6 @@ export default function GraveModal() {
   }
 
   const g = grave as NonNullable<typeof grave>;
-  const socialUnlockStatus = shareUnlockState.graveId === g.id ? shareUnlockState.status : 'idle';
-  const highlightShareGrave = shouldHighlightShareGrave({
-    isOwnGrave,
-    firstGraveSharedAt: session?.user?.x_first_grave_shared_at,
-    shareUnlockStatus: socialUnlockStatus,
-  });
-
   const livedDays =
     g.born_at && g.died_at
       ? Math.ceil(
@@ -445,19 +396,10 @@ export default function GraveModal() {
 
             <StoneButton
               onClick={handleShare}
-              disabled={socialUnlockStatus === 'unlocking'}
-              style={{
-                flex: 1,
-                ...(highlightShareGrave ? {
-                  animation: 'vc-share-grave-glint 5s ease-in-out infinite',
-                  color: '#f2dfad',
-                  borderColor: 'rgba(232,213,163,0.42)',
-                  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.06), 0 0 14px rgba(232,213,163,0.18)',
-                } : {}),
-              }}
+              style={{ flex: 1 }}
               aria-label="Share grave link"
             >
-              {socialUnlockStatus === 'unlocking' ? 'Sharing...' : copied ? 'Opened X. F.' : 'Share Grave'}
+              {copied ? 'Opened X. F.' : 'Share Grave'}
             </StoneButton>
 
             <StoneButton
@@ -472,26 +414,6 @@ export default function GraveModal() {
               {copied ? 'X composer opened' : ''}
             </span>
           </div>
-          {highlightShareGrave && (
-            <style jsx global>{`
-              @keyframes vc-share-grave-glint {
-                0%, 62%, 100% { border-color: rgba(232,213,163,0.32); color: #d8c891; box-shadow: inset 0 1px 0 rgba(255,255,255,0.06), 0 0 14px rgba(232,213,163,0.18); }
-                70% { border-color: rgba(232,213,163,0.95); color: #fff4c8; box-shadow: inset 0 1px 0 rgba(255,255,255,0.12), 0 0 34px rgba(232,213,163,0.46), 0 0 58px rgba(200,160,80,0.26); }
-                78% { border-color: rgba(200,160,80,0.7); color: #f2dfad; box-shadow: inset 0 1px 0 rgba(255,255,255,0.1), 0 0 26px rgba(232,213,163,0.36), 0 0 48px rgba(200,160,80,0.2); }
-                88% { border-color: rgba(232,213,163,0.32); color: #d8c891; box-shadow: inset 0 1px 0 rgba(255,255,255,0.06), 0 0 14px rgba(232,213,163,0.18); }
-              }
-            `}</style>
-          )}
-          {socialUnlockStatus === 'unlocked' && (
-            <p role="status" aria-live="polite" style={{ margin: '10px 0 0', fontSize: 12, color: '#c8a050', fontStyle: 'italic', textAlign: 'center' }}>
-              Social slot unlocked. One more grave may rise.
-            </p>
-          )}
-          {socialUnlockStatus === 'error' && (
-            <p role="status" aria-live="polite" style={{ margin: '10px 0 0', fontSize: 12, color: '#b86858', fontStyle: 'italic', textAlign: 'center' }}>
-              Shared, but the slot unlock failed. Try again.
-            </p>
-          )}
         </div>
       </StoneFrame>
     </ModalOverlay>

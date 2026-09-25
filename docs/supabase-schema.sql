@@ -465,7 +465,7 @@ begin
     return jsonb_build_object('status','failed');
   end if;
   perform pg_advisory_xact_lock(hashtext('grave-account:' || v_author));
-  select 4 + case when x_first_grave_shared_at is not null then 1 else 0 end into v_limit
+  select case when v_source = 'github' then 1 when v_source = 'local' then 1 end into v_limit
     from public.users where lower(github_username) = v_author for update;
   if v_limit is null then return jsonb_build_object('status','failed'); end if;
   if v_source = 'local' then
@@ -479,7 +479,7 @@ begin
     if exists(select 1 from public.graves where github_repo_id = v_repo) then return jsonb_build_object('status','duplicate_repo'); end if;
   else return jsonb_build_object('status','failed');
   end if;
-  select count(*)::integer into v_slots from public.graves where lower(author_github) = v_author;
+  select count(*)::integer into v_slots from public.graves where lower(author_github) = v_author and coalesce(source, 'github') = v_source;
   if v_slots >= v_limit then
     return jsonb_build_object('status','user_slots_exhausted','slots_unlocked',v_limit,'slots_used',v_slots);
   end if;
@@ -499,7 +499,7 @@ begin
     if v_constraint in ('graves_slot_id_key','graves_slot_id_map_version_key') then return jsonb_build_object('status','slot_collision'); end if;
     raise;
   end;
-  update public.users set graves_count = v_slots + 1, updated_at = now() where lower(github_username) = v_author;
+  update public.users set graves_count = (select count(*) from public.graves where lower(author_github) = v_author), updated_at = now() where lower(github_username) = v_author;
   return jsonb_build_object('status','created','grave',to_jsonb(v_grave) - 'project_key');
 end $$;
 revoke all on function public.create_grave_once(text,jsonb,integer[],integer,text,integer) from public,anon,authenticated;

@@ -20,33 +20,34 @@ test.afterAll(async () => { await db?.close() })
 test.beforeEach(async () => {
   await db.exec("truncate public.graves cascade; truncate public.users; insert into public.users(github_id,github_username) values (1,'Tester'),(2,'Other');")
 })
-test('local and GitHub projects share four slots across maps and username casing', async () => {
-  const results = await Promise.all([bury(1), bury(2, { source: 'github' }), bury(3, { map: 'v2', author: 'TESTER' }), bury(4, { source: 'github', map: 'v2' }), bury(5)])
-  expect(results.filter(r => r.status === 'created')).toHaveLength(4)
-  expect(results.filter(r => r.status === 'user_slots_exhausted')).toHaveLength(1)
-  expect((await db.query('select graves_count from public.users where github_id=1')).rows).toEqual([{ graves_count: 4 }])
+test('local and GitHub projects have one slot each across maps and username casing', async () => {
+  expect((await bury(1)).status).toBe('created')
+  expect((await bury(2, { source: 'github', map: 'v2', author: 'TESTER' })).status).toBe('created')
+  expect((await bury(3)).status).toBe('user_slots_exhausted')
+  expect((await bury(4, { source: 'github' })).status).toBe('user_slots_exhausted')
+  expect((await db.query('select graves_count from public.users where github_id=1')).rows).toEqual([{ graves_count: 2 }])
   expect((await bury(6, { author: 'Other' })).status).toBe('created')
 })
 test('retries recover the original grave at quota/map capacity without publishing its identity hash', async () => {
   const first = await bury(1)
-  await bury(2); await bury(3); await bury(4)
+  await bury(2, { source: 'github' })
   const retry = await bury(1, { slot: 0, map: 'v2', author: 'TESTER', cause: 'Changed' })
   expect(retry.status).toBe('replayed')
   expect(retry.grave).toEqual(first.grave)
   expect(retry.grave.epitaph.length).toBeGreaterThan(0)
   expect(retry.grave).not.toHaveProperty('project_key')
-  expect((await db.query('select count(*)::integer as n from public.graves')).rows[0]).toEqual({ n: 4 })
+  expect((await db.query('select count(*)::integer as n from public.graves')).rows[0]).toEqual({ n: 2 })
 })
-test('one share unlocks exactly one additional grave', async () => {
+test('sharing does not unlock another grave', async () => {
   await db.exec("update public.users set x_first_grave_shared_at = now() where github_id=1")
-  for(let n=1;n<=5;n++) expect((await bury(n)).status).toBe('created')
-  expect((await bury(6)).status).toBe('user_slots_exhausted')
+  expect((await bury(1)).status).toBe('created')
+  expect((await bury(2)).status).toBe('user_slots_exhausted')
 })
 test('slot collisions and invalid map identities do not consume allowance', async () => {
   await bury(1)
-  expect((await bury(2, { slot: 1 })).status).toBe('slot_collision')
+  expect((await bury(2, { source: 'github', slot: 1 })).status).toBe('slot_collision')
   expect((await bury(2, { map: 'invented' })).status).toBe('failed')
-  expect((await bury(2, { slot: 0 })).status).toBe('no_slots')
+  expect((await bury(2, { source: 'github', slot: 0 })).status).toBe('no_slots')
   expect((await bury(2, { source: 'unknown' })).status).toBe('failed')
   expect((await db.query('select graves_count from public.users where github_id=1')).rows[0]).toEqual({ graves_count: 1 })
 })
@@ -58,6 +59,9 @@ test('counter failure rolls back the burial', async () => {
 test('migration can rerun and only service_role can call the write RPC', async () => {
   const first=await bury(1)
   await db.exec(readFileSync('docs/unified-burials.sql','utf8'))
+  const sourceSpecificMigration = readFileSync('docs/source-specific-grave-slots.sql','utf8')
+  await db.exec(sourceSpecificMigration)
+  await db.exec(sourceSpecificMigration)
   expect((await bury(1)).grave.id).toBe(first.grave.id)
   for(const role of ['anon','authenticated','service_role']) {
     const result=await db.query<{ allowed: boolean }>("select has_function_privilege($1,'public.create_grave_once(text,jsonb,integer[],integer,text,integer)','EXECUTE') as allowed",[role])
@@ -65,7 +69,7 @@ test('migration can rerun and only service_role can call the write RPC', async (
   }
 })
 test('offering ledger counts received amounts exactly, across maps, excluding pending and orphaned records', async () => {
-  const a=await bury(1), b=await bury(2,{map:'v2'}), c=await bury(3,{author:'Other'})
+  const a=await bury(1), b=await bury(2,{source:'github',map:'v2'}), c=await bury(3,{author:'Other'})
   const amounts=['100000000000000000001','200000000000000000002','700000000000000000000','900000000000000000000']
   for(let i=0;i<4;i++) {
     const grave=[a,b,c,a][i].grave.id

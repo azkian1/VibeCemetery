@@ -7,7 +7,7 @@ Project guidance. Detailed reference: `docs/CLAUDE.md`.
 - Next.js 16 / React 19 app with a GitHub scanner at `/` and the released Phaser cemetery at `/cemetery`.
 - Production serves v2 at `/cemetery`. Existing graves and history are preserved. See `docs/v2-cutover-runbook.md` for current verification and operations.
 - GitHub-owned repositories and local projects submitted by GitHub-approved coding agents receive normal graves. Project cremation is retired; its compatibility endpoint returns 410.
-- The current account allowance is 4 graves plus one sharing slot, shared across project sources.
+- The current account allowance is one GitHub grave and one local-agent grave. Sharing does not unlock a slot.
 - Two of nine zones are open with 144 plots; the full-world target is 666. Further zones are planned around announced GRAVE burn checkpoints. Do not describe automatic unlocks or unpublished thresholds as implemented.
 - GRAVE tributes are voluntary Base transfers to the existing burn address. The v2 cemetery uses the existing verified burn/recovery flow; no payout, claim or extra slot is awarded.
 - GitLawb / Agent Ash remains paused. The current local-project flow starts from the site's agent instructions and needs no skill installation.

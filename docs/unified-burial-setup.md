@@ -1,6 +1,6 @@
 # Unified burial release
 
-The only project memorial is a grave. Browser GitHub scanning and GitHub-approved local agents share 4 account slots plus 1 earned by sharing a grave, across project sources. Existing graves are preserved. The server owns epitaph generation and slot assignment; local requests use a private stable project_key for retries. This hash is never returned by public grave APIs.
+The only project memorial is a grave. Browser GitHub scanning has 1 slot and GitHub-approved local agents have 1 separate slot. Sharing grants no slots. Existing graves are preserved. The server owns epitaph generation and slot assignment; local requests use a private stable project_key for retries. This hash is never returned by public grave APIs.
 
 ## Additive migrations before deployment
 
@@ -11,7 +11,7 @@ For an existing database apply, in order:
 3. unified-burials.sql — nullable GitHub identity for local projects, source and project_key columns, account-wide atomic create_grave_once RPC.
 4. offering-ledger.sql — exact verified aggregates and a recent transaction ledger.
 
-Fresh databases start with supabase-schema.sql, which already includes unified burial and offering functions. Do not replay historical slot RPC migrations after applying the current migrations.
+Fresh databases start with supabase-schema.sql, which already includes the source-specific burial limits and offering functions. Existing databases should apply source-specific-grave-slots.sql after unified-burials.sql. Do not replay historical slot RPC migrations after applying the current migrations.
 
 ## Application cutover
 

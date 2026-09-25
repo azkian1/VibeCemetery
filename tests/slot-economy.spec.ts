@@ -1,46 +1,23 @@
 import { expect, test } from '@playwright/test'
-import {
-  calculateUserSlotEconomy,
-  getSlotUnlockProgress,
-  NORMAL_SLOT_MAX,
-} from '../src/lib/slot-economy'
+import { calculateUserSlotEconomy, GITHUB_SLOT_MAX, LOCAL_SLOT_MAX } from '../src/lib/slot-economy'
 
-test.describe('user slot economy', () => {
-  test('starts every user with four normal grave slots', () => {
-    expect(NORMAL_SLOT_MAX).toBe(4)
-
-    expect(calculateUserSlotEconomy({ slotsUsed: 0, hasSharedFirstGrave: false })).toMatchObject({
-      slotsUnlocked: 4,
-      availableSlots: 4,
-    })
-
-    expect(calculateUserSlotEconomy({ slotsUsed: 4, hasSharedFirstGrave: false })).toMatchObject({
-      slotsUnlocked: 4,
-      availableSlots: 0,
-      allSlotsMaxed: true,
-    })
+test('GitHub and local agent have one independent slot each', () => {
+  expect(GITHUB_SLOT_MAX).toBe(1)
+  expect(LOCAL_SLOT_MAX).toBe(1)
+  expect(calculateUserSlotEconomy({ githubSlotsUsed: 0, localSlotsUsed: 0 })).toMatchObject({
+    slotsUnlocked: 2, availableSlots: 2, githubAvailableSlots: 1, localAvailableSlots: 1,
   })
-
-  test('adds one normal grave slot after sharing the first grave', () => {
-    expect(calculateUserSlotEconomy({ slotsUsed: 0, hasSharedFirstGrave: true })).toMatchObject({
-      slotsUnlocked: 5,
-      availableSlots: 5,
-    })
-
-    expect(calculateUserSlotEconomy({ slotsUsed: 4, hasSharedFirstGrave: true })).toMatchObject({
-      slotsUnlocked: 5,
-      availableSlots: 1,
-      allSlotsMaxed: true,
-    })
+  expect(calculateUserSlotEconomy({ githubSlotsUsed: 1, localSlotsUsed: 0 })).toMatchObject({
+    availableSlots: 1, githubAvailableSlots: 0, localAvailableSlots: 1,
+    canCreateGithubGrave: false, canCreateLocalGrave: true,
   })
+  expect(calculateUserSlotEconomy({ githubSlotsUsed: 1, localSlotsUsed: 1 })).toMatchObject({
+    availableSlots: 0, allSlotsMaxed: true, canCreateGrave: false,
+  })
+})
 
-  test('labels the share mission by unlock state', () => {
-    expect(getSlotUnlockProgress({ hasSharedFirstGrave: false })).toEqual({
-      socialLabel: 'Share your Grave for +1 Slot',
-    })
-
-    expect(getSlotUnlockProgress({ hasSharedFirstGrave: true })).toEqual({
-      socialLabel: 'Shared your Grave: +1 Slot',
-    })
+test('existing graves over a source limit do not create extra allowance', () => {
+  expect(calculateUserSlotEconomy({ githubSlotsUsed: 4, localSlotsUsed: 0 })).toMatchObject({
+    slotsUsed: 4, githubAvailableSlots: 0, localAvailableSlots: 1,
   })
 })
