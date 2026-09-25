@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ревью надгробий · VibeCemetery</title>
+  <style>
+    :root { color-scheme: dark; font-family: Inter, Arial, sans-serif; background: #181b18; color: #eee9dc; }
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    header { padding: 28px max(24px, calc((100vw - 1360px) / 2)); background: #222720; border-bottom: 1px solid #4a5146; }
+    h1 { margin: 0 0 8px; font: 600 30px Georgia, serif; }
+    p { margin: 0; color: #b8c0b2; line-height: 1.5; }
+    #counts { margin-top: 14px; color: #dfd1a7; font-size: 14px; }
+    main { max-width: 1408px; margin: 0 auto; padding: 24px 24px 112px; }
+    #grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 16px; }
+    .card { background: #252b25; border: 1px solid #465044; border-radius: 12px; overflow: hidden; }
+    .card.locked { border-color: #60755a; }
+    .art { position: relative; height: 230px; overflow: hidden; background: radial-gradient(circle, #3c4435, #252a23 78%); }
+    .art img { position: absolute; inset: 0; display: block; width: 100%; height: 100%; object-fit: contain; }
+    .details { padding: 14px; }
+    .title { font-weight: 700; font-size: 16px; margin-bottom: 5px; }
+    .filename { color: #aeb8ab; font-size: 12px; line-height: 1.3; overflow-wrap: anywhere; min-height: 31px; }
+    .choices { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 13px; }
+    .choice { cursor: pointer; border: 1px solid #626a5e; border-radius: 8px; padding: 10px 8px; text-align: center; font-weight: 600; font-size: 14px; }
+    .choice input { margin-right: 6px; accent-color: #a8c87b; }
+    .choice:has(input[value="pass"]:checked) { background: #30482f; border-color: #87ad6e; color: #d9f2c6; }
+    .choice:has(input[value="fail"]:checked) { background: #4b3130; border-color: #ad7770; color: #f3cfca; }
+    footer { position: fixed; inset: auto 0 0; background: #20251fef; border-top: 1px solid #57614f; backdrop-filter: blur(12px); padding: 14px 24px; }
+    .footer-inner { max-width: 1360px; margin: auto; display: flex; justify-content: space-between; align-items: center; gap: 16px; }
+    #status { color: #d1d9c8; font-size: 14px; }
+    button { cursor: pointer; background: #a9c681; color: #172015; border: 0; border-radius: 8px; padding: 12px 30px; font-size: 16px; font-weight: 800; }
+    button:disabled { cursor: wait; opacity: .6; }
+    @media (max-width: 600px) { header { padding: 24px; } .footer-inner { align-items: stretch; flex-direction: column; } button { width: 100%; } }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Ревью надгробий</h1>
+    <p>Сначала показаны 23 перерисованные модели. Отметьте удачные как «Проходит». 24 ранее одобренные модели зафиксированы ниже. Кнопка «Готово» сохранит новый выбор.</p>
+    <div id="counts">Загрузка ассетов…</div>
+  </header>
+  <main><div id="grid"></div></main>
+  <footer><div class="footer-inner"><span id="status">Изменения ещё не отправлены</span><button id="done" type="button">Готово</button></div></footer>
+  <script>
+    const grid = document.querySelector('#grid');
+    const counts = document.querySelector('#counts');
+    const status = document.querySelector('#status');
+    const done = document.querySelector('#done');
+    const storageKey = 'vibecemetery-grave-review-v2';
+    let models = [];
+    let choices = {};
+
+    function updateCounts() {
+      const passed = models.filter(model => choices[model.gid] === 'pass').length;
+      counts.textContent = `Всего: ${models.length} · Проходит: ${passed} · Нет: ${models.length - passed}`;
+    }
+    function saveDraft() {
+      localStorage.setItem(storageKey, JSON.stringify(choices));
+      status.textContent = 'Черновик сохранён в браузере. Нажмите «Готово» для записи в проект.';
+      updateCounts();
+    }
+    function render() {
+      grid.replaceChildren();
+      for (const model of models) {
+        const card = document.createElement('article');
+        card.className = 'card';
+        if (model.locked) card.classList.add('locked');
+        const art = document.createElement('div');
+        art.className = 'art';
+        const image = document.createElement('img');
+        image.src = `/assets/${encodeURIComponent(model.filename)}`;
+        image.alt = `Надгробие ${model.gid}`;
+        image.loading = 'lazy';
+        art.append(image);
+        const details = document.createElement('div');
+        details.className = 'details';
+        const title = document.createElement('div');
+        title.className = 'title';
+        title.textContent = `GID ${model.gid} · ${model.type}`;
+        const name = document.createElement('div');
+        name.className = 'filename';
+        name.textContent = model.name;
+        const options = document.createElement('div');
+        options.className = 'choices';
+        for (const [value, label] of [['pass', 'Проходит'], ['fail', 'Нет']]) {
+          const choice = document.createElement('label');
+          choice.className = 'choice';
+          const input = document.createElement('input');
+          input.type = 'radio';
+          input.name = `gid-${model.gid}`;
+          input.value = value;
+          input.checked = choices[model.gid] === value;
+          input.disabled = model.locked;
+          input.addEventListener('change', () => { choices[model.gid] = value; saveDraft(); });
+          choice.append(input, document.createTextNode(label));
+          options.append(choice);
+        }
+        details.append(title, name, options);
+        card.append(art, details);
+        grid.append(card);
+      }
+      updateCounts();
+    }
+    done.addEventListener('click', async () => {
+      done.disabled = true;
+      status.textContent = 'Сохраняю выбор…';
+      try {
+        const response = await fetch('/api/review', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ choices }),
+        });
+        if (!response.ok) throw new Error(await response.text());
+        const result = await response.json();
+        status.textContent = `Готово: ${result.passed} проходят, ${result.failed} на переделку. Результат записан в проект.`;
+      } catch (error) {
+        status.textContent = `Не удалось сохранить: ${error.message}`;
+      } finally { done.disabled = false; }
+    });
+    (async () => {
+      try {
+        const [modelResponse, savedResponse] = await Promise.all([fetch('/api/models'), fetch('/api/review')]);
+        if (!modelResponse.ok || !savedResponse.ok) throw new Error('сервер недоступен');
+        models = await modelResponse.json();
+        models.sort((a, b) => Number(a.locked) - Number(b.locked) || a.gid - b.gid);
+        const saved = await savedResponse.json();
+        const draft = localStorage.getItem(storageKey);
+        choices = draft ? JSON.parse(draft) : saved.choices ?? {};
+        for (const model of models) {
+          if (model.locked) choices[model.gid] = 'pass';
+          else if (choices[model.gid] !== 'pass') choices[model.gid] = 'fail';
+        }
+        render();
+        status.textContent = saved.savedAt ? 'Загружен ранее сохранённый выбор. Можно поправить и нажать «Готово» ещё раз.' : 'Отметьте удачные модели и нажмите «Готово».';
+      } catch (error) {
+        counts.textContent = 'Ошибка загрузки';
+        status.textContent = `Не удалось открыть ассеты: ${error.message}`;
+      }
+    })();
+  </script>
+</body>
+</html>

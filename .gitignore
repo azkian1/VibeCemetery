@@ -63,6 +63,8 @@ test-results/
 tome.md
 .opencode/
 /screenshots/
+/artifacts/grave-review/*.png
+/artifacts/visual-audits/
 /public/map/Map2.0.tmx
 /scripts/diagnose_v2.mjs
 /scripts/inspect_phaser.mjs

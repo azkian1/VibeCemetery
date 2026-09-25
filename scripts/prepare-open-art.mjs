@@ -10,7 +10,31 @@ await fs.mkdir(out, { recursive: true });
 
 async function saveWebp(name, { trim = false, removeHalo = false } = {}) {
   let input = sharp(path.join(sources, `${name}.png`)).ensureAlpha();
-  if (name.startsWith('grave-atlas-') || name.startsWith('tree-atlas-')) {
+  if (name === 'grave-atlas-01') {
+    // This source atlas is 1223×1286. Preserve each frame's aspect ratio
+    // instead of widening and squashing all four monuments with fit: fill.
+    const source = path.join(sources, `${name}.png`);
+    const sourceSize = await sharp(source).metadata();
+    const leftWidth = Math.floor(sourceSize.width / 2);
+    const topHeight = Math.floor(sourceSize.height / 2);
+    const frames = [];
+    for (let frame = 0; frame < 4; frame++) {
+      const left = frame % 2 ? leftWidth : 0;
+      const top = frame >= 2 ? topHeight : 0;
+      frames.push({
+        input: await sharp(source).extract({
+          left, top,
+          width: (frame % 2 ? sourceSize.width - leftWidth : leftWidth),
+          height: (frame >= 2 ? sourceSize.height - topHeight : topHeight),
+        }).resize(627, 627, { fit: 'contain', background: '#00000000' }).png().toBuffer(),
+        left: (frame % 2) * 627,
+        top: Math.floor(frame / 2) * 627,
+      });
+    }
+    input = sharp({ create: {
+      width: 1254, height: 1254, channels: 4, background: '#00000000',
+    } }).composite(frames);
+  } else if (name.startsWith('tree-atlas-')) {
     input = input.resize(1254, 1254, { fit: 'fill' });
   }
   if (removeHalo) {
@@ -51,7 +75,10 @@ async function saveWebp(name, { trim = false, removeHalo = false } = {}) {
 }
 
 if (!terrainOnly) {
+  await import('./build-upright-grave-atlas.mjs');
   for (let i = 1; i <= 12; i++) await saveWebp(`grave-atlas-${String(i).padStart(2, '0')}`);
+  await import('./build-reviewed-grave-atlases.mjs');
+  await import('./build-grave-art-bounds.mjs');
   for (let i = 1; i <= 4; i++) await saveWebp(`tree-atlas-${String(i).padStart(2, '0')}`);
   for (const name of ['grass-texture', 'stone-texture', 'gate-ground-clean']) await saveWebp(name);
   for (const name of ['chapel', 'lodge', 'garage', 'technical', 'side-fence', 'inner-gate']) {

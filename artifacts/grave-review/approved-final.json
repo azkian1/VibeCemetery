@@ -1,0 +1,241 @@
+{
+  "approvedAt": "2026-09-25T07:42:05.905Z",
+  "accepted": [
+    {
+      "gid": 51,
+      "filename": "51_tall_grave_1x2_batch08_del_key_cross_style_v2_586efee3.png",
+      "sha256": "da5ebb736184a4d5946f42c229686906549acf9e214650d03ce6f503df474732"
+    },
+    {
+      "gid": 52,
+      "filename": "52_tall_grave_1x2_microchip_cross_090b565c.png",
+      "sha256": "53e68fd48ec322e5d88e3f26b2928dd64cb6079ba2a1e94fd1053535b21fede7"
+    },
+    {
+      "gid": 53,
+      "filename": "53_tall_grave_1x2_broken_keyboard_slab_63b07f55.png",
+      "sha256": "ae280af575fbc8dc9c9955cf9d9aa775dd5d42feb677d73004f467c5ead52a77"
+    },
+    {
+      "gid": 54,
+      "filename": "54_tall_grave_1x2_dead_disk_slab_ce37aadc.png",
+      "sha256": "65f7c3f4fb8bf7a5c7a04a96767c8482c01d92634a64471e80241c317f25a574"
+    },
+    {
+      "gid": 55,
+      "filename": "55_tall_grave_1x2_server_panel_slab_c1262087.png",
+      "sha256": "c89d0c59400fd7d22663c4132319f0810471a9f04bd2796de6011bb01eeffa7c"
+    },
+    {
+      "gid": 56,
+      "filename": "56_tall_grave_1x2_cracked_crt_slab_f4e23bcb.png",
+      "sha256": "10afe3d888486d0d88d078605b9c654c20c0552ed0461f6af9953a557ed6e81f"
+    },
+    {
+      "gid": 57,
+      "filename": "57_tall_grave_1x2_hourglass_inlay_slab_b9b476ad.png",
+      "sha256": "cdd2f42d901ea6e9c2cf64f9f166ed71fd1710766e16009cd64ed53c721d9fc6"
+    },
+    {
+      "gid": 58,
+      "filename": "58_tall_grave_1x2_concrete_capacitor_slab_44577a41.png",
+      "sha256": "7e19f0604ca8511a7fbc313979104e2685068db35a912df780f51519a184062a"
+    },
+    {
+      "gid": 59,
+      "filename": "59_tall_grave_1x2_marble_iron_heatsink_slab_52a98cb4.png",
+      "sha256": "768223fb905186616e17a56624f7ad4bb4eb8d01c59d688d150312b504fbeb22"
+    },
+    {
+      "gid": 60,
+      "filename": "60_tall_grave_1x2_iron_pci_slot_slab_99bbf84d.png",
+      "sha256": "3c5f9d04696656b97363c25d2b9b3ff4db4a6413749d161e4ec46ffd25ac9567"
+    },
+    {
+      "gid": 61,
+      "filename": "61_tall_grave_1x2_batch08_numpad_plus_key_cross_style_9a47775a.png",
+      "sha256": "51919e89e2ab8585f2ffd3598a1ad62f8e79aaaa319eefb6138ff48bc8f7f68a"
+    },
+    {
+      "gid": 62,
+      "filename": "62_tall_grave_1x2_gpu_memory_slab_3d5b1ba6.png",
+      "sha256": "1707e023e9418c856b7796fa517205ad1a596808d9c6123d2e361dfbe3c084ef"
+    },
+    {
+      "gid": 63,
+      "filename": "63_tall_grave_1x2_atx_power_connector_slab_1d45172d.png",
+      "sha256": "e40a2a60fd760f5a3969f7348a0079bdb1f0f447e633fc56aac843b7046744aa"
+    },
+    {
+      "gid": 64,
+      "filename": "64_tall_batch06_01_laptop_4c95c269.png",
+      "sha256": "e3079f6f060253700134ce4220fe69a71b864118b56f0bbb5511c07d8d0b9ee2"
+    },
+    {
+      "gid": 65,
+      "filename": "65_tall_batch06_03_mvp_monolith_0351632b.png",
+      "sha256": "7ea60972f52bca0f1563126044e803a738f8b400cf96013ff3ee08cf49b53d84"
+    },
+    {
+      "gid": 66,
+      "filename": "66_tall_batch06_05_spinner_d80d6e79.png",
+      "sha256": "6281bd49c6f1830c521d674311c83941554515627446c95443a7cff94b050f4b"
+    },
+    {
+      "gid": 67,
+      "filename": "67_tall_batch06_10_merge_conflict_7e179831.png",
+      "sha256": "f70488f48fd233b321d90d0ac301443130a3eab3163dc2455621a9b26391ac0e"
+    },
+    {
+      "gid": 68,
+      "filename": "68_tall_batch06_15_zip_archive_df472bd8.png",
+      "sha256": "4ba2d429d441d7c547fe265bd702b0efe213ee9ff593b6cb24d52cf1d67afdb5"
+    },
+    {
+      "gid": 69,
+      "filename": "69_tall_batch06_16_kanban_740c7863.png",
+      "sha256": "a5cabc12dce182536a8463509b2c25c6e3713fd04992fffb26d26a4f3f9bd3a9"
+    },
+    {
+      "gid": 70,
+      "filename": "70_tall_batch06_17_chatbot_08238e46.png",
+      "sha256": "13d78a924b7685d8eed80853a14c753b2ba0ab931e267b0521f46aef587a8f27"
+    },
+    {
+      "gid": 71,
+      "filename": "71_tall_batch06_18_api_endpoint_f7cdbd63.png",
+      "sha256": "413ea2ed46b44e4f47ceaa1bbc2ecf9116efd832656f5dc775efbd1216c22d72"
+    },
+    {
+      "gid": 72,
+      "filename": "72_tall_batch06_19_deploy_badge_b34e2468.png",
+      "sha256": "82a2958139630dcea05c2c773c25c1747116dff1e9cc664b1902e0b95fbfcac7"
+    },
+    {
+      "gid": 73,
+      "filename": "73_tall_batch06_24_almost_product_bca46cb2.png",
+      "sha256": "925cefd14f67386808ec625c580582bba788a55f4f0e3e1896be84760c2cece1"
+    },
+    {
+      "gid": 74,
+      "filename": "74_tall_batch07_winrar_02_cracked_stack_5be922bb.png",
+      "sha256": "4ded0637c0997cf73172d7e229f827c83511dd2b191514bbcf816286f40e0d89"
+    },
+    {
+      "gid": 75,
+      "filename": "75_tall_batch07_winrar_03_dark_archive_83e7003d.png",
+      "sha256": "17e9b2d265be1aca3cf1833c5f298cfc2bb6ab54ba11cadfd67f80236a7fcabd"
+    },
+    {
+      "gid": 76,
+      "filename": "76_tall_grave_1x2_batch03_b_flat_cross_slab_32x64_a4654327.png",
+      "sha256": "4229ec2b767e342c2559a02bb397d1f0a825ba6c8082aedf421eb2ff45139307"
+    },
+    {
+      "gid": 77,
+      "filename": "77_wide_grave_2x1_broken_keyboard_119f29ea.png",
+      "sha256": "b53b3254b5818c28900765d0ecf1cc65162eab18e4c3808bcdb946dab31380bf"
+    },
+    {
+      "gid": 78,
+      "filename": "78_wide_grave_2x1_concrete_gpu_f659da76.png",
+      "sha256": "1dd9a3ebf7aa4623a73a22674e4406b4df3dab1e9b757bd24caf7b1cb58f6598"
+    },
+    {
+      "gid": 79,
+      "filename": "79_wide_grave_2x1_router_slab_bc369ea5.png",
+      "sha256": "606667558c2cd58bd7814d5ac48cd46fbc5147d0027f13d95a2f250275393595"
+    },
+    {
+      "gid": 80,
+      "filename": "80_wide_grave_2x1_404_slab_0a60d502.png",
+      "sha256": "7a40d10ff96d4ca8082fb5ba2146b43d216d391eed32fb5e3f59bbd9fd42b8c6"
+    },
+    {
+      "gid": 81,
+      "filename": "81_wide_grave_2x1_shift_key_7dd8c393.png",
+      "sha256": "ab5f82371718e8ab9d15327fb60025f16795e89110a992a7eab9e8d1e6156463"
+    },
+    {
+      "gid": 82,
+      "filename": "82_wide_grave_2x1_caps_key_7c778c3f.png",
+      "sha256": "d02022bb01ea15dbe2cac04c186ef08cb2dd97d74185ac4ecc7bb9bb76a161f2"
+    },
+    {
+      "gid": 83,
+      "filename": "83_wide_grave_2x1_tab_key_ecf7d4f0.png",
+      "sha256": "228d6ece7927b3b50a080674384d862f4e06d06e01951bb6720e8ece95c01d3f"
+    },
+    {
+      "gid": 84,
+      "filename": "84_wide_grave_2x1_enter_key_caps_style_076aedb0.png",
+      "sha256": "f48fe149ef85525430371eb1606a9900d037fd03b7c5b835e910af30c42d4029"
+    },
+    {
+      "gid": 85,
+      "filename": "85_wide_grave_2x1_stone_keyboard_6a70d0a0.png",
+      "sha256": "1bdd81cbfd362d12fdf2ff0cfb7b229aeb07da452e8ac8dd26e17a45d644431f"
+    },
+    {
+      "gid": 86,
+      "filename": "86_large_grave_2x2_xl_concrete_gpu_20b21ad2.png",
+      "sha256": "3a00544d93992eb39174edc068f67fec643c45e7a8ec5c6db1bf9c4082c43607"
+    },
+    {
+      "gid": 87,
+      "filename": "87_large_grave_2x2_concrete_blue_screen_monitor_7b1b6556.png",
+      "sha256": "7d3a9dd0c0f434ee3b42b9d892c72bba90db341b791c29f8dde4d6b407f64163"
+    },
+    {
+      "gid": 88,
+      "filename": "88_large_grave_2x2_pc_case_tomb_2dd577cb.png",
+      "sha256": "5379dd3cfbd1e2dd29611d924f96b8f75b515ae77056dea60a8c09dd53a8a208"
+    },
+    {
+      "gid": 89,
+      "filename": "89_large_grave_2x2_deploy_rocket_crater_212f5865.png",
+      "sha256": "bd2471ab2846d048f78f043393f16c9af11975947da2b11021a1b9153a9c779c"
+    },
+    {
+      "gid": 90,
+      "filename": "90_large_grave_2x2_router_monument_428c1528.png",
+      "sha256": "920eba807d31375f55a53f9ce4ba76cc2853babcedc3b26d27d0a4013aab3dfb"
+    },
+    {
+      "gid": 91,
+      "filename": "91_large_grave_2x2_database_collapse_4967252c.png",
+      "sha256": "5fe0eda6203137ba1a3e2a176a068e1720a9b833edba04db9b71fa4e6b8acf48"
+    },
+    {
+      "gid": 92,
+      "filename": "92_large_grave_2x2_docker_whale_rubble_bfec4dbe.png",
+      "sha256": "bb570d18ebee0c3ea1ef9782d1b891010c24c6a1d768c9ace774946b5c009602"
+    },
+    {
+      "gid": 93,
+      "filename": "93_large_grave_2x2_eternal_loading_spinner_3147adeb.png",
+      "sha256": "e4d175994de9d310dfb19abffcd8b1456f81a3f93045cd8148df0cc95439d4be"
+    },
+    {
+      "gid": 94,
+      "filename": "94_large_grave_2x2_broken_qr_slab_960bf698.png",
+      "sha256": "bae1adf950617c56e83ccefdfbc6036204538eede17abb9d374b03e852ae1d17"
+    },
+    {
+      "gid": 95,
+      "filename": "95_large_grave_2x2_neural_lattice_ossuary_c5a5aa0c.png",
+      "sha256": "689a9d3fdd66722975f90911ff9507702d3b516561c6cd6b9f204ab0f1139fa4"
+    },
+    {
+      "gid": 96,
+      "filename": "96_large_grave_2x2_product_hunt_clone_b406f6d3.png",
+      "sha256": "8e25fcfefb59a2bdcf3397fa47ad7150838a4a4d9b8afc0ab8251bebe28d3397"
+    },
+    {
+      "gid": 97,
+      "filename": "97_large_grave_2x2_file_manager_cfa2a5a1.png",
+      "sha256": "b6541572982af7fa522aa2adc82a7ff95df3ff7dc02ff9752bd9a32072ee27c1"
+    }
+  ],
+  "redo": []
+}

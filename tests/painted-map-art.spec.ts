@@ -2,10 +2,13 @@ import { expect, test } from '@playwright/test'
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import sharp from 'sharp'
+import graveBounds from '../src/game/utils/paintedGraveBoundsV2.json'
+import graveRedrawIds from '../src/game/utils/paintedGraveRedrawIdsV2.json'
 import { ACTIVE_GRAVE_SLOT_IDS_V2 } from '../src/lib/map-layout-v2'
 import { GRAVE_GIDS_V2 } from '../src/game/utils/tileRegistry-v2'
 import {
   paintedGraveFrameV2,
+  paintedGravePlacementV2,
   paintedGraveSizeV2,
   paintedHighCyberTreeFrameV2,
   paintedTreeFrameV2,
@@ -25,7 +28,7 @@ function slotType(width: number, height: number) {
 }
 
 test('local all-graves preview covers every approved slot and every grave GID', async () => {
-  const slots = graveLayer.objects as Array<{ id: number; width: number; height: number }>
+  const slots = graveLayer.objects as Array<{ id: number; x: number; y: number; width: number; height: number }>
   expect(slots.map((slot) => slot.id).sort((a, b) => a - b)).toEqual(
     [...ACTIVE_GRAVE_SLOT_IDS_V2].sort((a, b) => a - b),
   )
@@ -40,16 +43,36 @@ test('local all-graves preview covers every approved slot and every grave GID', 
     used.add(gid)
     const frame = paintedGraveFrameV2(gid)
     expect(frame, `GID ${gid}`).not.toBeNull()
-    expect(existsSync(join(artDir, `grave-atlas-${frame!.key.slice(-2)}.webp`))).toBe(true)
+    const asset = graveRedrawIds.includes(gid)
+      ? `grave-redraw-atlas-${frame!.key.slice(-2)}.webp`
+      : `grave-atlas-${frame!.key.slice(-2)}.webp`
+    expect(existsSync(join(artDir, asset))).toBe(true)
     const size = paintedGraveSizeV2(type)
     expect(size.width).toBeLessThanOrEqual(slot.width + 12)
-    expect(size.height).toBeLessThanOrEqual(slot.height + 12)
+    const placement = paintedGravePlacementV2(gid, type, slot)
+    expect(placement).not.toBeNull()
+    expect(placement!.visibleWidth).toBeLessThanOrEqual(size.width + 0.001)
+    expect(placement!.visibleHeight).toBeLessThanOrEqual(size.height + 0.001)
+    expect(placement!.displaySize).toBeGreaterThan(0)
+    const bounds = graveBounds[gid - 51]
+    const scale = placement!.displaySize / 627
+    expect(placement!.visibleWidth / placement!.visibleHeight).toBeCloseTo(bounds.width / bounds.height, 5)
+    expect(placement!.x + (bounds.x + bounds.width / 2 - 627 / 2) * scale)
+      .toBeCloseTo(slot.x + slot.width / 2, 5)
+    expect(placement!.y + (bounds.y + bounds.height - 627 / 2) * scale)
+      .toBeCloseTo(slot.y + slot.height + 2, 5)
   }
   expect([...used].sort((a, b) => a - b)).toEqual(
     Object.values(GRAVE_GIDS_V2).flat().sort((a, b) => a - b),
   )
   for (let number = 1; number <= 12; number++) {
     const name = `grave-atlas-${String(number).padStart(2, '0')}.webp`
+    const metadata = await sharp(join(artDir, name)).metadata()
+    expect([metadata.width, metadata.height, metadata.hasAlpha]).toEqual([1254, 1254, true])
+  }
+  const redrawAtlases = new Set(graveRedrawIds.map((gid) => Math.floor((gid - 51) / 4) + 1))
+  for (const number of redrawAtlases) {
+    const name = `grave-redraw-atlas-${String(number).padStart(2, '0')}.webp`
     const metadata = await sharp(join(artDir, name)).metadata()
     expect([metadata.width, metadata.height, metadata.hasAlpha]).toEqual([1254, 1254, true])
   }

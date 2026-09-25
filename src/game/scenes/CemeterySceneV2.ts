@@ -20,9 +20,10 @@ import { isActiveGraveSlotV2 } from '../../lib/map-layout-v2';
 import {
   PAINTED_ART_BASE_URL_V2,
   PAINTED_GRAVE_ATLAS_COUNT_V2,
+  PAINTED_GRAVE_REDRAW_ATLAS_NUMBERS_V2,
   PAINTED_TREE_ATLAS_COUNT_V2,
   paintedGraveFrameV2,
-  paintedGraveSizeV2,
+  paintedGravePlacementV2,
   paintedHighCyberTreeFrameV2,
   paintedTreeFrameV2,
   selectHighCyberTreeIdsV2,
@@ -291,6 +292,12 @@ export class CemeterySceneV2 extends Phaser.Scene {
     for (let i = 1; i <= PAINTED_GRAVE_ATLAS_COUNT_V2; i++) {
       const number = String(i).padStart(2, '0');
       this.load.spritesheet(`painted-graves-${number}`, `${PAINTED_ART_BASE_URL_V2}/grave-atlas-${number}.webp`, {
+        frameWidth: 627, frameHeight: 627,
+      });
+    }
+    for (const i of PAINTED_GRAVE_REDRAW_ATLAS_NUMBERS_V2) {
+      const number = String(i).padStart(2, '0');
+      this.load.spritesheet(`painted-graves-redraw-${number}`, `${PAINTED_ART_BASE_URL_V2}/grave-redraw-atlas-${number}.webp`, {
         frameWidth: 627, frameHeight: 627,
       });
     }
@@ -663,9 +670,9 @@ export class CemeterySceneV2 extends Phaser.Scene {
     const y = slot.y + slot.height / 2;
     const art = paintedGraveFrameV2(gid);
     if (art && this.textures?.exists(art.key)) {
-      const size = paintedGraveSizeV2(slot.type);
-      return this.add.sprite(x, y, art.key, art.frame)
-        .setDisplaySize(size.width, size.height)
+      const placement = paintedGravePlacementV2(gid, slot.type, slot);
+      if (placement) return this.add.sprite(placement.x, placement.y, art.key, art.frame)
+        .setDisplaySize(placement.displaySize, placement.displaySize)
         .setDepth(depth);
     }
     return this.add.sprite(x, y, fallbackKey, 0)
