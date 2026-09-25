@@ -6,7 +6,7 @@ Updated 2026-09-07. Root guidance is in `CLAUDE.md`.
 
 The public product buries abandoned GitHub repositories and local projects submitted by GitHub-approved coding agents. Every memorial is a grave with an epitaph, public link, F interactions and optional GRAVE tributes. Project cremations and urns are retired. Agent Ash / GitLawb is a separate paused experiment.
 
-Production serves v2 at `/cemetery`; see `v2-cutover-runbook.md` for current operations. Each subsequent release requires its own local and Preview verification. Quotas, modals and burn verification are preserved. The current allowance remains 4 + 1 sharing slot. Two of nine zones are open; further zones and GRAVE burn thresholds are roadmap items, not automatic runtime unlocks.
+Production serves v2 at `/cemetery`; see `v2-cutover-runbook.md` for current operations. Each subsequent release requires its own local and Preview verification. Quotas, modals and burn verification are preserved. This branch sets the allowance to 1 GitHub slot and 1 local AI-agent slot; sharing grants none. Two of nine zones are open; further zones and GRAVE burn thresholds are roadmap items, not automatic runtime unlocks.
 
 ## Runtime structure
 
@@ -19,7 +19,7 @@ Production serves v2 at `/cemetery`; see `v2-cutover-runbook.md` for current ope
 | Shared event bus | `src/game/events.ts`; retained minimap and viewport events are map-scoped |
 | Placement | `src/lib/map-slots.ts`, `slotManager-v2.ts` and `tileRegistry-v2.ts` |
 | GitHub / local burial | `src/app/api/graves/writeHandler.ts`, `src/agent/burial-helper.mjs` |
-| Atomic writes | `create_grave_once` RPC; shared account quota, source identity, map slot and retry protection |
+| Atomic writes | `create_grave_once` RPC; source-specific account quotas, source identity, map slot and retry protection |
 | Authentication | NextAuth GitHub plus browser-approved CLI credentials; wallet connection alone is not account auth |
 | Agent discovery | `/agent-instructions`, `/agent-instructions.md`, temporary helper; no installable bury skill |
 | Burns | `src/lib/web3/`, `src/web3/useGraveBurn.ts`, grave-specific API routes |

@@ -46,7 +46,7 @@ export default function BuryFlowModal() {
   }
   const submit = async () => {
     const repo = repos.find(r => selected.has(r.id))
-    if (submitting.current || !repo || !account.data?.canCreateGrave) return
+    if (submitting.current || !repo || !account.data?.canCreateGithubGrave) return
     submitting.current = true
     setBurying(true); setStep(4); setResults([])
     try {
@@ -87,11 +87,11 @@ export default function BuryFlowModal() {
         {step === 1 && <StepScan repos={repos} loading={loading} error={error} username={session?.user?.github_username ?? null}
           filteredCount={filteredCount} recordsLoading={account.loading} onOpenSkill={() => open('skill')}
           onScanned={handleScanned} onError={setError} onNext={() => setStep(2)} setLoading={setLoading} />}
-        {step === 2 && <StepSelect repos={repos} selected={selected} availableSlots={account.data?.availableSlots ?? 0}
+        {step === 2 && <StepSelect repos={repos} selected={selected} availableSlots={account.data?.githubAvailableSlots ?? 0}
           loading={account.loading} onToggle={id => setSelected(selected.has(id) ? new Set() : new Set([id]))}
           onNext={() => setStep(3)} onBack={() => initial.length ? close() : setStep(1)} />}
         {step === 3 && <StepCause repos={repos} selected={selected} causes={causes}
-          onSetCause={(id, cause) => setCauses(old => new Map(old).set(id, cause))} onSubmit={submit} onBack={() => setStep(2)} loading={burying || !account.data?.canCreateGrave} />}
+          onSetCause={(id, cause) => setCauses(old => new Map(old).set(id, cause))} onSubmit={submit} onBack={() => setStep(2)} loading={burying || !account.data?.canCreateGithubGrave} />}
         {step === 4 && <StepDone results={results} total={1} done={burying ? 0 : 1} burying={burying} onClose={close} onOpenProfile={() => open('profile')} />}
       </div>
     </StoneFrame>

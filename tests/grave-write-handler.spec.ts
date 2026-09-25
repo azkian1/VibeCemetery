@@ -134,16 +134,16 @@ test('database gate errors retain stable HTTP codes when an older deployment hit
 
 test('API recovery works at account limit and ignores changed replay metadata', async () => {
   const first = await (await request(local())).json()
-  for (let n = 2; n <= 4; n++) expect((await request({ ...local(n), map_version: 'v2' })).status).toBe(201)
-  expect((await request(local(5))).status).toBe(403)
+  expect((await request(local(2))).status).toBe(403)
   const replay = await request({ ...local(), name: 'CHANGED', map_version: 'v2' })
   expect(replay.status).toBe(200)
   expect(await replay.json()).toEqual(first)
-  expect((await db.query('select graves_count from public.users')).rows).toEqual([{ graves_count: 4 }])
+  expect((await db.query('select graves_count from public.users')).rows).toEqual([{ graves_count: 1 }])
 })
 
-test('session and agent projects use the same allowance and GitHub checks remain required', async () => {
-  for (let n = 1; n <= 3; n++) await request(local(n))
+test('session and agent projects have separate allowances and GitHub checks remain required', async () => {
+  expect((await request(local())).status).toBe(201)
+  expect((await request(local(2))).status).toBe(403)
   actor = { username: 'TESTER', source: 'session' }
   const github = { name: 'GitHub project', cause: 'Lost interest', github_repo_id: 42, github_url: 'https://github.com/Tester/repo', map_version: 'v2' }
   repoOwner = 'SomeoneElse'
@@ -161,7 +161,10 @@ test('a full map rejects a new project but still recovers the original grave', a
   await db.query(`insert into public.graves(name,cause,author_github,github_url,github_repo_id,slot_id,map_version)
     select 'Existing project', 'Abandoned', 'Other', 'https://github.com/Other/project' || id,
     10000 + id, id, 'v2' from jsonb_to_recordset($1::jsonb) as s(id integer)`, [JSON.stringify(slots)])
-  expect((await request(local(2))).status).toBe(507)
+  actor = { username: 'Tester', source: 'session' }
+  const github = { name: 'GitHub project', cause: 'Lost interest', github_repo_id: 42, github_url: 'https://github.com/Tester/repo', map_version: 'v2' }
+  expect((await request(github)).status).toBe(507)
+  actor = { username: 'Tester', source: 'cli' }
   const replay = await request(local())
   expect(replay.status).toBe(200)
   expect((await replay.json()).id).toBe(first.id)

@@ -1,21 +1,5 @@
--- Apply after map-v2-grave-gid.sql. All calls go through the service role.
+-- Apply after unified-burials.sql. Existing graves stay intact; new burials use one slot per source.
 begin;
--- Early production installs predate this column used by atomic counter updates.
-alter table public.users add column if not exists updated_at timestamptz not null default now();
-alter table public.graves alter column github_url drop not null;
-alter table public.graves alter column github_repo_id drop not null;
-alter table public.graves add column if not exists source text not null default 'github';
-alter table public.graves add column if not exists project_key text;
-do $$ begin
-  if not exists (select 1 from pg_constraint where conname = 'graves_source_identity_check' and conrelid = 'public.graves'::regclass) then
-    alter table public.graves add constraint graves_source_identity_check check (
-      (source = 'github' and github_repo_id is not null and github_repo_id > 0 and github_url is not null)
-      or (source = 'local' and github_repo_id is null and github_url is null and project_key is not null and project_key ~ '^sha256:[a-f0-9]{64}$')
-    );
-  end if;
-end $$;
-create unique index if not exists graves_author_project_key_unique on public.graves(lower(author_github), project_key) where project_key is not null;
-
 create or replace function public.create_grave_once(
   p_author_github text, p_grave jsonb, p_auto_slot_ids integer[], p_slot_id integer,
   p_map_version text, p_grave_gid integer default null

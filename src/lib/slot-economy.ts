@@ -1,12 +1,13 @@
-export const NORMAL_SLOT_MAX = 4;
+export const GITHUB_SLOT_MAX = 1;
+export const LOCAL_SLOT_MAX = 1;
 // Supported footprints; map-slots also enforces the approved active slot IDs.
 export const AUTO_ASSIGNABLE_GRAVE_SLOT_TYPES_V2 = ['grave_tall', 'grave_wide', 'grave_large'] as const;
 
 const AUTO_ASSIGNABLE_GRAVE_SLOT_TYPE_SET_V2 = new Set<string>(AUTO_ASSIGNABLE_GRAVE_SLOT_TYPES_V2);
 
 export interface UserSlotEconomyInput {
-  slotsUsed: number;
-  hasSharedFirstGrave: boolean;
+  githubSlotsUsed: number;
+  localSlotsUsed: number;
 }
 
 export interface UserSlotEconomy {
@@ -15,10 +16,12 @@ export interface UserSlotEconomy {
   availableSlots: number;
   allSlotsMaxed: boolean;
   canCreateGrave: boolean;
-}
-
-export interface SlotUnlockProgress {
-  socialLabel: string;
+  githubSlotsUsed: number;
+  localSlotsUsed: number;
+  githubAvailableSlots: number;
+  localAvailableSlots: number;
+  canCreateGithubGrave: boolean;
+  canCreateLocalGrave: boolean;
 }
 
 export function isAutoAssignableGraveSlotTypeV2(type: string): boolean {
@@ -26,27 +29,26 @@ export function isAutoAssignableGraveSlotTypeV2(type: string): boolean {
 }
 
 export function calculateUserSlotEconomy({
-  slotsUsed,
-  hasSharedFirstGrave,
+  githubSlotsUsed,
+  localSlotsUsed,
 }: UserSlotEconomyInput): UserSlotEconomy {
-  const socialSlot = hasSharedFirstGrave ? 1 : 0;
-  const normalSlotsUnlocked = NORMAL_SLOT_MAX + socialSlot;
-  const slotsUnlocked = normalSlotsUnlocked;
-  const availableSlots = Math.max(0, slotsUnlocked - slotsUsed);
+  const slotsUsed = githubSlotsUsed + localSlotsUsed;
+  const slotsUnlocked = GITHUB_SLOT_MAX + LOCAL_SLOT_MAX;
+  const githubAvailableSlots = Math.max(0, GITHUB_SLOT_MAX - githubSlotsUsed);
+  const localAvailableSlots = Math.max(0, LOCAL_SLOT_MAX - localSlotsUsed);
+  const availableSlots = githubAvailableSlots + localAvailableSlots;
 
   return {
     slotsUsed,
     slotsUnlocked,
     availableSlots,
-    allSlotsMaxed: true,
+    allSlotsMaxed: availableSlots === 0,
     canCreateGrave: availableSlots > 0,
-  };
-}
-
-export function getSlotUnlockProgress({
-  hasSharedFirstGrave,
-}: Pick<UserSlotEconomyInput, 'hasSharedFirstGrave'>): SlotUnlockProgress {
-  return {
-    socialLabel: hasSharedFirstGrave ? 'Shared your Grave: +1 Slot' : 'Share your Grave for +1 Slot',
+    githubSlotsUsed,
+    localSlotsUsed,
+    githubAvailableSlots,
+    localAvailableSlots,
+    canCreateGithubGrave: githubAvailableSlots > 0,
+    canCreateLocalGrave: localAvailableSlots > 0,
   };
 }

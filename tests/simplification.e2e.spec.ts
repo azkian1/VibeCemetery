@@ -24,7 +24,7 @@ const ledger = { totalBurnedRaw: '100000000000000000001', burnCount: 1,
   recent: [{ id, graveId: id, graveName: 'Local project', walletAddress: '0x' + '1'.repeat(40), githubUsername: null,
     amountRaw: '100000000000000000001', txHash: '0x' + 'a'.repeat(64), verifiedAt: '2026-09-06T00:00:00Z' }] }
 
-async function fixtures(page: Page, mapVersion: MapVersion, options: { authenticated?: boolean; slotsUsed?: number; failLedger?: boolean; holdWrite?: Promise<void> } = {}) {
+async function fixtures(page: Page, mapVersion: MapVersion, options: { authenticated?: boolean; githubSlotsUsed?: number; failLedger?: boolean; holdWrite?: Promise<void> } = {}) {
   await rejectLegacyCemeteryAssets(page)
   const grave = localGrave(mapVersion)
   let ledgerFailed = Boolean(options.failLedger)
@@ -36,8 +36,9 @@ async function fixtures(page: Page, mapVersion: MapVersion, options: { authentic
     const json = (value: unknown, status = 200) => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(value) })
     if (url.pathname === '/api/auth/session') return json(options.authenticated ? { user: { name: 'Tester', github_username: 'Tester', x_first_grave_shared_at: null }, expires: '2099-01-01' } : {})
     if (url.pathname === '/api/graves/account') {
-      const used = (options.slotsUsed ?? 1) + writes.length
-      return json({ graves, slotsUsed: used, slotsUnlocked: 4, availableSlots: Math.max(0, 4 - used), canCreateGrave: used < 4 })
+      const githubUsed = (options.githubSlotsUsed ?? 0) + writes.length
+      const githubAvailable = Math.max(0, 1 - githubUsed)
+      return json({ graves, slotsUsed: 1 + githubUsed, slotsUnlocked: 2, availableSlots: githubAvailable, canCreateGrave: githubAvailable > 0, githubSlotsUsed: githubUsed, localSlotsUsed: 1, githubAvailableSlots: githubAvailable, localAvailableSlots: 0, canCreateGithubGrave: githubAvailable > 0, canCreateLocalGrave: false })
     }
     if (url.pathname === '/api/graves' && req.method() === 'GET') return json((url.searchParams.get('map_version') ?? 'v2') === mapVersion ? graves : [])
     if (url.pathname === '/api/graves' && req.method() === 'POST') {
@@ -85,7 +86,7 @@ test('Necropolis recovers from a ledger error and shows whole burned token amoun
 test('approved account submits one burial to the current map and guards a pending write', async ({ page }) => {
   let release!: () => void
   const holdWrite = new Promise<void>(resolve => { release = resolve })
-  const { writes } = await fixtures(page, mapVersion, { authenticated: true, slotsUsed: 3, holdWrite })
+  const { writes } = await fixtures(page, mapVersion, { authenticated: true, holdWrite })
   await page.goto(mapPath + '?modal=bury')
   await page.getByRole('button', { name: 'Next', exact: true }).click()
   await page.getByRole('radio').check()
@@ -103,8 +104,8 @@ test('approved account submits one burial to the current map and guards a pendin
   await expect(page.getByRole('dialog').getByText('Old repo', { exact: true })).toBeVisible()
 })
 
-test('shared account limit disables the grave action without offering cremation', async ({ page }) => {
-  await fixtures(page, mapVersion, { authenticated: true, slotsUsed: 4 })
+test('used GitHub allowance disables browser burial without offering cremation', async ({ page }) => {
+  await fixtures(page, mapVersion, { authenticated: true, githubSlotsUsed: 1 })
   await page.goto(mapPath)
   await expect(page.getByRole('button', { name: 'Bury a project', exact: true })).toBeDisabled()
   await expect(page.getByText('No grave slots left.', { exact: true })).toBeVisible()
@@ -186,14 +187,14 @@ test('the canonical cemetery serves v2', async ({ page }) => {
   await expect(page.getByTestId('phaser-stage-v2')).toHaveAttribute('data-scene-ready', 'true')
 })
 
-test('HUD and FAQ describe graves, the shared allowance and token tributes', async ({ page }) => {
+test('HUD and FAQ describe graves, source-specific allowances and token tributes', async ({ page }) => {
   await fixtures(page, mapVersion)
   await page.goto(mapPath)
   await expect(page.getByText('Buried: 1', { exact: false })).toBeVisible()
   await expect(page.getByText(/Cremated|Cremations|Cremate a project/i)).toHaveCount(0)
   await page.getByRole('button', { name: 'FAQ', exact: true }).click()
   await page.getByRole('button', { name: 'How many graves do I get?' }).click()
-  await expect(page.getByRole('region', { name: 'How many graves do I get?' })).toContainText('share this account allowance')
+  await expect(page.getByRole('region', { name: 'How many graves do I get?' })).toContainText('1 GitHub project burial and 1 local AI-agent project burial')
   await page.getByRole('button', { name: 'What is the Crematory?' }).click()
   await expect(page.getByRole('region', { name: 'What is the Crematory?' })).toContainText('Tributes lists graves')
   await page.getByRole('button', { name: 'Can my AI agent bury a local project?' }).click()
@@ -301,14 +302,16 @@ test('meta memorial remains accessible at the canonical link', async ({ page }) 
   await expect(page.getByRole('dialog')).toContainText('VibeCemetery')
 })
 
-test('F and profile preserve the UUID and shared account allowance on v2', async ({ page }) => {
+test('F and profile preserve the UUID and source-specific burial rights on v2', async ({ page }) => {
   await fixtures(page, 'v2', { authenticated: true })
   await page.goto(`/cemetery?grave=${id}`)
   await page.getByRole('button', { name: 'Press F to pay respects (2)' }).click()
   await expect(page.getByRole('button', { name: 'Paid respects (3)' })).toBeDisabled()
   await page.keyboard.press('Escape')
   await page.getByRole('button', { name: 'Tester', exact: true }).click()
-  await expect(page.getByRole('dialog')).toContainText('1 / 4 used across your account')
+  await expect(page.getByRole('dialog')).toContainText('Burial Rights')
+  await expect(page.getByRole('dialog')).toContainText('GitHub project')
+  await expect(page.getByRole('dialog')).toContainText('Local AI agent')
   await expect(page.getByRole('dialog').getByRole('link', { name: /Local project/ })).toHaveAttribute('href', `/grave/${id}`)
 })
 

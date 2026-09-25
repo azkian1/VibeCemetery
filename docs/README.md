@@ -7,7 +7,7 @@ The live product is the v2 cemetery at [/cemetery](https://vibecemetery.app/ceme
 | [Setup](setup.md) | Dependencies, environment, database installation and tests |
 | [Map](map2.md) | Current map, zones, slots, camera, buildings and committed assets |
 | [Implementation](CLAUDE.md) | Application boundaries and development conventions |
-| [Burial schema](unified-burial-setup.md) | Shared quota, GitHub/local flows and upgrade order |
+| [Burial schema](unified-burial-setup.md) | Source-specific quotas, GitHub/local flows and upgrade order |
 | [GRAVE burns](web3-grave-burn-mvp.md) | Verification, accounting and recovery |
 | [Burn release checks](web3-grave-burn-v1-finish-runbook.md) | Safe configuration, preflight and acceptance |
 | [Release operations](v2-cutover-runbook.md) | Deployment verification, observation and recovery |

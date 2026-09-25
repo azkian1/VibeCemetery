@@ -10,7 +10,7 @@ export default function CTAButtons() {
   const account = useAccountGraves()
   const isMobile = useIsMobile()
   if (isMobile) return null
-  const disabled = Boolean(session?.user && (!account.data?.canCreateGrave || account.loading))
+  const disabled = Boolean(session?.user && (!account.data?.canCreateGithubGrave || account.loading))
   const status = session?.user
     ? account.error || (account.loading ? 'Checking grave slots...' : disabled ? 'No grave slots left.' : '')
     : ''
