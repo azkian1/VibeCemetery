@@ -5,7 +5,7 @@ import { CHAT_STATUS_ITEMS, getChatStatusCounts } from '../src/components/hud/Ch
 test('chat status bar includes only total and buried counters', () => {
   expect(CHAT_STATUS_ITEMS).toEqual([
     { key: 'total', label: 'Total', emoji: '💀' },
-    { key: 'buried', label: 'Buried', emoji: '🪦' },
+    { key: 'buried', label: 'Buried', emoji: '✝' },
   ])
 })
 

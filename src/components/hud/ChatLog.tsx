@@ -23,7 +23,7 @@ const MESSAGE_PREFIXES: Partial<Record<ChatMessage['type'], string>> = {
 
 export const CHAT_STATUS_ITEMS = [
   { key: 'total', label: 'Total', emoji: '💀' },
-  { key: 'buried', label: 'Buried', emoji: '🪦' },
+  { key: 'buried', label: 'Buried', emoji: '✝' },
 ];
 
 export function getChatStatusCounts({
