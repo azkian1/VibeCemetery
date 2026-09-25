@@ -1,0 +1,1 @@
+`Cinzel-Bold.ttf` is the static Cinzel font from [google-fonts-bower/cinzel-bower](https://github.com/google-fonts-bower/cinzel-bower). Its SIL Open Font License is included in `OFL.txt`. The OG image renderer needs TTF; the site's WOFF2 files are unsupported there.
