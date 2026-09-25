@@ -45,7 +45,7 @@ New zones will open at checkpoints tied to the amount of **$GRAVE burned**. Burn
 
 ![The nine-zone cemetery master plan](docs/images/cemetery-master-plan.png)
 
-*The master plan shows the full world concept. Its illustrated zone allocations are provisional; the playable map currently has 144 plots across two open zones.*
+*The master plan labels the 144 current plots as A: 60 and D: 84. The other seven zones have a provisional combined budget of 522 plots, bringing the full-world plan to 666. The playable map does not yet store zone IDs per plot.*
 
 <details>
 <summary><strong>A note from the Keeper</strong></summary>

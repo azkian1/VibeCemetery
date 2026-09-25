@@ -18,7 +18,7 @@ The live product is the v2 cemetery at [/cemetery](https://vibecemetery.app/ceme
 
 Two of nine zones are open. The current map contains 144 approved plots; the full-world target is 666. Further zones are planned around published GRAVE burn checkpoints. Thresholds, release dates and automated unlock behavior are not implemented contracts yet.
 
-The [master-plan illustration](images/cemetery-master-plan.png) shows the intended world, not a screenshot or an authoritative slot allocation. Use the shipped TMJ and slot audit for current behavior.
+The [master-plan illustration](images/cemetery-master-plan.png) shows A: 60 and D: 84 current plots, with 522 provisional plots in seven future zones. It is an illustration, not a screenshot or a runtime zone assignment. Use the shipped TMJ and slot audit for current behavior.
 
 The [Agent Ash / GitLawb experiment](agent-layer/README.md) is paused. Its archived contracts are maintained separately for compatibility; the active local-project workflow uses the site's agent instructions.
 
