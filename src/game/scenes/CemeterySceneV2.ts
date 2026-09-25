@@ -97,8 +97,6 @@ const ENTRANCE_GATE_WIDTH = 470;
 const ENTRANCE_GATE_HEIGHT = 235;
 const ENTRANCE_ART_KEYS = [
   'entrance-main-gate-v1',
-  'entrance-stone-cross-v1',
-  'entrance-stone-slab-v1',
 ] as const;
 
 const TILESET_NAMES_V2 = [
@@ -287,8 +285,6 @@ export class CemeterySceneV2 extends Phaser.Scene {
 
     this.load.tilemapTiledJSON('cemetery-map-v2', CEMETERY_MAP_V2_URL);
     this.load.image('entrance-main-gate-v1', `${ENTRANCE_ART_BASE_URL}/main-gate-v1.png`);
-    this.load.image('entrance-stone-cross-v1', `${ENTRANCE_ART_BASE_URL}/stone-cross-v1.png`);
-    this.load.image('entrance-stone-slab-v1', `${ENTRANCE_ART_BASE_URL}/stone-slab-v1.png`);
     this.load.image('painted-terrain-v5', `${PAINTED_ART_BASE_URL_V2}/terrain-v5.webp`);
     for (let i = 1; i <= PAINTED_GRAVE_ATLAS_COUNT_V2; i++) {
       const number = String(i).padStart(2, '0');
@@ -460,7 +456,6 @@ export class CemeterySceneV2 extends Phaser.Scene {
     // Render tree sprites from TreeObj layer
     this.slots = parseSlotsV2(this.map);
     this.renderTreeSprites();
-    this.renderEntranceMemorials();
 
     // Emit minimap tile raster for v2 (140x104)
     this.emitMinimapTiles();
@@ -687,16 +682,6 @@ export class CemeterySceneV2 extends Phaser.Scene {
       .setOrigin(0)
       .setDisplaySize(2560, 2016)
       .setDepth(10);
-  }
-
-  private renderEntranceMemorials() {
-    if (!this.textures.exists('entrance-stone-cross-v1')
-      || !this.textures.exists('entrance-stone-slab-v1')) return;
-    // These older, unclaimed memorials sit outside approved grave slots.
-    this.add.image(1460, 2970, 'entrance-stone-cross-v1')
-      .setDisplaySize(72, 108).setDepth(800);
-    this.add.image(2238, 2860, 'entrance-stone-slab-v1')
-      .setDisplaySize(126, 84).setDepth(800);
   }
 
   private renderBuildingPreviews() {
